@@ -1,0 +1,7 @@
+# Build artefacts that should never be versioned
+exports.zip
+__pycache__/
+*.pyc
+*.log
+Thumbs.db
+.DS_Store

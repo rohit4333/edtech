@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Er. Rohit Vishwakarma — PNG exports</title>
+<style>
+  :root{--ink:#0E1420;--cream:#F6F1E7;--paper:#FDFAF3;--coral:#FF5B2E;--teal:#12968C;
+    --mono:"Cascadia Mono",Consolas,"Courier New",monospace;
+    --sans:"Segoe UI Variable Display","Segoe UI",Helvetica,Arial,sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--cream);color:var(--ink);font-family:var(--sans);padding:56px 44px 90px}
+  head,header{display:block}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:30px;
+    border-bottom:1.5px solid rgba(14,20,32,.2);padding-bottom:22px;margin-bottom:34px}
+  h1{font-size:44px;letter-spacing:-1.8px;line-height:1}
+  h1 em{font-style:normal;color:var(--coral)}
+  .sub{font-family:var(--mono);font-size:12px;letter-spacing:2.2px;color:#7C7568;margin-top:12px}
+  .note{font-family:var(--mono);font-size:12px;letter-spacing:1.8px;color:#8B8375;text-align:right;line-height:2}
+  h2{font-family:var(--mono);font-size:12.5px;letter-spacing:3px;color:var(--coral);margin:44px 0 18px;display:flex;align-items:center;gap:14px}
+  h2::after{content:"";flex:1;height:1px;background:rgba(14,20,32,.15)}
+  .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  .grid.wide{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
+  figure{background:var(--paper);border:1.2px solid rgba(14,20,32,.16);padding:12px 12px 0;
+    display:flex;flex-direction:column;box-shadow:5px 5px 0 rgba(14,20,32,.05)}
+  figure img{width:100%;height:auto;display:block;background:#0E1420}
+  figure video{width:100%;height:auto;display:block;background:#05070C}
+  .reel figure img{background:#0E1420}
+  figcaption{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:12px 2px;font-family:var(--mono);font-size:11px;letter-spacing:1.4px;color:#7C7568}
+  figcaption b{color:var(--ink);font-weight:600;letter-spacing:1px}
+  .get{font-family:var(--mono);font-size:10.5px;letter-spacing:1.6px;text-decoration:none;
+    color:#180A04;background:var(--coral);padding:7px 10px;white-space:nowrap}
+  .get:hover{background:#E8491F}
+  .get.k4{background:var(--ink);color:var(--cream)}
+  .get.k4:hover{background:#243452}
+  footer{margin-top:56px;border-top:1px solid rgba(14,20,32,.16);padding-top:18px;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:1.8px;color:#8B8375;
+    display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>PNG <em>exports</em></h1>
+    <div class="sub">ER. ROHIT VISHWAKARMA · CREATIVE KIT · 2× + 4K HIGH-RES</div>
+  </div>
+  <div class="note">CLICK “PNG ↓” / “4K ↓” / “GIF ↓” / “MP4 ↓” / “WAV ↓” TO SAVE<br>SLIDES 2160² + 4320² · REELS 2160×3840<br>MOTION: 60S · 1080×1920 · 30FPS · SEPARATE MUSIC / VOICE / MIX</div>
+</header>
+
+<h2>01 / CAROUSEL — 6 SLIDES</h2>
+<div class="grid" id="deck"></div>
+
+<h2>02 / LINKEDIN + BANNER</h2>
+<div class="grid wide" id="wide"></div>
+
+<h2>03 / CAROUSEL — 6 SLIDES (4K · 4320×4320)</h2>
+<div class="grid" id="deck4k"></div>
+
+<h2>04 / REELS — 8 FRAMES</h2>
+<div class="grid reel" id="reels" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
+
+<h2>05 / GIFS — ANIMATED</h2>
+<div class="grid wide" id="gifs"></div>
+
+<h2>06 / MOTION — 60-SECOND REEL</h2>
+<div class="grid" id="motion" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+
+<h2>07 / AUDIO — MUSIC · NARRATION · FULL MIX</h2>
+<div class="grid" id="audio" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+
+<footer>
+  <span>FILES LIVE IN <b>exports/png/</b> + <b>exports/png-4k/</b> + <b>exports/gif/</b> + <b>exports/mp4/</b> + <b>exports/audio/</b></span>
+  <span>2×: <b>export-pngs.ps1</b> · 4K: <b>export-pngs-4k.ps1</b> · PORTRAIT: <b>prepare-tutor-photo.py</b></span>
+</footer>
+
+<script>
+  const deck = [
+    ["deck-01-the-fear","01 · THE FEAR"],
+    ["deck-02-why-it-happens","02 · WHY IT HAPPENS"],
+    ["deck-03-the-fix","03 · THE FIX"],
+    ["deck-04-the-tutor","04 · THE TUTOR"],
+    ["deck-05-the-first-session","05 · FIRST SESSION"],
+    ["deck-06-next-step","06 · NEXT STEP"]
+  ];
+  const wide = [
+    ["linkedin-founder-post","LINKEDIN · FOUNDER POST"],
+    ["banner-linkedin","BANNER · LINKEDIN"]
+  ];
+  const reels = Array.from({length:8}, (_, i) => ["reel-0" + (i+1), "REEL · S" + (i+1)]);
+  const gifs = [
+    ["deck-walkthrough","DECK · WALKTHROUGH — 720² · 14.4S"],
+    ["reel-story","REEL · STORY — 540×960 · 15.2S"]
+  ];
+  const motion = [
+    ["reel-60s","REEL · ALL-IN-ONE — 60S · 1080×1920 · 30FPS"],
+    ["reel-60s-silent","REEL · VISUAL ONLY — 60S · 1080×1920"]
+  ];
+  const audioFiles = [
+    ["reel-60s-music","MUSIC + SFX — 60S · WAV"],
+    ["reel-60s-narration","NARRATION ONLY — 60S · WAV"],
+    ["reel-60s-mix","FULL MIX — 60S · WAV"]
+  ];
+
+  const card = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="png/${file}.png" target="_blank"><img src="thumbs/${file}.jpg" alt="${label}"></a>
+      <figcaption><b>${label}</b><a class="get" href="png/${file}.png" download="${file}.png">PNG ↓</a></figcaption>`;
+    return f;
+  };
+  const card4k = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="png-4k/${file}.png" target="_blank"><img src="thumbs/${file}.jpg" alt="${label} 4K"></a>
+      <figcaption><b>${label}</b><a class="get k4" href="png-4k/${file}.png" download="${file}-4k.png">4K ↓</a></figcaption>`;
+    return f;
+  };
+  const gifCard = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="gif/${file}.gif" target="_blank"><img src="gif/${file}.gif" alt="${label}"></a>
+      <figcaption><b>${label}</b><a class="get" href="gif/${file}.gif" download="${file}.gif">GIF ↓</a></figcaption>`;
+    return f;
+  };
+  const videoCard = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.style.maxWidth = "430px";
+    f.innerHTML = `<video src="mp4/${file}.mp4" poster="thumbs/reel-01.jpg" controls playsinline preload="metadata"></video>
+      <figcaption><b>${label}</b><a class="get" href="mp4/${file}.mp4" download="${file}.mp4">MP4 ↓</a></figcaption>`;
+    return f;
+  };
+  const audioCard = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.style.maxWidth = "430px";
+    f.innerHTML = `<audio src="audio/${file}.wav" controls preload="none" style="width:100%;display:block;margin:18px 0"></audio>
+      <figcaption><b>${label}</b><a class="get" href="audio/${file}.wav" download="${file}.wav">WAV ↓</a></figcaption>`;
+    return f;
+  };
+  deck.forEach(a => document.getElementById("deck").appendChild(card(a)));
+  deck.forEach(a => document.getElementById("deck4k").appendChild(card4k(a)));
+  wide.forEach(a => document.getElementById("wide").appendChild(card(a)));
+  reels.forEach(a => document.getElementById("reels").appendChild(card(a)));
+  gifs.forEach(a => document.getElementById("gifs").appendChild(gifCard(a)));
+  motion.forEach(a => document.getElementById("motion").appendChild(videoCard(a)));
+  audioFiles.forEach(a => document.getElementById("audio").appendChild(audioCard(a)));
+</script>
+</body>
+</html>
