@@ -6,6 +6,8 @@
 #    warm flow -> confidence -> resolve -> trusted close.
 #  - Felt-piano, bowed-string pads, sub bass and soft organic percussion instead
 #    of EDM drums. Reverb send on the music only; narration stays dry and close.
+#  - Scripted SFX sit on the sfx bus: paper/murmur, graph ticks, focus click +
+#    chord, message pops, transition whoosh, pen scratch + chime, bell + ping.
 #  - Look-ahead sidechain: music dips smoothly under every spoken phrase and
 #    recovers without pumping.
 #
@@ -322,6 +324,160 @@ def riser(end_at, dur=1.3, amp=0.045):
     return out
 
 
+def paper_rustle(at, dur=1.5, amp=0.014, seed=0):
+    """Faint paper crinkle — a few soft bursts, never a sharp tear."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(dur * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    rng = np.random.default_rng(9000 + seed)
+    noise = rng.standard_normal(l).astype(np.float32)
+    band = bpf(np.stack([noise, noise], axis=1), 1700, 9000, 2)
+    env = np.zeros(l, dtype=np.float32)
+    pos = 0.02
+    while pos < dur - 0.08:
+        s = int(pos * SR)
+        burst = min(int(rng.uniform(0.06, 0.16) * SR), l - s)
+        if burst <= 0:
+            break
+        env[s:s + burst] += (np.exp(-np.arange(burst) / (0.028 * SR))
+                              * rng.uniform(0.55, 1.0)).astype(np.float32)
+        pos += rng.uniform(0.12, 0.24)
+    t = np.arange(l) / max(1, l - 1)
+    env = np.minimum(env, 1.4) * (np.sin(np.pi * np.clip(t, 0, 1)) ** 0.6)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l] = band * (amp * env)[:, None]
+    return out
+
+
+def murmur(at, dur=3.6, amp=0.011, seed=0):
+    """Quiet classroom murmur — low, breathy voices that fade away on cue."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(dur * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    rng = np.random.default_rng(9200 + seed)
+    noise = rng.standard_normal(l).astype(np.float32)
+    t = np.arange(l) / SR
+    y = np.zeros((l, 2), dtype=np.float32)
+    for j, (lo, hi) in enumerate(((180, 420), (280, 620), (420, 900), (620, 1300))):
+        ch = j % 2
+        band = bpf(np.stack([noise, noise], axis=1), lo, hi)[:, ch]
+        mod = 0.55 + 0.45 * np.sin(2 * np.pi * (0.45 + 0.11 * j) * t + rng.uniform(0, 6.28))
+        y[:, ch] += band * mod
+    y = lpf(y, 1900, 2)
+    e = np.sin(np.pi * np.clip(t / dur, 0, 1)) ** 0.8
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l] = y * (amp * e)[:, None]
+    return out
+
+
+def focus_click(at, amp=0.014):
+    """Soft camera-lens focus click: tiny high noise tick + glassy tone."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(0.07 * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    t = np.arange(l) / SR
+    rng = np.random.default_rng(9400 + int(at * 7))
+    noise = hpf(np.stack([rng.standard_normal(l)] * 2, axis=1), 2600, 2)
+    tone = (np.sin(2 * np.pi * 1850 * t) + 0.4 * np.sin(2 * np.pi * 3100 * t))
+    sig = 0.55 * noise * np.exp(-t * 95)[:, None]
+    sig += (0.45 * tone * np.exp(-t * 120))[:, None]
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l] = (amp * np.tanh(sig * 1.5)).astype(np.float32)
+    return out
+
+
+def message_pop(at, amp=0.016):
+    """Subtle phone pop — a short, warm blip with a soft top click."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(0.18 * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    t = np.arange(l) / SR
+    f = 620 + 760 * (1 - np.exp(-t * 35))
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 26)
+    rng = np.random.default_rng(9600 + int(at * 11))
+    click = rng.standard_normal(l) * np.exp(-t * 220) * 0.18
+    sig = np.tanh(body + click)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l, 0] = amp * sig * 0.94
+    out[i0:i0 + l, 1] = amp * np.roll(sig, int(0.004 * SR)) * 1.06
+    return out
+
+
+def pen_scratch(at, dur=1.6, amp=0.012, seed=0):
+    """Natural pen nib on paper — several short, filtered strokes."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(dur * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    rng = np.random.default_rng(9800 + seed)
+    noise = rng.standard_normal(l).astype(np.float32)
+    band = bpf(np.stack([noise, noise], axis=1), 1800, 8500, 2)
+    env = np.zeros(l, dtype=np.float32)
+    pos = 0.03
+    while pos < dur - 0.12:
+        s = int(pos * SR)
+        stroke = min(int(rng.uniform(0.10, 0.26) * SR), l - s)
+        if stroke <= 0:
+            break
+        tt = np.arange(stroke) / SR
+        shape = (1 - np.exp(-tt * 350)) * np.exp(-tt * rng.uniform(6, 13))
+        shape *= 0.7 + 0.3 * np.sin(2 * np.pi * rng.uniform(24, 42) * tt)
+        env[s:s + stroke] += (rng.uniform(0.5, 1.0) * shape).astype(np.float32)
+        pos += rng.uniform(0.22, 0.38)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l] = band * (amp * np.minimum(env, 1.3))[:, None]
+    return out
+
+
+def bell(at, amp=0.018, base=523.25, dur=2.8):
+    """Warm acoustic bell note with a soft, inharmonic tail."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(dur * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    t = np.arange(l) / SR
+    rng = np.random.default_rng(9900 + int(at * 3))
+    sig = np.zeros(l, dtype=np.float32)
+    for j, (ratio, decay) in enumerate(((1.0, 2.4), (2.01, 3.6), (2.98, 5.2), (4.12, 7.0))):
+        sig += (0.62 ** j) * np.sin(2 * np.pi * base * ratio * t + rng.uniform(0, 6.28)) * np.exp(-t * decay)
+    atk = max(1, int(0.008 * SR))
+    sig[:atk] *= np.linspace(0, 1, atk)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l, 0] = amp * sig
+    out[i0:i0 + l, 1] = amp * np.roll(sig, int(0.006 * SR))
+    return out
+
+
+def whatsapp_ping(at, amp=0.014):
+    """Crisp sent-message ping: two clean notes, short and unobtrusive."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(0.34 * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    sig = np.zeros(l, dtype=np.float32)
+    for start, f, d, decay in ((0.0, 1318.5, 0.11, 34.0), (0.13, 1760.0, 0.16, 26.0)):
+        s = int(start * SR)
+        le = min(int(d * SR), l - s)
+        if le > 0:
+            tt = np.arange(le) / SR
+            sig[s:s + le] += np.sin(2 * np.pi * f * tt) * np.exp(-tt * decay)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l, 0] = amp * sig * 0.92
+    out[i0:i0 + l, 1] = amp * np.roll(sig, int(0.003 * SR)) * 1.08
+    return out
+
+
 # ---------------------------------------------------------------- reverb / dynamics
 
 def make_ir(dur=1.35, seed=11, damp=5200):
@@ -444,8 +600,10 @@ def build_score():
     for k, at in enumerate([0.0, 1.0, 2.0, 3.0, 4.0, 5.0]):
         add_bus(perc, kick(at, 0.17 if k else 0.20, seed=k))
     add_bus(perc, rim(2.5, 0.028, 1))
-    add_bus(sfx, impact(0.0, 0.055))
-    add_bus(sfx, riser(6.0, 1.2, 0.045))
+    add_bus(sfx, impact(0.0, 0.026))
+    add_bus(sfx, paper_rustle(0.12, 1.5, 0.014, 1))       # faint page turn
+    add_bus(sfx, murmur(1.35, 4.55, 0.011, 2))            # fades out at the 6s cut
+    add_bus(sfx, riser(6.0, 1.2, 0.040))
 
     # ---- S2 (6-13) : empathy, no drums, warm and slow
     add_bus(bed, pad([Bb2 / 2, F2, Bb2, D3, A3], 5.9, 7.8, amp=0.105, attack=1.8, release=1.8, bright=2100, seed=5))
@@ -455,6 +613,9 @@ def build_score():
         add_bus(bed, piano(f, at, amp=0.040, dur=3.4, pan=p, seed=s))
     # no drums here — the empathy beat stays breathing, the voice carries it
     add_bus(sfx, whoosh(6.0, 0.7, 0.028, True))
+    # minimalist digital ticks land with the two confidence drops in the graph
+    for at, freq, amp in ((8.35, 2400, 0.013), (10.40, 2700, 0.012), (12.45, 2200, 0.011)):
+        add_bus(sfx, tick(at, amp, freq))
 
     # ---- S3 (13-20) : the weight, slow build
     add_bus(bed, pad([F2, C3, F3, A3, E4], 12.8, 7.6, amp=0.115, attack=1.4, release=1.5, bright=2300, seed=11))
@@ -488,8 +649,11 @@ def build_score():
         add_bus(perc, rim(at, 0.055, seed=80 + k))
     for k in range(int(9 * 4)):
         add_bus(perc, shaker(20.25 + k * 0.25, 0.013, seed=90 + k))
-    add_bus(sfx, impact(20.0, 0.062))
-    add_bus(sfx, whoosh(20.0, 0.8, 0.034, True))
+    add_bus(sfx, impact(20.0, 0.030))
+    add_bus(sfx, whoosh(20.0, 0.8, 0.024, True))
+    add_bus(sfx, focus_click(20.06, 0.014))              # lens locks on
+    add_bus(sfx, pad([C4, E4, G4, C5], 20.28, 2.8,       # warm chord resolution
+                     amp=0.030, attack=0.30, release=1.5, bright=2600, seed=91))
 
     # ---- S5 (29-39) : warm flow, half-time
     add_bus(bed, pad([G2, D3, Bb3, F4, A3], 28.7, 10.6, amp=0.115, attack=1.3, release=1.8, bright=2500, seed=31))
@@ -504,6 +668,9 @@ def build_score():
     for k in range(int(10 * 2)):
         add_bus(perc, shaker(29.25 + k * 0.5, 0.014, seed=120 + k))
     add_bus(sfx, whoosh(29.0, 0.6, 0.026, True))
+    add_bus(sfx, message_pop(29.12, 0.016))              # soft chat notification
+    add_bus(sfx, message_pop(30.05, 0.011))
+    add_bus(sfx, whoosh(31.0, 1.4, 0.022, True))         # premium transition into tutor
 
     # ---- S6 (39-48) : confident, clear — the tutor
     add_bus(bed, pad([F2, C3, F3, A3, G4], 38.6, 10.2, amp=0.125, attack=0.9, release=2.0, bright=2800, seed=41))
@@ -519,9 +686,7 @@ def build_score():
     for k in range(int(9 * 2)):
         add_bus(perc, shaker(39.25 + k * 0.5, 0.013, seed=150 + k))
     add_bus(sfx, whoosh(39.0, 0.7, 0.028, True))
-    add_bus(sfx, impact(39.0, 0.042))
-    add_bus(sfx, tick(40.58, 0.018, 2100))
-    add_bus(sfx, tick(41.20, 0.016, 2500))
+    add_bus(sfx, impact(39.0, 0.032))
 
     # ---- S7 (48-54) : bright resolve
     add_bus(bed, pad([C3, G3, C4, E4, G4], 47.7, 6.8, amp=0.115, attack=0.7, release=1.6, bright=3200, seed=51))
@@ -532,8 +697,9 @@ def build_score():
         add_bus(perc, kick(at, 0.13, seed=160 + k))
     for k, at in enumerate([49.0, 51.0, 53.0]):
         add_bus(perc, rim(at, 0.042, seed=170 + k))
-    add_bus(sfx, whoosh(48.0, 0.65, 0.027, True))
-    add_bus(sfx, chime(48.15, 0.020, 1046.5))
+    add_bus(sfx, whoosh(48.0, 0.65, 0.024, True))
+    add_bus(sfx, pen_scratch(48.15, 1.65, 0.012, 3))
+    add_bus(sfx, chime(49.95, 0.020, 1046.5))           # clean success chime
 
     # ---- S8 (54-60) : trusted close
     add_bus(bed, pad([F2, C3, F3, A3, C4, F4], 53.6, 7.4, amp=0.125, attack=0.5, release=3.4, bright=3000, seed=61))
@@ -544,10 +710,10 @@ def build_score():
         add_bus(perc, kick(at, 0.14, seed=180 + k))
     for k, at in enumerate([55.0, 57.0, 59.0]):
         add_bus(perc, rim(at, 0.040, seed=190 + k))
-    add_bus(sfx, whoosh(54.0, 0.7, 0.026, True))
-    add_bus(sfx, impact(54.0, 0.040))
-    add_bus(sfx, chime(55.6, 0.028, 784.0))
-    add_bus(sfx, tick(56.35, 0.012, 2600))
+    add_bus(sfx, whoosh(54.0, 0.7, 0.024, True))
+    add_bus(sfx, impact(54.0, 0.030))
+    add_bus(sfx, bell(54.10, 0.018, 523.25, 2.8))
+    add_bus(sfx, whatsapp_ping(55.75, 0.014))
 
     return bed, perc, sfx
 
@@ -577,8 +743,10 @@ def process_vo(seg):
     return norm(x, 0.84).astype(np.float32)
 
 
-VO_MAP = [(1, 0.25), (2, 6.35), (3, 13.35), (4, 21.0),
-          (5, 29.6), (6, 39.25), (7, 48.5), (8, 53.9)]
+# Seven narration blocks from the new documentary script. Visual cuts stay at
+# T=[0,6,13,20,29,39,48,54,60]; the voice crosses some cuts by design.
+VO_MAP = [(1, 0.10), (2, 7.70), (3, 17.90), (4, 23.80),
+          (5, 30.90), (6, 42.20), (7, 49.40)]
 
 
 def build_mix():
@@ -621,9 +789,9 @@ def build_mix():
     vf = int(0.10 * SR)
     mix[-vf:] *= np.linspace(1, 0.985, vf)[:, None]
 
-    # master: glue, transparent limiting, -14 LUFS / -2 dBFS sample peak
+    # master: glue, transparent limiting, -14 LUFS / ~ -2.5 dBFS true peak
     mix = np.tanh(mix * 1.05) / np.tanh(1.05)
-    mix = master(mix, target_lufs=-14.0, ceiling_db=-2.0)
+    mix = master(mix, target_lufs=-14.0, ceiling_db=-2.75)
     music_out = norm(music_out, 0.89)
     narration = norm(voice, 0.90)
     return mix.astype(np.float32), music_out.astype(np.float32), narration.astype(np.float32)

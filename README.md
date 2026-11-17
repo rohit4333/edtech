@@ -27,15 +27,15 @@ produced soundtrack.
   - `reel-60s-music.mp4` — video + score/SFX, no narration
   - `reel-60s-silent.mp4` — visual master, no audio
 - `exports/audio/` — 48 kHz / 16-bit stems: `-music`, `-narration`, `-mix`.
-- `exports/vo/` — per-scene narration clips (`vo-s1.wav` … `vo-s8.wav`).
+- `exports/vo/` — seven documentary-script narration blocks (`vo-s1.wav` … `vo-s7.wav`).
 - `exports/index.html` — asset gallery for browsing all of the above.
 
 ## Rebuilding
 
 ```powershell
-# narration (edge-tts, en-IN-NeerjaExpressiveNeural, phrase-level prosody)
+# narration (edge-tts, en-US-GuyNeural, calm documentary delivery)
 py .\exports\make-reel-voiceover.py
-py .\exports\make-reel-voiceover.py --only 6   # re-record a single scene
+py .\exports\make-reel-voiceover.py --only 6   # re-record a single block
 
 # stills: all assets, or just the ones that changed
 powershell -ExecutionPolicy Bypass -File .\exports\export-pngs.ps1            # 2x
@@ -69,5 +69,8 @@ Requirements: Python 3.11+, `numpy`, `scipy`, `edge-tts`, `imageio-ffmpeg`.
   reverb on the music only, narration stays dry and close.
 - Look-ahead sidechain ducks the bed (and the low band a little deeper) under every
   spoken phrase; the master is gated and limited to ≈ −14.0 LUFS / −2.5 dBFS true peak.
-- SFX are deliberately quiet: soft impacts on the act turns, air whooshes on cuts,
-  ticks on the credential lines, chimes on the reveal and the closing CTA.
+- The seven VO blocks follow the new cue sheet and deliberately cross some visual cuts;
+  the 60 s length and the cut points are unchanged.
+- SFX are deliberately quiet: paper rustle into classroom murmur, digital graph ticks,
+  lens focus click and warm chord, message pops, a smooth transition whoosh, pen scratch
+  into success chime, and a warm bell into a crisp WhatsApp ping.
