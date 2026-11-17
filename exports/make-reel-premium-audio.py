@@ -94,7 +94,8 @@ def main():
     else:
         print("[skip] stems are up to date (use --force to rebuild)")
 
-    if force or not premium.exists() or premium.stat().st_mtime < mix_wav.stat().st_mtime:
+    if (force or not premium.exists()
+            or premium.stat().st_mtime < max(mix_wav.stat().st_mtime, SILENT.stat().st_mtime)):
         print("muxing -> reel-60s-premium.mp4")
         mux(SILENT, mix_wav, premium)
         probe(premium)
@@ -103,7 +104,8 @@ def main():
     else:
         print("[skip] reel-60s-premium.mp4 is up to date")
 
-    if force or not music_mp4.exists() or music_mp4.stat().st_mtime < music_wav.stat().st_mtime:
+    if (force or not music_mp4.exists()
+            or music_mp4.stat().st_mtime < max(music_wav.stat().st_mtime, SILENT.stat().st_mtime)):
         print("muxing -> reel-60s-music.mp4 (no narration)")
         mux(SILENT, music_wav, music_mp4)
     else:

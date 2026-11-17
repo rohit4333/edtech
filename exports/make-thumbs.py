@@ -1,7 +1,9 @@
 # Build the gallery's JPEG thumbnails from the exported 2x PNGs.
-# Run:  py .\exports\make-thumbs.py
+# Run:  py .\exports\make-thumbs.py                     # all assets
+#       py .\exports\make-thumbs.py --only deck-04-the-tutor
 # Output: exports\thumbs\*.jpg  (720px wide, matches exports\index.html)
 
+import sys
 from pathlib import Path
 
 from PIL import Image
@@ -17,7 +19,16 @@ QUALITY = 82
 
 def main() -> None:
     total = 0
+    only = set()
+    for i, arg in enumerate(sys.argv):
+        if arg == "--only" and i + 1 < len(sys.argv):
+            only.update(x.strip() for x in sys.argv[i + 1].split(",") if x.strip())
     files = sorted(SRC.glob("*.png"))
+    if only:
+        files = [f for f in files
+                 if any(f.stem == o or f.stem.startswith(o) for o in only)]
+        if not files:
+            raise SystemExit(f"no PNGs matched --only {sorted(only)}")
     for src in files:
         im = Image.open(src).convert("RGB")
         height = round(im.height * WIDTH / im.width)

@@ -15,7 +15,7 @@ import numpy as np
 VO = Path(__file__).resolve().parent.parent / "exports" / "vo"
 
 T = [0, 6, 13, 20, 29, 39, 48, 54, 60]
-VO_START = [0.25, 6.35, 13.35, 21.0, 29.6, 39.5, 48.5, 53.9]
+VO_START = [0.25, 6.35, 13.35, 21.0, 29.6, 39.25, 48.5, 53.9]
 THRESH = 0.008
 
 

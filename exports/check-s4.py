@@ -65,13 +65,14 @@ def main():
     assert not errs, errs
     assert m["card"] == {"w": 924, "h": 612}, m["card"]
     assert m["missing"], "old small s4-role / s4-now lines should be gone"
-    assert len(m["values"]) == 2, m["values"]
+    assert len(m["values"]) == 3, m["values"]
     for v in m["values"]:
         assert v["size"] >= 30, ("credential word too small", v)
         assert int(v["weight"]) >= 700, ("credential word not bold", v)
         assert v["b"] <= m["card"]["h"] - 40, ("credential spills the card", v)
+    assert [v["text"] for v in m["values"]] == ["IIIT ALLAHABAD", "SAMSUNG", "BHANZU"], m["values"]
     assert m["note"]["b"] <= m["card"]["h"], m["note"]
-    print("\nOK — deck 04 carries both credentials as large bold plates.")
+    print("\nOK — deck 04 carries all three credentials as large bold plates.")
 
 
 if __name__ == "__main__":

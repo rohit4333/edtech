@@ -5,6 +5,7 @@
 # flat, one-shot "AI read" feel of a single synthesize call.
 #
 # Run: py .\exports\make-reel-voiceover.py
+#       py .\exports\make-reel-voiceover.py --only 6    # re-record one scene only
 # Output: exports\vo\vo-s1.wav ... vo-s8.wav  (48 kHz mono)
 #
 # Written form vs. spoken form (abbreviations stay as they are on screen):
@@ -19,6 +20,7 @@
 
 import asyncio
 import subprocess
+import sys
 import tempfile
 import wave
 from pathlib import Path
@@ -37,7 +39,7 @@ PRE, POST = 0.03, 0.05
 
 # (start_s, scene_end_s) — a line must finish inside its scene.
 SLOTS = [(0.25, 6.0), (6.35, 13.0), (13.35, 20.0), (21.0, 29.0),
-         (29.6, 39.0), (39.5, 48.0), (48.5, 54.0), (53.9, 60.0)]
+         (29.6, 39.0), (39.25, 48.0), (48.5, 54.0), (53.9, 60.0)]
 
 # phrase, rate, pitch, gain(dB), pause after (s)
 LINES = [
@@ -64,10 +66,10 @@ LINES = [
         ("It starts with one conversation.", "+0%", "+0Hz", 0.0, 0.24),
         ("We meet your child exactly where they are stuck.", "-2%", "-1Hz", -0.5, 0.0),
     ],
-    [   # S6 — confident, clear credentials
-        ("I am Engineer Rohit Vishwakarma.", "-1%", "+0Hz", 0.5, 0.24),
-        ("B Tech and M Tech from triple I T Elaahaabaad.", "-3%", "-1Hz", 0.0, 0.26),
-        ("Maths expert at Bhaanzu.", "-3%", "-2Hz", -0.5, 0.0),
+    [   # S6 — credentials: name, ex-SDE at Samsung, IIIT, Bhanzu
+        ("Engineer Rohit Vishwakarma, ex S D E at Samsung.", "+8%", "+0Hz", 0.5, 0.15),
+        ("B Tech and M Tech, triple I T Elaahaabaad.", "+6%", "-1Hz", 0.0, 0.12),
+        ("Maths expert at Bhaanzu.", "+3%", "-2Hz", -0.5, 0.0),
     ],
     [   # S7 — relief
         ("And confidence comes back,", "+0%", "+1Hz", 0.5, 0.16),
@@ -137,7 +139,14 @@ def speak_line(phrases, tag):
 
 
 def main():
+    only = set()
+    for i, arg in enumerate(sys.argv):
+        if arg == "--only" and i + 1 < len(sys.argv):
+            only.update(x.strip().lower().removeprefix("s")
+                        for x in sys.argv[i + 1].split(",") if x.strip())
     for i, phrases in enumerate(LINES):
+        if only and str(i + 1) not in only:
+            continue
         seg = speak_line(phrases, f"s{i + 1}")
         path = OUT / f"vo-s{i + 1}.wav"
         with wave.open(str(path), "wb") as w:
@@ -147,7 +156,7 @@ def main():
             w.writeframes(np.clip(seg * 32767, -32768, 32767).astype(np.int16).tobytes())
         start, end = SLOTS[i]
         dur = len(seg) / SR
-        fit = "ok" if dur <= (end - start) - 0.1 else "OVER"
+        fit = "ok" if dur <= (end - start) - 0.05 else "OVER"
         print(f"[ok] vo-s{i + 1}.wav  {dur:5.2f}s  slot {end - start:4.1f}s  {fit}")
     print(f"Done -> {OUT}")
 

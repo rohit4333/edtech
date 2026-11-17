@@ -4,7 +4,10 @@
 # Output: exports\png\*.png  (slides 2160x2160, reel frames 2160x3840, banner 3168x792)
 
 param(
-  [double]$Scale = 2
+  [double]$Scale = 2,
+  # Optional filter: re-export only these assets, by key or file name.
+  # e.g.  -Only s4  or  -Only deck-04-the-tutor
+  [string[]]$Only
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,6 +50,7 @@ $baseUri = ([System.Uri]$source).AbsoluteUri
 $profile = Join-Path $env:TEMP ("kit-export-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 
 foreach ($a in $assets) {
+  if ($Only -and -not ($Only -contains $a.key -or $Only -contains $a.name)) { continue }
   $out  = Join-Path $outDir ($a.name + '.png')
   $w    = [int]($a.w * $Scale)
   $h    = [int]($a.h * $Scale)

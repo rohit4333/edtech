@@ -2,10 +2,12 @@
 # Chrome re-rasterises all text / SVG / gradients at 4x, so they stay perfectly
 # sharp; the tutor cutout is pre-upscaled to 1654x2450 by prepare-tutor-photo.py.
 # Run:  powershell -ExecutionPolicy Bypass -File .\exports\export-pngs-4k.ps1
+#       ... -Only s4      # re-export just one slide
 # Output: exports\png-4k\*.png
 
 param(
-  [double]$Scale = 4
+  [double]$Scale = 4,
+  [string[]]$Only
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,6 +41,7 @@ $w = [int](1080 * $Scale)
 $h = [int](1080 * $Scale)
 
 foreach ($a in $assets) {
+  if ($Only -and -not ($Only -contains $a.key -or $Only -contains $a.name)) { continue }
   $out = Join-Path $outDir ($a.name + '.png')
   $url = "$baseUri#export=$($a.key)"
 

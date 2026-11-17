@@ -1,6 +1,11 @@
 # Export the 6 carousel slides as 1536x1536 PNGs.
 # Run:  powershell -ExecutionPolicy Bypass -File .\exports\export-pngs-1536.ps1
+#       ... -Only s4      # re-export just one slide
 # Output: exports\png-1536\*.png
+
+param(
+  [string[]]$Only
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -34,6 +39,7 @@ $w = 1536
 $h = 1536
 
 foreach ($a in $assets) {
+  if ($Only -and -not ($Only -contains $a.key -or $Only -contains $a.name)) { continue }
   $out = Join-Path $outDir ($a.name + '.png')
   $url = "$baseUri#export=$($a.key)"
 
