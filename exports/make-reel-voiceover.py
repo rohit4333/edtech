@@ -13,6 +13,7 @@
 #   B.Tech    -> "B Tech"        (not "B dot tech")
 #   M.Tech    -> "M Tech"        (not "M dot tech")
 #   IIIT      -> "triple I T"    (letters, not a word)
+#   EX-SDE    -> "ex software developer"  (spoken in full; on screen stays EX-SDE)
 #   Allahabad -> "Elaahaabaad"   (Ilaa-haa-baad, not "Allah-bad")
 #   Bhanzu    -> "Bhaanzu"       (bhaan-zoo)
 #
@@ -66,10 +67,10 @@ LINES = [
         ("It starts with one conversation.", "+0%", "+0Hz", 0.0, 0.24),
         ("We meet your child exactly where they are stuck.", "-2%", "-1Hz", -0.5, 0.0),
     ],
-    [   # S6 — credentials: name, ex-SDE at Samsung, IIIT, Bhanzu
-        ("Engineer Rohit Vishwakarma, ex S D E at Samsung.", "+8%", "+0Hz", 0.5, 0.15),
-        ("B Tech and M Tech, triple I T Elaahaabaad.", "+6%", "-1Hz", 0.0, 0.12),
-        ("Maths expert at Bhaanzu.", "+3%", "-2Hz", -0.5, 0.0),
+    [   # S6 — credentials: name, ex-SDE (spoken in full) at Samsung, IIIT, Bhanzu
+        ("Engineer Rohit Vishwakarma, ex software developer from Samsung.", "+12%", "+0Hz", 0.5, 0.12),
+        ("B Tech and M Tech, triple I T Elaahaabaad.", "+8%", "-1Hz", 0.0, 0.10),
+        ("Maths expert at Bhaanzu.", "+4%", "-2Hz", -0.5, 0.0),
     ],
     [   # S7 — relief
         ("And confidence comes back,", "+0%", "+1Hz", 0.5, 0.16),
