@@ -129,14 +129,25 @@ def build_score_old():
 
 
 def retime_score(seg):
-    """Lift each scored scene onto the new cut, dropping only its silent tail."""
+    """Lift each scored scene onto the new cut with a smooth overlap at every
+    boundary. A little pre-roll lets each scene's pad/percussion tail overlap
+    the next scene instead of stopping abruptly on the cut."""
     out = np.zeros((int(TOTAL * SR), 2), dtype=np.float32)
+    pre = int(0.28 * SR)
     for i in range(len(T) - 1):
-        src = int(OLD_T[i] * SR)
-        n = int((T[i + 1] - T[i]) * SR)
-        dst = int(T[i] * SR)
-        part = seg[src:src + n]
-        out[dst:dst + len(part)] = part
+        pre_i = pre if i else 0
+        src = int(OLD_T[i] * SR) - pre_i
+        n = int((T[i + 1] - T[i]) * SR) + pre_i
+        dst = int(T[i] * SR) - pre_i
+        part = seg[max(0, src):src + n].copy()
+        if pre_i:
+            k = min(pre_i, len(part))
+            fin = np.linspace(0, 1, k, dtype=np.float32)[:, None] ** 1.5
+            fout = np.linspace(1, 0, k, dtype=np.float32)[:, None] ** 1.5
+            out[dst:dst + k] *= fout
+            part[:k] *= fin
+        d = min(len(part), out.shape[0] - dst)
+        out[dst:dst + d] += part[:d]
     return out
 
 
@@ -316,6 +327,31 @@ def chime(at, amp=0.030, base=784.0):
     return out
 
 
+def transition(at, dur=0.24, amp=0.018):
+    """One consistent, click-free swell centred on a cut.
+
+    A soft low-passed noise lift plus a quiet sine glide, with a squared-sine
+    envelope so it starts and ends at zero. The old per-scene whooshes and
+    impacts are removed; this is the only transition accent."""
+    n = int(TOTAL * SR)
+    i0 = int(max(0, at - dur * 0.5) * SR)
+    l = min(int(dur * SR), n - i0)
+    if l <= 0:
+        return np.zeros((n, 2), dtype=np.float32)
+    t = np.arange(l) / SR
+    rng = np.random.default_rng(9000 + int(at * 37))
+    noise = rng.standard_normal(l).astype(np.float32)
+    noise = lpf(np.stack([noise, noise], axis=1), 2400, 3)[:, 0]
+    sweep = 260 + 900 * np.sin(np.pi * t / dur) ** 2
+    glide = np.sin(2 * np.pi * np.cumsum(sweep) / SR).astype(np.float32)
+    env = np.sin(np.pi * t / dur) ** 2
+    sig = (0.75 * noise + 0.25 * glide) * env
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[i0:i0 + l, 0] = amp * sig
+    out[i0:i0 + l, 1] = amp * sig
+    return out
+
+
 def impact(at, amp=0.07):
     n = int(TOTAL * SR)
     i0 = int(at * SR)
@@ -480,7 +516,6 @@ def build_score():
     for k, at in enumerate([3.5, 5.5]):
         add_bus(perc, rim(at, 0.030, seed=k + 1))
     add_bus(sfx, impact(0.0, 0.055))
-    add_bus(sfx, riser(7.5, 1.4, 0.045))
 
     # ---- S2 (7.5-13.5) : empathy, no big drums, warm and quick
     add_bus(bed, pad([Bb2 / 2, F2, Bb2, D3, A3], 7.25, 6.6, amp=0.11, attack=1.3, release=1.6, bright=2400, seed=5))
@@ -490,7 +525,6 @@ def build_score():
                         (12.0, A3, 0.14, 9)]:
         add_bus(bed, piano(f, at, amp=0.040, dur=2.6, pan=p, seed=s))
     add_bus(perc, rim(11.0, 0.026, 2))
-    add_bus(sfx, whoosh(7.5, 0.6, 0.028, True))
 
     # ---- S3 (13.5-19) : the weight, tight build
     add_bus(bed, pad([F2, C3, F3, A3, E4], 13.25, 6.1, amp=0.12, attack=1.1, release=1.4, bright=2600, seed=11))
@@ -504,8 +538,6 @@ def build_score():
         add_bus(perc, rim(at, 0.045, seed=k + 30))
     for k in range(11):
         add_bus(perc, shaker(13.5 + k * 0.5, 0.018, seed=k + 40))
-    add_bus(sfx, whoosh(13.5, 0.55, 0.027, True))
-    add_bus(sfx, riser(19.0, 1.2, 0.050))
 
     # ---- S4 (19-25.5) : the turn — brighter, rising arpeggio
     add_bus(bed, pad([Bb2, F3, Bb3, D4, A3], 18.75, 7.1, amp=0.13, attack=0.9, release=1.8, bright=3300, seed=21))
@@ -524,8 +556,6 @@ def build_score():
         add_bus(perc, rim(at, 0.055, seed=80 + k))
     for k in range(26):
         add_bus(perc, shaker(19.25 + k * 0.25, 0.015, seed=90 + k))
-    add_bus(sfx, impact(19.0, 0.062))
-    add_bus(sfx, whoosh(19.0, 0.7, 0.034, True))
 
     # ---- S5 (25.5-32) : warm flow, a little more drive
     add_bus(bed, pad([G2, D3, Bb3, F4, A3], 25.25, 7.1, amp=0.12, attack=1.0, release=1.6, bright=2800, seed=31))
@@ -540,7 +570,6 @@ def build_score():
         add_bus(perc, rim(at, 0.042, seed=110 + k))
     for k in range(13):
         add_bus(perc, shaker(25.75 + k * 0.5, 0.016, seed=120 + k))
-    add_bus(sfx, whoosh(25.5, 0.55, 0.026, True))
 
     # ---- S6 (32-41) : confident, clear — the tutor, lifted top harmony
     add_bus(bed, pad([F2, C3, F3, A3, G4], 31.7, 9.7, amp=0.13, attack=0.8, release=1.9, bright=3100, seed=41))
@@ -560,8 +589,6 @@ def build_score():
         add_bus(perc, rim(at, 0.032, seed=140 + k))
     for k in range(18):
         add_bus(perc, shaker(32.25 + k * 0.5, 0.014, seed=160 + k))
-    add_bus(sfx, whoosh(32.0, 0.6, 0.028, True))
-    add_bus(sfx, impact(32.0, 0.042))
     add_bus(sfx, tick(33.3, 0.018, 2100))
     add_bus(sfx, tick(33.9, 0.016, 2500))
 
@@ -581,8 +608,6 @@ def build_score():
         add_bus(perc, rim(at, 0.044, seed=190 + k))
     for k in range(20):
         add_bus(perc, shaker(41.25 + k * 0.25, 0.018, seed=200 + k))
-    add_bus(sfx, whoosh(41.0, 0.6, 0.027, True))
-    add_bus(sfx, chime(41.15, 0.022, 1046.5))
 
     # ---- S8 (46-56) : trusted close — longer hold, elevated final chord
     add_bus(bed, pad([F2, C3, F3, A3, C4, F4], 45.6, 10.8, amp=0.13, attack=0.5, release=3.8, bright=3400, seed=61))
@@ -603,9 +628,6 @@ def build_score():
         add_bus(perc, rim(at, 0.042, seed=230 + k))
     for k in range(19):
         add_bus(perc, shaker(46.25 + k * 0.5, 0.012, seed=240 + k))
-    add_bus(sfx, whoosh(46.0, 0.65, 0.026, True))
-    add_bus(sfx, impact(46.0, 0.040))
-    add_bus(sfx, chime(46.2, 0.024, 1046.5))
     add_bus(sfx, chime(52.5, 0.018, 1318.5))
     add_bus(sfx, tick(49.2, 0.012, 2600))
 
@@ -644,6 +666,10 @@ def build_mix():
     n = int(TOTAL * SR)
     bed, perc, sfx = build_score_old()
     bed, perc, sfx = retime_score(bed), retime_score(perc), retime_score(sfx)
+
+    # one soft, consistent accent across every cut — no chopped whooshes
+    for at in T[1:-1]:
+        sfx += transition(at)
 
     music = bed + perc * 0.65 + sfx * 2.5
     music = hpf(music, 32)
