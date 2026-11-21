@@ -1,18 +1,21 @@
-﻿# Narration for the 60s reel — calm, documentary delivery in one continuous
-# voice (en-US-GuyNeural), phrased per scene with its own rate and pitch.
+﻿# Narration for the 60s reel — human-paced, phrase-by-phrase neural TTS.
+#
+# Each line is spoken as separate phrases with its own rate, pitch and emphasis,
+# then joined with hand-set pauses (comma breath vs. full stop). This removes the
+# flat, one-shot "AI read" feel of a single synthesize call.
 #
 # Run: py .\exports\make-reel-voiceover.py
-#       py .\exports\make-reel-voiceover.py --only 6    # re-record one block only
-# Output: exports\vo\vo-s1.wav ... vo-s7.wav  (48 kHz mono)
+#       py .\exports\make-reel-voiceover.py --only 6    # re-record one scene only
+# Output: exports\vo\vo-s1.wav ... vo-s8.wav  (48 kHz mono)
 #
-# Spoken form (screen keeps the abbreviations exactly as designed):
+# Written form vs. spoken form (abbreviations stay as they are on screen):
 #   Engineer  -> spoken in full, never "Er."
 #   B.Tech    -> "B Tech"        (not "B dot tech")
 #   M.Tech    -> "M Tech"        (not "M dot tech")
-#   IIIT      -> "Eye Eye Eye Tee"
-#   Allahabad -> "Ah lah hah baad"
-#   EX-SDE    -> "ex software developer from Samsung" (spoken in full)
-#   Bhanzu    -> "Bhaan-zoo"     (soft 'ah', crisp 'z')
+#   IIIT      -> "triple I T"    (letters, not a word)
+#   EX-SDE    -> "ex software developer"  (spoken in full; on screen stays EX-SDE)
+#   Allahabad -> "Elaahaabaad"   (Ilaa-haa-baad, not "Allah-bad")
+#   Bhanzu    -> "Bhaanzu"       (bhaan-zoo)
 #
 # Needs: pip install edge-tts imageio-ffmpeg numpy
 
@@ -31,46 +34,52 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "exports" / "vo"
 OUT.mkdir(parents=True, exist_ok=True)
 
-VOICE = "en-US-GuyNeural"
+VOICE = "en-IN-NeerjaExpressiveNeural"
 SR = 48000
 PRE, POST = 0.03, 0.05
 
-# (start_s, end_s) — one block per script cue sheet.
-SLOTS = [(0.10, 8.0), (7.70, 18.0), (17.90, 24.0), (23.80, 31.0),
-         (30.90, 43.0), (42.20, 50.0), (49.40, 60.0)]
+# (start_s, scene_end_s) — a line must finish inside its scene.
+SLOTS = [(0.25, 6.0), (6.35, 13.0), (13.35, 20.0), (21.0, 29.0),
+         (29.6, 39.0), (39.25, 48.0), (48.5, 54.0), (53.9, 60.0)]
 
 # phrase, rate, pitch, gain(dB), pause after (s)
 LINES = [
-    [   # 00:00 — hook
-        ("Your child isn't failing math. They are just disappearing in it. "
-         "In a crowded room, some questions are never asked.", "+5%", "-2Hz", 0.0, 0.0),
+    [   # S1 — grab attention, but not shouted
+        ("Your child is not slow.", "+2%", "-2Hz", 0.5, 0.26),
+        ("They are just invisible,", "+0%", "-1Hz", 0.0, 0.16),
+        ("in a crowded classroom.", "-3%", "-2Hz", -0.5, 0.0),
     ],
-    [   # 00:08 — the quiet gap
-        ("The gaps build quietly. You pay for a great school, so why are they "
-         "still falling behind? It isn't a lack of intelligence. "
-         "It's a lack of individual attention.", "+12%", "-2Hz", 0.0, 0.0),
+    [   # S2 — empathetic, slower
+        ("In a room full of students,", "+0%", "-1Hz", 0.0, 0.16),
+        ("some questions never get asked.", "-2%", "-2Hz", -0.5, 0.24),
+        ("And doubt quietly grows.", "-4%", "-3Hz", -1.0, 0.0),
     ],
-    [   # 00:16 — the turn
-        ("Until one moment changes everything... when they look up and say, "
-         "Wait... I actually get this.", "+0%", "-2Hz", 0.0, 0.0),
+    [   # S3 — the quiet worry
+        ("You chose a good school.", "-1%", "-1Hz", 0.0, 0.24),
+        ("But something still is not clicking,", "+1%", "+0Hz", 0.5, 0.14),
+        ("and you can feel it.", "-3%", "-3Hz", -0.5, 0.0),
     ],
-    [   # 00:24 — the conversation
-        ("It starts with one conversation. We meet your child exactly where "
-         "they are stuck. We start wherever it broke.", "+8%", "-2Hz", 0.0, 0.0),
+    [   # S4 — the turn
+        ("Then one moment changes everything.", "+2%", "+2Hz", 1.0, 0.22),
+        ("They finally get it.", "-4%", "-1Hz", -0.5, 0.0),
     ],
-    [   # 00:32 — the tutor, credentials spoken in full
-        ("I am Engineer Rohit Vishwakarma. B Tech and M Tech from Eye Eye Eye "
-         "Tee Ah lah hah baad, ex software developer from Samsung and Math "
-         "Expert at Bhaan-zoo. And I will be the same tutor, every single session.",
-         "+12%", "-2Hz", 0.5, 0.0),
+    [   # S5 — warm, reassuring
+        ("It starts with one conversation.", "+0%", "+0Hz", 0.0, 0.24),
+        ("We meet your child exactly where they are stuck.", "-2%", "-1Hz", -0.5, 0.0),
     ],
-    [   # 00:44 — the result
-        ("Confidence comes back, one concept at a time. Until they look at the "
-         "next problem and say, I'll do the next one by myself.", "+5%", "-2Hz", 0.0, 0.0),
+    [   # S6 — credentials: name, ex-SDE (spoken in full) at Samsung, IIIT, Bhanzu
+        ("Engineer Rohit Vishwakarma, ex software developer from Samsung.", "+12%", "+0Hz", 0.5, 0.12),
+        ("B Tech and M Tech, triple I T Elaahaabaad.", "+8%", "-1Hz", 0.0, 0.10),
+        ("Maths expert at Bhaanzu.", "+4%", "-2Hz", -0.5, 0.0),
     ],
-    [   # 00:52 — the close
-        ("Try a free, 35-minute 1-on-1 demo. One student. One dedicated tutor. "
-         "No contracts. Just WhatsApp us to secure your spot.", "+14%", "-2Hz", 0.0, 0.0),
+    [   # S7 — relief
+        ("And confidence comes back,", "+0%", "+1Hz", 0.5, 0.16),
+        ("one concept at a time.", "-3%", "-2Hz", -0.5, 0.0),
+    ],
+    [   # S8 — clean, trusted close
+        ("Book a free demo.", "+1%", "+1Hz", 0.5, 0.20),
+        ("One student. One tutor.", "+0%", "+0Hz", 0.0, 0.18),
+        ("WhatsApp me.", "-2%", "+1Hz", 0.5, 0.0),
     ],
 ]
 
