@@ -1777,7 +1777,7 @@
     scenes.push(scene);
 
     /* cuts: the new scene fades in over the old one, so no black frame */
-    A(scene, [{ opacity: 0 }, { opacity: 1 }], i === 0 ? 0 : S - 0.24, 0.5, LIN);
+    A(scene, [{ opacity: 0 }, { opacity: 1 }], i === 0 ? 0 : S - 0.10, 0.22, LIN);
 
     var camEase = (i === 3 || i === 5) ? 'cubic-bezier(.22,.61,.36,1)' : LIN;
     var camEnd = (i === 3 ? 1.07 : 1.055);
@@ -1978,9 +1978,9 @@
   /* one coral sweep across every cut, keyed to the whole timeline */
   var wf = [{ opacity: 0, transform: 'translateX(-260px) skewX(-10deg)', offset: 0 }];
   for (var c = 1; c < 8; c++) {
-    wf.push({ opacity: 0, transform: 'translateX(-260px) skewX(-10deg)', offset: Math.max(0.001, (T[c] - 0.30) / TOTAL) });
+    wf.push({ opacity: 0, transform: 'translateX(-260px) skewX(-10deg)', offset: Math.max(0.001, (T[c] - 0.14) / TOTAL) });
     wf.push({ opacity: .9, transform: 'translateX(470px) skewX(-10deg)', offset: T[c] / TOTAL });
-    wf.push({ opacity: 0, transform: 'translateX(1180px) skewX(-10deg)', offset: Math.min(1, (T[c] + 0.30) / TOTAL) });
+    wf.push({ opacity: 0, transform: 'translateX(1180px) skewX(-10deg)', offset: Math.min(1, (T[c] + 0.14) / TOTAL) });
   }
   A(wipe, wf, 0, TOTAL, LIN);
 
@@ -1995,7 +1995,7 @@
   flash.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%);opacity:0;mix-blend-mode:screen';
   stage.insertBefore(flash, vign);
   [0, 19, 25.5, 32, 46].forEach(function(at){
-    A(flash, [{opacity:0},{opacity:.55},{opacity:0}], Math.max(0, at - 0.02), 0.34, 'ease-out');
+    A(flash, [{opacity:0},{opacity:.55},{opacity:0}], Math.max(0, at - 0.01), 0.22, 'ease-out');
   });
 
   /* one continuous progress bar for the whole cut (top, clear of the UI) */
@@ -2012,9 +2012,9 @@
     var ms = t * 1000;
     for (var i = 0; i < anims.length; i++) anims[i].currentTime = ms;
     for (var j = 0; j < scenes.length; j++) {
-      var inAt = T[j] - (j === 0 ? 0 : 0.3);
+      var inAt = T[j] - (j === 0 ? 0 : 0.14);
       scenes[j].style.visibility =
-        (t >= inAt && t < T[j + 1] + 0.28) ? 'visible' : 'hidden';
+        (t >= inAt && t < T[j + 1] + 0.12) ? 'visible' : 'hidden';
     }
   }
 
