@@ -1,4 +1,4 @@
-﻿# Narration for the 60s reel — human-paced, phrase-by-phrase neural TTS.
+﻿# Narration for the 56s reel — tightened, phrase-by-phrase neural TTS.
 #
 # Each line is spoken as separate phrases with its own rate, pitch and emphasis,
 # then joined with hand-set pauses (comma breath vs. full stop). This removes the
@@ -39,47 +39,47 @@ SR = 48000
 PRE, POST = 0.03, 0.05
 
 # (start_s, scene_end_s) — a line must finish inside its scene.
-SLOTS = [(0.25, 6.0), (6.35, 13.0), (13.35, 20.0), (21.0, 29.0),
-         (29.6, 39.0), (39.25, 48.0), (48.5, 54.0), (53.9, 60.0)]
+SLOTS = [(0.25, 7.5), (7.8, 13.5), (13.85, 19.0), (19.4, 25.5),
+         (25.8, 32.0), (32.3, 41.0), (41.35, 46.0), (46.35, 56.0)]
 
 # phrase, rate, pitch, gain(dB), pause after (s)
 LINES = [
     [   # S1 — grab attention, but not shouted
-        ("Your child is not slow.", "+2%", "-2Hz", 0.5, 0.26),
-        ("They are just invisible,", "+0%", "-1Hz", 0.0, 0.16),
-        ("in a crowded classroom.", "-3%", "-2Hz", -0.5, 0.0),
+        ("Your child is not slow.", "+10%", "-2Hz", 0.5, 0.20),
+        ("They are just invisible,", "+8%", "-1Hz", 0.0, 0.12),
+        ("in a crowded classroom.", "+6%", "-2Hz", -0.5, 0.0),
     ],
-    [   # S2 — empathetic, slower
-        ("In a room full of students,", "+0%", "-1Hz", 0.0, 0.16),
-        ("some questions never get asked.", "-2%", "-2Hz", -0.5, 0.24),
-        ("And doubt quietly grows.", "-4%", "-3Hz", -1.0, 0.0),
+    [   # S2 — empathetic, but tighter
+        ("In a room full of students,", "+14%", "-1Hz", 0.0, 0.12),
+        ("some questions never get asked.", "+12%", "-2Hz", -0.5, 0.16),
+        ("And doubt quietly grows.", "+10%", "-3Hz", -1.0, 0.0),
     ],
     [   # S3 — the quiet worry
-        ("You chose a good school.", "-1%", "-1Hz", 0.0, 0.24),
-        ("But something still is not clicking,", "+1%", "+0Hz", 0.5, 0.14),
-        ("and you can feel it.", "-3%", "-3Hz", -0.5, 0.0),
+        ("You chose a good school.", "+10%", "-1Hz", 0.0, 0.18),
+        ("But something still is not clicking,", "+12%", "+0Hz", 0.5, 0.10),
+        ("and you can feel it.", "+8%", "-3Hz", -0.5, 0.0),
     ],
     [   # S4 — the turn
-        ("Then one moment changes everything.", "+2%", "+2Hz", 1.0, 0.22),
-        ("They finally get it.", "-4%", "-1Hz", -0.5, 0.0),
+        ("Then one moment changes everything.", "+12%", "+2Hz", 1.0, 0.16),
+        ("They finally get it.", "+6%", "-1Hz", -0.5, 0.0),
     ],
     [   # S5 — warm, reassuring
-        ("It starts with one conversation.", "+0%", "+0Hz", 0.0, 0.24),
-        ("We meet your child exactly where they are stuck.", "-2%", "-1Hz", -0.5, 0.0),
+        ("It starts with one conversation.", "+10%", "+0Hz", 0.0, 0.18),
+        ("We meet your child exactly where they are stuck.", "+8%", "-1Hz", -0.5, 0.0),
     ],
     [   # S6 — credentials: name, ex-SDE (spoken in full) at Samsung, IIIT, Bhanzu
-        ("Engineer Rohit Vishwakarma, ex software developer from Samsung.", "+12%", "+0Hz", 0.5, 0.12),
-        ("B Tech and M Tech, triple I T Elaahaabaad.", "+8%", "-1Hz", 0.0, 0.10),
-        ("Maths expert at Bhaanzu.", "+4%", "-2Hz", -0.5, 0.0),
+        ("Engineer Rohit Vishwakarma, ex software developer from Samsung.", "+24%", "+0Hz", 0.5, 0.08),
+        ("B Tech and M Tech, triple I T Elaahaabaad.", "+20%", "-1Hz", 0.0, 0.07),
+        ("Maths expert at Bhaanzu.", "+16%", "-2Hz", -0.5, 0.0),
     ],
     [   # S7 — relief
-        ("And confidence comes back,", "+0%", "+1Hz", 0.5, 0.16),
-        ("one concept at a time.", "-3%", "-2Hz", -0.5, 0.0),
+        ("And confidence comes back,", "+10%", "+1Hz", 0.5, 0.12),
+        ("one concept at a time.", "+6%", "-2Hz", -0.5, 0.0),
     ],
     [   # S8 — clean, trusted close
-        ("Book a free demo.", "+1%", "+1Hz", 0.5, 0.20),
-        ("One student. One tutor.", "+0%", "+0Hz", 0.0, 0.18),
-        ("WhatsApp me.", "-2%", "+1Hz", 0.5, 0.0),
+        ("Book a free demo.", "+9%", "+1Hz", 0.5, 0.15),
+        ("One student. One tutor.", "+8%", "+0Hz", 0.0, 0.12),
+        ("WhatsApp me.", "+6%", "+1Hz", 0.5, 0.0),
     ],
 ]
 

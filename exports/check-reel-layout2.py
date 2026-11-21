@@ -7,7 +7,7 @@ with sync_playwright() as p:
     pg = b.new_page(viewport={"width":1080,"height":1920})
     pg.goto(url, wait_until="load")
     pg.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
-    for t in [2, 43, 57]:
+    for t in [3, 37, 51]:
         pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", t)
         print(t, pg.evaluate("""() => {
           const scenes=[...document.querySelectorAll('.motion-stage .m-scene')];

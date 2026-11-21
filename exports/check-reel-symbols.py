@@ -76,7 +76,7 @@ def main():
         pg.goto(URL + "#motion=capture", wait_until="load")
         pg.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
         stats = []
-        for t in (2.0, 3.0, 5.0, 10.0, 25.0, 45.0, 52.0):
+        for t in (3.0, 4.0, 6.0, 11.0, 22.5, 37.0, 43.5):
             pg.evaluate(
                 "(t) => { window.__reel.seek(t); return new Promise(r => requestAnimationFrame(() => r())); }",
                 t,
@@ -100,7 +100,7 @@ def main():
                        }"""
                 )
             )
-        for t, s in zip((2.0, 3.0, 5.0, 10.0, 25.0, 45.0, 52.0), stats):
+        for t, s in zip((3.0, 4.0, 6.0, 11.0, 22.5, 37.0, 43.5), stats):
             print(f"t={t:>5}: {s}")
 
         assert all(s["count"] >= 10 for s in stats), "scenes lost their texture"

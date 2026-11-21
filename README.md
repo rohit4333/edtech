@@ -1,7 +1,7 @@
 # NextGen Creative Kit
 
 Design + video system for a Bhanzu maths-tutor campaign: a scrollable deck, a set of
-social exports (carousels, country ads, posters) and the 60s reel with a fully
+social exports (carousels, country ads, posters) and the 56s reel with a fully
 produced soundtrack.
 
 ## What's inside
@@ -21,7 +21,7 @@ produced soundtrack.
 - `exports/png-1536/`, `exports/png-4k/` — same slides at 1536 px and 4K.
 - `exports/thumbs/` — gallery thumbnails.
 - `exports/gif/` — looping teasers.
-- `exports/mp4/` — the 60s reel:
+- `exports/mp4/` — the 56s reel (legacy `reel-60s*` filenames):
   - `reel-60s.mp4` — final, video + narration + score + SFX
   - `reel-60s-premium.mp4` — identical mux of `reel-60s.mp4`
   - `reel-60s-music.mp4` — video + score/SFX, no narration

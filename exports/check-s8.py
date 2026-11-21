@@ -7,7 +7,7 @@ with sync_playwright() as p:
     pg=b.new_page(viewport={"width":1080,"height":1920}); errs=[]
     pg.on("pageerror",lambda e:errs.append(str(e)))
     pg.goto(url,wait_until="load"); pg.wait_for_function("window.__reel && window.__reel.ready")
-    pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}",58)
+    pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}",55)
     print("errors",errs)
     print(pg.evaluate("""() => {
       const sc=[...document.querySelectorAll('.m-scene')].find(s=>getComputedStyle(s).visibility!=='hidden');

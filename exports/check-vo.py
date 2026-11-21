@@ -1,6 +1,6 @@
 ﻿"""Check every narration clip fits inside its reel scene.
 
-The reel timeline is T = [0, 6, 13, 20, 29, 39, 48, 54, 60] and each VO is
+The reel timeline is T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56] and each VO is
 placed by make-reel-premium-audio.py at VO_START. A clip that runs past its
 scene (or into the next VO) gets clipped or talked over, so verify it here.
 
@@ -14,8 +14,8 @@ import numpy as np
 
 VO = Path(__file__).resolve().parent.parent / "exports" / "vo"
 
-T = [0, 6, 13, 20, 29, 39, 48, 54, 60]
-VO_START = [0.25, 6.35, 13.35, 21.0, 29.6, 39.25, 48.5, 53.9]
+T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56]
+VO_START = [0.25, 7.8, 13.85, 19.4, 25.8, 32.3, 41.35, 46.35]
 THRESH = 0.008
 
 
@@ -41,7 +41,7 @@ def main():
         speech = t1 - t0
         ends = start + speech
         scene_end = T[n]
-        next_vo = VO_START[n] if n < 8 else 60.0
+        next_vo = VO_START[n] if n < 8 else 56.0
         rows.append((n, speech, start, ends, scene_end, next_vo))
 
     print(f"{'clip':5} {'speech':>7} {'placed':>13} {'scene ends':>11} {'next VO':>8}  fit")

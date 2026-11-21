@@ -1,4 +1,4 @@
-# Compose a cinematic score for the 60s reel and mux it onto the video.
+# Legacy 60s score — superseded by reel_audio_engine.py for the current 56s cut.
 # Run:  py .\exports\add-reel-music.py
 #       py .\exports\add-reel-music.py --in exports/mp4/reel-60s.mp4 --out exports/mp4/reel-60s-music.mp4
 #

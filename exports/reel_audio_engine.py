@@ -1,9 +1,10 @@
-# Cinematic score + SFX + narration mixing engine for the 60s reel.
+# Cinematic score + SFX + narration mixing engine for the 56s reel.
+# Legacy reel-60s filenames are kept so the export pipeline stays unchanged.
 #
 # Design notes
 #  - 120 BPM grid (0.5 s beat) so every cut lands on a musical pulse.
-#  - Section-aware arrangement: sparse tension -> empathy -> build -> lift ->
-#    warm flow -> confidence -> resolve -> trusted close.
+#  - Section-aware arrangement: tense lift -> empathy -> build -> high lift ->
+#    warm flow -> confidence -> bright resolve -> elevated trusted close.
 #  - Felt-piano, bowed-string pads, sub bass and soft organic percussion instead
 #    of EDM drums. Reverb send on the music only; narration stays dry and close.
 #  - Look-ahead sidechain: music dips smoothly under every spoken phrase and
@@ -20,8 +21,8 @@ from scipy.ndimage import minimum_filter1d, uniform_filter1d
 
 ROOT = Path(__file__).resolve().parent.parent
 SR = 48000
-TOTAL = 60.0
-T = [0, 6, 13, 20, 29, 39, 48, 54, 60]
+TOTAL = 56.0
+T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56]
 
 # ---------------------------------------------------------------- utilities
 
@@ -420,10 +421,10 @@ def master(x, target_lufs=-14.0, ceiling_db=-2.0):
 
 # ---------------------------------------------------------------- score
 
-A1, B1, D2, E2, F2, G2, A2, Bb2, C3, D3, E3, F3, G3, A3, Bb3, C4, D4, E4, F4, G4, A4, C5, E5 = (
+A1, B1, D2, E2, F2, G2, A2, Bb2, C3, D3, E3, F3, G3, A3, Bb3, C4, D4, E4, F4, G4, A4, C5, E5, F5, G5, A5 = (
     55.00, 61.74, 73.42, 82.41, 87.31, 98.00, 110.00, 116.54, 130.81, 146.83, 164.81,
     174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 329.63, 349.23, 392.00, 440.00,
-    523.25, 659.25)
+    523.25, 659.25, 698.46, 783.99, 880.00)
 
 
 def build_score():
@@ -435,119 +436,148 @@ def build_score():
     def add_bus(bus, seg, g=1.0):
         bus += seg * g
 
-    # ---- S1 (0-6) : attention, restrained tension
-    add_bus(bed, pad([D2, A2, D3, F3], 0.0, 6.6, amp=0.11, attack=0.9, release=1.2, bright=1900, seed=1))
-    add_bus(bed, pad([E4], 0.6, 5.4, amp=0.020, attack=2.2, release=1.6, bright=3200, seed=2))
-    add_bus(bed, sub(D2 / 2, 0.0, 6.4, amp=0.045, attack=0.8, release=1.0))
-    add_bus(bed, piano(A4, 0.30, amp=0.032, dur=3.2, pan=-0.18, seed=3))
-    add_bus(bed, piano(F4, 2.55, amp=0.026, dur=3.0, pan=0.15, seed=4))
-    for k, at in enumerate([0.0, 1.0, 2.0, 3.0, 4.0, 5.0]):
+    # ---- S1 (0-7.5) : attention — longer hold, pulse pushes it forward
+    add_bus(bed, pad([D2, A2, D3, F3], 0.0, 8.1, amp=0.12, attack=0.8, release=1.4, bright=2200, seed=1))
+    add_bus(bed, pad([A3, C4, E4], 2.5, 5.0, amp=0.028, attack=1.2, release=1.4, bright=3800, seed=2))
+    add_bus(bed, sub(D2 / 2, 0.0, 8.0, amp=0.048, attack=0.6, release=1.2))
+    for at, f, p, s in [(0.30, A4, -0.18, 3), (2.30, F4, 0.15, 4),
+                        (4.30, C5, -0.10, 5), (6.10, E5, 0.14, 6)]:
+        add_bus(bed, piano(f, at, amp=0.034, dur=2.6, pan=p, seed=s))
+    for k, at in enumerate(np.arange(0.0, 7.5, 1.0)):
         add_bus(perc, kick(at, 0.17 if k else 0.20, seed=k))
-    add_bus(perc, rim(2.5, 0.028, 1))
+    for k in range(15):
+        add_bus(perc, shaker(2.5 + k * 0.32, 0.012, seed=k))
+    for k, at in enumerate([3.5, 5.5]):
+        add_bus(perc, rim(at, 0.030, seed=k + 1))
     add_bus(sfx, impact(0.0, 0.055))
-    add_bus(sfx, riser(6.0, 1.2, 0.045))
+    add_bus(sfx, riser(7.5, 1.4, 0.045))
 
-    # ---- S2 (6-13) : empathy, no drums, warm and slow
-    add_bus(bed, pad([Bb2 / 2, F2, Bb2, D3, A3], 5.9, 7.8, amp=0.105, attack=1.8, release=1.8, bright=2100, seed=5))
-    add_bus(bed, sub(Bb2 / 2, 6.0, 7.4, amp=0.038, attack=1.2, release=1.4))
-    for at, f, p, s in [(6.55, F4, -0.14, 6), (8.05, D4, 0.10, 7), (9.55, Bb3, -0.06, 8),
-                        (11.05, A3, 0.14, 9), (12.35, F4, -0.10, 10)]:
-        add_bus(bed, piano(f, at, amp=0.040, dur=3.4, pan=p, seed=s))
-    # no drums here — the empathy beat stays breathing, the voice carries it
-    add_bus(sfx, whoosh(6.0, 0.7, 0.028, True))
+    # ---- S2 (7.5-13.5) : empathy, no big drums, warm and quick
+    add_bus(bed, pad([Bb2 / 2, F2, Bb2, D3, A3], 7.25, 6.6, amp=0.11, attack=1.3, release=1.6, bright=2400, seed=5))
+    add_bus(bed, pad([D4, F4, A4], 9.0, 4.2, amp=0.022, attack=1.0, release=1.4, bright=3900, seed=6))
+    add_bus(bed, sub(Bb2 / 2, 7.5, 6.0, amp=0.040, attack=0.9, release=1.2))
+    for at, f, p, s in [(8.0, F4, -0.14, 6), (9.4, D4, 0.10, 7), (10.8, Bb3, -0.06, 8),
+                        (12.0, A3, 0.14, 9)]:
+        add_bus(bed, piano(f, at, amp=0.040, dur=2.6, pan=p, seed=s))
+    add_bus(perc, rim(11.0, 0.026, 2))
+    add_bus(sfx, whoosh(7.5, 0.6, 0.028, True))
 
-    # ---- S3 (13-20) : the weight, slow build
-    add_bus(bed, pad([F2, C3, F3, A3, E4], 12.8, 7.6, amp=0.115, attack=1.4, release=1.5, bright=2300, seed=11))
-    add_bus(bed, sub(F2 / 2, 13.0, 7.0, amp=0.042, attack=0.9, release=1.2))
-    for at, f, p, s in [(13.4, C4, -0.12, 12), (14.9, A3, 0.08, 13), (16.4, F4, -0.04, 14),
-                        (17.9, E4, 0.12, 15), (19.2, D4, -0.08, 16)]:
-        add_bus(bed, piano(f, at, amp=0.042, dur=2.8, pan=p, seed=s))
-    for k, at in enumerate([13.5, 15.5, 17.5, 19.5]):
+    # ---- S3 (13.5-19) : the weight, tight build
+    add_bus(bed, pad([F2, C3, F3, A3, E4], 13.25, 6.1, amp=0.12, attack=1.1, release=1.4, bright=2600, seed=11))
+    add_bus(bed, sub(F2 / 2, 13.5, 5.6, amp=0.044, attack=0.7, release=1.1))
+    for at, f, p, s in [(13.8, C4, -0.12, 12), (15.0, A3, 0.08, 13), (16.2, F4, -0.04, 14),
+                        (17.4, E4, 0.12, 15)]:
+        add_bus(bed, piano(f, at, amp=0.042, dur=2.4, pan=p, seed=s))
+    for k, at in enumerate([13.5, 15.5, 17.5]):
         add_bus(perc, kick(at, 0.14, seed=k + 20))
     for k, at in enumerate([14.5, 16.5, 18.5]):
         add_bus(perc, rim(at, 0.045, seed=k + 30))
-    for k in range(int(6.5 * 2)):
-        add_bus(perc, shaker(13.5 + k * 0.5, 0.016, seed=k + 40))
-    add_bus(sfx, whoosh(13.0, 0.6, 0.027, True))
-    add_bus(sfx, riser(20.0, 1.4, 0.05))
+    for k in range(11):
+        add_bus(perc, shaker(13.5 + k * 0.5, 0.018, seed=k + 40))
+    add_bus(sfx, whoosh(13.5, 0.55, 0.027, True))
+    add_bus(sfx, riser(19.0, 1.2, 0.050))
 
-    # ---- S4 (20-29) : lift — the turn
-    add_bus(bed, pad([Bb2, F3, Bb3, D4, A3], 19.6, 9.8, amp=0.12, attack=1.1, release=2.0, bright=2900, seed=21))
-    add_bus(bed, pad([D4, F4, A4], 20.2, 8.8, amp=0.035, attack=1.8, release=2.0, bright=3600, seed=22))
-    add_bus(bed, sub(Bb2 / 2, 20.0, 9.2, amp=0.05, attack=0.6, release=1.4))
-    for at, f, p, s in [(20.6, F4, -0.16, 23), (21.9, A4, 0.12, 24), (23.2, Bb3, -0.08, 25),
-                        (24.5, D4, 0.16, 26), (25.8, F4, -0.12, 27), (27.1, A4, 0.10, 28), (28.2, G4, -0.06, 29)]:
-        add_bus(bed, piano(f, at, amp=0.040, dur=2.8, pan=p, seed=s))
-    # gentle arpeggio sparkle
-    for k, at in enumerate(np.arange(20.5, 28.9, 0.5)):
-        f = [Bb3, D4, F4, A4][k % 4]
-        add_bus(bed, piano(f * 2, at, amp=0.011, dur=1.2, pan=0.28 * (-1 if k % 2 else 1), seed=60 + k))
-    for k, at in enumerate(np.arange(20.0, 29.0, 1.0)):
+    # ---- S4 (19-25.5) : the turn — brighter, rising arpeggio
+    add_bus(bed, pad([Bb2, F3, Bb3, D4, A3], 18.75, 7.1, amp=0.13, attack=0.9, release=1.8, bright=3300, seed=21))
+    add_bus(bed, pad([D4, F4, A4, C5], 19.2, 6.3, amp=0.040, attack=1.2, release=1.8, bright=4200, seed=22))
+    add_bus(bed, sub(Bb2 / 2, 19.0, 6.2, amp=0.052, attack=0.5, release=1.2))
+    for at, f, p, s in [(19.4, F4, -0.16, 23), (20.6, A4, 0.12, 24), (21.8, Bb3, -0.08, 25),
+                        (23.0, D4, 0.16, 26), (24.2, F4, -0.12, 27), (25.0, A4, 0.10, 28)]:
+        add_bus(bed, piano(f, at, amp=0.042, dur=2.4, pan=p, seed=s))
+    for k, at in enumerate(np.arange(19.5, 25.5, 0.5)):
+        f = [Bb3, D4, F4, A4, C5][k % 5]
+        add_bus(bed, piano(f * 2, at, amp=0.014, dur=1.1,
+                           pan=0.30 * (-1 if k % 2 else 1), seed=60 + k))
+    for k, at in enumerate(np.arange(19.0, 25.5, 1.0)):
         add_bus(perc, kick(at, 0.17, seed=70 + k))
-    for k, at in enumerate([20.5, 22.5, 24.5, 26.5, 28.5]):
+    for k, at in enumerate([19.5, 21.5, 23.5, 25.0]):
         add_bus(perc, rim(at, 0.055, seed=80 + k))
-    for k in range(int(9 * 4)):
-        add_bus(perc, shaker(20.25 + k * 0.25, 0.013, seed=90 + k))
-    add_bus(sfx, impact(20.0, 0.062))
-    add_bus(sfx, whoosh(20.0, 0.8, 0.034, True))
+    for k in range(26):
+        add_bus(perc, shaker(19.25 + k * 0.25, 0.015, seed=90 + k))
+    add_bus(sfx, impact(19.0, 0.062))
+    add_bus(sfx, whoosh(19.0, 0.7, 0.034, True))
 
-    # ---- S5 (29-39) : warm flow, half-time
-    add_bus(bed, pad([G2, D3, Bb3, F4, A3], 28.7, 10.6, amp=0.115, attack=1.3, release=1.8, bright=2500, seed=31))
-    add_bus(bed, sub(G2 / 2, 29.0, 9.8, amp=0.044, attack=0.7, release=1.6))
-    for at, f, p, s in [(29.5, D4, -0.12, 32), (31.0, F4, 0.10, 33), (32.5, A4, -0.06, 34),
-                        (34.0, Bb3, 0.12, 35), (35.5, D4, -0.10, 36), (37.0, F4, 0.08, 37), (38.2, A3, -0.04, 38)]:
-        add_bus(bed, piano(f, at, amp=0.038, dur=3.0, pan=p, seed=s))
-    for k, at in enumerate([29.5, 31.5, 33.5, 35.5, 37.5]):
+    # ---- S5 (25.5-32) : warm flow, a little more drive
+    add_bus(bed, pad([G2, D3, Bb3, F4, A3], 25.25, 7.1, amp=0.12, attack=1.0, release=1.6, bright=2800, seed=31))
+    add_bus(bed, pad([C4, E4, G4], 26.5, 5.2, amp=0.025, attack=0.9, release=1.5, bright=4000, seed=32))
+    add_bus(bed, sub(G2 / 2, 25.5, 6.2, amp=0.046, attack=0.6, release=1.4))
+    for at, f, p, s in [(25.9, D4, -0.12, 32), (27.2, F4, 0.10, 33), (28.5, A4, -0.06, 34),
+                        (29.8, Bb3, 0.12, 35), (31.0, D4, -0.10, 36)]:
+        add_bus(bed, piano(f, at, amp=0.040, dur=2.5, pan=p, seed=s))
+    for k, at in enumerate([25.5, 27.5, 29.5, 31.5]):
         add_bus(perc, kick(at, 0.13, seed=100 + k))
-    for k, at in enumerate([30.5, 32.5, 34.5, 36.5]):
-        add_bus(perc, rim(at, 0.040, seed=110 + k))
-    for k in range(int(10 * 2)):
-        add_bus(perc, shaker(29.25 + k * 0.5, 0.014, seed=120 + k))
-    add_bus(sfx, whoosh(29.0, 0.6, 0.026, True))
+    for k, at in enumerate([26.5, 28.5, 30.5]):
+        add_bus(perc, rim(at, 0.042, seed=110 + k))
+    for k in range(13):
+        add_bus(perc, shaker(25.75 + k * 0.5, 0.016, seed=120 + k))
+    add_bus(sfx, whoosh(25.5, 0.55, 0.026, True))
 
-    # ---- S6 (39-48) : confident, clear — the tutor
-    add_bus(bed, pad([F2, C3, F3, A3, G4], 38.6, 10.2, amp=0.125, attack=0.9, release=2.0, bright=2800, seed=41))
-    add_bus(bed, pad([C4, F4, A4], 39.4, 9.0, amp=0.032, attack=1.4, release=2.2, bright=3800, seed=42))
-    add_bus(bed, sub(F2 / 2, 39.0, 9.2, amp=0.05, attack=0.5, release=1.6))
-    for at, f, p, s in [(39.9, A3, -0.14, 43), (41.3, C4, 0.12, 44), (42.7, F4, -0.08, 45),
-                        (44.1, A4, 0.10, 46), (45.5, G4, -0.12, 47), (46.9, F4, 0.06, 48)]:
-        add_bus(bed, piano(f, at, amp=0.040, dur=2.8, pan=p, seed=s))
-    for k, at in enumerate(np.arange(39.0, 48.0, 1.0)):
+    # ---- S6 (32-41) : confident, clear — the tutor, lifted top harmony
+    add_bus(bed, pad([F2, C3, F3, A3, G4], 31.7, 9.7, amp=0.13, attack=0.8, release=1.9, bright=3100, seed=41))
+    add_bus(bed, pad([C4, F4, A4, C5], 32.4, 8.4, amp=0.038, attack=1.1, release=2.0, bright=4400, seed=42))
+    add_bus(bed, sub(F2 / 2, 32.0, 8.8, amp=0.052, attack=0.4, release=1.5))
+    for at, f, p, s in [(32.6, A3, -0.14, 43), (33.9, C4, 0.12, 44), (35.2, F4, -0.08, 45),
+                        (36.5, A4, 0.10, 46), (37.8, C5, -0.12, 47), (39.1, A4, 0.10, 48),
+                        (40.2, F4, 0.06, 49)]:
+        add_bus(bed, piano(f, at, amp=0.042, dur=2.4, pan=p, seed=s))
+    for k, at in enumerate(np.arange(32.5, 40.5, 0.5)):
+        f = [F4, A4, C5, F5][k % 4]
+        add_bus(bed, piano(f, at, amp=0.013, dur=1.0,
+                           pan=0.28 * (-1 if k % 2 else 1), seed=150 + k))
+    for k, at in enumerate(np.arange(32.0, 41.0, 1.0)):
         add_bus(perc, kick(at, 0.075, seed=130 + k))
-    for k, at in enumerate([39.5, 41.5, 43.5, 45.5, 47.5]):
-        add_bus(perc, rim(at, 0.030, seed=140 + k))
-    for k in range(int(9 * 2)):
-        add_bus(perc, shaker(39.25 + k * 0.5, 0.013, seed=150 + k))
-    add_bus(sfx, whoosh(39.0, 0.7, 0.028, True))
-    add_bus(sfx, impact(39.0, 0.042))
-    add_bus(sfx, tick(40.58, 0.018, 2100))
-    add_bus(sfx, tick(41.20, 0.016, 2500))
+    for k, at in enumerate([32.5, 34.5, 36.5, 38.5, 40.5]):
+        add_bus(perc, rim(at, 0.032, seed=140 + k))
+    for k in range(18):
+        add_bus(perc, shaker(32.25 + k * 0.5, 0.014, seed=160 + k))
+    add_bus(sfx, whoosh(32.0, 0.6, 0.028, True))
+    add_bus(sfx, impact(32.0, 0.042))
+    add_bus(sfx, tick(33.3, 0.018, 2100))
+    add_bus(sfx, tick(33.9, 0.016, 2500))
 
-    # ---- S7 (48-54) : bright resolve
-    add_bus(bed, pad([C3, G3, C4, E4, G4], 47.7, 6.8, amp=0.115, attack=0.7, release=1.6, bright=3200, seed=51))
-    add_bus(bed, sub(C3 / 2, 48.0, 6.0, amp=0.042, attack=0.5, release=1.4))
-    for at, f, p, s in [(48.3, E4, -0.10, 52), (49.5, G4, 0.12, 53), (50.7, C5, -0.06, 54), (52.1, E5, 0.08, 55)]:
-        add_bus(bed, piano(f, at, amp=0.034, dur=2.4, pan=p, seed=s))
-    for k, at in enumerate(np.arange(48.0, 54.0, 1.0)):
-        add_bus(perc, kick(at, 0.13, seed=160 + k))
-    for k, at in enumerate([49.0, 51.0, 53.0]):
-        add_bus(perc, rim(at, 0.042, seed=170 + k))
-    add_bus(sfx, whoosh(48.0, 0.65, 0.027, True))
-    add_bus(sfx, chime(48.15, 0.020, 1046.5))
-
-    # ---- S8 (54-60) : trusted close
-    add_bus(bed, pad([F2, C3, F3, A3, C4, F4], 53.6, 7.4, amp=0.125, attack=0.5, release=3.4, bright=3000, seed=61))
-    add_bus(bed, sub(F2 / 2, 54.0, 6.6, amp=0.05, attack=0.4, release=2.0))
-    for at, f, p, s in [(54.6, A4, -0.10, 62), (55.8, C5, 0.10, 63), (57.0, F4, -0.06, 64)]:
-        add_bus(bed, piano(f, at, amp=0.036, dur=3.4, pan=p, seed=s))
-    for k, at in enumerate([54.0, 56.0, 58.0]):
+    # ---- S7 (41-46) : bright resolve, short and rising
+    add_bus(bed, pad([C3, G3, C4, E4, G4, C5], 40.75, 5.7, amp=0.125, attack=0.6, release=1.5, bright=3600, seed=51))
+    add_bus(bed, sub(C3 / 2, 41.0, 5.0, amp=0.044, attack=0.4, release=1.2))
+    for at, f, p, s in [(41.2, E4, -0.10, 52), (42.2, G4, 0.12, 53),
+                        (43.2, C5, -0.06, 54), (44.2, E5, 0.08, 55)]:
+        add_bus(bed, piano(f, at, amp=0.036, dur=2.0, pan=p, seed=s))
+    for k, at in enumerate(np.arange(41.5, 45.5, 0.5)):
+        f = [G4, C5, E5, G5][k % 4]
+        add_bus(bed, piano(f, at, amp=0.016, dur=0.9,
+                           pan=0.26 * (-1 if k % 2 else 1), seed=170 + k))
+    for k, at in enumerate(np.arange(41.0, 46.0, 1.0)):
         add_bus(perc, kick(at, 0.14, seed=180 + k))
-    for k, at in enumerate([55.0, 57.0, 59.0]):
-        add_bus(perc, rim(at, 0.040, seed=190 + k))
-    add_bus(sfx, whoosh(54.0, 0.7, 0.026, True))
-    add_bus(sfx, impact(54.0, 0.040))
-    add_bus(sfx, chime(55.6, 0.028, 784.0))
-    add_bus(sfx, tick(56.35, 0.012, 2600))
+    for k, at in enumerate([42.0, 44.0]):
+        add_bus(perc, rim(at, 0.044, seed=190 + k))
+    for k in range(20):
+        add_bus(perc, shaker(41.25 + k * 0.25, 0.018, seed=200 + k))
+    add_bus(sfx, whoosh(41.0, 0.6, 0.027, True))
+    add_bus(sfx, chime(41.15, 0.022, 1046.5))
+
+    # ---- S8 (46-56) : trusted close — longer hold, elevated final chord
+    add_bus(bed, pad([F2, C3, F3, A3, C4, F4], 45.6, 10.8, amp=0.13, attack=0.5, release=3.8, bright=3400, seed=61))
+    add_bus(bed, pad([A3, C4, F4, A4, C5], 47.0, 8.6, amp=0.042, attack=0.8, release=3.4, bright=4600, seed=62))
+    add_bus(bed, pad([C5, F5, A5], 52.0, 4.0, amp=0.018, attack=1.2, release=2.4, bright=6000, seed=63))
+    add_bus(bed, sub(F2 / 2, 46.0, 9.8, amp=0.052, attack=0.4, release=2.0))
+    for at, f, p, s in [(46.5, A4, -0.10, 62), (47.8, C5, 0.10, 63), (49.1, F4, -0.06, 64),
+                        (50.4, A4, 0.10, 65), (51.7, C5, -0.08, 66), (53.0, F4, 0.06, 67),
+                        (54.3, A4, -0.06, 68)]:
+        add_bus(bed, piano(f, at, amp=0.038, dur=3.0, pan=p, seed=s))
+    for k, at in enumerate(np.arange(46.5, 54.5, 0.75)):
+        f = [F4, A4, C5, F5][k % 4]
+        add_bus(bed, piano(f, at, amp=0.014, dur=1.6,
+                           pan=0.24 * (-1 if k % 2 else 1), seed=210 + k))
+    for k, at in enumerate([46.0, 48.0, 50.0, 52.0, 54.0]):
+        add_bus(perc, kick(at, 0.13, seed=220 + k))
+    for k, at in enumerate([47.0, 49.0, 51.0, 53.0]):
+        add_bus(perc, rim(at, 0.042, seed=230 + k))
+    for k in range(19):
+        add_bus(perc, shaker(46.25 + k * 0.5, 0.012, seed=240 + k))
+    add_bus(sfx, whoosh(46.0, 0.65, 0.026, True))
+    add_bus(sfx, impact(46.0, 0.040))
+    add_bus(sfx, chime(46.2, 0.024, 1046.5))
+    add_bus(sfx, chime(52.5, 0.018, 1318.5))
+    add_bus(sfx, tick(49.2, 0.012, 2600))
 
     return bed, perc, sfx
 
@@ -577,21 +607,21 @@ def process_vo(seg):
     return norm(x, 0.84).astype(np.float32)
 
 
-VO_MAP = [(1, 0.25), (2, 6.35), (3, 13.35), (4, 21.0),
-          (5, 29.6), (6, 39.25), (7, 48.5), (8, 53.9)]
+VO_MAP = [(1, 0.25), (2, 7.8), (3, 13.85), (4, 19.4),
+          (5, 25.8), (6, 32.3), (7, 41.35), (8, 46.35)]
 
 
 def build_mix():
     n = int(TOTAL * SR)
     bed, perc, sfx = build_score()
 
-    music = bed + perc * 0.60 + sfx * 2.7
+    music = bed + perc * 0.65 + sfx * 2.5
     music = hpf(music, 32)
-    music *= 1.80                                        # present bed, not wallpaper
+    music *= 1.82                                        # present bed, not wallpaper
     music = music - 0.10 * bpf(music, 180, 430)          # clear low-mid buildup
-    music = music + 0.045 * bpf(music, 7500, 14000)      # air
-    music = music + convolve_reverb(music, make_ir(), wet=0.10)
-    music = bus_compress(music, -21.0, 2.0, 3.0, 45)
+    music = music + 0.055 * bpf(music, 7500, 14000)      # extra air on the lift
+    music = music + convolve_reverb(music, make_ir(), wet=0.12)
+    music = bus_compress(music, -21.0, 2.0, 3.5, 45)
 
     voice = np.zeros((n, 2), dtype=np.float32)
     for idx, start in VO_MAP:
@@ -612,7 +642,7 @@ def build_mix():
     music_out = music.copy()
 
     # bed tail fade only — narration stays clean to the last word
-    head, tail = int(0.15 * SR), int(3.0 * SR)
+    head, tail = int(0.15 * SR), int(3.5 * SR)
     for m in (bed_out, music_out):
         m[:head] *= np.linspace(0, 1, head)[:, None]
         m[-tail:] *= (np.linspace(1, 0, tail) ** 1.7)[:, None]

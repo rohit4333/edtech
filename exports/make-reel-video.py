@@ -1,4 +1,5 @@
-# Render the 60-second reel motion cut to MP4, frame-accurately.
+# Render the 56-second reel motion cut to MP4, frame-accurately.
+# Legacy reel-60s filenames are kept so the audio mux pipeline stays unchanged.
 # Run:  py .\exports\make-reel-video.py
 #       py .\exports\make-reel-video.py --test      (20-frame smoke test)
 #
@@ -40,10 +41,10 @@ def find_browser() -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fps", type=int, default=30)
-    ap.add_argument("--seconds", type=float, default=60.0)
+    ap.add_argument("--seconds", type=float, default=56.0)
     ap.add_argument("--crf", type=int, default=19)
     ap.add_argument("--jpeg-quality", type=int, default=95)
-    ap.add_argument("--out", default="reel-60s.mp4")
+    ap.add_argument("--out", default="reel-60s-silent.mp4")
     ap.add_argument("--test", action="store_true", help="render 20 frames only")
     args = ap.parse_args()
 

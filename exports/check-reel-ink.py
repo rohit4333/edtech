@@ -6,7 +6,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(executable_path=r"C:\Program Files\Google\Chrome\Application\chrome.exe", headless=True)
     pg = b.new_page(viewport={"width":1080,"height":1920})
     pg.goto(url, wait_until="load"); pg.wait_for_function("window.__reel && window.__reel.ready")
-    for t in [2.5,9.5,16.5,24.5,33.5,44,51.5,58]:
+    for t in [3.5,11,17,23,29,37.5,44,55]:
         pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", t)
         print(t, pg.evaluate("""() => {
           const sc=[...document.querySelectorAll('.m-scene')].find(s=>getComputedStyle(s).visibility!=='hidden');

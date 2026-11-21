@@ -1,4 +1,5 @@
-# Build the premium audio for the 60s reel and mux it onto the existing silent video.
+# Build the premium audio for the 56s reel and mux it onto the existing silent video.
+# Legacy reel-60s filenames are kept so the export pipeline stays unchanged.
 #
 # All sound design lives in exports/reel_audio_engine.py; this file is only the
 # CLI that renders the stems, writes the WAVs and muxes the MP4s. The video is
@@ -7,7 +8,7 @@
 # Run:  py .\exports\make-reel-premium-audio.py
 # Output:
 #   exports/audio/reel-60s-music.wav        (score + SFX, ducked under VO)
-#   exports/audio/reel-60s-narration.wav    (narration only, full 60s timeline)
+#   exports/audio/reel-60s-narration.wav    (narration only, full 56s timeline)
 #   exports/audio/reel-60s-mix.wav          (combined mix)
 #   exports/mp4/reel-60s-premium.mp4        (video + mix)
 #   exports/mp4/reel-60s.mp4                (copy of the above — the master)
