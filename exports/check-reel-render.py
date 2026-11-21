@@ -12,7 +12,7 @@ with sync_playwright() as p:
     pg.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
     pg.evaluate("() => document.fonts.ready.then(() => true)")
     # S6 internals
-    pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", 37.5)
+    pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", 28.0)
     print("S6:", pg.evaluate("""() => {
       const sc=[...document.querySelectorAll('.m-scene')].find(s=>getComputedStyle(s).visibility!=='hidden');
       const board=sc.querySelector('.tc-board'); const strip=sc.querySelector('.tc-strip');
@@ -22,7 +22,7 @@ with sync_playwright() as p:
               strip:[strip.offsetWidth,strip.offsetHeight,strip.scrollWidth],
               kids, fonts:[...sc.querySelectorAll('.tc-add,.tc-sub,.tc-name,.tc-cred')].map(e=>getComputedStyle(e).fontSize)};
     }"""))
-    for t in [3.5, 11, 17, 23, 29, 37.5, 44, 55]:
+    for t in [2.4, 7.5, 12.6, 17.0, 21.5, 28.0, 34.0, 39.0]:
         pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", t)
         shot=pg.screenshot(clip={"x":0,"y":0,"width":1080,"height":1920}, type="jpeg", quality=92)
         (OUT/f"new-{t}.jpg").write_bytes(shot)

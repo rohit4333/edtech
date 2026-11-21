@@ -102,7 +102,7 @@ def main():
         pg2 = b.new_page(viewport={"width": 1080, "height": 1920})
         pg2.goto(URL + "#motion=capture", wait_until="load")
         pg2.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
-        for t in (32.8, 34.2, 36.0, 39.0, 40.4):
+        for t in (24.5, 26.2, 28.0, 29.6, 31.2):
             pg2.evaluate(
                 "(t) => { window.__reel.seek(t); return new Promise(r => requestAnimationFrame(() => r())); }",
                 t,

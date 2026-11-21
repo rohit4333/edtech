@@ -76,7 +76,7 @@ def main():
         pg.goto(URL + "#motion=capture", wait_until="load")
         pg.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
         stats = []
-        for t in (3.0, 4.0, 6.0, 11.0, 22.5, 37.0, 43.5):
+        for t in (2.4, 3.2, 4.2, 7.5, 21.5, 28.0, 34.0):
             pg.evaluate(
                 "(t) => { window.__reel.seek(t); return new Promise(r => requestAnimationFrame(() => r())); }",
                 t,
@@ -100,7 +100,7 @@ def main():
                        }"""
                 )
             )
-        for t, s in zip((3.0, 4.0, 6.0, 11.0, 22.5, 37.0, 43.5), stats):
+        for t, s in zip((2.4, 3.2, 4.2, 7.5, 21.5, 28.0, 34.0), stats):
             print(f"t={t:>5}: {s}")
 
         assert all(s["count"] >= 10 for s in stats), "scenes lost their texture"
@@ -112,7 +112,7 @@ def main():
         # pixels removed when the layer hides -> it is genuinely visible
         pg.evaluate(
             "(t) => { window.__reel.seek(t); return new Promise(r => requestAnimationFrame(() => r())); }",
-            3.0,
+            2.4,
         )
         on = shot(pg)
         pg.evaluate(
@@ -124,7 +124,7 @@ def main():
         )
         off = shot(pg)
         moving_px = diff(on, off)
-        print("motion painted pixels @3s:", moving_px)
+        print("motion painted pixels @2.4s:", moving_px)
         assert moving_px > 5000, "symbols are not painting in the motion reel"
 
         b.close()

@@ -1,4 +1,4 @@
-﻿# Narration for the 56s reel — tightened, phrase-by-phrase neural TTS.
+﻿# Narration for the 41.2s reel — tightened, phrase-by-phrase neural TTS.
 #
 # Each line is spoken as separate phrases with its own rate, pitch and emphasis,
 # then joined with hand-set pauses (comma breath vs. full stop). This removes the
@@ -39,8 +39,9 @@ SR = 48000
 PRE, POST = 0.03, 0.05
 
 # (start_s, scene_end_s) — a line must finish inside its scene.
-SLOTS = [(0.25, 7.5), (7.8, 13.5), (13.85, 19.0), (19.4, 25.5),
-         (25.8, 32.0), (32.3, 41.0), (41.35, 46.0), (46.35, 56.0)]
+# Each VO starts 0.25s into its scene and every scene cuts ~0.2s after speech.
+SLOTS = [(0.25, 4.8), (5.05, 10.2), (10.45, 15.1), (15.35, 19.0),
+         (19.25, 23.9), (24.15, 32.1), (32.35, 35.8), (36.05, 41.2)]
 
 # phrase, rate, pitch, gain(dB), pause after (s)
 LINES = [

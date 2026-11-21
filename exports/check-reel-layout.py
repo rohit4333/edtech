@@ -15,7 +15,7 @@ with sync_playwright() as p:
     pg.wait_for_function("window.__reel && window.__reel.ready", timeout=20000)
     pg.evaluate("() => document.fonts.ready.then(() => true)")
     out = {}
-    for t in [3, 10.5, 16.5, 22.5, 28.8, 37, 43.5, 51]:
+    for t in [2.4, 7.5, 12.6, 17.0, 21.5, 28.0, 34.0, 39.0]:
         pg.evaluate("(t)=>{window.__reel.seek(t); return new Promise(r=>requestAnimationFrame(()=>r()));}", t)
         out[t] = pg.evaluate("""() => {
           const stage = document.querySelector('.motion-stage');

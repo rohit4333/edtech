@@ -1,4 +1,4 @@
-# Cinematic score + SFX + narration mixing engine for the 56s reel.
+# Cinematic score + SFX + narration mixing engine for the 41.2s reel.
 # Legacy reel-60s filenames are kept so the export pipeline stays unchanged.
 #
 # Design notes
@@ -21,8 +21,15 @@ from scipy.ndimage import minimum_filter1d, uniform_filter1d
 
 ROOT = Path(__file__).resolve().parent.parent
 SR = 48000
-TOTAL = 56.0
-T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56]
+
+# The score was composed on the original 56s grid. Each scene is now trimmed to
+# the new, tighter cut — the music keeps its tempo and timbre, only the silence
+# after each narration line is removed.
+OLD_TOTAL = 56.0
+OLD_T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56]
+
+T = [0, 4.8, 10.2, 15.1, 19, 23.9, 32.1, 35.8, 41.2]
+TOTAL = T[-1]
 
 # ---------------------------------------------------------------- utilities
 
@@ -108,6 +115,29 @@ def trim_vo(seg, thresh=0.006, pre=0.02, post=0.10):
     if not len(idx):
         return seg
     return seg[max(0, idx[0] - int(pre * SR)): idx[-1] + int(post * SR)]
+
+
+def build_score_old():
+    """Generate the score on its original 56s grid, then restore TOTAL."""
+    global TOTAL
+    saved = TOTAL
+    TOTAL = OLD_TOTAL
+    try:
+        return build_score()
+    finally:
+        TOTAL = saved
+
+
+def retime_score(seg):
+    """Lift each scored scene onto the new cut, dropping only its silent tail."""
+    out = np.zeros((int(TOTAL * SR), 2), dtype=np.float32)
+    for i in range(len(T) - 1):
+        src = int(OLD_T[i] * SR)
+        n = int((T[i + 1] - T[i]) * SR)
+        dst = int(T[i] * SR)
+        part = seg[src:src + n]
+        out[dst:dst + len(part)] = part
+    return out
 
 
 # ---------------------------------------------------------------- instruments
@@ -607,13 +637,13 @@ def process_vo(seg):
     return norm(x, 0.84).astype(np.float32)
 
 
-VO_MAP = [(1, 0.25), (2, 7.8), (3, 13.85), (4, 19.4),
-          (5, 25.8), (6, 32.3), (7, 41.35), (8, 46.35)]
+VO_MAP = [(i + 1, T[i] + 0.25) for i in range(8)]
 
 
 def build_mix():
     n = int(TOTAL * SR)
-    bed, perc, sfx = build_score()
+    bed, perc, sfx = build_score_old()
+    bed, perc, sfx = retime_score(bed), retime_score(perc), retime_score(sfx)
 
     music = bed + perc * 0.65 + sfx * 2.5
     music = hpf(music, 32)
@@ -642,7 +672,7 @@ def build_mix():
     music_out = music.copy()
 
     # bed tail fade only — narration stays clean to the last word
-    head, tail = int(0.15 * SR), int(3.5 * SR)
+    head, tail = int(0.15 * SR), int(1.2 * SR)
     for m in (bed_out, music_out):
         m[:head] *= np.linspace(0, 1, head)[:, None]
         m[-tail:] *= (np.linspace(1, 0, tail) ** 1.7)[:, None]

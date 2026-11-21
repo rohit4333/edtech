@@ -855,7 +855,7 @@
 </div>
 <!-- ==================== REEL ==================== -->
 <div class="sec">
-  <div class="sec-label">03 / REEL STORYBOARD <em>8 scenes · 1080 × 1920 · 56-second cut</em><a class="motion-link" href="#motion" onclick="location.hash='motion';location.reload();return false">▶ PLAY MOTION REEL</a></div>
+  <div class="sec-label">03 / REEL STORYBOARD <em>8 scenes · 1080 × 1920 · 41-second cut</em><a class="motion-link" href="#motion" onclick="location.hash='motion';location.reload();return false">▶ PLAY MOTION REEL</a></div>
   <div class="row tight">
 
     <div class="reel-item">
@@ -864,7 +864,7 @@
           <div class="frame g1">
             <div class="safe"></div>
             <div class="bignum">1</div>
-            <div class="tc"><span>S1</span><span>0:00–0:06</span></div>
+            <div class="tc"><span>S1</span><span>0:00–0:04.8</span></div>
             <div class="who">SIREN HOOK</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -909,7 +909,7 @@
           <div class="frame g2">
             <div class="safe"></div>
             <div class="bignum">2</div>
-            <div class="tc"><span>S2</span><span>0:06–0:13</span></div>
+            <div class="tc"><span>S2</span><span>0:04.8–0:10.2</span></div>
             <div class="who">THE CHILD'S FEAR</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -957,7 +957,7 @@
           <div class="frame g3">
             <div class="safe"></div>
             <div class="bignum">3</div>
-            <div class="tc"><span>S3</span><span>0:13–0:20</span></div>
+            <div class="tc"><span>S3</span><span>0:10.2–0:15.1</span></div>
             <div class="who">PARENT GUILT</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -1003,7 +1003,7 @@
           <div class="frame g4">
             <div class="safe"></div>
             <div class="bignum">4</div>
-            <div class="tc"><span>S4</span><span>0:20–0:29</span></div>
+            <div class="tc"><span>S4</span><span>0:15.1–0:19</span></div>
             <div class="who">THE TURN</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -1033,7 +1033,7 @@
           <div class="frame g5">
             <div class="safe"></div>
             <div class="bignum">5</div>
-            <div class="tc"><span>S5</span><span>0:29–0:39</span></div>
+            <div class="tc"><span>S5</span><span>0:19–0:23.9</span></div>
             <div class="who">THE MESSAGE</div>
             <div class="phone">
               <div class="notch"></div>
@@ -1060,7 +1060,7 @@
           <div class="frame g6">
             <div class="safe"></div>
             <div class="bignum">6</div>
-            <div class="tc"><span>S6</span><span>0:39–0:48</span></div>
+            <div class="tc"><span>S6</span><span>0:23.9–0:32.1</span></div>
             <div class="who">MEET YOUR TUTOR</div>
             <div class="scene s6-scene">
               <div class="s6-card">
@@ -1141,7 +1141,7 @@
           <div class="frame g7">
             <div class="safe"></div>
             <div class="bignum">7</div>
-            <div class="tc"><span>S7</span><span>0:48–0:54</span></div>
+            <div class="tc"><span>S7</span><span>0:32.1–0:35.8</span></div>
             <div class="who">THE RESULT</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -1173,7 +1173,7 @@
           <div class="frame note">
             <div class="safe"></div>
             <div class="bignum">8</div>
-            <div class="tc"><span>S8</span><span>0:54–1:00</span></div>
+            <div class="tc"><span>S8</span><span>0:35.8–0:41.2</span></div>
             <div class="who">END CARD</div>
             <div class="scene">
               <svg viewBox="0 0 560 440" fill="none">
@@ -1294,7 +1294,7 @@
 <script>
 /* Bake a faint maths texture into scenes 1–7.
    It lives in the storyboard markup, so the exact same layer ships in the
-   2× PNG scene images, the 4K exports and the 56-second MP4. Scene 8 stays clean. */
+   2× PNG scene images, the 4K exports and the 41-second MP4. Scene 8 stays clean. */
 (function () {
   var frames = [].slice.call(document.querySelectorAll('.reel-item .frame'));
   if (frames.length !== 8) return;
@@ -1437,22 +1437,22 @@
   var srcFrames = [].slice.call(document.querySelectorAll('.reel-item .frame'));
   if (srcFrames.length !== 8) return;
 
-  var TOTAL = 56;
-  var T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56];
-  var RANGE = ['0:00–0:07.5', '0:07.5–0:13.5', '0:13.5–0:19', '0:19–0:25.5',
-               '0:25.5–0:32', '0:32–0:41', '0:41–0:46', '0:46–0:56'];
+  var TOTAL = 41.2;
+  var T = [0, 4.8, 10.2, 15.1, 19, 23.9, 32.1, 35.8, 41.2];
+  var RANGE = ['0:00–0:04.8', '0:04.8–0:10.2', '0:10.2–0:15.1', '0:15.1–0:19',
+               '0:19–0:23.9', '0:23.9–0:32.1', '0:32.1–0:35.8', '0:35.8–0:41.2'];
   /* narration phrase starts, relative to each scene start — measured from the VO WAVs */
   var BEATS = [
     [0.28, 1.91, 3.30],                  /* S1 — not slow / invisible / crowded classroom */
-    [0.33, 1.87, 3.80],                  /* S2 — room full / questions never asked / doubt grows */
-    [0.38, 1.87, 3.79],                  /* S3 — good school / not clicking / can feel it */
-    [0.43, 2.64],                        /* S4 — one moment / finally get it */
-    [0.33, 2.31],                        /* S5 — one conversation / exactly where stuck */
-    [0.33, 1.97, 3.98, 5.21, 6.58],      /* S6 — name / Samsung / B.Tech / IIIT / Bhaanzu */
-    [0.38, 2.04],                        /* S7 — confidence back / one concept at a time */
-    [0.38, 1.68, 3.52, 4.52]             /* S8 — free demo / one student / WhatsApp / me */
+    [0.28, 1.82, 3.75],                  /* S2 — room full / questions never asked / doubt grows */
+    [0.28, 1.77, 3.69],                  /* S3 — good school / not clicking / can feel it */
+    [0.28, 2.49],                        /* S4 — one moment / finally get it */
+    [0.28, 2.26],                        /* S5 — one conversation / exactly where stuck */
+    [0.28, 1.92, 3.93, 5.16, 6.53],      /* S6 — name / Samsung / B.Tech / IIIT / Bhaanzu */
+    [0.28, 1.94],                        /* S7 — confidence back / one concept at a time */
+    [0.28, 1.58, 3.42, 4.42]             /* S8 — free demo / one student / WhatsApp / me */
   ];
-  var VO_END = [4.59, 5.21, 4.80, 3.78, 4.59, 8.04, 3.51, 5.33];
+  var VO_END = [4.59, 5.16, 4.70, 3.63, 4.54, 7.99, 3.41, 5.23];
   var EASE = 'cubic-bezier(.16,1,.3,1)';
   var SOFT = 'cubic-bezier(.22,.61,.36,1)';
   var POP  = 'cubic-bezier(.34,1.24,.46,1)';
@@ -2021,7 +2021,7 @@
   var flash = document.createElement('div');
   flash.style.cssText = 'position:absolute;inset:0;z-index:6;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.22),rgba(255,255,255,0) 55%);opacity:0;mix-blend-mode:screen';
   stage.insertBefore(flash, vign);
-  [0, 19, 25.5, 32, 46].forEach(function(at){
+  [0, T[3], T[4], T[5], T[7]].forEach(function(at){
     A(flash, [{opacity:0},{opacity:.55},{opacity:0}], Math.max(0, at - 0.005), 0.10, 'ease-out');
   });
 
