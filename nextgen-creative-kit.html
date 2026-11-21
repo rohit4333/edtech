@@ -1441,6 +1441,18 @@
   var T = [0, 7.5, 13.5, 19, 25.5, 32, 41, 46, 56];
   var RANGE = ['0:00–0:07.5', '0:07.5–0:13.5', '0:13.5–0:19', '0:19–0:25.5',
                '0:25.5–0:32', '0:32–0:41', '0:41–0:46', '0:46–0:56'];
+  /* narration phrase starts, relative to each scene start — measured from the VO WAVs */
+  var BEATS = [
+    [0.28, 1.91, 3.30],                  /* S1 — not slow / invisible / crowded classroom */
+    [0.33, 1.87, 3.80],                  /* S2 — room full / questions never asked / doubt grows */
+    [0.38, 1.87, 3.79],                  /* S3 — good school / not clicking / can feel it */
+    [0.43, 2.64],                        /* S4 — one moment / finally get it */
+    [0.33, 2.31],                        /* S5 — one conversation / exactly where stuck */
+    [0.33, 1.97, 3.98, 5.21, 6.58],      /* S6 — name / Samsung / B.Tech / IIIT / Bhaanzu */
+    [0.38, 2.04],                        /* S7 — confidence back / one concept at a time */
+    [0.38, 1.68, 3.52, 4.52]             /* S8 — free demo / one student / WhatsApp / me */
+  ];
+  var VO_END = [4.59, 5.21, 4.80, 3.78, 4.59, 8.04, 3.51, 5.33];
   var EASE = 'cubic-bezier(.16,1,.3,1)';
   var SOFT = 'cubic-bezier(.22,.61,.36,1)';
   var POP  = 'cubic-bezier(.34,1.24,.46,1)';
@@ -1565,7 +1577,7 @@
   function animateSymbols(frame, S, D, i) {
     var syms = frame.querySelectorAll('.reel-sym, .reel-eq');
     var dur = Math.max(2.2, D - 0.3);
-    [].forEach.call(syms, function (el) {
+    [].forEach.call(syms, function (el, k) {
       var rot = parseFloat(el.getAttribute('data-r')) || 0;
       var a = parseFloat(el.getAttribute('data-a')) || 0.08;
       var dx = parseFloat(el.getAttribute('data-dx')) || 0;
@@ -1573,7 +1585,10 @@
       var sc = parseFloat(el.getAttribute('data-sc')) || 1.12;
       var mode = parseInt(el.getAttribute('data-m'), 10) || 0;
       var delay = parseFloat(el.getAttribute('data-d')) || 0;
-      var t0 = S + 0.1 + delay;
+      /* texture crests on a narration phrase — the pulse peaks at the spoken beat */
+      var b = BEATS[i];
+      var t0 = S + b[k % b.length] - dur * 0.36 +
+               Math.floor(k / b.length) * 0.12 + delay;
       var r2 = rot + 7;
 
       if (mode === 1) {
@@ -1619,7 +1634,10 @@
       var cs = getComputedStyle(el);
       var stroke = cs.stroke, fill = cs.fill;
       var dash = el.getAttribute('stroke-dasharray');
-      var at = S + 0.55 + order * 0.055;
+      /* each SVG beat rides the narration phrase of the same index */
+      var b = BEATS[i];
+      var at = S + b[Math.min(order, b.length - 1)] +
+               (order >= b.length ? (order - b.length + 1) * 0.08 : 0);
       order++;
 
       if (tag === 'path') {
@@ -1631,14 +1649,14 @@
             { opacity: 0, transform: 'scale(.22)' },
             { opacity: .75, transform: 'scale(1.16)' },
             { opacity: .75, transform: 'scale(1)' }
-          ], at - 0.18, 0.68, POP);
+          ], S + BEATS[3][1], 0.68, POP);
           return;
         }
         if (dash) { fade(el, at, 0.42); march(el, at + 0.14, Math.max(2.0, D - 0.8), 90); return; }
         if (stroke !== 'none' && draw(el, at, 0.75)) {
           if (i === 6 && el.getAttribute('stroke') === '#17A398') {
             A(el, [{ strokeWidth: 7 }, { strokeWidth: 13 }, { strokeWidth: 7 }],
-              at + 0.36, 0.95, 'ease-out', { iterations: 2 });
+              S + BEATS[6][1], 0.95, 'ease-out', { iterations: 2 });
           }
           return;
         }
@@ -1676,7 +1694,7 @@
       if (i === 2 && txt === 'PARENT SIGN') { typeText(el, at, 0.04); return; }
       if (i === 2 && /^[DCB]$/.test(txt)) { pop(el, at, 0.5, 0.35); return; }
       if (i === 2 && txt === '!') { pop(el, at, 0.5, 0.2); return; }
-      if (i === 3 && txt === 'OH.') { pop(el, at, 0.55, 0.25); return; }
+      if (i === 3 && txt === 'OH.') { pop(el, S + BEATS[3][1] + 0.08, 0.55, 0.25); return; }
       if (i === 7 && txt === 'R') { pop(el, at, 0.6, 0.3); return; }
       A(el, [
         { opacity: 0, transform: 'translateY(14px)' },
@@ -1687,6 +1705,7 @@
 
   srcFrames.forEach(function (src, i) {
     var S = T[i], E = T[i + 1], D = E - S;
+    var b = BEATS[i], b0 = b[0], b1 = b.length > 1 ? b[1] : b0 + 0.6;
 
     var scene = document.createElement('div');
     scene.className = 'm-scene';
@@ -1740,7 +1759,7 @@
       panel.innerHTML = '<span class="c tl"></span><span class="c br"></span>' +
                         '<b class="tag">' + PANEL_TAG[i] + '</b>';
       vwrap.insertBefore(panel, vwrap.firstChild);
-      A(panel.querySelector('.tag'), [{ opacity: 0 }, { opacity: .95 }], S + 1.25, 0.8, 'ease-out');
+      A(panel.querySelector('.tag'), [{ opacity: 0 }, { opacity: .95 }], S + b1, 0.8, 'ease-out');
     }
 
     /* copy deck — rule + headline + (end card only) contact */
@@ -1812,24 +1831,24 @@
     A(kicker, [
       { opacity: 0, transform: 'translateY(26px)' },
       { opacity: 1, transform: 'none' }
-    ], S + 0.10, 0.48, EASE);
+    ], S + b0, 0.48, EASE);
     A(kicker.querySelector('i'), [
       { opacity: 0, transform: 'scale(0)' },
       { opacity: 1, transform: 'scale(1)' }
-    ], S + 0.18, 0.4, POP);
+    ], S + b0 + 0.08, 0.4, POP);
     A(kicker.querySelector('i'), [
       { boxShadow: '0 0 0 0 rgba(255,91,46,.55)' },
       { boxShadow: '0 0 0 16px rgba(255,91,46,0)' }
-    ], S + 0.4, 1.35, 'ease-out', { iterations: Math.max(1, Math.round(D / 1.35)) });
-    A(kicker.querySelector('.m-count'), [{ opacity: 0 }, { opacity: .45 }], S + 0.5, 0.6, EASE);
+    ], S + b0 + 0.15, 1.35, 'ease-out', { iterations: Math.max(1, Math.round(D / 1.35)) });
+    A(kicker.querySelector('.m-count'), [{ opacity: 0 }, { opacity: .45 }], S + b0 + 0.2, 0.6, EASE);
 
-    /* headline rule + masked lines */
+    /* headline rule + masked lines — all keyed to the first spoken phrase */
     A(meta, [
       { opacity: 0, transform: 'translateY(14px)' },
       { opacity: 1, transform: 'none' }
-    ], S + 0.20, 0.48, EASE);
-    A(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], S + 0.25, 0.58, EASE);
-    linesIn(split(line), S + 0.32, 0.11, 0.72);
+    ], S + b0, 0.48, EASE);
+    A(rule, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], S + b0 + 0.05, 0.58, EASE);
+    linesIn(split(line), S + b0 + 0.1, 0.11, 0.72);
 
     /* visual: rise in, then drift for the rest of the scene (one transform track) */
     if (visual) {
@@ -1838,7 +1857,7 @@
         { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.16 },
         { opacity: 1, transform: 'translateY(-12px) scale(1.012)', offset: 0.62 },
         { opacity: 1, transform: 'translateY(0) scale(1)', offset: 1 }
-      ], S + 0.42, Math.max(1.5, D - 0.3), EASE);
+      ], S + b0 + 0.1, Math.max(1.5, D - 0.3), EASE);
     }
 
     animateShapes(frame, S, D, i);
@@ -1850,7 +1869,7 @@
         { stroke: 'rgba(246,241,231,.3)' },
         { stroke: 'rgba(255,91,46,.85)' },
         { stroke: 'rgba(246,241,231,.3)' }
-      ], S + 2.4, 1.2, 'ease-in-out');
+      ], S + b[2], 1.2, 'ease-in-out');
     }
 
     if (i === 2) {
@@ -1859,15 +1878,16 @@
         { fill: '#FF5B2E' },
         { fill: '#F6F1E7' },
         { fill: '#FF5B2E' }
-      ], S + 1.8, 1.1, 'ease-in-out', { iterations: 2 });
+      ], S + b[1], 1.1, 'ease-in-out', { iterations: 2 });
     }
 
     if (i === 4) {
       var chat = frame.querySelector('.chat');
       var bubbles = chat ? chat.querySelectorAll('.b') : [];
-      var times = [1.0, 2.8, 5.2];
-      [].forEach.call(bubbles, function (b, k) {
-        A(b, [
+      /* the chat lands on the two spoken phrases; the last reply follows the VO */
+      var times = [BEATS[4][0], BEATS[4][1], VO_END[4] + 0.05];
+      [].forEach.call(bubbles, function (bubble, k) {
+        A(bubble, [
           { opacity: 0, transform: 'translateY(26px) scale(.94)' },
           { opacity: 1, transform: 'none' }
         ], S + times[k], 0.42, POP);
@@ -1877,15 +1897,16 @@
         typing.className = 'm-typing';
         typing.innerHTML = '<span></span><span></span><span></span>';
         chat.insertBefore(typing, bubbles[2]);
+        var typingAt = S + BEATS[4][1] + 0.45;
         A(typing, [
           { opacity: 0, offset: 0 },
           { opacity: 1, offset: .14 },
           { opacity: 1, offset: .84 },
           { opacity: 0, offset: 1 }
-        ], S + 4.4, 1.2, LIN);
+        ], typingAt, VO_END[4] - BEATS[4][1] - 0.3, LIN);
         [].forEach.call(typing.querySelectorAll('span'), function (d, k) {
           A(d, [{ opacity: .3 }, { opacity: 1 }, { opacity: .3 }],
-            S + 4.6 + k * 0.12, 0.55, 'ease-in-out', { iterations: 2 });
+            typingAt + 0.2 + k * 0.12, 0.55, 'ease-in-out', { iterations: 2 });
         });
       }
       if (bubbles[1]) {
@@ -1896,7 +1917,7 @@
         A(ticks, [
           { opacity: 0, transform: 'translateY(6px)' },
           { opacity: .85, transform: 'none' }
-        ], S + 3.8, 0.38, EASE);
+        ], S + BEATS[4][1] + 0.75, 0.38, EASE);
       }
     }
 
@@ -1910,30 +1931,35 @@
       var s6Photo = frame.querySelector('.s6-photo');
       var s6Rim = frame.querySelector('.s6-photo .rim');
 
-      /* the portrait arrives first — a person, not a poster */
+      var s6Beats = BEATS[5];
+
+      /* the portrait arrives on the introduction — a person, not a poster */
       A(s6Photo, [
         { opacity: 0, transform: 'translateY(36px) scale(1.05)' },
         { opacity: 1, transform: 'none' }
-      ], S + 0.14, 0.9, EASE);
+      ], S + s6Beats[0], 0.9, EASE);
       if (s6Rim) {
         A(s6Rim, [
           { opacity: .25, transform: 'scale(.92)' },
           { opacity: 1, transform: 'scale(1.06)' }
-        ], S + 0.18, 2.6, 'ease-in-out', { iterations: 3, direction: 'alternate' });
+        ], S + s6Beats[0] + 0.04, 2.6, 'ease-in-out', { iterations: 3, direction: 'alternate' });
       }
 
-      fade(s6Fig, S + 0.32, 0.45);
+      fade(s6Fig, S + s6Beats[0], 0.45);
       A(s6First, [{ opacity: 0, transform: 'translateX(-14px)' }, { opacity: 1, transform: 'none' }],
-        S + 0.4, 0.5, EASE);
+        S + s6Beats[0] + 0.08, 0.5, EASE);
       A(s6Last, [{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'none' }],
-        S + 0.5, 0.62, EASE);
+        S + s6Beats[0] + 0.18, 0.62, EASE);
 
-      /* the two credentials are the heroes: plate rises, word lands */
+      /* credentials land in narration order: Samsung, IIIT, Bhaanzu */
+      var credBeats = { 'SAMSUNG': s6Beats[1], 'IIIT-ALLAHABAD': s6Beats[3], 'BHANZU': s6Beats[4] };
       [].forEach.call(s6Creds, function (c, k) {
-        var at = S + 0.75 + k * 0.48;
+        var big = c.querySelector('.s6-big');
+        var key = big ? big.textContent.trim() : '';
+        var rel = credBeats[key] !== undefined ? credBeats[key] : s6Beats[Math.min(k, s6Beats.length - 1)];
+        var at = S + rel;
         A(c, [{ opacity: 0, transform: 'translateY(26px)' }, { opacity: 1, transform: 'none' }],
           at, 0.55, EASE);
-        var big = c.querySelector('.s6-big');
         if (big) {
           A(big, [
             { opacity: 0, transform: 'translateX(-22px) scale(.94)' },
@@ -1943,9 +1969,9 @@
       });
 
       A(s6Note, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }],
-        S + 1.75, 0.45, 'ease-out');
+        S + s6Beats[4] + 0.55, 0.45, 'ease-out');
       [].forEach.call(s6Tags, function (t, k) {
-        pop(t, S + 1.95 + k * 0.08, 0.36, 0.7);
+        pop(t, S + s6Beats[4] + 0.72 + k * 0.08, 0.36, 0.7);
       });
 
       /* every symbol, ghost word and fragment drifts in its own direction */
@@ -1953,7 +1979,7 @@
         var drift = (k % 2 ? 1 : -1) * (10 + (k % 3) * 8);
         var rise = 24 + (k % 4) * 15;
         var grow = 1.04 + (k % 3) * 0.05;
-        var delay = 0.34 + (k % 7) * 0.19;
+        var delay = s6Beats[k % s6Beats.length] + Math.floor(k / s6Beats.length) * 0.12;
         var peak = el.classList.contains('s6-ghost') ? 1 : 0.92;
         A(el, [
           { opacity: 0, transform: 'translate3d(0,' + rise + 'px,0) scale(.96)' },
@@ -1965,13 +1991,14 @@
 
     /* end card */
     if (contact) {
-      linesIn(split(contact), S + 1.1, 0.13, 0.65);
+      linesIn(split(contact), S + b0, 0.13, 0.65);
       var cta = contact.querySelector('span[style*="coral"]');
+      /* pulse exactly on "WhatsApp me." */
       A(cta, [
         { opacity: .6 },
         { opacity: 1 },
         { opacity: .6 }
-      ], E - 2.0, 0.8, 'ease-in-out', { iterations: 2 });
+      ], S + BEATS[7][3], 0.8, 'ease-in-out', { iterations: 2 });
     }
   });
 
