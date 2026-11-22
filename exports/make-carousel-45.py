@@ -102,7 +102,7 @@ TEXT_45 = """
   .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
   /* keep the specificity fix from the shared layer */
   .s6 .risk span{font-size:26px;letter-spacing:1.1px;padding:10px 13px}
-  .s6-micro span{font-size:24px;letter-spacing:1px}
+  .s6-micro span{font-size:19px;letter-spacing:1.4px}
   .s6-phone-note{font-size:24px;letter-spacing:.9px}
   .s6-price{font-size:32px;letter-spacing:1px}
   .s6-note-ksa{font-size:24px;letter-spacing:.9px}
