@@ -746,7 +746,7 @@
         <div class="slide sq light s5">
           <div class="kicker">05 — THE DEMO EXPERIENCE</div>
           <div class="h1 sm">What your child <em>and you</em><br>experience in the demo.</div>
-          <div class="body" style="font-size:25px;margin-top:22px">Thirty-five minutes. One tutor, one student, one real problem — worked through together, with you watching.</div>
+          <div class="body">Thirty-five minutes. One tutor, one student, one real problem — worked through together, with you watching.</div>
           <ol>
             <li><span>01</span>Your child solves the problem and explains their thinking.</li>
             <li><span>02</span>You see exactly where understanding breaks and how it’s rebuilt.</li>
@@ -771,7 +771,7 @@
           <div class="ghost">1:1</div>
           <div class="kicker" style="color:var(--coral);opacity:1">06 — NEXT STEP</div>
           <div class="h1 sm">Try a free<br>35-minute<br>demo.</div>
-          <div class="body" style="font-size:25px;margin-top:24px;opacity:.65">One tutor. One student.<br>Your child's real homework — nothing staged.</div>
+          <div class="body" style="opacity:.65">One tutor. One student.<br>Your child's real homework — nothing staged.</div>
           <div class="s6-cta">
             <div class="lbl">WHATSAPP TO BOOK</div>
             <div class="num">+91 91941 34507</div>
@@ -1413,6 +1413,7 @@
   body.export-mode::before,body.export-mode::after{display:none!important}
   body.export-mode .board{visibility:hidden!important}
   body.export-mode .board-foot{display:none!important}
+
   /* ---------- Riyadh localisation ---------- */
   .riyadh-tag{display:inline-flex;align-items:center;align-self:flex-start;gap:10px;
     margin-top:14px;padding:9px 15px;border-radius:2px;background:rgba(18,150,140,.10);
@@ -1428,6 +1429,10 @@
     color:rgba(246,241,231,.58);margin-top:12px;line-height:1.6}
   .s3-scope{margin-top:10px}
   .s3 .body{margin-top:14px}
+  .slide.s3 .riyadh-tag{padding:4px 10px;margin-top:10px}
+  .slide.s3 .s3-scope{margin-top:4px}
+  .slide.s3 .s3-diagram{margin-top:16px}
+  .slide.s3 .chips{margin-top:4px}
   .s6 .h1{font-size:104px}
   .s6 .body{font-size:28px;margin-top:20px}
   .s6-cta{margin-top:30px;padding:26px 40px 24px}
@@ -1436,42 +1441,170 @@
   .s6-micro{margin-top:12px}
   .s4-note a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(246,241,231,.35)}
   .s4-note a:hover{color:#FF8055;border-bottom-color:#FF8055}
+  /* ---------- MOBILE LEGIBILITY ---------- */
+  /* Phone width ~393 CSS px => a 1080px slide renders at ~0.36x.
+     Copy at 36px here reads as ~13 CSS px; the 4:5 canvas raises this to
+     46-48px (~17 CSS px) inside the 15-20 arcminute comfort band.
+     Space is recovered from decoration and padding, never from headlines. */
+  .kicker{font-size:28px;letter-spacing:3px}
+  .foot{font-size:24px;letter-spacing:1.5px;padding-top:18px}
+  .body{font-size:36px;line-height:1.34}
 
-  /* ---------- 4:5 portrait carousel · 1080x1350 ---------- */
+  /* S1 */
+  .s1 .body{font-size:36px;max-width:680px;line-height:1.38}
+  .s1 .accent{bottom:322px}
+
+  /* S2 */
+  .s2 ol{margin-top:26px}
+  .s2 li{font-size:36px;padding:12px 0;line-height:1.3}
+  .s2 li::before{font-size:24px;min-width:62px;padding-top:6px}
+  .s2 .body{font-size:34px;margin-top:16px}
+  .chart{height:158px;margin-top:20px}
+
+  /* S3 — compact the classroom diagram, keep the reading size */
+  .s3 .h1{font-size:76px}
+  .s3-diagram{margin-top:20px}
+  .s3-panel{padding:14px 16px;gap:10px}
+  .class{gap:18px}
+  .dots{grid-template-columns:repeat(6,26px);gap:10px}
+  .dots i{width:26px;height:26px}
+  .tutor .tsq{width:42px;height:42px}
+  .orbit svg{width:200px;height:180px}
+  .s3 .body{font-size:34px;margin-top:14px}
+  .s3 .chips{margin-top:6px}
+  .chip{font-size:20px;padding:7px 11px}
+  .s3-h,.s3-f{font-size:21px;letter-spacing:1px}
+  .s3-scope{font-size:21px;letter-spacing:1px;margin-top:6px}
+  .riyadh-tag{font-size:21px;letter-spacing:.8px;padding:5px 11px}
+
+  /* S4 — note must stay inside the photo card, above the footer */
+  .s4-card{margin-top:22px}
+  .s4-info{padding:32px 30px 60px 44px}
+  .s4-k{font-size:21px;letter-spacing:1.6px}
+  .s4-name{font-size:44px}
+  .s4-c{font-size:20px;letter-spacing:1.3px}
+  .s4-v{font-size:34px}
+  .s4-body{font-size:28px;margin-top:12px;line-height:1.34}
+  .s4-note{font-size:20px;letter-spacing:1px;margin-top:10px;line-height:1.5;padding-top:10px;max-width:470px}
+  .s4-stamp{font-size:20px}
+
+  /* S5 */
+  .s5 .h1{font-size:74px}
+  .s5 .body{font-size:32px;margin-top:18px}
+  .s5 ol{margin-top:16px;gap:10px}
+  .s5 li{font-size:34px;line-height:1.28}
+  .s5 li span{font-size:22px}
+  .ticket{margin-top:16px;padding:14px 18px}
+  .ticket .big small{font-size:22px}
+  .ticket .meta{font-size:20px;letter-spacing:1px}
+  .seal{font-size:16px}
+  .s5-after{font-size:20px;letter-spacing:1px;margin-top:14px;line-height:1.5}
+
+  /* S6 + Riyadh notes */
+  .s6 .h1{font-size:104px}
+  .s6 .body{font-size:36px;margin-top:18px;line-height:1.32}
+  .s6-cta{margin-top:20px;padding:20px 30px 18px}
+  .s6-cta .lbl{font-size:21px;letter-spacing:1.8px}
+  .s6 .risk{margin-top:12px}
+  .risk span{font-size:21px;letter-spacing:1.1px;padding:8px 11px}
+  /* must follow .risk span — the original .s6 .risk span outranks it */
+  .s6 .risk span{font-size:21px;letter-spacing:1.1px;padding:8px 11px}
+  .s6-micro{margin-top:10px}
+  .s6-micro span{font-size:20px;letter-spacing:1px}
+  .s6-phone-note{font-size:20px;letter-spacing:.9px}
+  .s6-price{font-size:26px;letter-spacing:1px;padding:10px 14px}
+  .s6-note-ksa{font-size:20px;letter-spacing:.9px}
+
+  /* ---------- 4:5 portrait layout · 1080x1350 ---------- */
   .sq{width:1080px;height:1350px;padding:104px 88px}
-  .kicker{margin-bottom:38px}
+  .kicker{margin-bottom:26px}
   .foot{padding-top:26px}
 
   /* S1 — bottom-anchored copy follows the taller canvas */
   .s1{padding:104px 88px}
   .s1 .accent{left:88px;bottom:372px}
-  .s1 .body{left:88px;bottom:236px;font-size:30px;max-width:520px}
+  .s1 .body{left:88px;bottom:236px;max-width:760px}
   .s1-art{right:52px;bottom:424px;width:380px;height:301px}
 
   /* S2 */
   .s2 ol{margin-top:46px}
-  .s2 li{padding:28px 0;font-size:31px}
+  .s2 li{padding:20px 0}
   .chart{height:206px;margin-top:32px}
-  .s2 .body{margin-top:28px;font-size:28px}
+  .s2 .body{margin-top:28px}
 
-  /* S3 */
-  .s3-diagram{margin-top:42px}
-  .s3 .body{margin-top:28px;font-size:26px}
-  .s3 .chips{margin-top:20px}
+  /* S3 — restore full-size diagram in the taller frame */
+  .s3 .h1{font-size:82px}
+  .s3-diagram{margin-top:30px}
+  .s3-panel{padding:16px 18px;gap:12px}
+  .dots{grid-template-columns:repeat(6,32px);gap:14px}
+  .dots i{width:32px;height:32px}
+  .orbit svg{width:200px;height:180px}
+  .s3 .body{margin-top:18px}
+  .s3 .chips{margin-top:12px}
 
   /* S4 — let the photo card grow into the extra height */
   .s4-card{height:842px;margin-top:42px}
-  .s4-info{padding:50px 40px 96px 52px}
-  .s4-body{margin-top:26px;font-size:22px}
+  .s4-info{padding:40px 40px 56px 52px}
+  .s4-body{margin-top:26px}
+  .s4-note{max-width:560px}
 
   /* S5 */
-  .s5 ol{margin-top:38px;gap:24px}
-  .s5 li{font-size:27px}
-  .ticket{margin-top:38px;padding:24px 28px}
-  .s5-after{margin-top:32px}
+  .s5 .h1{font-size:82px}
+  .s5 .body{margin-top:20px}
+  .s5 ol{margin-top:24px;gap:16px}
+  .ticket{margin-top:24px;padding:18px 22px}
+  .s5-after{margin-top:20px}
 
-  /* S6 — keep each deck's own type tuning; only rebalance the artwork */
+  /* S6 — restore hero scale; rebalance the artwork */
+  .s6 .h1{font-size:116px}
+  .s6 .body{margin-top:26px}
+  .s6-cta{margin-top:32px}
+  .s6 .risk{margin-top:20px}
+  .s6-micro{margin-top:16px}
   .s6 .ghost{top:380px}
+
+  /* ---------- 4:5 portrait text scale · 1080x1350 ---------- */
+  .kicker{font-size:34px;letter-spacing:3px}
+  .foot{font-size:28px;letter-spacing:1.5px}
+  .body{font-size:48px;line-height:1.34}
+
+  .s1 .body{font-size:46px;line-height:1.38}
+
+  .s2 li{font-size:46px;padding:20px 0;line-height:1.3}
+  .s2 li::before{font-size:28px;min-width:72px;padding-top:8px}
+  .s2 .body{font-size:46px}
+
+  .s3 .body{font-size:46px}
+  .s3-h,.s3-f{font-size:26px;letter-spacing:1px}
+  .s3-scope{font-size:26px;letter-spacing:1px}
+  .chip{font-size:22px;padding:7px 12px}
+  .riyadh-tag{font-size:22px;letter-spacing:.8px;padding:8px 12px}
+
+  .s4-k{font-size:26px}
+  .s4-c{font-size:24px;letter-spacing:1.3px}
+  .s4-v{font-size:42px}
+  .s4-name{font-size:52px}
+  .s4-body{font-size:36px;line-height:1.34}
+  .s4-note{font-size:23px;letter-spacing:1px;line-height:1.6;padding-top:4px}
+  .s4-stamp{font-size:24px}
+
+  .s5 .h1{font-size:76px}
+  .s5 li{font-size:40px;line-height:1.28}
+  .s5 li span{font-size:26px}
+  .s5 .body{font-size:44px}
+  .ticket .big small{font-size:26px}
+  .ticket .meta{font-size:24px;letter-spacing:1px}
+  .seal{font-size:20px}
+  .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
+
+  .s6 .body{font-size:48px;line-height:1.32}
+  .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
+  /* keep the specificity fix from the shared layer */
+  .s6 .risk span{font-size:26px;letter-spacing:1.1px;padding:10px 13px}
+  .s6-micro span{font-size:24px;letter-spacing:1px}
+  .s6-phone-note{font-size:24px;letter-spacing:.9px}
+  .s6-price{font-size:32px;letter-spacing:1px}
+  .s6-note-ksa{font-size:24px;letter-spacing:.9px}
 </style>
 <script>
 (function () {

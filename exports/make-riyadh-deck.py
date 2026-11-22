@@ -18,9 +18,8 @@ def rep(old, new, label):
 
 # Local layout additions. Compact the two affected slides so the footers stay
 # inside the 1080² frame after the extra lines are added.
-rep("  body.export-mode .board-foot{display:none!important}\n</style>",
-    """  body.export-mode .board-foot{display:none!important}
-  /* ---------- Riyadh localisation ---------- */
+rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
+    """  /* ---------- Riyadh localisation ---------- */
   .riyadh-tag{display:inline-flex;align-items:center;align-self:flex-start;gap:10px;
     margin-top:14px;padding:9px 15px;border-radius:2px;background:rgba(18,150,140,.10);
     border:1.2px solid rgba(18,150,140,.55);font-family:var(--mono);font-size:15px;
@@ -35,6 +34,10 @@ rep("  body.export-mode .board-foot{display:none!important}\n</style>",
     color:rgba(246,241,231,.58);margin-top:12px;line-height:1.6}
   .s3-scope{margin-top:10px}
   .s3 .body{margin-top:14px}
+  .slide.s3 .riyadh-tag{padding:4px 10px;margin-top:10px}
+  .slide.s3 .s3-scope{margin-top:4px}
+  .slide.s3 .s3-diagram{margin-top:16px}
+  .slide.s3 .chips{margin-top:4px}
   .s6 .h1{font-size:104px}
   .s6 .body{font-size:28px;margin-top:20px}
   .s6-cta{margin-top:30px;padding:26px 40px 24px}
@@ -43,7 +46,7 @@ rep("  body.export-mode .board-foot{display:none!important}\n</style>",
   .s6-micro{margin-top:12px}
   .s4-note a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(246,241,231,.35)}
   .s4-note a:hover{color:#FF8055;border-bottom-color:#FF8055}
-</style>""", "css")
+  /* ---------- MOBILE LEGIBILITY ---------- */""", "css")
 
 # Slide 03 — weekend / KSA-time tag directly under the headline.
 rep("""          <div class="h1 sm">One student.<br>One tutor.<br><em>Three times a week.</em></div>
