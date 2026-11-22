@@ -19,6 +19,9 @@
   .note{font-family:var(--mono);font-size:12px;letter-spacing:1.8px;color:#8B8375;text-align:right;line-height:2}
   h2{font-family:var(--mono);font-size:12.5px;letter-spacing:3px;color:var(--coral);margin:44px 0 18px;display:flex;align-items:center;gap:14px}
   h2::after{content:"";flex:1;height:1px;background:rgba(14,20,32,.15)}
+  .subhead{font-family:var(--mono);font-size:11.5px;letter-spacing:2.6px;color:var(--teal);
+    margin:32px 0 14px;display:flex;align-items:center;gap:14px;text-transform:uppercase}
+  .subhead::after{content:"";flex:1;height:1px;background:rgba(18,150,140,.3)}
   .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
   .grid.wide{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
   figure{background:var(--paper);border:1.2px solid rgba(14,20,32,.16);padding:12px 12px 0;
@@ -64,12 +67,16 @@
 
 <h2>01 / CAROUSEL — 6 SLIDES</h2>
 <div class="grid" id="deck"></div>
+<div class="subhead">RIYADH / SAUDI ARABIA — 6 SLIDES · 2160×2160</div>
+<div class="grid" id="deck-riyadh"></div>
 
 <h2>02 / LINKEDIN + BANNER</h2>
 <div class="grid wide" id="wide"></div>
 
 <h2>03 / CAROUSEL — 6 SLIDES (4K · 4320×4320)</h2>
 <div class="grid" id="deck4k"></div>
+<div class="subhead">RIYADH / SAUDI ARABIA — 6 SLIDES · 4K · 4320×4320</div>
+<div class="grid" id="deck4k-riyadh"></div>
 
 <h2>04 / REELS — 8 FRAMES</h2>
 <div class="grid reel" id="reels" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
@@ -96,6 +103,14 @@
     ["deck-04-the-tutor","04 · THE TUTOR"],
     ["deck-05-the-first-session","05 · FIRST SESSION"],
     ["deck-06-next-step","06 · NEXT STEP"]
+  ];
+  const deckRiyadh = [
+    ["deck-riyadh-01-the-fear","01 · THE FEAR"],
+    ["deck-riyadh-02-why-it-happens","02 · WHY IT HAPPENS"],
+    ["deck-riyadh-03-the-fix","03 · THE FIX"],
+    ["deck-riyadh-04-the-tutor","04 · THE TUTOR"],
+    ["deck-riyadh-05-the-first-session","05 · FIRST SESSION"],
+    ["deck-riyadh-06-next-step","06 · NEXT STEP"]
   ];
   const wide = [
     ["linkedin-founder-post","LINKEDIN · FOUNDER POST"],
@@ -126,6 +141,18 @@
     const f = document.createElement("figure");
     f.innerHTML = `<a href="png-4k/${file}.png" target="_blank"><img src="thumbs/${file}.jpg" alt="${label} 4K"></a>
       <figcaption><b>${label}</b><a class="get k4" href="png-4k/${file}.png" download="${file}-4k.png">4K ↓</a></figcaption>`;
+    return f;
+  };
+  const cardRiyadh = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="png-riyadh/${file}.png" target="_blank"><img src="thumbs/riyadh/${file}.jpg" alt="${label} — Riyadh"></a>
+      <figcaption><b>${label}</b><a class="get" href="png-riyadh/${file}.png" download="${file}.png">PNG ↓</a></figcaption>`;
+    return f;
+  };
+  const cardRiyadh4k = ([file, label]) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="png-riyadh-4k/${file}.png" target="_blank"><img src="thumbs/riyadh/${file}.jpg" alt="${label} 4K — Riyadh"></a>
+      <figcaption><b>${label}</b><a class="get k4" href="png-riyadh-4k/${file}.png" download="${file}-4k.png">4K ↓</a></figcaption>`;
     return f;
   };
   const gifCard = ([file, label]) => {
@@ -165,7 +192,9 @@
     marketHost.appendChild(sec);
   });
   deck.forEach(a => document.getElementById("deck").appendChild(card(a)));
+  deckRiyadh.forEach(a => document.getElementById("deck-riyadh").appendChild(cardRiyadh(a)));
   deck.forEach(a => document.getElementById("deck4k").appendChild(card4k(a)));
+  deckRiyadh.forEach(a => document.getElementById("deck4k-riyadh").appendChild(cardRiyadh4k(a)));
   wide.forEach(a => document.getElementById("wide").appendChild(card(a)));
   reels.forEach(a => document.getElementById("reels").appendChild(card(a)));
   gifs.forEach(a => document.getElementById("gifs").appendChild(gifCard(a)));
