@@ -40,8 +40,8 @@ CLIPS = {
     ),
     "short-tutor": (
         [
-            ("Engineer Rohit, ex software developer at Samsung.", "+32%", "+0Hz", 0.5, 0.04),
-            ("B Tech, M Tech, triple I T Elaahaabaad.", "+30%", "-1Hz", 0.0, 0.04),
+            ("Engineer Rohit, ex software developer from Samsung.", "+32%", "+0Hz", 0.5, 0.04),
+            ("B Tech and M Tech from triple I T Elaahaabaad.", "+30%", "-1Hz", 0.0, 0.04),
             ("Maths expert at bhaan zoo.", "+26%", "-2Hz", -0.5, 0.0),
         ],
         (7.82, 14.7),
