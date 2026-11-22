@@ -68,7 +68,7 @@ rep("""          <div class="s6-cta">
             <div class="lbl">WHATSAPP TO BOOK</div>
             <div class="num">+91 91941 34507</div>
           </div>
-          <div class="s6-phone-note">WhatsApp (India number, but I teach in KSA time).</div>
+          <div class="s6-phone-note">WhatsApp (Indian number right, but I teach in KSA time).</div>
           <div class="risk"><span>NO CONTRACT</span><span>CLEAR FEE</span></div>
           <div class="s6-price">90 SAR / session</div>
           <div class="s6-note-ksa">Available in Saudi Time (KSA) for Riyadh students.</div>""",
