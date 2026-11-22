@@ -18,9 +18,9 @@ CSS = """
   .foot{padding-top:26px}
 
   /* S1 — bottom-anchored copy follows the taller canvas */
-  .s1{padding:104px 70px 104px 232px}
-  .s1 .accent{left:232px;bottom:372px}
-  .s1 .body{left:232px;bottom:236px;font-size:30px;max-width:520px}
+  .s1{padding:104px 88px}
+  .s1 .accent{left:88px;bottom:372px}
+  .s1 .body{left:88px;bottom:236px;font-size:30px;max-width:520px}
   .s1-art{right:52px;bottom:424px;width:380px;height:301px}
 
   /* S2 */
