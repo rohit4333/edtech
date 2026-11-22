@@ -37,6 +37,10 @@
   .get:hover{background:#E8491F}
   .get.k4{background:var(--ink);color:var(--cream)}
   .get.k4:hover{background:#243452}
+  .get.jpg{background:var(--teal);color:#fff}
+  .get.jpg:hover{background:#0C7C74}
+  .grid#deck45 figcaption,.grid#deck45-riyadh figcaption{flex-wrap:wrap}
+  .dl{display:flex;gap:6px}
   footer{margin-top:56px;border-top:1px solid rgba(14,20,32,.16);padding-top:18px;
     font-family:var(--mono);font-size:11.5px;letter-spacing:1.8px;color:#8B8375;
     display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
@@ -58,7 +62,7 @@
     <h1>PNG <em>exports</em></h1>
     <div class="sub">ER. ROHIT VISHWAKARMA · CREATIVE KIT · 2× + 4K HIGH-RES</div>
   </div>
-  <div class="note">CLICK “PNG ↓” / “4K ↓” / “GIF ↓” / “MP4 ↓” / “WAV ↓” TO SAVE<br>SLIDES 2160² + 4320² · REELS 2160×3840<br>MOTION: 60S · 1080×1920 · 30FPS · SEPARATE MUSIC / VOICE / MIX</div>
+  <div class="note">CLICK “PNG ↓” / “JPG ↓” / “4K ↓” / “GIF ↓” / “MP4 ↓” / “WAV ↓” TO SAVE<br>SLIDES 2160² + 4320² + 4:5 1080×1350 · REELS 2160×3840<br>MOTION: 60S · 1080×1920 · 30FPS · SEPARATE MUSIC / VOICE / MIX</div>
 </header>
 
 <h2>00 / LOCALISED 36S META ADS REELS</h2>
@@ -78,16 +82,23 @@
 <div class="subhead">RIYADH / SAUDI ARABIA — 6 SLIDES · 4K · 4320×4320</div>
 <div class="grid" id="deck4k-riyadh"></div>
 
-<h2>04 / REELS — 8 FRAMES</h2>
+<h2>04 / CAROUSEL — 4:5 PORTRAIT · 1080×1350 · META ADS</h2>
+<div class="market-intro">JPG AT Q92 · 4:4:4 SUBSAMPLING — UPLOAD THE JPG TO META, KEEP THE PNG AS YOUR MASTER. 4:5 TAKES MORE FEED SPACE THAN SQUARE.</div>
+<div class="subhead">MAIN DECK — 6 SLIDES</div>
+<div class="grid" id="deck45"></div>
+<div class="subhead">RIYADH / SAUDI ARABIA — 6 SLIDES</div>
+<div class="grid" id="deck45-riyadh"></div>
+
+<h2>05 / REELS — 8 FRAMES</h2>
 <div class="grid reel" id="reels" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))"></div>
 
-<h2>05 / GIFS — ANIMATED</h2>
+<h2>06 / GIFS — ANIMATED</h2>
 <div class="grid wide" id="gifs"></div>
 
-<h2>06 / MOTION — 60-SECOND REEL</h2>
+<h2>07 / MOTION — 60-SECOND REEL</h2>
 <div class="grid" id="motion" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
 
-<h2>07 / AUDIO — MUSIC · NARRATION · FULL MIX</h2>
+<h2>08 / AUDIO — MUSIC · NARRATION · FULL MIX</h2>
 <div class="grid" id="audio" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
 
 <footer>
@@ -155,6 +166,15 @@
       <figcaption><b>${label}</b><a class="get k4" href="png-riyadh-4k/${file}.png" download="${file}-4k.png">4K ↓</a></figcaption>`;
     return f;
   };
+  const card45 = ([file, label], pngDir, jpgDir, thumbDir) => {
+    const f = document.createElement("figure");
+    f.innerHTML = `<a href="${pngDir}/${file}.png" target="_blank"><img src="${thumbDir}/${file}.jpg" alt="${label} 4:5 — 1080x1350"></a>
+      <figcaption><b>${label}</b><span class="dl">
+        <a class="get" href="${pngDir}/${file}.png" download="${file}.png">PNG ↓</a>
+        <a class="get jpg" href="${jpgDir}/${file}.jpg" download="${file}.jpg">JPG ↓</a>
+      </span></figcaption>`;
+    return f;
+  };
   const gifCard = ([file, label]) => {
     const f = document.createElement("figure");
     f.innerHTML = `<a href="gif/${file}.gif" target="_blank"><img src="gif/${file}.gif" alt="${label}"></a>
@@ -195,6 +215,8 @@
   deckRiyadh.forEach(a => document.getElementById("deck-riyadh").appendChild(cardRiyadh(a)));
   deck.forEach(a => document.getElementById("deck4k").appendChild(card4k(a)));
   deckRiyadh.forEach(a => document.getElementById("deck4k-riyadh").appendChild(cardRiyadh4k(a)));
+  deck.forEach(a => document.getElementById("deck45").appendChild(card45(a, "png-45", "jpg-45", "thumbs/45")));
+  deckRiyadh.forEach(a => document.getElementById("deck45-riyadh").appendChild(card45(a, "png-riyadh-45", "jpg-riyadh-45", "thumbs/riyadh-45")));
   wide.forEach(a => document.getElementById("wide").appendChild(card(a)));
   reels.forEach(a => document.getElementById("reels").appendChild(card(a)));
   gifs.forEach(a => document.getElementById("gifs").appendChild(gifCard(a)));
