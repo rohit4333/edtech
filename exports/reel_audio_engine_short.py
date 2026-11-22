@@ -43,12 +43,12 @@ VO = [
 ]
 
 # Pen-click motif. The fourth click sits at 13.05s (not the draft's 12.48s)
-# because the measured tutor VO reaches "Bhaanzu" at 13.22s after compression.
+# because the measured tutor VO reaches "bhaan zoo" at 13.22s after compression.
 CLICKS = [
     (6.15, 0.070, 1760.0),   # insight turn
     (7.86, 0.060, 1760.0),   # engineer / Samsung
     (10.48, 0.070, 1850.0),  # IIIT Allahabad
-    (13.05, 0.075, 2000.0),  # Bhaanzu
+    (13.05, 0.075, 2000.0),  # bhaan zoo
     (18.56, 0.090, 2200.0),  # free demo / CTA
 ]
 
