@@ -57,6 +57,11 @@ rep("""          <div class="h1 sm">One student.<br>One tutor.<br><em>Three time
     "slide 03 tag")
 
 # Slide 04 — photo and credentials untouched; LinkedIn link is already in the source.
+
+# Slide 05 — Riyadh ticket badge reflects KSA time.
+rep("""            <div class="meta">LIVE · 1-ON-1 · ONLINE</div>""",
+    """            <div class="meta">LIVE · 1-ON-1 · KSA TIME</div>""",
+    "slide 05 ticket badge")
 # Slide 06 — India-number note, price box, KSA-time note.
 rep("""          <div class="s6-cta">
             <div class="lbl">WHATSAPP TO BOOK</div>
