@@ -7,6 +7,8 @@
 #    warm flow -> confidence -> bright resolve -> elevated trusted close.
 #  - Felt-piano, bowed-string pads, sub bass and soft organic percussion instead
 #    of EDM drums. Reverb send on the music only; narration stays dry and close.
+#  - Noise-to-Signal arc: the bed starts muffled/narrow and opens at the insight;
+#    a soft pen-click marks each reveal while the VO is never filtered.
 #  - Look-ahead sidechain: music dips smoothly under every spoken phrase and
 #    recovers without pumping.
 #
@@ -149,6 +151,85 @@ def retime_score(seg):
         d = min(len(part), out.shape[0] - dst)
         out[dst:dst + d] += part[:d]
     return out
+
+
+# ---------------------------------------------------------------- clarity arc
+
+def smoothstep(a, b, x):
+    y = np.clip((x - a) / (b - a), 0.0, 1.0)
+    return y * y * (3 - 2 * y)
+
+
+def clarity_w(tt):
+    """0 = muffled/narrow, 1 = open/wide; the jump at 17.3-18.2s is the turn."""
+    w = np.zeros_like(tt, dtype=np.float32)
+    w += 0.10 * smoothstep(T[1], T[2], tt)
+    w += 0.20 * smoothstep(T[2], T[3], tt)
+    w += 0.10 * smoothstep(T[3], 17.3, tt)
+    w += 0.60 * smoothstep(17.3, 18.2, tt)
+    return w
+
+
+def click_sfx(at, amp=0.070, base=1760.0):
+    """Short pen-click / insight accent, placed just before each spoken beat."""
+    n = int(TOTAL * SR)
+    i0 = int(at * SR)
+    l = min(int(0.045 * SR), n - i0)
+    out = np.zeros((n, 2), dtype=np.float32)
+    if l <= 0:
+        return out
+    t = np.arange(l) / SR
+    rng = np.random.default_rng(77 + int(base))
+    noise = rng.standard_normal(l).astype(np.float32)
+    noise = bpf(np.stack([noise, noise], axis=1), 1600, 4200, 2)[:, 0]
+    sig = (noise * np.exp(-t / 0.006)
+           + 0.60 * np.sin(2 * np.pi * base * t) * np.exp(-t / 0.012)
+           + 0.30 * np.sin(2 * np.pi * base * 1.5 * t) * np.exp(-t / 0.010))
+    out[i0:i0 + l, 0] = amp * sig
+    out[i0:i0 + l, 1] = amp * sig
+    return out
+
+
+# Each click lands ~0.12s before its narration phrase; pitch rises with the story.
+CLICKS = [
+    (T[3] + 2.49 - 0.14, 0.070, 1760.0),  # S4 "finally get it" — the turn
+    (T[5] + 0.28 - 0.12, 0.060, 1760.0),  # S6 tutor's name
+    (T[5] + 1.92 - 0.12, 0.070, 1850.0),  # S6 Samsung
+    (T[5] + 3.93 - 0.12, 0.065, 1900.0),  # S6 B.Tech
+    (T[5] + 5.16 - 0.12, 0.078, 2000.0),  # S6 IIIT Allahabad
+    (T[5] + 6.53 - 0.12, 0.085, 2150.0),  # S6 Bhaanzu
+    (T[7] + 0.28 - 0.12, 0.090, 2200.0),  # S8 free demo / CTA
+]
+
+
+def classroom_texture():
+    """Faint crowded-room murmur for S1-S3; it gets muffled with the bed."""
+    n = int(TOTAL * SR)
+    tt = np.arange(n) / SR
+    rng = np.random.default_rng(2024)
+    noise = rng.standard_normal(n).astype(np.float32)
+    noise = bpf(np.stack([noise, noise], axis=1), 300, 1100, 2)[:, 0]
+    trem = 0.65 + 0.35 * np.sin(2 * np.pi * 5.3 * tt)
+    env = smoothstep(0.0, 1.5, tt) * (1.0 - smoothstep(14.0, 16.5, tt))
+    sig = (noise * trem * env * 0.010).astype(np.float32)
+    out = np.zeros((n, 2), dtype=np.float32)
+    out[:, 0] = sig
+    out[:, 1] = np.roll(sig, 311)
+    return out
+
+
+def clarity_process(seg, w, texture):
+    """Apply the muffled->open filter, stereo widening and insight clicks."""
+    seg = seg + texture
+    muffled = lpf(seg, 1600, 4)
+    seg = muffled * (1 - w[:, None]) + seg * w[:, None]
+    mid = seg.mean(axis=1)
+    side = (seg[:, 0] - seg[:, 1]) * 0.5
+    sw = 0.35 + 0.65 * w
+    seg = np.stack([mid + sw * side, mid - sw * side], axis=1)
+    for at, amp, base in CLICKS:
+        seg += click_sfx(at, amp, base)
+    return seg.astype(np.float32)
 
 
 # ---------------------------------------------------------------- instruments
@@ -327,25 +408,24 @@ def chime(at, amp=0.030, base=784.0):
     return out
 
 
-def transition(at, dur=0.24, amp=0.018):
-    """One consistent, click-free swell centred on a cut.
+def transition(at, dur=0.32, amp=0.020):
+    """A soft 'clearing breath' on every cut.
 
-    A soft low-passed noise lift plus a quiet sine glide, with a squared-sine
-    envelope so it starts and ends at zero. The old per-scene whooshes and
-    impacts are removed; this is the only transition accent."""
+    Low-passed noise plus a quiet rising glide, with a squared-sine envelope so
+    it starts and ends at zero. It reads as a thought resetting, not a whoosh.
+    """
     n = int(TOTAL * SR)
     i0 = int(max(0, at - dur * 0.5) * SR)
     l = min(int(dur * SR), n - i0)
     if l <= 0:
         return np.zeros((n, 2), dtype=np.float32)
     t = np.arange(l) / SR
-    rng = np.random.default_rng(9000 + int(at * 37))
+    rng = np.random.default_rng(4321 + int(at * 13))
     noise = rng.standard_normal(l).astype(np.float32)
-    noise = lpf(np.stack([noise, noise], axis=1), 2400, 3)[:, 0]
-    sweep = 260 + 900 * np.sin(np.pi * t / dur) ** 2
-    glide = np.sin(2 * np.pi * np.cumsum(sweep) / SR).astype(np.float32)
+    noise = lpf(np.stack([noise, noise], axis=1), 1800, 3)[:, 0]
+    glide = np.sin(2 * np.pi * np.cumsum(180 + 160 * t / dur) / SR).astype(np.float32)
     env = np.sin(np.pi * t / dur) ** 2
-    sig = (0.75 * noise + 0.25 * glide) * env
+    sig = (0.85 * noise + 0.15 * glide) * env
     out = np.zeros((n, 2), dtype=np.float32)
     out[i0:i0 + l, 0] = amp * sig
     out[i0:i0 + l, 1] = amp * sig
@@ -667,7 +747,7 @@ def build_mix():
     bed, perc, sfx = build_score_old()
     bed, perc, sfx = retime_score(bed), retime_score(perc), retime_score(sfx)
 
-    # one soft, consistent accent across every cut — no chopped whooshes
+    # one soft clearing breath across every cut — no chopped whooshes
     for at in T[1:-1]:
         sfx += transition(at)
 
@@ -694,8 +774,14 @@ def build_mix():
     high = (music - low).astype(np.float32)
     bed_out = (low * duck_gain(voice, depth_db=13.0) + high * duck).astype(np.float32)
 
-    # music-only deliverable: same score, no ducking (nothing to duck around)
-    music_out = music.copy()
+    # Noise -> Signal: only the bed clears and widens; the VO is untouched.
+    texture = classroom_texture()
+    tt = np.arange(n) / SR
+    w = clarity_w(tt)
+    bed_out = clarity_process(bed_out, w, texture)
+
+    # music-only deliverable: same clarity arc, no ducking
+    music_out = clarity_process(music, w, texture)
 
     # bed tail fade only — narration stays clean to the last word
     head, tail = int(0.15 * SR), int(1.2 * SR)
