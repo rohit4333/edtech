@@ -56,25 +56,21 @@ rep("""          <div class="h1 sm">One student.<br>One tutor.<br><em>Three time
           <div class="s3-scope"><span>SCOPE</span>KINDERGARTEN TO GRADE 10</div>""",
     "slide 03 tag")
 
-# Slide 04 — photo and credentials untouched; the LinkedIn text becomes a real link.
-rep("""<span style="color:var(--coral)">MORE ABOUT ME → LINKEDIN</span>""",
-    """<a href="https://www.linkedin.com/in/rohit4333/" target="_blank" rel="noopener" title="LinkedIn — teaching history" style="color:var(--coral)">MORE ABOUT ME → LINKEDIN</a>""",
-    "slide 04 linkedin")
-
+# Slide 04 — photo and credentials untouched; LinkedIn link is already in the source.
 # Slide 06 — India-number note, price box, KSA-time note.
 rep("""          <div class="s6-cta">
             <div class="lbl">WHATSAPP TO BOOK</div>
             <div class="num">+91 91941 34507</div>
           </div>
-          <div class="risk"><span>NO CONTRACT</span><span>CLEAR FEE</span></div>""",
+          <div class="risk"><span>NO CONTRACT · CLEAR FEE</span></div>""",
     """          <div class="s6-cta">
             <div class="lbl">WHATSAPP TO BOOK</div>
             <div class="num">+91 91941 34507</div>
           </div>
-          <div class="s6-phone-note">WhatsApp (Indian number right, but I teach in KSA time).</div>
-          <div class="risk"><span>NO CONTRACT</span><span>CLEAR FEE</span></div>
           <div class="s6-price">90 SAR / session</div>
-          <div class="s6-note-ksa">Available in Saudi Time (KSA) for Riyadh students.</div>""",
+          <div class="s6-note-ksa">Available in Saudi Time (KSA) for Riyadh students.</div>
+          <div class="s6-phone-note">WhatsApp (Indian number right, but I teach in KSA time).</div>
+          <div class="risk"><span>NO CONTRACT · CLEAR FEE</span></div>""",
     "slide 06 price + notes")
 
 out = ROOT / "nextgen-creative-kit-riyadh.html"
