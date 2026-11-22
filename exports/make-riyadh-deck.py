@@ -48,13 +48,7 @@ rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
   .s4-note a:hover{color:#FF8055;border-bottom-color:#FF8055}
   /* ---------- MOBILE LEGIBILITY ---------- */""", "css")
 
-# Slide 03 — weekend / KSA-time tag directly under the headline.
-rep("""          <div class="h1 sm">One student.<br>One tutor.<br><em>Three times a week.</em></div>
-          <div class="s3-scope"><span>SCOPE</span>KINDERGARTEN TO GRADE 10</div>""",
-    """          <div class="h1 sm">One student.<br>One tutor.<br><em>Three times a week.</em></div>
-          <div class="riyadh-tag">Weekend slots available for Riyadh students (KSA Time).</div>
-          <div class="s3-scope"><span>SCOPE</span>KINDERGARTEN TO GRADE 10</div>""",
-    "slide 03 tag")
+# Slide 03 — keep the fix slide clean; Riyadh specifics live on S6.
 
 # Slide 04 — photo and credentials untouched; LinkedIn link is already in the source.
 
