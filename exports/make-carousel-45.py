@@ -107,7 +107,7 @@ TEXT_45 = """
   .s6 .risk span{font-size:28px;letter-spacing:1.1px;padding:10px 13px}
   .s6-micro span{font-size:22px;letter-spacing:1.4px}
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
-  .s6-cta .s6-phone-note{font-size:19px;color:rgba(24,10,4,.9);font-weight:600}
+  .s6-cta .s6-phone-note{font-size:32px;color:rgba(24,10,4,.9);font-weight:700}
   .s6-price{font-size:32px;letter-spacing:1px}
   .s6-free{font-size:22px;letter-spacing:1.6px;font-weight:700}
   .s6-note-ksa{font-size:28px;letter-spacing:.9px;font-weight:600}
