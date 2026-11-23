@@ -79,7 +79,7 @@ TEXT_45 = """
   .s3 .body{font-size:46px}
   .s3-h{font-size:26px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:26px;letter-spacing:1px;font-weight:700}
-  .s3-scope{font-size:26px;letter-spacing:1px}
+  .s3-scope{font-size:26px;letter-spacing:1px;margin-top:26px}
   .s3-scope > span:first-child{font-size:26px;letter-spacing:1.4px}
   .s3-weekend{font-size:18px;letter-spacing:1.4px;padding:6px 11px}
   .chip{font-size:24px;padding:7px 12px}
