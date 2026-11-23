@@ -62,7 +62,7 @@ rep("""          <div class="s6-cta">
             <div class="num">+91 91941 34507</div>
             <div class="s6-phone-note">+91 number · sessions run on KSA time</div>
           </div>
-          <div class="s6-price">90 SAR / SESSION</div>
+          <div class="s6-price">DEMO FREE · THEN 90 SAR / SESSION</div>
           <div class="risk"><span>NO CONTRACT · CLEAR FEE</span></div>""",
     "slide 06 price + notes")
 

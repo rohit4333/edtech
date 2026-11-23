@@ -110,7 +110,7 @@
   .chip{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:16px;letter-spacing:2px;border:1.2px solid rgba(14,20,32,.3);padding:10px 15px;border-radius:2px;background:rgba(255,255,255,.55)}
   .chip i{width:7px;height:7px;border-radius:50%;background:var(--coral);display:block}
   /* ---------- S1 : the fear ---------- */
-  .s1{background:radial-gradient(120% 100% at 78% 0%,#1B2744 0%,#0E1420 58%);padding:82px 78px}
+  .s1{background:radial-gradient(120% 100% at 78% 0%,#1B2744 0%,#0E1420 58%);background-color:#0E1420;padding:82px 78px}
   .s1-rings{position:absolute;inset:0;overflow:hidden;pointer-events:none}
   .s1-rings span{position:absolute;border:1px solid rgba(246,241,231,.12);border-radius:50%}
   .s1-rings span:nth-child(1){width:720px;height:720px;right:-300px;top:-280px}
@@ -151,7 +151,7 @@
   .orbit svg{width:240px;height:216px;display:block}
   .orbit text{font-family:var(--mono);font-weight:700}
   .s3 .body{font-size:25px;margin-top:22px}
-  .s3 .chips{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .s3 .chips{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;justify-content:center}
   .s3-scope{display:flex;align-items:baseline;gap:14px;margin-top:18px;
     font-family:var(--mono);font-size:15px;letter-spacing:1.7px;color:#6E685D}
   .s3-scope > span:first-child{font-size:14px;font-weight:700;letter-spacing:2.6px;color:var(--coral)}
@@ -175,7 +175,8 @@
   .s4-v.coral{color:#FF7A52}
   .s4-v.steel{color:#8CB4DE}
   .s4-body{font-size:21px;line-height:1.45;letter-spacing:-.2px;color:rgba(246,241,231,.72);margin-top:20px;max-width:340px}
-  .s4-proof{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1.8px;color:#48CFC2;margin-top:8px}
+  .s4-proof{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1.8px;color:#48CFC2;
+    margin-top:14px;padding-top:14px;border-top:1px solid rgba(246,241,231,.18)}
   .s4-note{font-family:var(--mono);font-size:13px;letter-spacing:1.8px;color:rgba(246,241,231,.5);margin-top:16px;line-height:1.9;border-top:1px solid rgba(246,241,231,.16);padding-top:16px;max-width:420px}
   .s4-figwrap{position:absolute;right:0;top:0;bottom:0;width:45%;z-index:1}
   .s4-glow{position:absolute;right:-92px;top:-110px;width:600px;height:600px;border-radius:50%;
@@ -201,7 +202,12 @@
   .ticket .meta{font-family:var(--mono);font-size:13px;letter-spacing:1.8px;line-height:1.9;color:#7C7568;border-left:1px dashed rgba(14,20,32,.28);padding-left:24px}
   .ticket .meta .ksa{font-size:1.25em;font-weight:700;color:#0F766E;letter-spacing:1.4px}
   .seal{margin-left:auto;width:84px;height:84px;border-radius:50%;border:2px dashed rgba(255,91,46,.85);display:grid;place-items:center;font-family:var(--mono);font-size:11px;letter-spacing:1.4px;color:var(--coral);text-align:center;line-height:1.35;transform:rotate(-8deg)}
-  .s5-after{font-family:var(--mono);font-size:14px;letter-spacing:1.9px;color:#8B8375;margin-top:24px;line-height:1.95}
+  .s5-after{margin-top:36px;display:flex;flex-direction:column;align-items:flex-start;gap:16px}
+  .s5-pill{display:inline-flex;align-items:center;gap:11px;font-family:var(--mono);font-size:15px;font-weight:700;
+    letter-spacing:1.2px;line-height:1.25;color:#A43F1F;border:1.5px solid rgba(255,91,46,.5);
+    border-radius:100px;background:rgba(255,91,46,.07);padding:13px 20px}
+  .s5-pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--coral);flex:none}
+  .s5-proof{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1.7px;color:#0F766E}
 
   /* ---------- S6 : the single action ---------- */
   .s6{background:radial-gradient(110% 92% at 18% 0%,#1A2742 0%,#0E1420 60%)}
@@ -607,16 +613,18 @@
           <div class="accent"></div>
           <div class="body">40 minutes. 30 students. One teacher.<br>Some never asked a single question.</div>
           <svg class="s1-art" viewBox="0 0 380 300" aria-hidden="true">
-            <defs>
-              <pattern id="seats" width="42" height="42" patternUnits="userSpaceOnUse">
-                <circle cx="13" cy="13" r="9" fill="#F6F1E7" opacity=".42"/>
-              </pattern>
-            </defs>
-            <rect x="0" y="0" width="252" height="210" fill="url(#seats)" stroke="rgba(246,241,231,.14)" stroke-width="1"/>
-            <circle cx="223" cy="97" r="21" fill="none" stroke="#FF5B2E" stroke-width="2.5" stroke-dasharray="7 7"/>
-            <path d="M223 74 V50 H252" stroke="#FF5B2E" stroke-width="1.5" opacity=".85" fill="none"/>
+            <rect x="0" y="0" width="252" height="210" fill="none" stroke="rgba(246,241,231,.20)" stroke-width="1"/>
+            <g fill="#F6F1E7" opacity=".42">
+              <circle cx="13" cy="13" r="9"/><circle cx="55" cy="13" r="9"/><circle cx="97" cy="13" r="9"/><circle cx="139" cy="13" r="9"/><circle cx="181" cy="13" r="9"/><circle cx="223" cy="13" r="9"/>
+              <circle cx="13" cy="55" r="9"/><circle cx="55" cy="55" r="9"/><circle cx="97" cy="55" r="9"/><circle cx="139" cy="55" r="9"/><circle cx="181" cy="55" r="9"/><circle cx="223" cy="55" r="9"/>
+              <circle cx="13" cy="97" r="9"/><circle cx="55" cy="97" r="9"/><circle cx="97" cy="97" r="9"/><circle cx="139" cy="97" r="9"/><circle cx="181" cy="97" r="9"/>
+              <circle cx="13" cy="139" r="9"/><circle cx="55" cy="139" r="9"/><circle cx="97" cy="139" r="9"/><circle cx="139" cy="139" r="9"/><circle cx="181" cy="139" r="9"/><circle cx="223" cy="139" r="9"/>
+              <circle cx="13" cy="181" r="9"/><circle cx="55" cy="181" r="9"/><circle cx="97" cy="181" r="9"/><circle cx="139" cy="181" r="9"/><circle cx="181" cy="181" r="9"/><circle cx="223" cy="181" r="9"/>
+            </g>
+            <circle cx="223" cy="97" r="10" fill="#FF5B2E"/>
+            <circle cx="223" cy="97" r="19" fill="none" stroke="#FF5B2E" stroke-width="2" stroke-dasharray="6 6"/>
+            <path d="M223 74 V50 H252" stroke="#FF5B2E" stroke-width="1.5" opacity=".9" fill="none"/>
             <text x="258" y="55" fill="#FF8055" font-family="Cascadia Mono, monospace" font-size="16" font-weight="700" letter-spacing=".8">NEVER ASKED</text>
-
           </svg>
           <div class="foot"><span>ROHIT VISHWAKARMA</span><span>SAVE · SWIPE →</span></div>
         </div>
@@ -732,6 +740,7 @@
                   <b class="s4-v coral">BHANZU</b>
                 </div>
               </div>
+              <div class="s4-proof">200+ STUDENTS TAUGHT</div>
             </div>
             <div class="s4-figwrap">
               <span class="s4-glow"></span>
@@ -760,7 +769,10 @@
             <div class="meta">LIVE · 1-ON-1 · ONLINE</div>
             <div class="seal">LIVE<br>SESSION</div>
           </div>
-          <div class="s5-after">A real session — not a sales pitch.</div>
+          <div class="s5-after">
+            <span class="s5-pill">A real session — not a sales pitch.</span>
+            <span class="s5-proof">35 MIN · 1 REAL PROBLEM · 1 CLEAR NEXT STEP</span>
+          </div>
           <div class="foot"><span>DEMO EXPERIENCE · 1-ON-1</span><span>05 / 06</span></div>
         </div>
       </div>
@@ -1441,7 +1453,7 @@
   .tutor .tsq{width:42px;height:42px}
   .orbit svg{width:189px;height:170px}
   .s3 .body{font-size:34px;margin-top:14px}
-  .s3 .chips{margin-top:6px}
+  .s3 .chips{margin-top:12px}
   .chip{font-size:22px;padding:7px 11px}
   .s3-h{font-size:21px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:21px;letter-spacing:1px;font-weight:700}
@@ -1472,7 +1484,9 @@
   .ticket .big small{font-size:22px}
   .ticket .meta{font-size:22px;letter-spacing:1px}
   .seal{font-size:18px}
-  .s5-after{font-size:20px;letter-spacing:1px;margin-top:14px;line-height:1.5}
+  .s5-after{margin-top:22px;gap:13px}
+  .s5-pill{font-size:22px;letter-spacing:.7px;padding:16px 24px}
+  .s5-proof{font-size:19px;letter-spacing:.9px}
 
   /* S6 + Riyadh notes */
   .s6 .h1{font-size:104px}
@@ -1484,7 +1498,7 @@
   /* must follow .risk span — the original .s6 .risk span outranks it */
   .s6 .risk span{font-size:23px;letter-spacing:1.1px;padding:8px 11px}
   .s6-micro{margin-top:20px}
-  .s6-micro span{font-size:18px;letter-spacing:1.4px}
+  .s6-micro span{font-size:21px;letter-spacing:1.2px;font-weight:600;color:rgba(246,241,231,.75)}
   .s6-phone-note{font-size:24px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:26px;letter-spacing:1px;padding:10px 14px}
   .s6-price{margin-top:12px}
@@ -1518,7 +1532,7 @@
   .orbit{min-height:216px}
   .orbit svg{width:240px;height:216px}
   .s3 .body{margin-top:18px}
-  .s3 .chips{margin-top:12px}
+  .s3 .chips{margin-top:16px}
 
   /* S4 — let the photo card grow into the extra height */
   .s4-card{height:842px;margin-top:42px}
@@ -1531,7 +1545,7 @@
   .s5 .body{margin-top:20px}
   .s5 ol{margin-top:24px;gap:16px}
   .ticket{margin-top:24px;padding:18px 22px}
-  .s5-after{margin-top:20px}
+  .s5-after{margin-top:24px}
 
   /* S6 — restore hero scale; rebalance the artwork */
   .s6 .h1{font-size:116px}
@@ -1577,13 +1591,14 @@
   .ticket .big small{font-size:26px}
   .ticket .meta{font-size:26px;letter-spacing:1px}
   .seal{font-size:22px}
-  .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
+  .s5-pill{font-size:24px;letter-spacing:.7px;padding:18px 26px}
+  .s5-proof{font-size:21px;letter-spacing:.9px}
 
   .s6 .body{font-size:48px;line-height:1.32}
   .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
   /* keep the specificity fix from the shared layer */
   .s6 .risk span{font-size:28px;letter-spacing:1.1px;padding:10px 13px}
-  .s6-micro span{font-size:22px;letter-spacing:1.4px}
+  .s6-micro span{font-size:26px;letter-spacing:1.2px;font-weight:600;color:rgba(246,241,231,.75)}
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-cta .s6-phone-note{font-size:32px;color:rgba(24,10,4,.9);font-weight:700}
   .s6-price{font-size:32px;letter-spacing:1px}

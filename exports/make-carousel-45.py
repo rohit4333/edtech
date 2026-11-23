@@ -39,7 +39,7 @@ CSS = """
   .orbit{min-height:216px}
   .orbit svg{width:240px;height:216px}
   .s3 .body{margin-top:18px}
-  .s3 .chips{margin-top:12px}
+  .s3 .chips{margin-top:16px}
 
   /* S4 — let the photo card grow into the extra height */
   .s4-card{height:842px;margin-top:42px}
@@ -52,7 +52,7 @@ CSS = """
   .s5 .body{margin-top:20px}
   .s5 ol{margin-top:24px;gap:16px}
   .ticket{margin-top:24px;padding:18px 22px}
-  .s5-after{margin-top:20px}
+  .s5-after{margin-top:24px}
 
   /* S6 — restore hero scale; rebalance the artwork */
   .s6 .h1{font-size:116px}
@@ -101,13 +101,14 @@ TEXT_45 = """
   .ticket .big small{font-size:26px}
   .ticket .meta{font-size:26px;letter-spacing:1px}
   .seal{font-size:22px}
-  .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
+  .s5-pill{font-size:24px;letter-spacing:.7px;padding:18px 26px}
+  .s5-proof{font-size:21px;letter-spacing:.9px}
 
   .s6 .body{font-size:48px;line-height:1.32}
   .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
   /* keep the specificity fix from the shared layer */
   .s6 .risk span{font-size:28px;letter-spacing:1.1px;padding:10px 13px}
-  .s6-micro span{font-size:22px;letter-spacing:1.4px}
+  .s6-micro span{font-size:26px;letter-spacing:1.2px;font-weight:600;color:rgba(246,241,231,.75)}
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-cta .s6-phone-note{font-size:32px;color:rgba(24,10,4,.9);font-weight:700}
   .s6-price{font-size:32px;letter-spacing:1px}
