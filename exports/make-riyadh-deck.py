@@ -26,7 +26,7 @@ rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
     letter-spacing:1.5px;color:#0F766E}
   .s6-phone-note{font-family:var(--mono);font-size:16px;letter-spacing:1.4px;font-weight:600;
     color:rgba(246,241,231,.62);margin-top:10px}
-  .s6-cta .s6-phone-note{color:rgba(24,10,4,.62);margin-top:4px;font-size:13px}
+  .s6-cta .s6-phone-note{color:rgba(24,10,4,.9);margin-top:4px;font-size:15px;font-weight:600}
   .s6-price{display:inline-flex;align-items:center;align-self:flex-start;gap:12px;
     margin-top:18px;padding:12px 18px;border-radius:2px;background:var(--teal);
     color:#04211F;font-family:var(--mono);font-size:19px;font-weight:700;
