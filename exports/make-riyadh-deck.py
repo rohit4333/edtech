@@ -24,13 +24,13 @@ rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
     margin-top:14px;padding:9px 15px;border-radius:2px;background:rgba(18,150,140,.10);
     border:1.2px solid rgba(18,150,140,.55);font-family:var(--mono);font-size:15px;
     letter-spacing:1.5px;color:#0F766E}
-  .s6-phone-note{font-family:var(--mono);font-size:13px;letter-spacing:1.4px;
+  .s6-phone-note{font-family:var(--mono);font-size:16px;letter-spacing:1.4px;font-weight:600;
     color:rgba(246,241,231,.62);margin-top:10px}
   .s6-price{display:inline-flex;align-items:center;align-self:flex-start;gap:12px;
     margin-top:18px;padding:12px 18px;border-radius:2px;background:var(--teal);
     color:#04211F;font-family:var(--mono);font-size:19px;font-weight:700;
     letter-spacing:2px;box-shadow:6px 6px 0 rgba(18,150,140,.20)}
-  .s6-note-ksa{font-family:var(--mono);font-size:13px;letter-spacing:1.5px;
+  .s6-note-ksa{font-family:var(--mono);font-size:16px;letter-spacing:1.5px;font-weight:600;
     color:rgba(246,241,231,.58);margin-top:12px;line-height:1.6}
   .s3-scope{margin-top:10px}
   .s3 .body{margin-top:14px}
@@ -54,7 +54,7 @@ rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
 
 # Slide 05 — Riyadh ticket badge reflects KSA time.
 rep("""            <div class="meta">LIVE · 1-ON-1 · ONLINE</div>""",
-    """            <div class="meta">LIVE · 1-ON-1 · KSA TIME</div>""",
+    """            <div class="meta">LIVE · 1-ON-1 · <span class="ksa">KSA TIME</span></div>""",
     "slide 05 ticket badge")
 # Slide 06 — India-number note, price box, KSA-time note.
 rep("""          <div class="s6-cta">

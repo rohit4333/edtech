@@ -55,8 +55,8 @@ CSS = """
 
   /* S6 — restore hero scale; rebalance the artwork */
   .s6 .h1{font-size:116px}
-  .s6 .body{margin-top:26px}
-  .s6-cta{margin-top:32px}
+  .s6 .body{margin-top:20px}
+  .s6-cta{margin-top:28px}
   .s6 .risk{margin-top:20px}
   .s6-micro{margin-top:16px}
   .s6 .ghost{top:380px}
@@ -76,7 +76,8 @@ TEXT_45 = """
   .s2 .body{font-size:46px}
 
   .s3 .body{font-size:46px}
-  .s3-h,.s3-f{font-size:26px;letter-spacing:1px}
+  .s3-h{font-size:26px;letter-spacing:1px;font-weight:600}
+  .s3-f{font-size:26px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:26px;letter-spacing:1px}
   .s3-weekend{font-size:16px;letter-spacing:1.4px;padding:6px 11px}
   .chip{font-size:22px;padding:7px 12px}
@@ -95,7 +96,7 @@ TEXT_45 = """
   .s5 li span{font-size:26px}
   .s5 .body{font-size:44px}
   .ticket .big small{font-size:26px}
-  .ticket .meta{font-size:24px;letter-spacing:1px}
+  .ticket .meta{font-size:26px;letter-spacing:1px}
   .seal{font-size:20px}
   .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
 
@@ -104,9 +105,9 @@ TEXT_45 = """
   /* keep the specificity fix from the shared layer */
   .s6 .risk span{font-size:26px;letter-spacing:1.1px;padding:10px 13px}
   .s6-micro span{font-size:19px;letter-spacing:1.4px}
-  .s6-phone-note{font-size:24px;letter-spacing:.9px}
+  .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:32px;letter-spacing:1px}
-  .s6-note-ksa{font-size:24px;letter-spacing:.9px}
+  .s6-note-ksa{font-size:28px;letter-spacing:.9px;font-weight:600}
 """
 
 

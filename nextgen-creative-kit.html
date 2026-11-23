@@ -134,8 +134,8 @@
   .s3-diagram{display:flex;align-items:stretch;gap:18px;margin-top:34px}
   .s3-panel{flex:1;border:1.2px solid rgba(14,20,32,.18);background:rgba(14,20,32,.035);padding:22px 24px;display:flex;flex-direction:column;gap:16px}
   .s3-panel.alt{background:#fff;border-color:rgba(255,91,46,.55);box-shadow:7px 7px 0 rgba(255,91,46,.15)}
-  .s3-h{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:13.5px;letter-spacing:1.8px;color:#7C7568}
-  .s3-f{font-family:var(--mono);font-size:13.5px;letter-spacing:1.6px;color:#8B8375;margin-top:auto}
+  .s3-h{display:flex;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:13.5px;font-weight:600;letter-spacing:1.8px;color:#7C7568}
+  .s3-f{font-family:var(--mono);font-size:13.5px;font-weight:700;letter-spacing:1.6px;color:#8B8375;margin-top:auto}
   .class{display:flex;align-items:center;justify-content:center;gap:26px;margin:2px 0 4px}
   .dots{display:grid;grid-template-columns:repeat(6,32px);gap:14px;flex:none}
   .dots i{width:32px;height:32px;border-radius:50%;background:rgba(14,20,32,.17)}
@@ -196,6 +196,7 @@
   .ticket .big{font-size:66px;font-weight:780;letter-spacing:-3.5px;line-height:.8;display:flex;align-items:baseline;gap:8px}
   .ticket .big small{font-size:19px;font-weight:650;letter-spacing:2px;font-family:var(--mono)}
   .ticket .meta{font-family:var(--mono);font-size:13px;letter-spacing:1.8px;line-height:1.9;color:#7C7568;border-left:1px dashed rgba(14,20,32,.28);padding-left:24px}
+  .ticket .meta .ksa{font-size:1.25em;font-weight:700;color:#0F766E;letter-spacing:1.4px}
   .seal{margin-left:auto;width:84px;height:84px;border-radius:50%;border:2px dashed rgba(255,91,46,.85);display:grid;place-items:center;font-family:var(--mono);font-size:11px;letter-spacing:1.4px;color:var(--coral);text-align:center;line-height:1.35;transform:rotate(-8deg)}
   .s5-after{font-family:var(--mono);font-size:14px;letter-spacing:1.9px;color:#8B8375;margin-top:24px;line-height:1.95}
 
@@ -612,7 +613,7 @@
             <circle cx="223" cy="97" r="21" fill="none" stroke="#FF5B2E" stroke-width="2.5" stroke-dasharray="7 7"/>
             <path d="M223 74 V50 H252" stroke="#FF5B2E" stroke-width="1.5" opacity=".85" fill="none"/>
             <text x="258" y="55" fill="#FF5B2E" font-family="Cascadia Mono, monospace" font-size="14" letter-spacing="2">NEVER ASKED</text>
-            <text x="0" y="248" fill="rgba(246,241,231,.52)" font-family="Cascadia Mono, monospace" font-size="13.5" letter-spacing="2.4">30 SEATS · 40 MIN · 1 TEACHER</text>
+
           </svg>
           <div class="foot"><span>ER. ROHIT VISHWAKARMA</span><span>SAVE · SWIPE →</span></div>
         </div>
@@ -631,13 +632,13 @@
             <li>A term spent nodding along.</li>
           </ol>
           <svg class="chart" viewBox="0 0 900 168" aria-hidden="true">
-            <text x="700" y="22" font-family="Cascadia Mono, monospace" font-size="13" letter-spacing="2" fill="rgba(14,20,32,.35)">CONFIDENCE</text>
+            <text x="700" y="22" font-family="Cascadia Mono, monospace" font-size="17" font-weight="700" letter-spacing="2" fill="rgba(14,20,32,.45)">CONFIDENCE</text>
             <path d="M8 30 H300 L300 62 H560 L560 100 H892" stroke="#0E1420" stroke-width="3" fill="none" stroke-linejoin="round"/>
             <line x1="0" y1="132" x2="900" y2="132" stroke="rgba(14,20,32,.25)" stroke-width="1.5"/>
             <path d="M300 62 V132 M560 100 V132" stroke="rgba(14,20,32,.2)" stroke-width="1" stroke-dasharray="4 6" fill="none"/>
             <circle cx="300" cy="62" r="9" fill="#FF5B2E"/>
             <circle cx="560" cy="100" r="9" fill="#FF5B2E"/>
-            <g font-family="Cascadia Mono, monospace" font-size="14" letter-spacing="2" fill="rgba(14,20,32,.55)">
+            <g font-family="Cascadia Mono, monospace" font-size="17" font-weight="600" letter-spacing="2" fill="rgba(14,20,32,.6)">
               <text x="8" y="158">TERM 1</text>
               <text x="310" y="158">TERM 2</text>
               <text x="570" y="158">TERM 3</text>
@@ -1443,7 +1444,8 @@
   .s3 .body{font-size:34px;margin-top:14px}
   .s3 .chips{margin-top:6px}
   .chip{font-size:20px;padding:7px 11px}
-  .s3-h,.s3-f{font-size:21px;letter-spacing:1px}
+  .s3-h{font-size:21px;letter-spacing:1px;font-weight:600}
+  .s3-f{font-size:21px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:21px;letter-spacing:1px;margin-top:6px}
   .s3-weekend{font-size:14px;letter-spacing:1.4px;padding:5px 10px}
   .riyadh-tag{font-size:21px;letter-spacing:.8px;padding:5px 11px}
@@ -1467,7 +1469,7 @@
   .s5 li span{font-size:22px}
   .ticket{margin-top:16px;padding:14px 18px}
   .ticket .big small{font-size:22px}
-  .ticket .meta{font-size:20px;letter-spacing:1px}
+  .ticket .meta{font-size:22px;letter-spacing:1px}
   .seal{font-size:16px}
   .s5-after{font-size:20px;letter-spacing:1px;margin-top:14px;line-height:1.5}
 
@@ -1482,9 +1484,9 @@
   .s6 .risk span{font-size:21px;letter-spacing:1.1px;padding:8px 11px}
   .s6-micro{margin-top:14px}
   .s6-micro span{font-size:16px;letter-spacing:1.4px}
-  .s6-phone-note{font-size:20px;letter-spacing:.9px}
+  .s6-phone-note{font-size:24px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:26px;letter-spacing:1px;padding:10px 14px}
-  .s6-note-ksa{font-size:20px;letter-spacing:.9px}
+  .s6-note-ksa{font-size:24px;letter-spacing:.9px;font-weight:600}
 </style>
 <script>
 (function () {
