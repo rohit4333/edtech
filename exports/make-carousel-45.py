@@ -42,8 +42,8 @@ CSS = """
 
   /* S4 — let the photo card grow into the extra height */
   .s4-card{height:842px;margin-top:42px}
-  .s4-info{padding:40px 40px 56px 52px}
-  .s4-body{margin-top:26px}
+  .s4-info{padding:40px 40px 20px 52px}
+  .s4-body{margin-top:16px}
   .s4-note{max-width:560px}
 
   /* S5 */
@@ -57,7 +57,7 @@ CSS = """
   .s6 .h1{font-size:116px}
   .s6 .body{margin-top:20px}
   .s6-cta{margin-top:28px}
-  .s6 .risk{margin-top:20px}
+  .s6 .risk{margin-top:10px}
   .s6-micro{margin-top:16px}
   .s6 .ghost{top:380px}
 """
@@ -65,7 +65,7 @@ CSS = """
 # Placed last: 46-48px body type renders as ~17 CSS px on a 393px phone.
 TEXT_45 = """
   /* ---------- 4:5 portrait text scale · 1080x1350 ---------- */
-  .kicker{font-size:34px;letter-spacing:3px}
+  .kicker{font-size:36px;letter-spacing:3px}
   .foot{font-size:28px;letter-spacing:1.5px}
   .body{font-size:48px;line-height:1.34}
 
@@ -79,15 +79,16 @@ TEXT_45 = """
   .s3-h{font-size:26px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:26px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:26px;letter-spacing:1px}
-  .s3-weekend{font-size:16px;letter-spacing:1.4px;padding:6px 11px}
-  .chip{font-size:22px;padding:7px 12px}
+  .s3-weekend{font-size:18px;letter-spacing:1.4px;padding:6px 11px}
+  .chip{font-size:24px;padding:7px 12px}
   .riyadh-tag{font-size:22px;letter-spacing:.8px;padding:8px 12px}
 
   .s4-k{font-size:26px}
-  .s4-c{font-size:24px;letter-spacing:1.3px}
+  .s4-c{font-size:25px;letter-spacing:1.3px}
   .s4-v{font-size:42px}
   .s4-name{font-size:52px}
-  .s4-body{font-size:36px;line-height:1.34}
+  .s4-body{font-size:36px;line-height:1.34;max-width:400px}
+  .s4-proof{font-size:22px;letter-spacing:1.2px;margin-top:8px}
   .s4-note{font-size:23px;letter-spacing:1px;line-height:1.6;padding-top:4px}
   .s4-stamp{font-size:24px}
 
@@ -97,16 +98,17 @@ TEXT_45 = """
   .s5 .body{font-size:44px}
   .ticket .big small{font-size:26px}
   .ticket .meta{font-size:26px;letter-spacing:1px}
-  .seal{font-size:20px}
+  .seal{font-size:22px}
   .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
 
   .s6 .body{font-size:48px;line-height:1.32}
   .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
   /* keep the specificity fix from the shared layer */
-  .s6 .risk span{font-size:26px;letter-spacing:1.1px;padding:10px 13px}
-  .s6-micro span{font-size:19px;letter-spacing:1.4px}
+  .s6 .risk span{font-size:28px;letter-spacing:1.1px;padding:10px 13px}
+  .s6-micro span{font-size:22px;letter-spacing:1.4px}
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:32px;letter-spacing:1px}
+  .s6-free{font-size:22px;letter-spacing:1.6px;font-weight:700}
   .s6-note-ksa{font-size:28px;letter-spacing:.9px;font-weight:600}
 """
 

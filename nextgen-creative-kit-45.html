@@ -152,7 +152,7 @@
   .s3 .chips{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
   .s3-scope{display:flex;align-items:baseline;gap:14px;margin-top:18px;
     font-family:var(--mono);font-size:15px;letter-spacing:1.7px;color:#6E685D}
-  .s3-scope span{font-size:12.5px;letter-spacing:2.6px;color:var(--coral)}
+  .s3-scope span{font-size:14px;font-weight:700;letter-spacing:2.6px;color:var(--coral)}
   .s3-weekend{display:inline-flex;align-items:center;margin-left:12px;
     font-family:var(--mono);font-size:11px;letter-spacing:1.8px;color:#0F766E;
     background:rgba(18,150,140,.10);border:1.2px solid rgba(18,150,140,.55);
@@ -172,7 +172,8 @@
   .s4-v.teal{color:#48CFC2}
   .s4-v.coral{color:#FF7A52}
   .s4-v.steel{color:#8CB4DE}
-  .s4-body{font-size:21px;line-height:1.45;letter-spacing:-.2px;color:rgba(246,241,231,.72);margin-top:20px;max-width:420px}
+  .s4-body{font-size:21px;line-height:1.45;letter-spacing:-.2px;color:rgba(246,241,231,.72);margin-top:20px;max-width:340px}
+  .s4-proof{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:1.8px;color:#48CFC2;margin-top:8px}
   .s4-note{font-family:var(--mono);font-size:13px;letter-spacing:1.8px;color:rgba(246,241,231,.5);margin-top:16px;line-height:1.9;border-top:1px solid rgba(246,241,231,.16);padding-top:16px;max-width:420px}
   .s4-figwrap{position:absolute;right:0;top:0;bottom:0;width:45%;z-index:1}
   .s4-glow{position:absolute;right:-92px;top:-110px;width:600px;height:600px;border-radius:50%;
@@ -207,7 +208,7 @@
     background-size:26px 26px;opacity:.5;
     -webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 72%);
     mask-image:linear-gradient(180deg,#000 0%,transparent 72%)}
-  .s6 .ghost{position:absolute;right:44px;top:300px;font-size:290px;font-weight:800;letter-spacing:-16px;line-height:.8;color:rgba(246,241,231,.05);pointer-events:none}
+  .s6 .ghost{position:absolute;right:44px;top:300px;font-size:290px;font-weight:800;letter-spacing:-16px;line-height:.8;color:rgba(246,241,231,.13);pointer-events:none}
   .s6 .h1{font-size:116px;line-height:.94;letter-spacing:-4.4px}
   .s6 .body{font-size:31px;margin-top:30px}
   .s6 .btn{font-size:38px;padding:28px 44px;margin-top:44px}
@@ -215,7 +216,7 @@
   .s6 .risk{margin-top:32px}
   .s6 .risk span{font-size:15px;letter-spacing:2px;padding:11px 15px}
   .s6-micro{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
-  .s6-micro span{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+  .s6-micro span{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:13px;
     letter-spacing:1.6px;color:rgba(246,241,231,.5);text-transform:uppercase}
   .s6-micro span::before{content:"";width:5px;height:5px;background:var(--coral);border-radius:50%;display:block;opacity:.7}
   .s6-micro b{color:var(--coral);font-weight:600}
@@ -606,7 +607,7 @@
           <svg class="s1-art" viewBox="0 0 380 300" aria-hidden="true">
             <defs>
               <pattern id="seats" width="42" height="42" patternUnits="userSpaceOnUse">
-                <circle cx="13" cy="13" r="7.5" fill="#F6F1E7" opacity=".26"/>
+                <circle cx="13" cy="13" r="9" fill="#F6F1E7" opacity=".42"/>
               </pattern>
             </defs>
             <rect x="0" y="0" width="252" height="210" fill="url(#seats)" stroke="rgba(246,241,231,.14)" stroke-width="1"/>
@@ -615,7 +616,7 @@
             <text x="258" y="55" fill="#FF5B2E" font-family="Cascadia Mono, monospace" font-size="14" letter-spacing="2">NEVER ASKED</text>
 
           </svg>
-          <div class="foot"><span>ER. ROHIT VISHWAKARMA</span><span>SAVE · SWIPE →</span></div>
+          <div class="foot"><span>ROHIT VISHWAKARMA</span><span>SAVE · SWIPE →</span></div>
         </div>
       </div>
     </div>
@@ -646,7 +647,7 @@
             </g>
           </svg>
           <div class="body">It builds quietly. One test makes it visible.</div>
-          <div class="foot"><span>ER. ROHIT VISHWAKARMA</span><span>02 / 06</span></div>
+          <div class="foot"><span>ROHIT VISHWAKARMA</span><span>02 / 06</span></div>
         </div>
       </div>
     </div>
@@ -656,7 +657,7 @@
       <div style="transform:scale(.49)">
         <div class="slide sq light s3">
           <div class="kicker">03 — THE FIX</div>
-          <div class="h1 sm">One student.<br>One tutor.<br><em>Three times a week.</em></div>
+          <div class="h1 sm">One student.<br>One tutor.<br><em>At their pace.</em></div>
           <div class="s3-scope"><span>SCOPE</span>KINDERGARTEN TO GRADE 10<span class="s3-weekend">WEEKEND SLOTS</span></div>
           <div class="s3-diagram">
             <div class="s3-panel">
@@ -699,9 +700,9 @@
               <div class="s3-f">1 STUDENT · 1 TUTOR</div>
             </div>
           </div>
-          <div class="chips"><span class="chip"><i></i>1-ON-1 &amp; PERSONALISED</span><span class="chip"><i></i>AT THEIR PACE</span></div>
+          <div class="chips"><span class="chip"><i></i>1-ON-1 · PERSONALISED · AT THEIR PACE</span></div>
           <div class="body">Every session starts with:<br>“What didn't make sense this week?”</div>
-          <div class="foot"><span>ER. ROHIT VISHWAKARMA</span><span>03 / 06</span></div>
+          <div class="foot"><span>ROHIT VISHWAKARMA</span><span>03 / 06</span></div>
         </div>
       </div>
     </div>
@@ -715,7 +716,7 @@
             <div class="s4-info">
               <div>
                 <div class="s4-k">1-ON-1 MATH · ONLINE</div>
-                <div class="s4-name">Er. Rohit<br>Vishwakarma</div>
+                <div class="s4-name">Rohit<br>Vishwakarma</div>
                 <div class="s4-cred">
                   <span class="s4-c">EDUCATION</span>
                   <b class="s4-v teal">B.TECH &amp; M.TECH · IIIT ALLAHABAD</b>
@@ -730,8 +731,9 @@
                 </div>
               </div>
               <div>
+                <div class="s4-proof">STUDENT RESULT · 55% → 80% IN 8 WEEKS</div>
                 <div class="s4-body">Not a rotating cast. The tutor who remembers what broke last week.</div>
-                <div class="s4-note">VISUAL ANALOGIES<br><a href="https://www.linkedin.com/in/rohit4333/" target="_blank" rel="noopener" style="color:var(--coral)">LINKEDIN →</a></div>
+                <div class="s4-note"><a href="https://www.linkedin.com/in/rohit4333/" target="_blank" rel="noopener" style="color:var(--coral)">LINKEDIN →</a></div>
               </div>
             </div>
             <div class="s4-figwrap">
@@ -782,7 +784,7 @@
           </div>
           <div class="risk"><span>NO CONTRACT · CLEAR FEE</span></div>
           <div class="s6-micro"><span>Know a parent who needs this? Share it.</span></div>
-          <div class="foot"><span>ER. ROHIT VISHWAKARMA</span><span>1-ON-1 MATH · ONLINE</span></div>
+          <div class="foot"><span>ROHIT VISHWAKARMA</span><span>1-ON-1 MATH · ONLINE</span></div>
         </div>
       </div>
     </div>
@@ -849,7 +851,7 @@
       </div>
       <div class="cap" style="max-width:700px;font-size:15px">
         <b>PROFILE CHECKLIST</b>
-        Headline: “1-on-1 maths tutor for international families · 3 sessions/week” · Banner above · About = the paragraph from the ad, first person · Featured = demo booking link · Only real credentials.
+        Headline: “1-on-1 maths tutor for international families · 3 sessions/week” · Banner above · About = the paragraph from the ad, first person · Featured = demo booking link · Verified background.
       </div>
     </div>
 
@@ -1417,7 +1419,7 @@
      Copy at 36px here reads as ~13 CSS px; the 4:5 canvas raises this to
      46-48px (~17 CSS px) inside the 15-20 arcminute comfort band.
      Space is recovered from decoration and padding, never from headlines. */
-  .kicker{font-size:28px;letter-spacing:3px}
+  .kicker{font-size:30px;letter-spacing:3px}
   .foot{font-size:24px;letter-spacing:1.5px;padding-top:18px}
   .body{font-size:36px;line-height:1.34}
 
@@ -1443,21 +1445,22 @@
   .orbit svg{width:200px;height:180px}
   .s3 .body{font-size:34px;margin-top:14px}
   .s3 .chips{margin-top:6px}
-  .chip{font-size:20px;padding:7px 11px}
+  .chip{font-size:22px;padding:7px 11px}
   .s3-h{font-size:21px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:21px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:21px;letter-spacing:1px;margin-top:6px}
-  .s3-weekend{font-size:14px;letter-spacing:1.4px;padding:5px 10px}
+  .s3-weekend{font-size:16px;letter-spacing:1.4px;padding:5px 10px}
   .riyadh-tag{font-size:21px;letter-spacing:.8px;padding:5px 11px}
 
   /* S4 — note must stay inside the photo card, above the footer */
   .s4-card{margin-top:22px}
-  .s4-info{padding:32px 30px 60px 44px}
+  .s4-info{padding:24px 30px 24px 44px}
   .s4-k{font-size:21px;letter-spacing:1.6px}
   .s4-name{font-size:44px}
-  .s4-c{font-size:20px;letter-spacing:1.3px}
+  .s4-c{font-size:21px;letter-spacing:1.3px}
   .s4-v{font-size:34px}
-  .s4-body{font-size:28px;margin-top:12px;line-height:1.34}
+  .s4-body{font-size:24px;margin-top:6px;line-height:1.34;max-width:340px}
+  .s4-proof{font-size:18px;letter-spacing:1.4px;margin-top:6px}
   .s4-note{font-size:20px;letter-spacing:1px;margin-top:10px;line-height:1.5;padding-top:10px;max-width:470px}
   .s4-stamp{font-size:20px}
 
@@ -1470,7 +1473,7 @@
   .ticket{margin-top:16px;padding:14px 18px}
   .ticket .big small{font-size:22px}
   .ticket .meta{font-size:22px;letter-spacing:1px}
-  .seal{font-size:16px}
+  .seal{font-size:18px}
   .s5-after{font-size:20px;letter-spacing:1px;margin-top:14px;line-height:1.5}
 
   /* S6 + Riyadh notes */
@@ -1478,15 +1481,18 @@
   .s6 .body{font-size:36px;margin-top:18px;line-height:1.32}
   .s6-cta{margin-top:20px;padding:20px 30px 18px}
   .s6-cta .lbl{font-size:21px;letter-spacing:1.8px}
-  .s6 .risk{margin-top:12px}
-  .risk span{font-size:21px;letter-spacing:1.1px;padding:8px 11px}
+  .s6 .risk{margin-top:6px}
+  .risk span{font-size:23px;letter-spacing:1.1px;padding:8px 11px}
   /* must follow .risk span — the original .s6 .risk span outranks it */
-  .s6 .risk span{font-size:21px;letter-spacing:1.1px;padding:8px 11px}
-  .s6-micro{margin-top:14px}
-  .s6-micro span{font-size:16px;letter-spacing:1.4px}
+  .s6 .risk span{font-size:23px;letter-spacing:1.1px;padding:8px 11px}
+  .s6-micro{margin-top:6px}
+  .s6-micro span{font-size:18px;letter-spacing:1.4px}
   .s6-phone-note{font-size:24px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:26px;letter-spacing:1px;padding:10px 14px}
-  .s6-note-ksa{font-size:24px;letter-spacing:.9px;font-weight:600}
+  .s6-free{font-size:18px;letter-spacing:1.6px;font-weight:700;margin-top:8px}
+  .s6-price{margin-top:12px}
+  .s6-note-ksa{font-size:24px;letter-spacing:.9px;font-weight:600;margin-top:6px}
+  .s6-phone-note{margin-top:4px}
 
   /* ---------- 4:5 portrait layout · 1080x1350 ---------- */
   .sq{width:1080px;height:1350px;padding:104px 88px}
@@ -1517,8 +1523,8 @@
 
   /* S4 — let the photo card grow into the extra height */
   .s4-card{height:842px;margin-top:42px}
-  .s4-info{padding:40px 40px 56px 52px}
-  .s4-body{margin-top:26px}
+  .s4-info{padding:40px 40px 20px 52px}
+  .s4-body{margin-top:16px}
   .s4-note{max-width:560px}
 
   /* S5 */
@@ -1532,12 +1538,12 @@
   .s6 .h1{font-size:116px}
   .s6 .body{margin-top:20px}
   .s6-cta{margin-top:28px}
-  .s6 .risk{margin-top:20px}
+  .s6 .risk{margin-top:10px}
   .s6-micro{margin-top:16px}
   .s6 .ghost{top:380px}
 
   /* ---------- 4:5 portrait text scale · 1080x1350 ---------- */
-  .kicker{font-size:34px;letter-spacing:3px}
+  .kicker{font-size:36px;letter-spacing:3px}
   .foot{font-size:28px;letter-spacing:1.5px}
   .body{font-size:48px;line-height:1.34}
 
@@ -1551,15 +1557,16 @@
   .s3-h{font-size:26px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:26px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:26px;letter-spacing:1px}
-  .s3-weekend{font-size:16px;letter-spacing:1.4px;padding:6px 11px}
-  .chip{font-size:22px;padding:7px 12px}
+  .s3-weekend{font-size:18px;letter-spacing:1.4px;padding:6px 11px}
+  .chip{font-size:24px;padding:7px 12px}
   .riyadh-tag{font-size:22px;letter-spacing:.8px;padding:8px 12px}
 
   .s4-k{font-size:26px}
-  .s4-c{font-size:24px;letter-spacing:1.3px}
+  .s4-c{font-size:25px;letter-spacing:1.3px}
   .s4-v{font-size:42px}
   .s4-name{font-size:52px}
-  .s4-body{font-size:36px;line-height:1.34}
+  .s4-body{font-size:36px;line-height:1.34;max-width:400px}
+  .s4-proof{font-size:22px;letter-spacing:1.2px;margin-top:8px}
   .s4-note{font-size:23px;letter-spacing:1px;line-height:1.6;padding-top:4px}
   .s4-stamp{font-size:24px}
 
@@ -1569,16 +1576,17 @@
   .s5 .body{font-size:44px}
   .ticket .big small{font-size:26px}
   .ticket .meta{font-size:26px;letter-spacing:1px}
-  .seal{font-size:20px}
+  .seal{font-size:22px}
   .s5-after{font-size:22px;letter-spacing:1.1px;line-height:1.4}
 
   .s6 .body{font-size:48px;line-height:1.32}
   .s6-cta .lbl{font-size:26px;letter-spacing:1.8px}
   /* keep the specificity fix from the shared layer */
-  .s6 .risk span{font-size:26px;letter-spacing:1.1px;padding:10px 13px}
-  .s6-micro span{font-size:19px;letter-spacing:1.4px}
+  .s6 .risk span{font-size:28px;letter-spacing:1.1px;padding:10px 13px}
+  .s6-micro span{font-size:22px;letter-spacing:1.4px}
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-price{font-size:32px;letter-spacing:1px}
+  .s6-free{font-size:22px;letter-spacing:1.6px;font-weight:700}
   .s6-note-ksa{font-size:28px;letter-spacing:.9px;font-weight:600}
 </style>
 <script>
