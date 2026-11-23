@@ -36,7 +36,8 @@ CSS = """
   .s3-panel{padding:16px 18px;gap:12px}
   .dots{grid-template-columns:repeat(6,32px);gap:14px}
   .dots i{width:32px;height:32px}
-  .orbit svg{width:200px;height:180px}
+  .orbit{min-height:216px}
+  .orbit svg{width:240px;height:216px}
   .s3 .body{margin-top:18px}
   .s3 .chips{margin-top:12px}
 
@@ -79,6 +80,7 @@ TEXT_45 = """
   .s3-h{font-size:26px;letter-spacing:1px;font-weight:600}
   .s3-f{font-size:26px;letter-spacing:1px;font-weight:700}
   .s3-scope{font-size:26px;letter-spacing:1px}
+  .s3-scope > span:first-child{font-size:26px;letter-spacing:1.4px}
   .s3-weekend{font-size:18px;letter-spacing:1.4px;padding:6px 11px}
   .chip{font-size:24px;padding:7px 12px}
   .riyadh-tag{font-size:22px;letter-spacing:.8px;padding:8px 12px}
@@ -109,7 +111,6 @@ TEXT_45 = """
   .s6-phone-note{font-size:28px;letter-spacing:.9px;font-weight:600}
   .s6-cta .s6-phone-note{font-size:32px;color:rgba(24,10,4,.9);font-weight:700}
   .s6-price{font-size:32px;letter-spacing:1px}
-  .s6-free{font-size:22px;letter-spacing:1.6px;font-weight:700}
   .s6-note-ksa{font-size:28px;letter-spacing:.9px;font-weight:600}
 """
 

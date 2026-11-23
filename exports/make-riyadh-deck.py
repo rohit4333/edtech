@@ -31,16 +31,8 @@ rep("  /* ---------- MOBILE LEGIBILITY ---------- */",
     margin-top:18px;padding:12px 18px;border-radius:2px;background:var(--teal);
     color:#04211F;font-family:var(--mono);font-size:19px;font-weight:700;
     letter-spacing:2px;box-shadow:6px 6px 0 rgba(18,150,140,.20)}
-  .s6-free{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:2px;
-    color:#48CFC2;margin-top:14px}
   .s6-note-ksa{font-family:var(--mono);font-size:16px;letter-spacing:1.5px;font-weight:600;
     color:rgba(246,241,231,.58);margin-top:12px;line-height:1.6}
-  .s3-scope{margin-top:10px}
-  .s3 .body{margin-top:14px}
-  .slide.s3 .riyadh-tag{padding:4px 10px;margin-top:10px}
-  .slide.s3 .s3-scope{margin-top:4px}
-  .slide.s3 .s3-diagram{margin-top:16px}
-  .slide.s3 .chips{margin-top:4px}
   .s6 .h1{font-size:104px}
   .s6 .body{font-size:28px;margin-top:20px}
   .s6-cta{margin-top:30px;padding:26px 40px 24px}
@@ -70,9 +62,7 @@ rep("""          <div class="s6-cta">
             <div class="num">+91 91941 34507</div>
             <div class="s6-phone-note">+91 number · sessions run on KSA time</div>
           </div>
-          <div class="s6-free">FREE DEMO FIRST</div>
           <div class="s6-price">90 SAR / SESSION</div>
-          <div class="s6-note-ksa">Available in Saudi Time (KSA) for Riyadh students.</div>
           <div class="risk"><span>NO CONTRACT · CLEAR FEE</span></div>""",
     "slide 06 price + notes")
 
