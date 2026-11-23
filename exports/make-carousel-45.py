@@ -78,6 +78,7 @@ TEXT_45 = """
   .s3 .body{font-size:46px}
   .s3-h,.s3-f{font-size:26px;letter-spacing:1px}
   .s3-scope{font-size:26px;letter-spacing:1px}
+  .s3-weekend{font-size:16px;letter-spacing:1.4px;padding:6px 11px}
   .chip{font-size:22px;padding:7px 12px}
   .riyadh-tag{font-size:22px;letter-spacing:.8px;padding:8px 12px}
 
