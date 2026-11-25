@@ -119,6 +119,9 @@ function trainerQuiz(session) {
         explanation: question.explanation,
         source: question.source || 'template',
         templateId: question.templateId || null,
+        concept: question.concept || null,
+        difficultyLevel: question.difficultyLevel || null,
+        requiresCorrectAnswer: question.requiresCorrectAnswer === true,
         status: question.status || 'active'
       };
     }),
@@ -153,6 +156,9 @@ function studentQuiz(session, options) {
         prompt: question.prompt,
         options: question.options.slice()
       };
+      if (question.requiresCorrectAnswer === true) {
+        answer.requiresCorrectAnswer = true;
+      }
       const hint = grantedHint(options, question.id, question.hint);
       if (hint) answer.hint = hint;
       if (revealed[question.id]) {

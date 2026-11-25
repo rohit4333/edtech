@@ -8,6 +8,8 @@ const realtime = require('../realtime');
 const payoutService = require('../services/payoutService');
 const quizGenerator = require('../quiz/generator');
 const quizTemplates = require('../quiz/templates');
+const deepseekService = require('../services/deepseekService');
+const masteryGating = require('../services/masteryGating');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
 
@@ -334,6 +336,23 @@ router.post('/sessions/:sessionId/quiz/reveal', auth.loadSession, function (req,
 
 router.post('/sessions/:sessionId/quiz/next', auth.loadSession, function (req, res) {
   const session = req.sessionRecord;
+  const body = req.body || {};
+  const pending = masteryGating.pendingParallelCheck(session);
+  if (pending && body.force !== true) {
+    return res.status(409).json({
+      error: 'PARALLEL_CHECK_REQUIRED',
+      message: 'The student must solve this parallel check before moving on.',
+      questionId: pending.id
+    });
+  }
+  if (pending && body.force === true) {
+    session.quiz.overrides = session.quiz.overrides || [];
+    session.quiz.overrides.push({
+      questionId: pending.id,
+      forcedBy: req.user.id,
+      at: new Date().toISOString()
+    });
+  }
   const questions = session.quiz.questions;
   const index = questions.findIndex(function (question) { return question.id === session.quiz.currentQuestionId; });
   const next = questions[index + 1];
@@ -442,34 +461,94 @@ router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async functi
   }
 });
 
-/* Trainer-triggered reteach follow-up. Generates one active check, but only
-   after the trainer has explicitly left the reteach phase. */
+/* Scaffolded mastery: after a trainer explains a failed item on the whiteboard,
+   generate ONE parallel question on the same concept. It cannot be skipped;
+   only a correct attempt (or an explicit trainer override) allows progress. */
 router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async function (req, res) {
   const session = req.sessionRecord;
   const body = req.body || {};
-  const usedPrompts = session.quiz.questions.map(function (question) { return question.prompt; });
+  const questions = session.quiz.questions;
+  const usedPrompts = questions.map(function (question) {
+    return question.prompt || question.stem || '';
+  }).filter(Boolean);
+
+  const currentQuestion = questions.find(function (question) {
+    return question.id === (body.questionId || session.quiz.currentQuestionId);
+  }) || questions[questions.length - 1] || null;
+  const concept = String(body.concept || body.topicId || (currentQuestion && (
+    currentQuestion.concept || currentQuestion.topicId || currentQuestion.prompt || currentQuestion.stem
+  )) || session.topicId || session.title || '').trim();
+  if (!concept) {
+    return res.status(400).json({
+      error: 'MISSING_CONCEPT',
+      message: 'Send concept or topicId, or have a current question to check.'
+    });
+  }
+
+  const difficulty = body.difficulty || (session.quiz && session.quiz.currentDifficultyLevel) ||
+    session.currentLevel || session.difficultyLevel ||
+    quizGenerator.difficultyLabel(quizGenerator.difficultyForMastery(session.mastery));
 
   try {
-    const generated = await quizGenerator.generateQuestionForSession(session, {
-      topic: body.topic || session.title,
-      templateId: body.templateId || null,
-      usedPrompts: usedPrompts
+    const generated = await deepseekService.generateParallelQuestion(concept, difficulty, {
+      usedPrompts: usedPrompts,
+      allowFallback: body.allowFallback
+    });
+    const options = generated.options.map(function (option) { return option.text; });
+    const answerIndex = generated.options.findIndex(function (option) {
+      return option.id === generated.correctOptionId;
     });
 
-    const question = Object.assign({}, generated, { id: 'q_' + Date.now(), status: 'active' });
-    delete question.note;
+    const question = {
+      id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      prompt: generated.stem,
+      stem: generated.stem,
+      options: options,
+      answerIndex: answerIndex,
+      correctOptionId: generated.correctOptionId,
+      answerKey: generated.answerKey,
+      explanation: generated.explanation,
+      hint: generated.hint,
+      concept: generated.concept,
+      difficultyLevel: generated.difficulty,
+      source: generated.source,
+      status: 'active',
+      requiresCorrectAnswer: true,
+      createdAt: new Date().toISOString()
+    };
 
-    session.quiz.questions.push(question);
+    if (body.replace === true && currentQuestion) {
+      const index = questions.indexOf(currentQuestion);
+      questions[index] = question;
+      session.quiz.attempts = session.quiz.attempts.filter(function (attempt) {
+        return attempt.questionId !== currentQuestion.id;
+      });
+      session.quiz.reveals = session.quiz.reveals.filter(function (reveal) {
+        return reveal.questionId !== currentQuestion.id;
+      });
+    } else {
+      questions.push(question);
+    }
+
     session.quiz.currentQuestionId = question.id;
     session.quiz.phase = 'recheck';
+    session.quiz.status = session.quiz.status === 'live' ? 'live' : session.quiz.status;
 
     const updated = db.updateSession(session.id, function () { return session; });
+    /* No answer key or correctness in the shared realtime payload. */
     realtime.publish(updated.id, 'quiz.check.added', {
       currentQuestionId: question.id,
+      questionId: question.id,
+      concept: concept,
+      requiresCorrectAnswer: true,
       difficultyLevel: question.difficultyLevel
     });
 
-    return res.json({ session: serializers.toTrainerSession(updated) });
+    return res.status(201).json({
+      session: serializers.toTrainerSession(updated),
+      questionId: question.id,
+      generationMode: generated.source
+    });
   } catch (failure) {
     return res.status(failure.status || 502).json({
       error: failure.code || 'QUIZ_GENERATION_FAILED',

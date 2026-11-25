@@ -49,4 +49,23 @@ assert.strictEqual(
 );
 assert.strictEqual(trainerCopy.answerKey, '6 : 10');
 
-console.log('studentSerializer: 15 assertions passed');
+const requiredQuestion = Object.assign({}, session.quiz.questions[0], {
+  id: 'q_required',
+  requiresCorrectAnswer: true
+});
+const withRequired = Object.assign({}, session, {
+  quiz: Object.assign({}, session.quiz, {
+    status: 'live',
+    questions: [requiredQuestion],
+    currentQuestionId: requiredQuestion.id
+  })
+});
+const safeRequired = serializers.toStudentSession(
+  serializers.stripTrainerOnlyFields(withRequired, 'student')
+);
+assert.strictEqual(safeRequired.quiz.questions[0].requiresCorrectAnswer, true);
+assert.strictEqual(safeRequired.quiz.questions[0].answerIndex, undefined);
+assert.strictEqual(JSON.stringify(safeRequired).indexOf('"answerKey"'), -1);
+assert.strictEqual(JSON.stringify(safeRequired).indexOf('"explanation"'), -1);
+
+console.log('studentSerializer: 19 assertions passed');

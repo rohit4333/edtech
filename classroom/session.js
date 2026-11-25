@@ -26,6 +26,37 @@
   var strokeId = null;
   var strokeSeq = 0;
 
+  function authToken() {
+    return window.MATHIFY_ACCESS_TOKEN || accessToken || null;
+  }
+
+  function apiRequest(path, options) {
+    var settings = options || {};
+    var headers = { Accept: 'application/json' };
+    var token = authToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
+    if (settings.body !== undefined) headers['Content-Type'] = 'application/json';
+
+    return fetch('/api' + path, {
+      method: settings.method || 'GET',
+      headers: headers,
+      credentials: 'same-origin',
+      body: settings.body === undefined ? undefined : JSON.stringify(settings.body)
+    }).then(function (response) {
+      return response.text().then(function (textValue) {
+        var data = null;
+        try { data = textValue ? JSON.parse(textValue) : null; } catch (error) { data = null; }
+        if (!response.ok) {
+          var problem = new Error((data && data.message) || 'Request failed.');
+          problem.status = response.status;
+          problem.code = data && data.error;
+          throw problem;
+        }
+        return data;
+      });
+    });
+  }
+
   if (studentView || !isTrainer) {
     document.body.classList.add('view-student');
     /* Remove hidden instruction payloads and trainer controls from the DOM entirely. */
@@ -345,6 +376,8 @@
   var quizHint = $('#quizHint');
   var quizSkip = $('#quizSkip');
   var quizNext = $('#quizNext');
+  var quizPracticeBadge = $('#quizPracticeBadge');
+  var quizForceNext = $('#quizForceNext');
   var quizReveal = $('#quizReveal');
   var quizReteach = $('#quizReteach');
   var quizAnswerState = $('#quizAnswerState');
@@ -391,8 +424,11 @@
     }
   ];
 
-  var baseQuestions = questions.map(function (question) {
-    return Object.assign({}, question, { options: question.options.slice() });
+  var baseQuestions = questions.map(function (question, index) {
+    return Object.assign({}, question, {
+      id: 'q_base_' + (index + 1),
+      options: question.options.slice()
+    });
   });
 
   var recheckBank = [
@@ -402,7 +438,8 @@
       answer: 0,
       hint: 'Multiply both parts by the same number.',
       why: 'Both parts were multiplied by 2.',
-      recheck: true
+      recheck: true,
+      requiresCorrectAnswer: true
     },
     {
       q: 'A 3 : 4 mix uses 9 red beads. How many blue beads are needed?',
@@ -410,7 +447,8 @@
       answer: 1,
       hint: 'One part is 9 ÷ 3 = 3 beads.',
       why: 'One part is 3 beads, so 4 parts are 12 beads.',
-      recheck: true
+      recheck: true,
+      requiresCorrectAnswer: true
     }
   ];
 
@@ -434,7 +472,10 @@
     reteachArmed: false,
     recheckCount: 0,
     seconds: 120,
-    timer: null
+    timer: null,
+    attemptId: null,
+    parallelSolved: false,
+    pollTimer: null
   };
 
   function paintQuizClock() {
@@ -446,6 +487,33 @@
 
   function isAnswerable() {
     return quizState.phase === 'answering' || quizState.phase === 'recheck';
+  }
+
+  function currentQuizItem() {
+    return questions[quizState.index] || null;
+  }
+
+  function isRequiredQuestion(item) {
+    return Boolean(item && item.requiresCorrectAnswer === true);
+  }
+
+  /* Progression stays locked until the server confirms a correct attempt for
+     that specific question. The trainer override is the only other exit. */
+  function syncPracticeControls(item) {
+    var required = isRequiredQuestion(item || currentQuizItem());
+    var blocked = required && quizState.parallelSolved !== true;
+
+    if (quizPracticeBadge) quizPracticeBadge.hidden = !required;
+    if (quizSkip) quizSkip.disabled = !isAnswerable() || quizState.answered || blocked;
+    if (quizActionSkip) quizActionSkip.disabled = !quizLive() || !isAnswerable() ||
+      quizState.answered || blocked;
+    if (quizNext) {
+      quizNext.disabled = studentView || quizState.phase === 'complete' || blocked;
+    }
+    if (quizForceNext) {
+      quizForceNext.hidden = !required || !isTrainer;
+      quizForceNext.disabled = !blocked;
+    }
   }
 
   function setFeedback(text, className) {
@@ -484,11 +552,10 @@
 
     var locked = !isAnswerable() || quizState.answered;
     if (quizHint) quizHint.disabled = locked;
-    if (quizSkip) quizSkip.disabled = locked;
     if (quizReveal) quizReveal.disabled = studentView || phase === 'complete';
     if (quizReteach) quizReteach.disabled = studentView || phase === 'complete';
-    if (quizNext) quizNext.disabled = studentView || phase === 'complete';
     setTrainerActions();
+    syncPracticeControls(currentQuizItem());
   }
 
   function lockOptions(reveal) {
@@ -524,7 +591,7 @@
     if (readinessBar) readinessBar.style.width = pct + '%';
     if (readinessNote) {
       if (!quizState.seen) readinessNote.textContent = 'Answer a question to see readiness.';
-      else readinessNote.textContent = 'Unlock at 80% · below 80% stays on this topic for reteach.';
+      else readinessNote.textContent = 'Level 1 unlocks at 80% · Level 2 at 50% · practice checks must be solved.';
     }
   }
 
@@ -534,10 +601,16 @@
     quizState.answered = false;
     quizState.chosen = null;
     quizState.revealed = false;
+    quizState.attemptId = null;
+    quizState.parallelSolved = false;
     clearQuizInk(false);
 
     if (quizQuestion) quizQuestion.textContent = item.q;
-    setFeedback(item.recheck ? 'Recheck · choose one answer.' : 'Choose one answer.', '');
+    if (isRequiredQuestion(item)) {
+      setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
+    } else {
+      setFeedback(item.recheck ? 'Recheck · choose one answer.' : 'Choose one answer.', '');
+    }
     setAnswerState('Waiting for Ishaan’s answer.');
     if (quizReteach) {
       quizReteach.textContent = 'Reteach + new check';
@@ -592,6 +665,37 @@
     setAnswerState('Ishaan chose ' + 'ABCD'.charAt(chosen) + ' · key ' + 'ABCD'.charAt(item.answer) + '.');
     setQuizPhase('awaiting_reveal');
     updateReadiness();
+
+    /* The server owns attempt ids and releases correctness only after reveal. */
+    if (sessionId && authToken() && item.id) {
+      apiRequest('/student/sessions/' + encodeURIComponent(sessionId) + '/quiz/answers', {
+        method: 'POST',
+        body: { questionId: item.id, optionIndex: chosen }
+      }).then(function (data) {
+        if (data && data.attemptId) quizState.attemptId = data.attemptId;
+      }).catch(function (error) {
+        setFeedback('Answer could not be saved: ' + error.message, 'is-wrong');
+      });
+    }
+  }
+
+  function refreshParallelResult() {
+    var item = currentQuizItem();
+    if (!isRequiredQuestion(item)) return Promise.resolve(false);
+    if (!sessionId || !authToken() || !quizState.attemptId) return Promise.resolve(false);
+
+    return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
+      '/quiz/attempts/' + encodeURIComponent(quizState.attemptId)).then(function (data) {
+      if (data && data.correct === true) {
+        quizState.parallelSolved = true;
+        syncPracticeControls(item);
+        setFeedback('Parallel check solved. Your trainer can move on.', 'is-correct');
+        return true;
+      }
+      return false;
+    }).catch(function () {
+      return false;
+    });
   }
 
   function revealQuizAnswer() {
@@ -611,6 +715,7 @@
     }
     setQuizPhase('revealed');
     toast('Answer revealed for Ishaan.');
+    refreshParallelResult();
   }
 
   function skipQuiz() {
@@ -645,16 +750,61 @@
     toast('Quiz frozen for reteach. Add a fresh check when ready.');
   }
 
-  function addRecheckQuestion() {
-    var bankItem = recheckBank[quizState.recheckCount % recheckBank.length];
-    quizState.recheckCount += 1;
-    var next = Object.assign({}, bankItem, { options: bankItem.options.slice(), recheck: true });
+  function installParallelQuestion(next) {
     questions.push(next);
     quizState.index = questions.length - 1;
     quizState.reteachArmed = false;
     startQuizClock();
     renderQuiz();
-    toast('Fresh recheck question added from the same objective.');
+    toast('Fresh parallel check added from the same concept.');
+  }
+
+  function addLocalRecheckQuestion() {
+    var bankItem = recheckBank[quizState.recheckCount % recheckBank.length];
+    quizState.recheckCount += 1;
+    installParallelQuestion(Object.assign({}, bankItem, {
+      id: 'q_recheck_' + quizState.recheckCount,
+      options: bankItem.options.slice(),
+      recheck: true,
+      requiresCorrectAnswer: true
+    }));
+  }
+
+  function addRecheckQuestion() {
+    var failed = currentQuizItem();
+    if (!sessionId || !authToken()) {
+      addLocalRecheckQuestion();
+      return;
+    }
+
+    apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/new-check', {
+      method: 'POST',
+      body: {
+        questionId: failed && failed.id ? failed.id : undefined,
+        concept: failed && (failed.concept || failed.q) ? (failed.concept || failed.q) : undefined,
+        difficulty: failed && failed.difficultyLevel ? failed.difficultyLevel : 'medium'
+      }
+    }).then(function (data) {
+      var session = data.session || {};
+      var quiz = session.quiz || {};
+      var generated = (quiz.questions || []).find(function (question) {
+        return question.id === (data.questionId || quiz.currentQuestionId);
+      });
+      if (!generated) throw new Error('New check was not returned.');
+      installParallelQuestion({
+        id: generated.id,
+        q: generated.prompt || generated.stem,
+        options: (generated.options || []).slice(),
+        hint: generated.hint || '',
+        why: '',
+        answer: Number(generated.answerIndex),
+        recheck: true,
+        requiresCorrectAnswer: true
+      });
+    }).catch(function (error) {
+      toast('Parallel check unavailable (' + error.message + '). Using local check.');
+      addLocalRecheckQuestion();
+    });
   }
 
   function completeQuiz() {
@@ -695,6 +845,7 @@
     quizState.recheckCount = 0;
     renderQuiz();
     startQuizClock();
+    startQuestionSync();
     toast(studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.');
     var first = $('button', quizOptions);
     if (first) setTimeout(function () { first.focus(); }, 30);
@@ -704,6 +855,8 @@
     if (!quizStage || !document.body.classList.contains('quiz-live')) return;
     clearInterval(quizState.timer);
     quizState.timer = null;
+    clearInterval(quizState.pollTimer);
+    quizState.pollTimer = null;
     document.body.classList.remove('quiz-live');
     document.body.classList.remove('quiz-reteach');
     setTrainerActions();
@@ -730,8 +883,7 @@
 
   quizSkip && quizSkip.addEventListener('click', skipQuiz);
 
-  quizNext && quizNext.addEventListener('click', function () {
-    if (studentView || quizState.phase === 'complete') return;
+  function finishAdvance() {
     if (quizState.index >= questions.length - 1) {
       completeQuiz();
       return;
@@ -740,7 +892,64 @@
     renderQuiz();
     startQuizClock();
     toast('Next question ready.');
-  });
+  }
+
+  function advanceQuiz(force) {
+    if (studentView || quizState.phase === 'complete') return;
+    var item = currentQuizItem();
+    if (isRequiredQuestion(item) && quizState.parallelSolved !== true && force !== true) {
+      toast('Solve the practice question first, or use trainer override.');
+      return;
+    }
+    if (!sessionId || !authToken()) {
+      finishAdvance();
+      return;
+    }
+    apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/next', {
+      method: 'POST',
+      body: force === true ? { force: true } : {}
+    }).then(finishAdvance).catch(function (error) {
+      if (error.status === 409) {
+        toast('Backend requires a correct parallel check before proceeding.');
+      } else {
+        toast('Could not sync the next question: ' + error.message);
+      }
+    });
+  }
+
+  quizNext && quizNext.addEventListener('click', function () { advanceQuiz(false); });
+  quizForceNext && quizForceNext.addEventListener('click', function () { advanceQuiz(true); });
+
+  function startQuestionSync() {
+    if (!studentView || !sessionId || !authToken()) return;
+    clearInterval(quizState.pollTimer);
+    quizState.pollTimer = setInterval(function () {
+      if (!quizLive()) return;
+      apiRequest('/student/sessions/' + encodeURIComponent(sessionId)).then(function (data) {
+        var quiz = data.session && data.session.quiz;
+        if (!quiz || !quiz.currentQuestionId) return;
+        var current = currentQuizItem();
+        if (current && current.id === quiz.currentQuestionId) return;
+        var found = (quiz.questions || []).find(function (question) {
+          return question.id === quiz.currentQuestionId;
+        });
+        if (!found) return;
+        questions.push({
+          id: found.id,
+          q: found.prompt,
+          options: (found.options || []).slice(),
+          hint: found.hint || '',
+          why: '',
+          answer: null,
+          requiresCorrectAnswer: found.requiresCorrectAnswer === true
+        });
+        quizState.index = questions.length - 1;
+        startQuizClock();
+        renderQuiz();
+        toast('New practice question ready.');
+      }).catch(function () {});
+    }, 2000);
+  }
 
   /* -------------------------------------------------- trainer scratchpad */
   var scratchCtx = scratchCanvas && scratchCanvas.getContext('2d');

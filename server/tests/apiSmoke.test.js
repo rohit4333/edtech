@@ -106,6 +106,80 @@ async function main() {
     const foreignSession = await request('GET', '/api/sessions/ses_math_002/state', undefined, student);
     assert.strictEqual(foreignSession.status, 200);
 
+    /* Scaffolded mastery: a failed item becomes a required parallel check. */
+    const launch = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/launch', {}, trainer);
+    assert.strictEqual(launch.status, 200);
+
+    const newCheck = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/new-check', {
+      concept: 'Equivalent ratios', difficulty: 2
+    }, trainer);
+    assert.strictEqual(newCheck.status, 201);
+    const firstCheck = (newCheck.body.session.quiz.questions || []).find(function (question) {
+      return question.id === newCheck.body.questionId;
+    });
+    assert.strictEqual(firstCheck.requiresCorrectAnswer, true);
+
+    const realtimeLog = await request('GET', '/api/realtime/log?limit=20', undefined, trainer);
+    assert.strictEqual(realtimeLog.body.events.some(function (event) {
+      return event.event === 'quiz.check.added' &&
+        event.payload.questionId === firstCheck.id &&
+        event.payload.correct === undefined;
+    }), true);
+
+    const studentCheckState = await request('GET', '/api/student/sessions/ses_math_001', undefined, student);
+    assert.strictEqual(studentCheckState.status, 200);
+    assert.strictEqual(/correctOptionId/.test(studentCheckState.text), false);
+    assert.strictEqual(/"answerKey"/.test(studentCheckState.text), false);
+    assert.strictEqual(/"explanation"/.test(studentCheckState.text), false);
+    const studentQuestion = studentCheckState.body.session.quiz.questions.find(function (question) {
+      return question.id === firstCheck.id;
+    });
+    assert.strictEqual(studentQuestion.requiresCorrectAnswer, true);
+
+    const blockedNext = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/next', {}, trainer);
+    assert.strictEqual(blockedNext.status, 409);
+    assert.strictEqual(blockedNext.body.error, 'PARALLEL_CHECK_REQUIRED');
+
+    const wrongAnswer = await request('POST', '/api/student/sessions/ses_math_001/quiz/answers', {
+      questionId: firstCheck.id, optionIndex: (firstCheck.answerIndex + 1) % 4
+    }, student);
+    assert.strictEqual(wrongAnswer.status, 200);
+    const attemptBefore = await request('GET', '/api/student/sessions/ses_math_001/quiz/attempts/' +
+      wrongAnswer.body.attemptId, undefined, student);
+    assert.strictEqual(/correct/.test(attemptBefore.text), false);
+    const revealCheck = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/reveal', {
+      questionId: firstCheck.id
+    }, trainer);
+    assert.strictEqual(revealCheck.status, 200);
+    const attemptWrong = await request('GET', '/api/student/sessions/ses_math_001/quiz/attempts/' +
+      wrongAnswer.body.attemptId, undefined, student);
+    assert.strictEqual(attemptWrong.body.correct, false);
+    const blockedAfterWrong = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/next', {}, trainer);
+    assert.strictEqual(blockedAfterWrong.status, 409);
+
+    const replaceCheck = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/new-check', {
+      questionId: firstCheck.id, concept: 'Equivalent ratios', replace: true
+    }, trainer);
+    assert.strictEqual(replaceCheck.status, 201);
+    const secondCheck = (replaceCheck.body.session.quiz.questions || []).find(function (question) {
+      return question.id === replaceCheck.body.questionId;
+    });
+    assert.strictEqual(secondCheck.requiresCorrectAnswer, true);
+    const correctAnswer = await request('POST', '/api/student/sessions/ses_math_001/quiz/answers', {
+      questionId: secondCheck.id, optionIndex: secondCheck.answerIndex
+    }, student);
+    assert.strictEqual(correctAnswer.status, 200);
+    const revealCorrect = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/reveal', {
+      questionId: secondCheck.id
+    }, trainer);
+    assert.strictEqual(revealCorrect.status, 200);
+    const attemptCorrect = await request('GET', '/api/student/sessions/ses_math_001/quiz/attempts/' +
+      correctAnswer.body.attemptId, undefined, student);
+    assert.strictEqual(attemptCorrect.body.correct, true);
+    const allowedNext = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/next', {}, trainer);
+    assert.strictEqual(allowedNext.status, 200);
+    assert.strictEqual(allowedNext.body.session.quiz.currentQuestionId, secondCheck.id);
+
     const heartbeat = await request('POST', '/api/sessions/ses_math_002/presence', {
       active: true, learningEvents: 2
     }, trainer);
@@ -155,7 +229,7 @@ async function main() {
     const unknown = await call('/api/does-not-exist');
     assert.strictEqual(unknown.status, 404);
 
-    console.log('apiSmoke: 37 assertions passed');
+    console.log('apiSmoke: 60 assertions passed');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

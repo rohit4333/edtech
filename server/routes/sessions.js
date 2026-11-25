@@ -53,6 +53,15 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     ? body.currentQuizScore
     : serializers.readiness(session);
   const topicId = session.topicId || session.title || 'general-mathematics';
+  const currentLevel = masteryGating.levelFromSession(session);
+  const pendingCheck = masteryGating.pendingParallelCheck(session);
+  if (pendingCheck && body.force !== true) {
+    return res.status(409).json({
+      error: 'PARALLEL_CHECK_REQUIRED',
+      message: 'Solve the parallel check before ending the session, or force with trainer override.',
+      questionId: pendingCheck.id
+    });
+  }
   const unlockThreshold = masteryGating.configuredThreshold(
     appPolicy.quiz && appPolicy.quiz.unlockThreshold
   );
@@ -60,7 +69,8 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     session.studentId,
     topicId,
     scoreOverride,
-    unlockThreshold
+    unlockThreshold,
+    currentLevel
   );
   const finalScore = gating.currentScore;
 
@@ -70,6 +80,7 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     current.endsAt = endedAt;
     current.quiz.status = current.quiz.status === 'live' ? 'ended' : current.quiz.status;
     current.masteryGating = gating;
+    current.currentLevel = currentLevel;
     current.reteachRequired = gating.reteachRequired;
     current.unlockedNext = gating.unlockedNext;
     if (gating.reteachRequired) current.currentTopicId = topicId;
@@ -90,6 +101,9 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
       reteachRequired: gating.reteachRequired,
       unlockedNext: gating.unlockedNext,
       currentTopicId: gating.reteachRequired ? topicId : (student.currentTopicId || topicId),
+      currentLevel: currentLevel,
+      requiredScore: gating.requiredScore,
+      rule: gating.rule,
       updatedAt: gating.checkedAt
     };
     student.reteachRequired = gating.reteachRequired;
@@ -121,6 +135,9 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
       unlockedNext: gating.unlockedNext,
       reteachRequired: gating.reteachRequired,
       currentScore: gating.currentScore,
+      currentLevel: currentLevel,
+      requiredScore: gating.requiredScore,
+      rule: gating.rule,
       masteryGating: gating,
       presence: presence,
       trainerView: req.user.role === 'trainer' || req.user.role === 'founder'
@@ -128,7 +145,8 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     presence: presence,
     unlockedNext: gating.unlockedNext,
     reteachRequired: gating.reteachRequired,
-    currentScore: gating.currentScore
+    currentScore: gating.currentScore,
+    currentLevel: currentLevel
   });
 });
 

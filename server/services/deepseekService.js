@@ -92,6 +92,9 @@ SCHEMA
   "parent_summary": "2 sentences, plain language, no jargon."
 }`;
 
+/* Used after a failed item, once the trainer has explained it on the board. */
+const SYSTEM_PROMPT_PARALLEL = "You are Mathify's AI tutor. The student failed a question about: [failedQuestionConcept]. Generate exactly ONE new parallel question testing the SAME underlying concept, but with different numbers, context, or framing so it is not a repeated question. Return ONLY valid JSON: { 'id': 'string', 'stem': 'string', 'options': [{'id':'a','text':''}, ...], 'correctOptionId': 'string', 'explanation': 'string', 'hint': 'string' }.";
+
 /* ---------- Zod schemas ---------- */
 
 const plannerBlockSchema = z.object({
@@ -223,6 +226,31 @@ const quizSchema = z.object({
     repeat_if_below: z.literal(true)
   }),
   parent_summary: z.string().min(1)
+});
+
+const parallelQuestionSchema = z.object({
+  id: z.string().min(1),
+  stem: z.string().min(1),
+  options: z.array(quizOptionSchema).length(4),
+  correctOptionId: z.string().min(1),
+  explanation: z.string().min(1),
+  hint: z.string().min(1)
+}).superRefine(function (item, context) {
+  const ids = item.options.map(function (option) { return option.id; });
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Parallel question option ids must be unique.'
+    });
+  }
+  if (ids.indexOf(item.correctOptionId) === -1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['correctOptionId'],
+      message: 'correctOptionId must match one of the four options.'
+    });
+  }
 });
 
 /* ---------- Helpers ---------- */
@@ -606,6 +634,42 @@ function validateQuizOutput(parsed, context) {
   };
 }
 
+/** Zod validation for a single trainer-requested parallel check. */
+function validateParallelQuestionOutput(parsed, context) {
+  const result = parallelQuestionSchema.safeParse(parsed);
+  if (!result.success) {
+    throw invalid('Parallel question failed schema validation: ' + zodMessage(result.error));
+  }
+
+  const item = result.data;
+  const stemKey = normalizeStem(item.stem);
+  const usedPrompts = (context && context.usedPrompts ? context.usedPrompts : [])
+    .map(function (value) {
+      return normalizeStem(isObject(value) ? (value.stem || value.prompt || value.text) : value);
+    })
+    .filter(Boolean);
+  if (usedPrompts.indexOf(stemKey) !== -1) {
+    throw invalid('Parallel question repeats a previously asked question.');
+  }
+
+  const correctOption = item.options.find(function (option) {
+    return option.id === item.correctOptionId;
+  });
+  if (!correctOption) throw invalid('Parallel question correctOptionId is not one of its options.');
+
+  return {
+    id: item.id,
+    stem: item.stem,
+    options: item.options.map(function (option) {
+      return { id: option.id, text: option.text };
+    }),
+    correctOptionId: item.correctOptionId,
+    answerKey: correctOption.text,
+    explanation: item.explanation,
+    hint: item.hint
+  };
+}
+
 /* ---------- Deterministic fallback (no API key) ---------- */
 
 function fallbackBlock(id, type, contentText, instructions, misconceptions, options) {
@@ -825,6 +889,59 @@ function scoreForDifficulty(difficulty) {
   return DIFFICULTY_SCORES[key] || DIFFICULTY_SCORES.level2;
 }
 
+function buildParallelFallback(concept, difficulty, settings) {
+  const question = generator.buildFallbackQuiz(concept, scoreForDifficulty(difficulty), {
+    count: 1,
+    level: generator.difficultyNumber(difficulty) || generator.difficultyForMastery(scoreForDifficulty(difficulty)),
+    usedPrompts: settings.usedPrompts || []
+  })[0];
+  const options = question.options.map(function (optionText, index) {
+    return { id: optionLetter(index), text: optionText };
+  });
+  const correctOptionId = optionLetter(question.answerIndex);
+
+  return {
+    id: 'q_parallel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    stem: question.prompt,
+    options: options,
+    correctOptionId: correctOptionId,
+    answerKey: question.correctAnswer,
+    explanation: 'Use the same relationship as the worked example, with the new numbers.',
+    hint: question.hint
+  };
+}
+
+/**
+ * One parallel check after a trainer explanation. The prompt is intentionally
+ * single-item so the completion never competes with the two-phase curriculum
+ * output for output tokens.
+ */
+async function generateParallelQuestion(failedQuestionConcept, difficulty, options) {
+  const settings = options || {};
+  const concept = text(failedQuestionConcept, '');
+  if (!concept) {
+    throw failure('failedQuestionConcept must be a non-empty string.', 'MISSING_CONCEPT', 400);
+  }
+
+  const rendered = SYSTEM_PROMPT_PARALLEL.replace('[failedQuestionConcept]', concept);
+  const parsed = await requestJSON(
+    rendered,
+    'Difficulty: ' + generator.difficultyLabel(difficulty) +
+      '. Test the same concept with a fresh context. Do not repeat an earlier stem.',
+    settings.allowFallback
+  );
+  const output = validateParallelQuestionOutput(
+    parsed || buildParallelFallback(concept, difficulty, settings),
+    { usedPrompts: settings.usedPrompts || [] }
+  );
+
+  return Object.assign({}, output, {
+    concept: concept,
+    difficulty: generator.difficultyLabel(difficulty),
+    source: parsed ? 'ai' : 'fallback'
+  });
+}
+
 /** Backward-compatible wrapper for existing callers. */
 async function generateQuizDraft(topic, difficulty) {
   return generator.generateAdaptiveQuiz(topic, scoreForDifficulty(difficulty), { count: 3 });
@@ -833,9 +950,11 @@ async function generateQuizDraft(topic, difficulty) {
 module.exports = Object.assign({}, generator, {
   SYSTEM_PROMPT_PLANNER: SYSTEM_PROMPT_PLANNER,
   SYSTEM_PROMPT_QUIZ: SYSTEM_PROMPT_QUIZ,
+  SYSTEM_PROMPT_PARALLEL: SYSTEM_PROMPT_PARALLEL,
   DIFFICULTY_LEVELS: DIFFICULTY_LEVELS,
   plannerSchema: plannerSchema,
   quizSchema: quizSchema,
+  parallelQuestionSchema: parallelQuestionSchema,
   safeParseJSON: safeParseJSON,
   calculateNextDifficulty: calculateNextDifficulty,
   calculateNextDifficultyLabel: calculateNextDifficultyLabel,
@@ -843,8 +962,10 @@ module.exports = Object.assign({}, generator, {
   difficultyForMastery: generator.difficultyForMastery,
   generatePlannerAndCurriculum: generatePlannerAndCurriculum,
   generateQuizTiers: generateQuizTiers,
+  generateParallelQuestion: generateParallelQuestion,
   validatePlannerOutput: validatePlannerOutput,
   validateQuizOutput: validateQuizOutput,
+  validateParallelQuestionOutput: validateParallelQuestionOutput,
   generateQuizDraft: generateQuizDraft,
   difficultyLabel: generator.difficultyLabel
 });

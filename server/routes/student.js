@@ -75,4 +75,34 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
   });
 });
 
+/* Correctness is released only after the trainer reveals that question. The
+   classroom client uses this to unlock a required parallel check. */
+router.get('/sessions/:sessionId/quiz/attempts/:attemptId', auth.loadSession, function (req, res) {
+  const session = req.sessionRecord;
+  const attempt = session.quiz.attempts.find(function (item) {
+    return item.id === req.params.attemptId;
+  });
+  if (!attempt) {
+    return res.status(404).json({ error: 'ATTEMPT_NOT_FOUND' });
+  }
+
+  const revealed = (session.quiz.reveals || []).some(function (reveal) {
+    return reveal.questionId === attempt.questionId;
+  });
+  if (!revealed) {
+    return res.json({
+      attemptId: attempt.id,
+      questionId: attempt.questionId,
+      revealed: false
+    });
+  }
+
+  return res.json({
+    attemptId: attempt.id,
+    questionId: attempt.questionId,
+    revealed: true,
+    correct: attempt.correct === true
+  });
+});
+
 module.exports = router;

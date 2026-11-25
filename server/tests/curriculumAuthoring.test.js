@@ -211,6 +211,70 @@ async function main() {
     deepEqual(Object.keys(remoteQuiz.quiz), ['level_1', 'level_2', 'level_3'],
       'remote quiz path returns all three tiers');
 
+    /* Scaffolded mastery: one parallel question after a trainer explanation. */
+    equal(service.SYSTEM_PROMPT_PARALLEL.indexOf('[failedQuestionConcept]') !== -1, true,
+      'parallel prompt exposes the failed concept placeholder');
+    delete process.env.DEEPSEEK_API_KEY;
+    const parallel = await service.generateParallelQuestion('Equivalent ratios', 2, {
+      usedPrompts: [context.previously_asked_questions[0].stem]
+    });
+    equal(parallel.options.length, 4, 'parallel question has exactly four options');
+    equal(parallel.concept, 'Equivalent ratios', 'parallel question keeps the failed concept');
+    equal(parallel.difficulty, 'Level 2', 'parallel question reports its difficulty');
+    ok(parallel.answerKey === parallel.options.find(function (option) {
+      return option.id === parallel.correctOptionId;
+    }).text, 'parallel answer key matches the correct option');
+    const parallelStudentJson = JSON.stringify(
+      serializers.stripStudentRestrictedFields(parallel)
+    );
+    ['answerKey', 'correctOptionId', 'explanation'].forEach(function (key) {
+      equal(parallelStudentJson.indexOf('"' + key + '"'), -1,
+        'student payload excludes parallel ' + key);
+    });
+    const repeatedParallel = JSON.parse(JSON.stringify(parallel));
+    repeatedParallel.stem = context.previously_asked_questions[0].stem;
+    assert.throws(function () {
+      service.validateParallelQuestionOutput(repeatedParallel, {
+        usedPrompts: [context.previously_asked_questions[0].stem]
+      });
+    }, /repeats a previously asked question/);
+    checks += 1;
+    assert.throws(function () {
+      service.validateParallelQuestionOutput({ id: 'x', stem: 'y', options: [] }, {});
+    }, /schema validation/);
+    checks += 1;
+
+    const remoteParallel = {
+      id: 'pq_1',
+      stem: 'A 2 : 3 ribbon is 10 cm short. How long is the long piece?',
+      options: [
+        { id: 'a', text: '12 cm' }, { id: 'b', text: '15 cm' },
+        { id: 'c', text: '20 cm' }, { id: 'd', text: '25 cm' }
+      ],
+      correctOptionId: 'b',
+      explanation: 'One part is 5 cm, so three parts are 15 cm.',
+      hint: 'Find the value of one part first.'
+    };
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    let parallelCalls = 0;
+    const parallelPrompts = [];
+    global.fetch = async function (url, options) {
+      parallelCalls += 1;
+      const body = JSON.parse(options.body);
+      parallelPrompts.push(body.messages[0].content);
+      return {
+        ok: true,
+        status: 200,
+        text: async function () { return envelope(remoteParallel); }
+      };
+    };
+    const generatedParallel = await service.generateParallelQuestion('Equivalent ratios', 1);
+    equal(parallelCalls, 1, 'parallel question uses a single API call');
+    ok(parallelPrompts[0].indexOf('Equivalent ratios') !== -1,
+      'parallel system prompt renders the failed concept');
+    equal(generatedParallel.source, 'ai', 'remote parallel question is marked as AI output');
+    equal(generatedParallel.correctOptionId, 'b', 'remote parallel question keeps correct option');
+
     console.log('curriculumAuthoring: ' + checks + ' assertions passed');
   } finally {
     if (originalKey === undefined) delete process.env.DEEPSEEK_API_KEY;
