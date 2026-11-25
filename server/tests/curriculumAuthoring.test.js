@@ -63,6 +63,14 @@ async function main() {
       'difficulty never moves past hard');
     equal(service.calculateNextDifficulty('easy', 20), 'easy',
       'difficulty never moves below easy');
+    equal(service.calculateNextDifficulty(2, 85), 3,
+      'numeric difficulty path remains backward compatible');
+    equal(service.difficultyForMastery(85), 3,
+      'difficultyForMastery remains intact');
+    equal(typeof service.generatePlannerAndCurriculum, 'function',
+      'generatePlannerAndCurriculum is exported for routes');
+    equal(typeof service.generateQuizTiers, 'function',
+      'generateQuizTiers is exported for routes');
 
     deepEqual(policy.quiz.scoringBands, {
       easy: { min: 0, max: 40 },

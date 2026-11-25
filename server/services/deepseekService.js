@@ -277,8 +277,8 @@ function normalizeStem(value) {
   return text(value, '').toLowerCase();
 }
 
-/** Move up at >=80, down below 40, otherwise hold the current band. */
-function calculateNextDifficulty(currentLevel, score) {
+/** Label variant of the adaptive step: easy|medium|hard. */
+function calculateNextDifficultyLabel(currentLevel, score) {
   const level = text(currentLevel, 'medium').toLowerCase();
   const index = DIFFICULTY_LEVELS.indexOf(level);
   const currentIndex = index === -1 ? 1 : index;
@@ -288,6 +288,20 @@ function calculateNextDifficulty(currentLevel, score) {
   if (safeScore >= 80) return DIFFICULTY_LEVELS[Math.min(currentIndex + 1, DIFFICULTY_LEVELS.length - 1)];
   if (safeScore < 40) return DIFFICULTY_LEVELS[Math.max(currentIndex - 1, 0)];
   return DIFFICULTY_LEVELS[currentIndex];
+}
+
+/**
+ * Backward-compatible adaptive step. Numeric levels delegate to the original
+ * generator helper; string levels use the curriculum label variant.
+ */
+function calculateNextDifficulty(currentLevel, score) {
+  const raw = String(currentLevel === null || currentLevel === undefined ? '' : currentLevel)
+    .trim()
+    .toLowerCase();
+  if (DIFFICULTY_LEVELS.indexOf(raw) !== -1) {
+    return calculateNextDifficultyLabel(raw, score);
+  }
+  return generator.calculateNextDifficulty(currentLevel, score);
 }
 
 function stripTrailingCommas(source) {
@@ -824,7 +838,9 @@ module.exports = Object.assign({}, generator, {
   quizSchema: quizSchema,
   safeParseJSON: safeParseJSON,
   calculateNextDifficulty: calculateNextDifficulty,
+  calculateNextDifficultyLabel: calculateNextDifficultyLabel,
   calculateNextNumericDifficulty: generator.calculateNextDifficulty,
+  difficultyForMastery: generator.difficultyForMastery,
   generatePlannerAndCurriculum: generatePlannerAndCurriculum,
   generateQuizTiers: generateQuizTiers,
   validatePlannerOutput: validatePlannerOutput,
