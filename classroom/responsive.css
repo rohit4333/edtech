@@ -1,0 +1,322 @@
+/* ==========================================================================
+   MATHIFY — classroom responsive
+   Laptop → tablet → phone, plus short-height tuning.
+   ========================================================================== */
+
+@media (max-width:1360px){
+  .body{grid-template-columns:minmax(0,1fr) 278px;gap:12px;padding:12px 14px}
+  .tile-initials{font-size:22px}
+}
+
+@media (max-width:1240px){
+  .body{grid-template-columns:minmax(0,1fr);padding:12px 16px}
+  .side{display:none}
+  .foot-tools{display:inline-flex}
+}
+
+@media (max-width:1100px){
+  .sheet-page{padding:24px 30px 16px;gap:13px}
+  .p-body{gap:26px}
+  .p-head h2{font-size:34px}
+  .step{margin-left:0;padding-left:12px}
+  .step b{max-width:170px}
+}
+
+@media (max-width:980px){
+  .invite{display:none}
+  .rec{border-right:0;padding-right:0;margin-right:0}
+  .rec-label{display:none}
+  .step{display:none}
+  .foot-actions{margin-left:auto}
+  .board-head{padding-left:14px}
+  .lesson-line b{font-size:12.5px}
+}
+
+@media (max-width:860px){
+  .top{gap:10px;padding:0 12px}
+  .body{padding:10px 12px;gap:10px}
+  .foot{padding:0 12px;gap:8px}
+  .media{gap:6px}
+  .foot-actions{gap:6px}
+  .board-sub{display:none}
+  .sheet-page{padding:22px 26px 15px}
+  .p-head h2{font-size:31px}
+  .p-problem{font-size:12px}
+  .p-steps b{font-size:12px}
+  .bar{height:46px}
+}
+
+@media (max-width:780px){
+  .brand,.top-rule{display:none}
+  .people-txt span{display:none}
+  .people{padding:0 8px 0 5px}
+  .top{min-height:56px}
+  .board-head{min-height:46px}
+  .bh-l h1{font-size:13.5px}
+  .save{font-size:7.5px}
+  .body{padding:10px}
+  .sheet-page{padding:20px 22px 14px}
+  .p-head h2{font-size:28px}
+  .p-problem{font-size:11.5px;line-height:1.6}
+  .p-body{gap:20px}
+  .p-steps li{padding:9px 0}
+  .bar{height:42px}
+  .bar-labels .bl b{font-size:10.5px}
+  .ratio-table td{font-size:13px;padding:9px 4px}
+  .workspace{min-height:170px}
+  .ws-mark{font-size:60px}
+  .checklist{padding:12px}
+  .checklist li{font-size:10px}
+}
+
+@media (max-width:720px){
+  .layer{padding:0;align-items:flex-end}
+  .layer-center{max-height:100%}
+  .sheet{width:100%;max-height:92vh;max-height:92dvh;border-radius:16px 16px 0 0;border-bottom:0;animation:sheetUp .26s cubic-bezier(.2,.72,.3,1)}
+  .sheet-head{padding:16px 16px 12px}
+  .sheet-body{padding:14px 16px}
+  .sheet-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .sheet-chat{max-height:100dvh;height:100dvh;border-radius:0}
+  .sheet-chat .chat-log{max-height:none}
+  .toast{bottom:calc(128px + env(safe-area-inset-bottom))}
+}
+
+@media (max-width:640px){
+  .top{padding:0 10px;gap:7px;min-height:56px}
+  .icon-btn{width:32px;height:32px}
+  .icon-btn .icon{width:17px;height:17px}
+  .lesson{gap:1px}
+  .lesson-line{gap:6px;min-width:0}
+  .lesson-line b{font-size:11.5px;max-width:138px}
+  .lesson-sub{display:none}
+  .live{height:18px;padding:0 6px;font-size:7px}
+  .rec{display:none}
+  .people{height:32px;gap:5px;padding:0 7px 0 4px}
+  .stack .av{width:21px;height:21px;font-size:7px}
+  .stack .av + .av{margin-left:-8px}
+  .people-txt b{font-size:10.5px}
+  .end{height:32px;padding:0 12px;font-size:11px}
+
+  .body{padding:8px;gap:8px}
+  .board{border-radius:10px}
+  .board-head{min-height:44px;padding:0 7px 0 11px;gap:6px}
+  .bh-l{gap:6px}
+  .board-tag{display:none}
+  .bh-l h1{font-size:12.5px}
+  .bh-r{gap:8px}
+  .save{width:18px;height:18px;justify-content:center;padding:0}
+  .save span{display:none}
+  .save .icon{width:13px;height:13px}
+  .pager{height:28px}
+  .pager button{width:27px}
+  .pager-num{font-size:8px}
+  .pager-num b{font-size:9px}
+
+  .board-body{grid-template-columns:minmax(0,1fr)}
+  .tools{display:none}
+
+  .sheet-page{padding:15px 14px 11px;gap:9px;background-size:20px 20px}
+  .p-head{max-width:none}
+  .p-kicker{font-size:7px;gap:6px;letter-spacing:.12em}
+  .p-kicker::before{width:12px}
+  .p-head h2{font-size:26px;margin-top:5px;line-height:1}
+  .p-problem{margin-top:7px;font-size:11px;line-height:1.5;max-width:44ch}
+  .p-body{grid-template-columns:1fr;gap:9px;align-items:start;padding:2px 0}
+  .p-body-2,.p-body-3{grid-template-columns:1fr;gap:9px}
+
+  .bar-fig{max-width:none}
+  .bar-labels{margin-bottom:3px}
+  .bl{padding-bottom:4px}
+  .bl b{font-size:10px}
+  .bl em{font-size:6.5px}
+  .bl i{height:5px;margin-top:2px}
+  .bar{height:34px}
+  .bar-total{margin-top:6px;font-size:6.5px}
+  .bar-total b{font-size:8px}
+  .p-steps li{grid-template-columns:21px minmax(0,1fr);gap:8px;padding:6px 0}
+  .p-num{width:21px;height:21px;font-size:7.5px}
+  .p-steps b{font-size:10px}
+  .p-steps p span{font-size:8.5px}
+  .p-steps .answer .p-num .icon{width:10px;height:10px}
+
+  .p-body-2 .ratio-table thead th{font-size:6.5px;padding:5px 3px}
+  .ratio-table tbody th{padding:7px 8px;font-size:9.5px}
+  .ratio-table td{padding:7px 3px;font-size:11.5px}
+  .ratio-table td.gap{font-size:10.5px}
+  .table-note{margin-top:6px;font-size:8px}
+  .table-note .mono{font-size:6.5px}
+
+  .dline-fig figcaption{margin-top:2px;font-size:8px}
+  .drow{height:42px;padding-left:22px}
+  .dname{top:9px;width:16px;font-size:7.5px}
+  .dticks{margin-top:10px}
+  .dticks span{top:5px;font-size:7px}
+  .dticks span::before{top:-9px;width:4px;height:4px;margin-left:-2px}
+  .dconn{left:calc(22px + .6 * (100% - 22px));top:10px;height:42px;border-left-width:1px}
+  .dconn::before,.dconn::after{width:5px;height:5px;left:-3px}
+
+  .p-body-3{gap:8px}
+  .workspace{min-height:126px}
+  .ws-mark{font-size:48px}
+  .ws-label,.ws-prompt{font-size:6px}
+  .checklist{padding:10px;display:grid;grid-template-columns:1fr 1fr;column-gap:10px;align-items:start}
+  .checklist .mono{grid-column:1 / -1}
+  .checklist ul{margin-top:7px;display:grid;grid-template-columns:1fr;gap:5px}
+  .checklist li{font-size:9px;gap:6px}
+  .tick{width:10px;height:10px}
+  .checklist p{display:none}
+
+  .p-foot{padding-top:7px}
+  .p-chip{font-size:6px;padding:3px 7px}
+  .p-pagenum{font-size:6.5px}
+  .board-hint{display:none}
+
+  .foot{
+    min-height:0;
+    flex-wrap:wrap;
+    gap:7px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+  .media{gap:6px}
+  .ctl{width:38px;height:38px}
+  .ctl .icon{width:17px;height:17px}
+  .step{display:none}
+  .foot-actions{gap:6px;margin-left:auto}
+  .queue,.foot-btn{width:38px;height:38px;padding:0;justify-content:center;position:relative}
+  .queue span{display:none}
+  .queue::after{
+    content:"1";
+    position:absolute;
+    top:-4px;right:-4px;
+    display:grid;
+    place-items:center;
+    width:15px;height:15px;
+    border-radius:50%;
+    background:var(--coral);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:7px;
+    font-weight:600;
+  }
+  .foot-btn > span:not(.count){display:none}
+  .foot-btn .count{position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;padding:0 3px;display:grid;place-items:center;font-size:6.5px}
+  .foot-tools{display:inline-flex}
+  .foot-quiz{display:none}
+  .phone-tools{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:4px;
+    width:100%;
+    padding-top:7px;
+    border-top:1px solid var(--line-soft);
+  }
+  .ptool{
+    display:grid;
+    place-items:center;
+    width:40px;height:40px;
+    flex:none;
+    border-radius:8px;
+    color:var(--muted);
+  }
+  .ptool .icon{width:17px;height:17px}
+  .ptool.is-on{background:var(--ink);color:var(--paper)}
+  .ptools-rule{width:1px;height:22px;background:var(--line);flex:none}
+  .phone-colors{display:flex;align-items:center;gap:5px}
+  .pcolor{
+    width:26px;height:26px;
+    border-radius:50%;
+    background:var(--sw);
+    box-shadow:0 0 0 1px rgba(14,20,32,.16);
+  }
+  .pcolor.is-on{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
+
+  .toast{bottom:calc(124px + env(safe-area-inset-bottom));font-size:10px;padding:8px 12px}
+}
+
+@media (max-width:480px){
+  .people .stack{display:none}
+  .people{padding:0 9px;height:32px}
+  .people-txt b{font-size:11px;min-width:16px;text-align:center}
+  .lesson-line b{max-width:118px}
+  .sheet-head h2{font-size:21px}
+  .sheet-head{padding:15px 15px 11px}
+  .sheet-body{padding:13px 15px}
+  .sheet-foot{padding:11px 15px calc(11px + env(safe-area-inset-bottom))}
+  .stats{gap:6px}
+  .stat{padding:9px}
+  .stat b{font-size:20px}
+  .stat small{font-size:8px}
+  .q-text{font-size:18px}
+  .quiz-big b{font-size:36px}
+  .people-list b{font-size:10.5px}
+  .p-status{font-size:6px}
+  .person{grid-template-columns:26px minmax(0,1fr) auto}
+  .person .av{width:26px;height:26px}
+  .big-score b{font-size:36px}
+  .bar-row{grid-template-columns:104px minmax(0,1fr) 22px}
+  .end-summary b{font-size:24px}
+  .end-summary div{padding:11px}
+  .sheet-foot .btn-sm{padding:0 12px;font-size:11px}
+}
+
+@media (max-width:380px){
+  .lesson-line b{max-width:96px;font-size:11px}
+  .live{padding:0 5px}
+  .stack .av:nth-child(3){display:none}
+  .phone-tools{gap:2px}
+  .pcolor{width:24px;height:24px}
+  .ptool{width:38px;height:38px}
+}
+
+/* ---------------------------------------------------------- short screens */
+@media (max-height:740px) and (min-width:721px){
+  .sheet-page{padding:18px 28px 13px;gap:10px}
+  .p-head h2{font-size:30px}
+  .p-problem{font-size:11.5px;margin-top:8px}
+  .bar{height:40px}
+  .bar-fig{max-width:380px}
+  .p-steps li{padding:8px 0}
+  .workspace{min-height:150px}
+  .ws-mark{font-size:54px}
+  .side-card{padding:10px}
+  .tile{aspect-ratio:1.32/1}
+  .tile-initials{font-size:19px}
+}
+
+@media (max-height:620px){
+  .top{min-height:54px}
+  .foot{min-height:54px}
+  .body{padding-top:8px;padding-bottom:8px}
+  .board-head{min-height:46px}
+  .sheet-page{gap:8px;padding:14px 24px 10px}
+  .p-head h2{font-size:26px}
+  .p-problem{margin-top:6px;font-size:11px;line-height:1.5}
+  .p-kicker{font-size:7px}
+  .p-body{padding:0;gap:18px}
+  .bar{height:34px}
+  .bar-labels .bl b{font-size:9.5px}
+  .bl i{height:4px}
+  .bar-total{display:none}
+  .p-steps li{padding:5px 0}
+  .p-steps b{font-size:10.5px}
+  .p-steps p span{display:none}
+  .p-num{width:21px;height:21px;font-size:7.5px}
+  .p-foot{padding-top:6px}
+  .workspace{min-height:110px}
+  .ws-mark{font-size:46px}
+  .checklist{padding:9px}
+  .ratio-table td{padding:6px 4px;font-size:12px}
+  .ratio-table tbody th{padding:6px 8px}
+  .drow{height:38px}
+  .dticks{height:100%;margin-top:8px}
+  .dconn{top:8px;height:38px}
+  .dline-fig figcaption{display:none}
+  .side-card.chat-card{display:none}
+  .board-hint{display:none}
+}
+
+@keyframes sheetUp{
+  from{opacity:0;transform:translateY(34px)}
+  to{opacity:1;transform:none}
+}

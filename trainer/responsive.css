@@ -1,0 +1,203 @@
+/* ==========================================================================
+   MATHIFY — trainer console · responsive + touch
+   ========================================================================== */
+
+.tabs{display:none}
+
+@media (max-width:1280px){
+  .page{padding-left:32px;padding-right:32px}
+  .topbar{padding-left:32px;padding-right:32px}
+  .hero{grid-template-columns:minmax(0,1.5fr) minmax(285px,.85fr)}
+}
+
+@media (max-width:1100px){
+  .rail{display:none}
+  .workspace{margin-left:0}
+  .brand-m{display:inline-flex}
+  .topbar{padding:12px 20px}
+  .search{display:none}
+  .mobile-search{display:grid}
+  .batch-wrap{flex:1 1 auto;max-width:300px}
+  .page{padding:28px 20px calc(132px + env(safe-area-inset-bottom))}
+  .matrix{min-width:750px}
+
+  .tabs{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    z-index:30;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(253,250,243,.95);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+  }
+  .tabs button{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    min-height:46px;
+    padding:6px 0;
+    color:var(--muted);
+    font-size:9.5px;
+    transition:color .18s ease;
+  }
+  .tabs button svg{width:20px;height:20px;stroke-width:1.5}
+  .tabs button.active{color:var(--ink);font-weight:500}
+  .tabs button.active svg{color:var(--coral)}
+
+  .fab{right:16px;bottom:calc(72px + env(safe-area-inset-bottom))}
+  .ai{right:16px;bottom:calc(132px + env(safe-area-inset-bottom))}
+  .toast{bottom:calc(80px + env(safe-area-inset-bottom))}
+}
+
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr}
+  .next{min-height:0}
+  .next-mid{padding-top:24px}
+  .metrics{grid-template-columns:1fr 1fr}
+  .metric{border-bottom:1px solid var(--line-soft)}
+  .metric:nth-child(2){border-right:0}
+  .metric:nth-child(3),
+  .metric:nth-child(4){border-bottom:0}
+  .split{grid-template-columns:1fr}
+}
+
+@media (max-width:720px){
+  .page-head h1{font-size:30px}
+  .next-time{font-size:28px}
+  .next-topic{font-size:18px}
+  .roster-cols{padding-left:57px}
+}
+
+@media (max-width:640px){
+  .topbar{
+    position:static;
+    flex-wrap:wrap;
+    row-gap:9px;
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  }
+  .batch-wrap{order:3;flex:1 1 100%;max-width:none}
+  .batch{padding:9px 11px}
+  .page{padding:22px 16px calc(132px + env(safe-area-inset-bottom))}
+  .page-head{margin-bottom:22px}
+  .page-head h1{font-size:29px}
+  .head-actions{display:none}
+  .page-head .sub{gap:7px;font-size:12px;row-gap:3px}
+  .page-head .sub .dot-alert{display:none}
+  .page-head .sub span:last-child{flex-basis:100%}
+
+  .next{padding:20px}
+  .next-time{font-size:26px}
+  .next-topic{font-size:17px}
+  .next-note{width:100%;margin-left:0;order:3}
+  .next-foot .btn{flex:1;min-width:130px}
+  .plan-chips span:not(.plan-ready){display:none}
+
+  .metrics{margin-top:16px}
+  .metric{padding:13px 15px}
+  .metric-value{font-size:23px}
+  .metric-value.money{font-size:19px}
+  .metric-cap{white-space:normal}
+  .metric .bar{display:none}
+
+  .block{margin-top:28px}
+  .queue-row{
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:"tag status" "body body" "action action";
+    gap:8px 12px;
+    padding:14px 16px;
+  }
+  .queue-row .tag{grid-area:tag}
+  .queue-row .body{grid-area:body}
+  .queue-row .title{white-space:normal}
+  .queue-row .meta{white-space:normal}
+  .queue-row .status{grid-area:status;justify-self:end}
+  .queue-row .btn{grid-area:action;justify-self:start}
+
+  .section-head{align-items:flex-start}
+  .sh-left{row-gap:2px}
+  .sh-meta{width:100%}
+  .sh-right{width:100%;margin-top:2px}
+  .select-btn,
+  .sh-right .btn{flex:1;justify-content:center}
+  .save-note{order:-1;width:100%}
+
+  .swipe-hint{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin:0 0 8px;
+    font-family:var(--mono);
+    font-size:8px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--faint);
+  }
+  .swipe-hint svg{width:12px;height:12px}
+  .matrix{min-width:760px}
+  .matrix thead th.student-col{padding-left:16px}
+  .matrix tbody th{padding-left:16px}
+  .matrix thead th.rate-col,
+  .matrix .rate{padding-right:16px}
+  .reg-foot{gap:10px;padding:11px 16px}
+  .reg-hint{width:100%;order:3}
+  .reg-count{margin-left:0}
+  .legend{gap:12px}
+
+  .split{margin-top:28px}
+  .tps{padding:18px}
+  .tps-value{font-size:38px}
+  .spark{display:none}
+  .roster-head,
+  .roster-cols,
+  .roster li,
+  .roster-foot{padding-left:16px;padding-right:16px}
+  .roster-cols{padding-left:55px}
+
+  .foot{gap:12px;font-size:8.5px}
+  .foot .c{margin-left:0;width:100%}
+
+  /* prevent iOS input zoom */
+  .search-field input{font-size:16px}
+  .search-overlay{padding:calc(74px + env(safe-area-inset-top)) 12px 12px;background:rgba(14,20,32,.34)}
+  .search-field .esc{display:grid;place-items:center;width:32px;height:32px;padding:0;border-radius:50%}
+  .search-field .esc-txt{display:none}
+  .search-field .esc-x{display:block;width:15px;height:15px}
+  .search-tags button{padding:8px 12px;font-size:12px}
+  .ai-form input{font-size:16px}
+  .ai{max-height:calc(100dvh - 190px)}
+  .ai-body{flex:1;max-height:none}
+}
+
+@media (max-width:400px){
+  .mobile-search{display:none}
+  .page-head h1{font-size:26px}
+  .next-time{font-size:24px}
+  .next-foot .btn{min-width:118px}
+  .metric-value{font-size:21px}
+  .metric-value.money{font-size:18px}
+  .metric-cap{font-size:9.5px}
+  .matrix{min-width:720px}
+  .tps-value{font-size:34px}
+  .roster li{grid-template-columns:30px minmax(0,1fr) 44px 38px;gap:8px}
+  .roster-cols{grid-template-columns:minmax(0,1fr) 44px 38px;padding-left:54px}
+  .tabs button{font-size:8.5px}
+  .tabs button svg{width:19px;height:19px}
+}
+
+@media (pointer:coarse){
+  .btn{height:46px}
+  .btn-sm{height:42px}
+  .icon-btn{width:44px;height:44px}
+  .avatar-btn{width:42px;height:42px}
+  .search{height:44px}
+  .select-btn{height:42px}
+  .menu button{padding:11px 12px;font-size:13px}
+  .cell{width:30px;height:30px}
+  .ai-head .x{width:32px;height:32px}
+  .tabs button{min-height:52px}
+}

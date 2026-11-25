@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — 1:1 Session</title>
+<meta name="description" content="Mathify one-to-one session: shared planner, live whiteboard, hidden trainer notes and quiz mode.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="room.css">
+<link rel="stylesheet" href="board.css">
+<link rel="stylesheet" href="panels.css">
+<link rel="stylesheet" href="responsive.css">
+<link rel="stylesheet" href="session.css">
+</head>
+<body>
+
+<a class="skip" href="#paper">Skip to whiteboard</a>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M9 9v2a3 3 0 0 0 4.6 2.5M15 10.5V6a3 3 0 0 0-5.7-1.2M5 11a7 7 0 0 0 10.3 6.2M19 11a7 7 0 0 1-1.1 3.8M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5L21 8v8l-5-2.5"/></symbol>
+  <symbol id="i-cam-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10 6h4a2 2 0 0 1 2 2v3.5l5-2.5v8l-5-2.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3M8.5 6.5L12 3l3.5 3.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 12V6a1.5 1.5 0 0 1 3 0v5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v6M17 11V8.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.4a6 6 0 0 1-4.8-2.4L5 15.5a1.7 1.7 0 0 1 2.6-2.2L10 15.5V13"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-5A8 8 0 1 1 21 12Z"/><path d="M8 11h8M8 14.5h5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5.2a3.2 3.2 0 0 1 0 6.2M18 14.6a6.5 6.5 0 0 1 3.5 5.4"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5L8 21H3v-5L14.5 4.5Z"/><path d="M12 7l5 5"/></symbol>
+  <symbol id="i-marker" viewBox="0 0 24 24"><path d="M9 14l-5 5v2h4l2-2"/><path d="M13 4l7 7-8.5 8.5-7-7L13 4Z"/><path d="M8 18l-2-2"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M4.5 16.5L14 7a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L10.5 22H7l-2.5-2.5a2.2 2.2 0 0 1 0-3Z"/><path d="M8 13l7 7M10 22h11"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14h-1"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9h-9a7 7 0 0 0 0 14h1"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></symbol>
+  <symbol id="i-recap" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v5h5M12 8v4l3 2"/></symbol>
+  <symbol id="i-planner" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7.5 14h3M7.5 17.5h6"/></symbol>
+  <symbol id="i-health" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3L2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.5v.5"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="3.5"/><path d="M19 8v6M22 11h-6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M7 17L17 7M9.4 7H17v7.6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5M8 16h3"/></symbol>
+</svg>
+
+<div class="app" id="app">
+
+  <!-- ============================================================ top bar -->
+  <header class="top">
+    <div class="top-l">
+      <a class="icon-btn back" href="../trainer/index.html" aria-label="Back to trainer console" title="Back to console">
+        <svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>
+      </a>
+      <a class="brand" href="../index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+      <span class="top-rule" aria-hidden="true"></span>
+      <div class="lesson">
+        <div class="lesson-line">
+          <span class="live" id="liveTag"><i aria-hidden="true"></i><span id="liveWord">Live</span></span>
+          <b>1:1 · Class 6 Mathematics</b>
+        </div>
+        <span class="lesson-sub">Ratios · Lesson 15 <span aria-hidden="true">·</span> Ishaan Verma</span>
+      </div>
+    </div>
+    <div class="top-r">
+      <span class="rec" title="Recording"><i aria-hidden="true"></i><span class="rec-label">REC</span><span class="num" id="recTime">42:18</span></span>
+      <button class="people" id="peopleBtn" type="button" aria-haspopup="dialog" aria-label="Ishaan Verma is in the room. Open session details.">
+        <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
+        <span class="people-txt"><b>1</b><span>in room</span></span>
+      </button>
+      <button class="btn btn-ghost btn-sm invite" type="button" data-toast="Pack: 8 sessions left · expires in 21 days.">Pack · 8 left</button>
+      <button class="btn btn-coral btn-sm end" id="endBtn" type="button">End session</button>
+    </div>
+  </header>
+
+  <!-- ============================================================== body -->
+  <div class="body">
+    <main class="stage" aria-label="One-to-one session">
+
+      <section class="board" aria-label="Whiteboard">
+        <header class="board-head">
+          <div class="bh-l">
+            <span class="board-tag"><svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg>Board</span>
+            <h1>Ratio bar models</h1>
+            <span class="board-sub">Lesson 15</span>
+          </div>
+          <div class="bh-r">
+            <button class="trainer-toggle trainer-only" id="trainerLayerBtn" type="button" aria-pressed="false" title="Trainer-only instructions">
+              <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span>Trainer notes</span>
+            </button>
+            <span class="save" id="saveChip" aria-live="polite"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Saved</span></span>
+            <div class="pager" role="group" aria-label="Board pages">
+              <button id="pagePrev" type="button" aria-label="Previous page" disabled><svg class="icon" aria-hidden="true"><use href="#i-left"/></svg></button>
+              <span class="pager-num"><b id="pageNow">1</b><span>/ 3</span></span>
+              <button id="pageNext" type="button" aria-label="Next page"><svg class="icon" aria-hidden="true"><use href="#i-right"/></svg></button>
+            </div>
+          </div>
+        </header>
+
+        <div class="board-body">
+          <div class="tools" role="toolbar" aria-label="Whiteboard tools" aria-orientation="vertical">
+            <div class="tools-group">
+              <button class="tool is-on" data-tool="pen" type="button" aria-pressed="true" title="Pen (P)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg><span class="tool-label">Pen</span>
+              </button>
+              <button class="tool" data-tool="marker" type="button" aria-pressed="false" title="Highlighter (H)">
+                <svg class="icon" aria-hidden="true"><use href="#i-marker"/></svg><span class="tool-label">Highlighter</span>
+              </button>
+              <button class="tool" data-tool="eraser" type="button" aria-pressed="false" title="Eraser (E)">
+                <svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg><span class="tool-label">Eraser</span>
+              </button>
+            </div>
+            <span class="tools-rule" aria-hidden="true"></span>
+            <div class="colors" role="group" aria-label="Ink colour">
+              <button class="color is-on" data-color="ink" type="button" aria-label="Ink" aria-pressed="true" style="--sw:#0E1420"></button>
+              <button class="color" data-color="coral" type="button" aria-label="Coral" aria-pressed="false" style="--sw:#FF5B2E"></button>
+              <button class="color" data-color="teal" type="button" aria-label="Teal" aria-pressed="false" style="--sw:#12968C"></button>
+              <button class="color" data-color="amber" type="button" aria-label="Amber" aria-pressed="false" style="--sw:#B4740B"></button>
+            </div>
+            <span class="tools-rule" aria-hidden="true"></span>
+            <div class="tools-group">
+              <button class="tool" data-act="undo" type="button" aria-label="Undo" title="Undo (Ctrl+Z)"><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg></button>
+              <button class="tool" data-act="redo" type="button" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><svg class="icon" aria-hidden="true"><use href="#i-redo"/></svg></button>
+              <button class="tool danger" data-act="clear" type="button" aria-label="Clear page" title="Clear page"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
+            </div>
+          </div>
+
+          <div class="paper" id="paper" tabindex="-1">
+            <div class="pages" id="pages">
+
+              <article class="sheet-page" data-page="1" aria-label="Page 1, warm-up: one ratio, two lengths">
+                <header class="p-head" data-instruction="Ask Ishaan to say what one part means before you split the ribbon. If he writes 18 ÷ 3 = 6 straight away, pause him and point at the three coral parts.">
+                  <span class="p-kicker">Warm-up <span aria-hidden="true">·</span> 6 min</span>
+                  <h2>One ratio,<br>two lengths<span class="dot">.</span></h2>
+                  <p class="p-problem">A ribbon is cut into two pieces in the ratio <b>3 : 5</b>. The shorter piece is <b>18 cm</b>. How long is the whole ribbon?</p>
+                </header>
+                <div class="p-body">
+                  <figure class="bar-fig" data-instruction="Let him shade the three known parts himself. Coral is the only accent — do not add a second colour here.">
+                    <div class="bar-labels">
+                      <span class="bl known" style="flex:3"><b>18 cm</b><em>3 parts</em><i aria-hidden="true"></i></span>
+                      <span class="bl unknown" style="flex:5"><b>?</b><em>5 parts</em><i aria-hidden="true"></i></span>
+                    </div>
+                    <div class="bar" aria-hidden="true">
+                      <span class="seg known"></span><span class="seg known"></span><span class="seg known"></span>
+                      <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+                    </div>
+                    <figcaption class="bar-total"><span>Whole ribbon</span><i aria-hidden="true"></i><b>8 parts</b></figcaption>
+                  </figure>
+                  <ol class="p-steps">
+                    <li><span class="p-num">1</span><p><b>3 parts = 18 cm</b><span>Start with what you know.</span></p></li>
+                    <li><span class="p-num">2</span><p><b>1 part = 6 cm</b><span>Divide 18 by 3.</span></p></li>
+                    <li class="answer"><span class="p-num"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><p><b>8 parts = 48 cm</b><span>Multiply 6 by 8.</span></p></li>
+                  </ol>
+                </div>
+                <div class="sketch-strip" data-instruction="If he hesitates, expand this space and draw the eight parts one by one. Do not fill it in for him.">
+                  <span class="mono">Sketch space <span>· 3 parts</span></span>
+                  <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
+                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                </div>
+                <footer class="p-foot"><span class="p-chip">Same bar, same story</span><span class="p-pagenum">01 / 03</span></footer>
+              </article>
+
+              <article class="sheet-page" data-page="2" aria-label="Page 2, build: scale both sides of a ratio" hidden>
+                <header class="p-head" data-instruction="Keep the ratio visible in every column. Ask why multiplying only one row breaks the story.">
+                  <span class="p-kicker">Build <span aria-hidden="true">·</span> 10 min</span>
+                  <h2>Scale both<br>sides<span class="dot">.</span></h2>
+                  <p class="p-problem">Every column keeps the same ratio. Fill the two gaps, then show both scales on the double number line.</p>
+                </header>
+                <div class="p-body p-body-2">
+                  <div class="ratio-wrap" data-instruction="The two gaps are ×3 on ribbon A and ×5 on ribbon B. Say the scale factor out loud before revealing either.">
+                    <table class="ratio-table">
+                      <caption class="visually-hidden">Ribbon A and Ribbon B lengths for scale factors one, two, three and five.</caption>
+                      <thead><tr><th scope="col"><span>Ribbon</span></th><th scope="col">×1</th><th scope="col">×2</th><th scope="col">×3</th><th scope="col">×5</th></tr></thead>
+                      <tbody>
+                        <tr><th scope="row">A <span>cm</span></th><td>3</td><td>6</td><td class="gap">?</td><td>15</td></tr>
+                        <tr><th scope="row">B <span>cm</span></th><td>5</td><td>10</td><td>15</td><td class="gap">?</td></tr>
+                      </tbody>
+                    </table>
+                    <p class="table-note"><span class="mono">Keep the ratio</span>3 : 5 in every column.</p>
+                  </div>
+                  <figure class="dline-fig" data-instruction="Point at 9 on A and 15 on B together. The dashed coral line is the same ribbon measured two ways.">
+                    <div class="dline" role="img" aria-label="Double number line. Ribbon A runs from zero to fifteen centimetres; Ribbon B runs from zero to twenty-five centimetres. Nine on A lines up with fifteen on B.">
+                      <span class="dconn" aria-hidden="true"></span>
+                      <div class="drow"><span class="dname">A</span><div class="dticks"><span>0</span><span>3</span><span>6</span><span class="ask">9?</span><span>12</span><span>15</span></div></div>
+                      <div class="drow"><span class="dname">B</span><div class="dticks"><span>0</span><span>5</span><span>10</span><span>15</span><span>20</span><span class="ask">?</span></div></div>
+                    </div>
+                    <figcaption>Each line is the same ribbon, measured in parts.</figcaption>
+                  </figure>
+                </div>
+                <div class="sketch-strip" data-instruction="Expand and let Ishaan draw his own number line. Resist correcting the spacing — ask him to explain the jump instead.">
+                  <span class="mono">Sketch space <span>· number line</span></span>
+                  <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
+                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                </div>
+                <footer class="p-foot"><span class="p-chip">× the same number, top and bottom</span><span class="p-pagenum">02 / 03</span></footer>
+              </article>
+
+              <article class="sheet-page" data-page="3" aria-label="Page 3, your turn: design a bead mix" hidden>
+                <header class="p-head" data-instruction="Give him three quiet minutes before you speak. If he asks for a hint, ask what the whole represents.">
+                  <span class="p-kicker">Your turn <span aria-hidden="true">·</span> 12 min</span>
+                  <h2>Design a<br>bead mix<span class="dot">.</span></h2>
+                  <p class="p-problem">The ratio of red to blue beads is <b>4 : 7</b>. There are <b>44 beads</b> in all. How many are blue?</p>
+                </header>
+                <div class="p-body p-body-3">
+                  <div class="workspace" data-instruction="This is the expandable sketch zone. Expand it when he needs room to draw 11 parts. The ink layer follows the expansion.">
+                    <span class="ws-label">Bar model workspace</span>
+                    <button class="ws-expand" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand sketch</span></button>
+                    <span class="ws-mark" aria-hidden="true">44</span>
+                    <span class="ws-prompt">Start with the whole.</span>
+                    <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                  </div>
+                  <aside class="checklist">
+                    <span class="mono">Before you solve</span>
+                    <ul>
+                      <li><span class="tick" aria-hidden="true"></span>Same parts</li>
+                      <li><span class="tick" aria-hidden="true"></span>Same whole</li>
+                      <li><span class="tick" aria-hidden="true"></span>Label the units</li>
+                    </ul>
+                    <p>3 minutes, then we share one bar.</p>
+                  </aside>
+                </div>
+                <footer class="p-foot"><span class="p-chip">Annotate the workspace</span><span class="p-pagenum">03 / 03</span></footer>
+              </article>
+
+            </div>
+            <canvas id="ink" aria-label="Annotation layer. Draw on the board with a mouse, stylus or finger."></canvas>
+            <span class="brush" id="brush" aria-hidden="true"></span>
+
+            <p class="board-hint" id="boardHint"><span aria-hidden="true"></span>Pick a tool and annotate the board</p>
+          </div>
+        </div>
+
+        <aside class="trainer-panel trainer-only" id="trainerPanel" aria-label="Trainer-only instructions" hidden>
+          <header class="trainer-panel-head">
+            <div><span class="mono">Hidden from student</span><b>Trainer notes</b></div>
+            <button class="sheet-x" id="trainerPanelClose" type="button" aria-label="Close trainer notes"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+          </header>
+          <div class="trainer-panel-body" id="trainerInstructions"></div>
+        </aside>
+      </section>
+
+      <!-- ============================================== quiz mode stage -->
+      <section class="quiz-stage" id="quizStage" aria-label="Quiz mode" hidden>
+        <header class="quiz-stage-head">
+          <div><span class="mono" id="quizPhaseLabel">Assessment · quiz live</span><b>Whiteboard hidden</b></div>
+          <div class="quiz-stage-head-r">
+            <span class="quiz-clock"><i aria-hidden="true"></i><span class="num" id="quizStageTimer">02:00</span></span>
+            <button class="btn btn-light btn-sm" id="quizExit" type="button">Back to board</button>
+          </div>
+        </header>
+        <div class="quiz-split">
+          <div class="quiz-student">
+            <span class="mono">Student view · Ishaan</span>
+            <h2 id="quizQuestion">Which ratio is equivalent to 3 : 5?</h2>
+            <div class="student-opts" id="quizOptions"></div>
+            <div class="student-actions">
+              <button class="mini" id="quizHint" type="button">Hint</button>
+              <button class="mini" id="quizSkip" type="button">Skip</button>
+            </div>
+            <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer.</p>
+          </div>
+          <div class="quiz-trainer trainer-only">
+            <div class="quiz-trainer-head">
+              <span class="mono">Trainer view</span>
+              <label class="select-wrap" for="quizSelect">Doubt support
+                <select id="quizSelect">
+                  <option value="off">Off</option>
+                  <option value="draw">Draw on scratchpad</option>
+                </select>
+              </label>
+            </div>
+            <div class="scratch" id="scratchWrap" hidden>
+              <div class="scratch-label"><span class="mono">Blank Wacom area</span><button class="mini" id="scratchShare" type="button">Share sketch</button></div>
+              <canvas id="scratchCanvas" aria-label="Trainer scratchpad for resolving a doubt"></canvas>
+              <button class="mini" id="scratchClear" type="button">Clear</button>
+            </div>
+            <div class="quiz-controls">
+              <button class="btn btn-coral btn-sm" id="quizReveal" type="button">Reveal answer</button>
+              <button class="mini mini-dark" id="quizReteach" type="button">Reteach + new check</button>
+            </div>
+            <p class="answer-state" id="quizAnswerState" aria-live="polite">Waiting for Ishaan’s answer.</p>
+            <div class="readiness">
+              <div class="readiness-top"><span class="mono">Readiness</span><b class="num" id="readinessText">0%</b></div>
+              <div class="readiness-track"><i id="readinessBar"></i></div>
+              <small>Unlock threshold configurable · feedback revealed by you</small>
+            </div>
+            <button class="btn btn-coral btn-sm" id="quizNext" type="button">Next question</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================= floating camera picture -->
+      <section class="call-pip" id="callPip" aria-label="Floating video call, two people">
+        <header class="pip-head" id="pipHead" title="Drag to move the video window">
+          <span class="pip-grip" aria-hidden="true">⋮⋮</span>
+          <span class="pip-title">Video · 2</span>
+          <span class="pip-live"><i aria-hidden="true"></i>Live</span>
+          <button class="pip-collapse" id="pipCollapse" type="button" aria-expanded="true" aria-label="Collapse video window" title="Collapse">−</button>
+        </header>
+        <div class="pip-body">
+          <div class="dock-tile dock-trainer cam-on" title="You · Ananya Rao">
+            <span class="dock-initials" aria-hidden="true">AR</span>
+            <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
+            <b>You</b>
+          </div>
+          <div class="dock-tile dock-student" title="Ishaan Verma">
+            <span class="dock-initials" aria-hidden="true">IV</span>
+            <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
+            <b>Ishaan</b>
+          </div>
+        </div>
+        <button class="pip-resize" id="pipResize" type="button" aria-label="Resize video window" title="Drag to resize"></button>
+      </section>
+
+    </main>
+
+    <aside class="side" aria-label="Session panel">
+      <section class="side-card room-card">
+        <div class="side-head">
+          <span class="mono">In the room</span>
+          <span class="room-count"><b>1</b> of 1</span>
+        </div>
+        <div class="tiles tiles-pair">
+          <figure class="tile self" id="selfTile">
+            <span class="tile-initials" aria-hidden="true">AR</span>
+            <span class="tile-you">You</span>
+            <figcaption><span class="t-name">Ananya <em>· Host</em></span><span class="t-mic"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span></figcaption>
+          </figure>
+          <figure class="tile" id="studentTile">
+            <span class="hand-badge" title="Hand raised"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg></span>
+            <span class="tile-initials" aria-hidden="true">IV</span>
+            <figcaption><span class="t-name">Ishaan</span><span class="t-mic"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="side-card">
+        <div class="side-head">
+          <span class="mono">Teaching tools</span>
+          <span class="side-note">Mid-session</span>
+        </div>
+        <div class="tool-grid">
+          <button class="tool-card" type="button" data-sheet="sheet-recap" aria-haspopup="dialog">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-recap"/></svg></span>
+            <b>Recap</b><span>Live log</span>
+          </button>
+          <button class="tool-card" type="button" data-sheet="sheet-planner" aria-haspopup="dialog">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-planner"/></svg></span>
+            <b>Planner</b><span id="plannerMeta">Step 3 of 5</span>
+          </button>
+          <button class="tool-card" type="button" data-sheet="sheet-health" aria-haspopup="dialog">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-health"/></svg></span>
+            <b>Progress</b><span>Ishaan · 72%</span>
+          </button>
+          <button class="tool-card" type="button" data-sheet="sheet-quiz" aria-haspopup="dialog">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-quiz"/></svg></span>
+            <b>Quiz</b><span>1 ready</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="side-card chat-card">
+        <div class="side-head">
+          <span class="mono">Session chat</span>
+          <span class="new" id="sideUnread">1 new</span>
+        </div>
+        <div class="chat-log js-chat-log" data-chat-log></div>
+        <form class="chat-form" data-chat-form>
+          <input type="text" placeholder="Message Ishaan" autocomplete="off" aria-label="Message Ishaan" maxlength="280">
+          <button type="submit" aria-label="Send message"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg></button>
+        </form>
+      </section>
+    </aside>
+  </div>
+
+  <!-- ============================================================= footer -->
+  <footer class="foot">
+    <div class="media" role="group" aria-label="Audio, video and sharing">
+      <button class="ctl" id="micBtn" type="button" aria-pressed="false" aria-label="Mute microphone" title="Mute microphone">
+        <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
+      </button>
+      <button class="ctl is-off" id="camBtn" type="button" aria-pressed="true" aria-label="Turn on camera" title="Turn on camera">
+        <svg class="icon" aria-hidden="true"><use href="#i-cam-off"/></svg>
+      </button>
+      <button class="ctl" id="shareBtn" type="button" aria-pressed="false" aria-label="Share board" title="Share board">
+        <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
+      </button>
+    </div>
+    <div class="step">
+      <span class="mono">Now</span>
+      <b id="nowStep">Guided practice</b>
+      <span class="step-time num" id="stepTime">12:40 left</span>
+    </div>
+    <div class="foot-actions">
+      <button class="queue" id="handBtn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg><span>Hand up</span></button>
+      <button class="foot-btn" id="chatBtn" type="button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg><span>Chat</span><span class="count" id="chatCount">1</span></button>
+      <button class="foot-btn foot-tools" type="button" data-sheet="sheet-tools" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span>Tools</span></button>
+      <button class="foot-btn foot-quiz" type="button" data-sheet="sheet-quiz" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-quiz"/></svg><span>Quiz</span></button>
+    </div>
+    <div class="phone-tools" role="toolbar" aria-label="Whiteboard tools">
+      <button class="ptool is-on" data-tool="pen" type="button" aria-pressed="true" aria-label="Pen"><svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg></button>
+      <button class="ptool" data-tool="marker" type="button" aria-pressed="false" aria-label="Highlighter"><svg class="icon" aria-hidden="true"><use href="#i-marker"/></svg></button>
+      <button class="ptool" data-tool="eraser" type="button" aria-pressed="false" aria-label="Eraser"><svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg></button>
+      <span class="ptools-rule" aria-hidden="true"></span>
+      <div class="phone-colors" role="group" aria-label="Ink colour">
+        <button class="pcolor is-on" data-color="ink" type="button" aria-label="Ink" aria-pressed="true" style="--sw:#0E1420"></button>
+        <button class="pcolor" data-color="coral" type="button" aria-label="Coral" aria-pressed="false" style="--sw:#FF5B2E"></button>
+        <button class="pcolor" data-color="teal" type="button" aria-label="Teal" aria-pressed="false" style="--sw:#12968C"></button>
+        <button class="pcolor" data-color="amber" type="button" aria-label="Amber" aria-pressed="false" style="--sw:#B4740B"></button>
+      </div>
+      <span class="ptools-rule" aria-hidden="true"></span>
+      <button class="ptool" data-act="undo" type="button" aria-label="Undo"><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg></button>
+      <button class="ptool" data-act="clear" type="button" aria-label="Clear page"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
+    </div>
+  </footer>
+</div>
+
+<!-- ============================================================== sheets -->
+<div class="layer" id="layer" hidden>
+  <div class="scrim" data-close-sheet></div>
+  <div class="layer-center">
+
+    <section class="sheet" id="sheet-recap" role="dialog" aria-modal="true" aria-labelledby="recapTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow"><span class="pulse" aria-hidden="true"></span><span id="recapStatus">Session · live</span></span>
+          <h2 id="recapTitle">Recap so far</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close recap"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="stats">
+          <div class="stat"><span class="mono">Attendance</span><b class="num">1<span>/1</span></b><small>Ishaan joined</small></div>
+          <div class="stat"><span class="mono">Quiz</span><b class="num">1<span>/1</span></b><small>Answer ready</small></div>
+          <div class="stat"><span class="mono">Mastery</span><b class="num">72<span>%</span></b><small class="up">+3 this week</small></div>
+        </div>
+
+        <div class="block">
+          <span class="block-label">What landed</span>
+          <div class="chips"><span>Bar models</span><span>Equivalent ratios</span><span>Unit labels</span></div>
+        </div>
+
+        <div class="block">
+          <div class="block-top"><span class="block-label">Session log</span><span class="mono" id="recapSaved">Auto-saving</span></div>
+          <ol class="log">
+            <li><time>4:30</time><div><b>Session opened</b><span>Ishaan joined · 1:1 room</span></div></li>
+            <li><time>4:38</time><div><b>Bar model marked complete</b><span>Split the ribbon into 8 parts</span></div></li>
+            <li><time>4:46</time><div><b>Quiz ready</b><span>Level 2 · one question</span></div></li>
+            <li><time>4:52</time><div><b>Ishaan raised a hand</b><span>Resolved on the board, page 2</span></div></li>
+            <li><time>5:04</time><div><b>Board page 3 opened</b><span>Independent practice · 12 min</span></div></li>
+          </ol>
+        </div>
+
+        <div class="flag">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p><b>One follow-up</b><span>Ishaan missed 1 of the last 6 sessions. Assign a short practice set after this one.</span></p>
+          <button class="mini-btn" type="button" data-sheet="sheet-health">Open progress</button>
+        </div>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Done</button>
+        <button class="btn btn-coral btn-sm" id="sendRecap" type="button"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg>Send to parent</button>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-planner" role="dialog" aria-modal="true" aria-labelledby="plannerTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Lesson 15 · Shared plan</span>
+          <h2 id="plannerTitle">Today’s arc</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close planner"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="planner-top">
+          <div><span class="mono">Objective</span><p>Use bar models to solve ratio problems when one part is known.</p></div>
+          <span class="plan-total">47 min</span>
+        </div>
+
+        <ol class="plan-steps" id="planSteps">
+          <li class="done" data-step="Warm-up" data-min="6">
+            <span class="step-mark"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+            <div class="step-main"><b>Warm-up · one ratio, two lengths</b><span>6 min · with trainer</span></div>
+            <span class="step-state">Done</span>
+          </li>
+          <li class="done" data-step="Build" data-min="10">
+            <span class="step-mark"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+            <div class="step-main"><b>Build · scale both sides</b><span>10 min · board + sketch</span></div>
+            <span class="step-state">Done</span>
+          </li>
+          <li class="current" data-step="Guided practice" data-min="12">
+            <span class="step-mark">3</span>
+            <div class="step-main"><b>Guided practice · bar models</b><span>12 min · 1:1 questions</span></div>
+            <button class="mini-btn" type="button" data-done-step>Mark done</button>
+          </li>
+          <li data-step="Independent practice" data-min="10">
+            <span class="step-mark">4</span>
+            <div class="step-main"><b>Independent · bead mix</b><span>10 min · page 3</span></div>
+            <span class="step-state">Next</span>
+          </li>
+          <li data-step="Quiz" data-min="4">
+            <span class="step-mark">5</span>
+            <div class="step-main"><b>Quiz · checks</b><span>4 min · threshold configurable</span></div>
+            <span class="step-state">Next</span>
+          </li>
+        </ol>
+
+        <p class="plan-note"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg>Pace is 4 minutes behind plan. The extra bar-model example is worth it — trim the quiz to one question.</p>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-toast="The full lesson plan lives in Curriculum.">Open full plan</button>
+        <button class="btn btn-coral btn-sm" type="button" data-close-sheet>Back to session</button>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-health" role="dialog" aria-modal="true" aria-labelledby="healthTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Ishaan Verma · Snapshot</span>
+          <h2 id="healthTitle">Progress</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close progress"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="health-top">
+          <div class="big-score"><b class="num">72<span>%</span></b><small>topic mastery</small></div>
+          <span class="delta">+3 this week</span>
+        </div>
+
+        <div class="bars">
+          <div class="bar-row"><span>Equivalent ratios</span><div class="bar-track"><i style="width:82%"></i></div><b class="num">82</b></div>
+          <div class="bar-row"><span>Bar models</span><div class="bar-track"><i style="width:74%"></i></div><b class="num">74</b></div>
+          <div class="bar-row is-low"><span>Unit rates</span><div class="bar-track"><i style="width:58%"></i></div><b class="num">58</b></div>
+        </div>
+
+        <div class="watch">
+          <div class="watch-head"><span class="block-label">Next focus</span><span class="mono">1 topic</span></div>
+          <div class="person">
+            <span class="av">IV</span>
+            <div><b>Unit rates</b><span>Slowest bar · assign 6 questions before the next session</span></div>
+            <button class="mini-btn" type="button" data-toast="Practice set assigned to Ishaan.">Assign</button>
+          </div>
+        </div>
+
+        <div class="flag">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <p><b>Pack · 8 sessions left</b><span>Expires in 21 days. Reschedule with 24–48 hours’ notice.</span></p>
+        </div>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Close</button>
+        <button class="btn btn-coral btn-sm" type="button" data-toast="A 6-question set was assigned to Ishaan.">Assign practice</button>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-quiz" role="dialog" aria-modal="true" aria-labelledby="quizTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow"><span class="pulse" aria-hidden="true"></span>AI-drafted · trainer reviewed</span>
+          <h2 id="quizTitle">Quiz</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close quiz"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="q-meta"><span class="mono">Question 01</span><span class="mono">Level 2 · moderate</span><span class="mono">2 min</span></div>
+        <h3 class="q-text">Which ratio is equivalent to 3 : 5?</h3>
+        <ul class="q-opts trainer-only">
+          <li class="key"><span class="q-letter">A</span><span>6 : 10</span><em>Key</em></li>
+          <li><span class="q-letter">B</span><span>5 : 3</span></li>
+          <li><span class="q-letter">C</span><span>9 : 12</span></li>
+          <li><span class="q-letter">D</span><span>3 : 8</span></li>
+        </ul>
+        <p class="q-note">Ishaan sees options, a hint and skip. Answers stay unrevealed until you choose. Reteach freezes the quiz and adds a fresh check from the same objective.</p>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Cancel</button>
+        <button class="btn btn-coral btn-sm" id="quizLaunch" type="button">Launch quiz</button>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-people" role="dialog" aria-modal="true" aria-labelledby="peopleTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">1 of 1 joined</span>
+          <h2 id="peopleTitle">In the room</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close session details"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="people-top">
+          <span class="people-note">1:1 session · no group class.</span>
+          <button class="mini-btn" type="button" data-toast="Session link copied for Ishaan.">Copy link</button>
+        </div>
+        <ul class="people-list">
+          <li class="you"><span class="av">AR</span><div><b>Ananya Rao <em>You</em></b><span>Host · microphone on</span></div><span class="p-status live">On mic</span></li>
+          <li><span class="av">IV</span><div><b>Ishaan Verma</b><span>Hand raised · 2 min ago</span></div><span class="p-status hand">Hand up</span></li>
+        </ul>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Done</button>
+        <button class="btn btn-coral btn-sm" type="button" data-toast="Parent notified that Ishaan is in session.">Notify parent</button>
+      </footer>
+    </section>
+
+    <section class="sheet sheet-chat" id="sheet-chat" role="dialog" aria-modal="true" aria-labelledby="chatTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Session chat</span>
+          <h2 id="chatTitle">Ask, answer, nudge</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close session chat"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body chat-sheet-body">
+        <div class="chat-log js-chat-log" data-chat-log></div>
+        <p class="chat-hint">Only Ishaan is in this room. Messages stay in the session log.</p>
+      </div>
+      <footer class="sheet-foot chat-foot">
+        <form class="chat-form" data-chat-form>
+          <input type="text" placeholder="Message Ishaan" autocomplete="off" aria-label="Message Ishaan" maxlength="280">
+          <button type="submit" aria-label="Send message"><svg class="icon" aria-hidden="true"><use href="#i-send"/></svg></button>
+        </form>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-tools" role="dialog" aria-modal="true" aria-labelledby="toolsTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Mid-session</span>
+          <h2 id="toolsTitle">Teaching tools</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close teaching tools"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="tool-list">
+          <button class="tool-row" type="button" data-sheet="sheet-recap">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-recap"/></svg></span>
+            <div><b>Session recap</b><span>Attendance, concepts and the live event log.</span></div>
+            <svg class="go icon" aria-hidden="true"><use href="#i-out"/></svg>
+          </button>
+          <button class="tool-row" type="button" data-sheet="sheet-planner">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-planner"/></svg></span>
+            <div><b>Session planner</b><span>Five steps, 47 minutes, shared with Ishaan.</span></div>
+            <svg class="go icon" aria-hidden="true"><use href="#i-out"/></svg>
+          </button>
+          <button class="tool-row" type="button" data-sheet="sheet-health">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-health"/></svg></span>
+            <div><b>Progress</b><span>Mastery by topic and the next focus.</span></div>
+            <svg class="go icon" aria-hidden="true"><use href="#i-out"/></svg>
+          </button>
+          <button class="tool-row" type="button" data-sheet="sheet-quiz">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-quiz"/></svg></span>
+            <div><b>Quiz</b><span>One question, two minutes, hidden whiteboard.</span></div>
+            <svg class="go icon" aria-hidden="true"><use href="#i-out"/></svg>
+          </button>
+        </div>
+        <div class="quick-actions trainer-only">
+          <span class="block-label">Room</span>
+          <button type="button" data-toast="The board is now shared with Ishaan.">Share board</button>
+          <button type="button" data-toast="Ishaan’s microphone is muted.">Mute student</button>
+          <button type="button" data-toast="A copy of the board was saved to Lesson 15.">Save board</button>
+        </div>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Back to session</button>
+      </footer>
+    </section>
+
+    <section class="sheet" id="sheet-end" role="dialog" aria-modal="true" aria-labelledby="endTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Wrap up</span>
+          <h2 id="endTitle">End session?</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close end session dialog"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="end-summary">
+          <div><b class="num">43</b><span>minutes live</span></div>
+          <div><b class="num">1</b><span>student joined</span></div>
+          <div><b class="num">1</b><span>quiz ready</span></div>
+        </div>
+        <p class="end-copy">The board and chat are saved to <b>Ishaan’s profile</b>. The parent receives a short recap, and the session lands in the teaching score.</p>
+        <div class="end-note">
+          <svg class="icon" aria-hidden="true"><use href="#i-recap"/></svg>
+          <span>Recap is drafted automatically from the session log.</span>
+        </div>
+        <div class="rec-link trainer-only">
+          <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
+          <div><b>Recording</b><span>Link is ready to share with Ishaan’s parent.</span></div>
+          <button class="mini-btn" type="button" data-toast="Recording link copied.">Copy link</button>
+        </div>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Keep teaching</button>
+        <button class="btn btn-coral btn-sm" id="confirmEnd" type="button">End &amp; save recap</button>
+      </footer>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<p class="visually-hidden" id="chatStatus" aria-live="polite"></p>
+
+<script src="app.js"></script>
+<script src="session.js"></script>
+</body>
+</html>

@@ -1,0 +1,274 @@
+/* ==========================================================================
+   MATHIFY — curriculum LMS · selected course outline
+   ========================================================================== */
+
+.detail{
+  position:sticky;
+  top:76px;
+  min-width:0;
+  max-height:calc(100vh - 100px);
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent;
+}
+.detail::-webkit-scrollbar{width:5px}
+.detail::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px}
+
+.detail-inner{
+  padding:18px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  box-shadow:0 1px 2px rgba(30,20,10,.03);
+}
+.detail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.detail-head .mono{font-size:9px;color:var(--coral);letter-spacing:.16em}
+.detail-actions{display:flex;gap:5px}
+.mini-icon{
+  width:28px;height:28px;
+  display:grid;place-items:center;
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  color:var(--muted);
+}
+.mini-icon svg{width:14px;height:14px}
+.mini-icon:hover{border-color:var(--ink);color:var(--ink)}
+.mini-icon.is-on{color:var(--teal-ink);border-color:var(--teal-soft);background:var(--teal-soft)}
+
+.detail-title-row{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-top:12px;
+}
+.detail-mark{
+  flex:none;
+  width:34px;height:34px;
+  display:grid;place-items:center;
+  border-radius:6px;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--mono);
+  font-size:12px;
+}
+.detail-title-row h2{
+  font-size:18px;
+  font-weight:500;
+  letter-spacing:-.035em;
+  line-height:1.2;
+}
+.detail-title-row p{
+  margin-top:3px;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.detail-status{
+  display:inline-flex;
+  margin-top:11px;
+}
+.detail-blurb{
+  margin-top:8px;
+  font-size:11px;
+  line-height:1.6;
+  color:var(--muted);
+}
+.detail-progress{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-top:12px;
+}
+.detail-progress .cc-bar{height:4px}
+.detail-progress .cc-pct{font-size:9px;color:var(--ink)}
+
+.asset-filters{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px solid var(--line-soft);
+}
+.asset-filters button{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  height:27px;
+  padding:0 9px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  font-size:10px;
+  color:var(--muted);
+}
+.asset-filters button svg{width:12px;height:12px}
+.asset-filters button:hover{border-color:rgba(14,20,32,.32);color:var(--ink)}
+.asset-filters button.active{
+  background:var(--ink);
+  border-color:var(--ink);
+  color:var(--paper);
+}
+
+.detail-block-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:16px 0 6px;
+}
+.detail-block-head .mono{font-size:9px;letter-spacing:.15em;color:var(--muted)}
+.detail-block-head .count{font-family:var(--mono);font-size:9px;color:var(--coral)}
+.add-module{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:10.5px;
+  font-weight:500;
+  color:var(--ink);
+  border-bottom:1px solid var(--line);
+  padding-bottom:1px;
+}
+.add-module svg{width:12px;height:12px;color:var(--coral)}
+.add-module:hover{border-color:var(--ink)}
+
+.module-list{border-top:1px solid var(--line-soft)}
+.module{border-bottom:1px solid var(--line-soft)}
+.module:last-child{border-bottom:0}
+.module-head{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:11px 2px;
+  text-align:left;
+}
+.module-num{
+  flex:none;
+  width:22px;
+  font-size:9px;
+  color:var(--faint);
+}
+.module-main{flex:1;min-width:0}
+.module-main b{
+  display:block;
+  font-size:11.5px;
+  font-weight:500;
+  line-height:1.35;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.module-main span{
+  display:block;
+  margin-top:2px;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.module-status{
+  flex:none;
+  padding:3px 6px;
+  border-radius:var(--r-full);
+  font-family:var(--mono);
+  font-size:7.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.module-chev{width:13px;height:13px;flex:none;color:var(--faint);transition:transform .18s ease}
+.module.open .module-chev{transform:rotate(180deg)}
+
+.asset-list{
+  display:none;
+  padding:2px 0 10px 31px;
+}
+.module.open .asset-list{display:block}
+.asset-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 0;
+}
+.asset-icon{
+  flex:none;
+  width:24px;height:24px;
+  display:grid;place-items:center;
+  border:1px solid var(--line-soft);
+  border-radius:var(--r-xs);
+  color:var(--muted);
+}
+.asset-icon svg{width:13px;height:13px}
+.asset-txt{flex:1;min-width:0}
+.asset-txt b{
+  display:block;
+  font-size:10.5px;
+  font-weight:400;
+  line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.asset-txt span{
+  display:block;
+  font-family:var(--mono);
+  font-size:7.5px;
+  letter-spacing:.06em;
+  color:var(--faint);
+}
+.asset-dot{
+  flex:none;
+  width:5px;height:5px;
+  border-radius:50%;
+  background:var(--line);
+}
+.asset-dot.ready{background:var(--teal)}
+.asset-dot.review{background:var(--amber)}
+.asset-btn{
+  flex:none;
+  width:22px;height:22px;
+  display:grid;place-items:center;
+  color:var(--faint);
+}
+.asset-btn svg{width:12px;height:12px}
+.asset-btn:hover{color:var(--coral)}
+.asset-none{
+  padding:8px 0;
+  font-size:10px;
+  color:var(--faint);
+}
+
+.detail-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid var(--line-soft);
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.detail-foot .link{color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:1px}
+
+/* sheet variant: roomier, scrolls with the dialog */
+.sheet .detail-inner{
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  padding:20px 24px 22px;
+  max-height:none;
+}
+.sheet .detail-head .mono{font-size:9px}
+.sheet .module-head{padding:13px 2px}
+.sheet .asset-list{padding-left:31px}
+.sheet .detail-foot{margin-top:18px}

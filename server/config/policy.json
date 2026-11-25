@@ -1,0 +1,41 @@
+{
+  "mode": "configurable",
+  "note": "Unresolved founder-doc values stay unset. Do not ship a guessed rule as fact.",
+  "quiz": {
+    "scoringBands": null,
+    "unlockThreshold": null,
+    "allowedSources": [
+      { "source": "docx", "bands": [-40, 5, 25] },
+      { "source": "pdf-ocr", "bands": [-40, 15, 35] }
+    ]
+  },
+  "teachingScore": {
+    "scaleMax": null,
+    "bands": null,
+    "target": null,
+    "subScores": [
+      { "key": "basics", "label": "Basics" },
+      { "key": "engagement", "label": "Engagement" },
+      { "key": "teaching_style", "label": "Teaching style" }
+    ]
+  },
+  "payout": {
+    "rateRange": [300, 400],
+    "maxHoursPerDay": 6,
+    "maxSessionsPerDay": 6,
+    "bonusRules": null,
+    "fineRules": null
+  },
+  "attendance": {
+    "maxHoursPerDay": 6,
+    "maxSessionsPerDay": 6,
+    "leaveNoticeHours": 48,
+    "lateNoticeErrorCode": "LATE_NOTICE_FINE"
+  },
+  "packs": {
+    "expiryDays": 38,
+    "refundable": false,
+    "rescheduleNoticeHours": { "min": 24, "max": 48 },
+    "noShowMarksSessionUsed": true
+  }
+}

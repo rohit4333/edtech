@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Trainer console</title>
+<meta name="description" content="Trainer console: next session, today's schedule, attendance register, teaching score and student roster.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="sections.css">
+<link rel="stylesheet" href="details.css">
+<link rel="stylesheet" href="responsive.css">
+<style>
+  .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
+  .score-link svg,.day-link svg,.block-head svg,.save-note svg,.swipe-hint svg,
+  .ai-form button svg{
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.6;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ===================== icon sprite ===================== -->
+<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-today" viewBox="0 0 24 24">
+    <rect x="3.5" y="5" width="17" height="15.5" rx="2"/>
+    <path d="M3.5 9.8h17M8 3v4M16 3v4M8.4 14h1.6M14 14h1.6M8.4 17.4h1.6"/>
+  </symbol>
+  <symbol id="i-play" viewBox="0 0 24 24">
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+    <path d="M10.2 9.3v5.4l4.4-2.7z"/>
+  </symbol>
+  <symbol id="i-users" viewBox="0 0 24 24">
+    <circle cx="9" cy="8.4" r="3.1"/>
+    <path d="M3.8 19.2c.5-2.9 2.4-4.5 5.2-4.5s4.7 1.6 5.2 4.5"/>
+    <path d="M15.4 5.7a2.8 2.8 0 0 1 0 5.4M17.2 14.9c2 .4 3.3 1.8 3.7 4.3"/>
+  </symbol>
+  <symbol id="i-batches" viewBox="0 0 24 24">
+    <path d="m12 3.5 8.5 4.3L12 12.1 3.5 7.8z"/>
+    <path d="m4.6 11.7-1.1.6 8.5 4.3 8.5-4.3-1.1-.6"/>
+    <path d="m4.6 15.6-1.1.6 8.5 4.3 8.5-4.3-1.1-.6"/>
+  </symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24">
+    <path d="M4 20V4"/>
+    <path d="M4 20h16"/>
+    <rect x="7.5" y="12.5" width="3" height="4.5" rx=".6"/>
+    <rect x="12.8" y="8.8" width="3" height="8.2" rx=".6"/>
+    <rect x="18.1" y="5.5" width="3" height="11.5" rx=".6"/>
+  </symbol>
+  <symbol id="i-register" viewBox="0 0 24 24">
+    <rect x="4" y="3.5" width="16" height="17" rx="2"/>
+    <path d="M8 8.2h5M8 12h8M8 15.8h4"/>
+    <path d="m15.7 15.2 1.6 1.6 3-3.2"/>
+  </symbol>
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="6.4"/>
+    <path d="m15.8 15.8 4.2 4.2"/>
+  </symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24">
+    <path d="M18.2 16.2H5.8c1.2-1.3 1.5-2.3 1.5-4.6a4.7 4.7 0 0 1 9.4 0c0 2.3.3 3.3 1.5 4.6Z"/>
+    <path d="M10.1 19.2a2 2 0 0 0 3.8 0"/>
+  </symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24">
+    <path d="m6 9.2 6 6 6-6"/>
+  </symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24">
+    <path d="m9.2 5.5 6.5 6.5-6.5 6.5"/>
+  </symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24">
+    <path d="M7 17 17 7M9.4 7H17v7.6"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24">
+    <path d="M12 3.4 13.7 9l5.6 1.7-5.6 1.7L12 18l-1.7-5.6L4.7 10.7 10.3 9Z"/>
+  </symbol>
+  <symbol id="i-x" viewBox="0 0 24 24">
+    <path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>
+  </symbol>
+  <symbol id="i-send" viewBox="0 0 24 24">
+    <path d="M4.2 11.8 20 4.2l-7.4 15.8-2.1-6.1z"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="m5.5 12.4 4 4 9-9"/>
+  </symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8"/>
+    <path d="M12 7.2V12l3.3 2"/>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24">
+    <path d="M12 5v14M5 12h14"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24">
+    <path d="M12 4.5 20 19H4z"/>
+    <path d="M12 9.3v4.2M12 16.6v.1"/>
+  </symbol>
+  <symbol id="i-book" viewBox="0 0 24 24">
+    <path d="M4.5 5.2c2.8-.9 5.2-.2 7.5 1.5v13c-2.3-1.7-4.7-2.4-7.5-1.5z"/>
+    <path d="M19.5 5.2c-2.8-.9-5.2-.2-7.5 1.5v13c2.3-1.7 4.7-2.4 7.5-1.5z"/>
+  </symbol>
+  <symbol id="i-swipe" viewBox="0 0 24 24">
+    <path d="M4 12h16M7.5 8.5 4 12l3.5 3.5M16.5 8.5 20 12l-3.5 3.5"/>
+  </symbol>
+</svg>
+
+<div class="shell">
+
+  <!-- ===================== rail ===================== -->
+  <aside class="rail">
+    <div>
+      <a class="brand" href="#" aria-label="Mathify, trainer console home"><span>Mathify</span><i>.</i></a>
+      <p class="brand-sub">Trainer console</p>
+    </div>
+
+    <nav class="nav" aria-label="Console">
+      <a href="#" class="active" data-nav aria-current="page">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg><span>Today</span>
+      </a>
+      <a href="#" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg><span>Sessions</span>
+      </a>
+      <a href="#" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-batches"/></svg><span>Batches</span>
+      </a>
+      <a href="#" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg><span>Students</span>
+      </a>
+      <a href="#" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg><span>Insights</span>
+      </a>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="score-card">
+        <span class="mono">Teaching score</span>
+        <div class="score-big"><b class="num">8.4</b><span>/ 10</span></div>
+        <p>Top 18% of Mathify trainers this month.</p>
+        <button class="score-link" data-toast="Insights opens the full teaching report.">Open insights <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      </div>
+      <div class="user">
+        <span class="avatar" aria-hidden="true">AR</span>
+        <span class="user-txt">
+          <b>Ananya Rao</b>
+          <span>Mathematics · Trainer</span>
+        </span>
+      </div>
+      <div class="rail-note"><span>v1.0</span><span>2026</span></div>
+    </div>
+  </aside>
+
+  <!-- ===================== workspace ===================== -->
+  <div class="workspace">
+
+    <header class="topbar">
+      <a class="brand-m" href="#" aria-label="Mathify, trainer console home"><span>Mathify</span><i>.</i></a>
+
+      <div class="batch-wrap">
+        <button class="batch" id="batchBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchMenu">
+          <span class="swatch" aria-hidden="true">M</span>
+          <span class="txt">
+            <span class="k">Batch</span>
+            <span class="v" id="batchLabel">Class 6–7 · Mathematics</span>
+          </span>
+          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg>
+        </button>
+        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch batch" hidden>
+          <li role="none"><button role="option" aria-selected="true" data-value="Class 6–7 · Mathematics">Class 6–7 · Mathematics</button></li>
+          <li role="none"><button role="option" aria-selected="false" data-value="Class 8 · Mathematics">Class 8 · Mathematics</button></li>
+          <li role="none"><button role="option" aria-selected="false" data-value="Class 9 · Geometry">Class 9 · Geometry</button></li>
+        </ul>
+      </div>
+
+      <div class="right">
+        <button class="search" id="searchOpen" aria-haspopup="dialog" aria-label="Search students and sessions">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="search-ph">Search students</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button class="icon-btn mobile-search" id="mobileSearch" aria-label="Search students and sessions">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="Notifications, 3 unread" data-toast="3 notifications: 2 parent replies and 1 quiz batch.">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
+          <span class="badge" aria-hidden="true"></span>
+        </button>
+        <button class="avatar avatar-btn" aria-label="Profile: Ananya Rao">AR</button>
+      </div>
+    </header>
+
+    <main class="page" id="main">
+
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Wednesday · 25 November 2026</p>
+          <h1>Good afternoon, <span id="greetingName">Ananya</span><em>.</em></h1>
+          <p class="sub"><span id="subSessions">3 sessions today</span> <span class="dot-sep" aria-hidden="true"></span> <span id="subStudents">1 student next</span> <span class="dot-sep dot-alert" aria-hidden="true"></span> <span id="subAttention">3 items need attention</span></p>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-ghost btn-sm" data-toast="Announcements are part of the LMS.">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg>
+            New announcement
+          </button>
+        </div>
+      </div>
+
+      <!-- ---------- hero ---------- -->
+      <section class="hero" aria-label="Next session and today's schedule">
+
+        <article class="next">
+          <div class="next-top">
+            <span class="eyebrow live-eyebrow"><i class="dot"></i>Next session</span>
+            <span class="chip-count"><span id="countdownLabel">starts in</span> <b id="countdown" class="num">42:00</b></span>
+          </div>
+
+          <div class="next-mid">
+            <p class="next-time num" id="nextTime">4:30 PM <span>– 5:30 PM · 60 min</span></p>
+            <h2 class="next-topic" id="nextTopic">Fractions, decimals &amp; percentages</h2>
+            <p class="next-meta" id="nextMeta">
+              1:1 · Ishaan Verma
+              <span class="dot-sep" aria-hidden="true"></span>
+              Mathematics · Ratios
+            </p>
+            <div class="plan-chips" id="planChips" aria-label="Session plan">
+              <span>Warm-up 8 min</span>
+              <span>Bar models 20 min</span>
+              <span>Exit ticket 8 min</span>
+              <span class="plan-ready">Plan ready</span>
+            </div>
+          </div>
+
+          <div class="next-foot">
+            <button class="btn btn-coral" id="startClass">Start class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button class="btn btn-light" data-ask="Review my plan for Fractions, decimals &amp; percentages.">Open planner</button>
+            <span class="next-note">Room opens 10 min before</span>
+          </div>
+        </article>
+
+        <aside class="day" aria-label="Today">
+          <div class="day-head">
+            <span class="mono">Today</span>
+            <span class="day-count" id="dayCount">3 sessions</span>
+          </div>
+          <ul class="timeline" id="timeline">
+            <li class="slot done">
+              <span class="slot-time num">09:00</span>
+              <span class="slot-body"><b>Algebra · Lesson 14</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-state s-done">Done</span>
+            </li>
+            <li class="slot is-next">
+              <span class="slot-time num">16:30</span>
+              <span class="slot-body"><b>Ratios · Lesson 15</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-state s-next">Next</span>
+            </li>
+            <li class="slot later">
+              <span class="slot-time num">19:00</span>
+              <span class="slot-body"><b>Geometry · Lesson 16</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-state s-later">Later</span>
+            </li>
+          </ul>
+          <a class="day-link" href="#" data-toast="The full schedule lives in Sessions.">Full schedule <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </aside>
+
+      </section>
+
+      <!-- ---------- metrics ---------- -->
+      <section class="metrics" aria-label="This month">
+        <article class="metric">
+          <div class="metric-top"><span class="mono">Attendance</span><span class="delta">+4%</span></div>
+          <p class="metric-value num"><span id="metricAttendance">92</span><small>%</small></p>
+          <p class="metric-cap" id="capAttendance">Last 30 days · all batches</p>
+          <div class="bar" role="img" aria-label="Attendance"><i id="attendanceBar" style="width:92%"></i></div>
+        </article>
+        <article class="metric">
+          <div class="metric-top"><span class="mono">Teaching score</span><span class="delta">+0.3</span></div>
+          <p class="metric-value num"><span id="metricScore">8.4</span><small>/10</small></p>
+          <p class="metric-cap" id="capScore">Top 18% this month</p>
+        </article>
+        <article class="metric">
+          <div class="metric-top"><span class="mono">To review</span><span class="delta warn">2 late</span></div>
+          <p class="metric-value num" id="metricReview">6</p>
+          <p class="metric-cap" id="capReview">Quizzes &amp; worksheets</p>
+        </article>
+        <article class="metric">
+          <div class="metric-top"><span class="mono">November payout</span><span class="delta">On track</span></div>
+          <p class="metric-value money num" id="metricPayout">₹48,200</p>
+          <p class="metric-cap" id="capPayout">22 sessions · statement 1 Dec</p>
+        </article>
+      </section>
+
+      <!-- ---------- needs attention ---------- -->
+      <section class="block" aria-labelledby="attention-title">
+        <div class="block-head">
+          <span class="mono" id="attention-title">Needs attention</span>
+          <span class="count" id="attentionCount">03</span>
+          <a class="link" href="#" data-toast="The full attention queue lives in Students.">View all <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+
+        <div class="queue" id="attentionQueue">
+          <article class="queue-row">
+            <span class="tag">Reviews</span>
+            <span class="body">
+              <span class="title">6 quiz submissions · Module 3</span>
+              <span class="meta">Oldest 2 days · about 12 minutes to mark</span>
+            </span>
+            <span class="status s-today">Due today</span>
+            <button class="btn btn-ghost btn-sm" data-toast="Opening 6 submissions in the review queue.">Review</button>
+          </article>
+
+          <article class="queue-row">
+            <span class="tag">Attendance</span>
+            <span class="body">
+              <span class="title">Aarav Menon · 62% attendance</span>
+              <span class="meta">4 absences in the last 6 sessions · parent not yet contacted</span>
+            </span>
+            <span class="status s-danger">At risk</span>
+            <button class="btn btn-ghost btn-sm" data-ask="Draft a kind parent note for Aarav Menon about attendance.">Message parent</button>
+          </article>
+
+          <article class="queue-row">
+            <span class="tag">Planning</span>
+            <span class="body">
+              <span class="title">Friday&rsquo;s lesson plan isn&rsquo;t published</span>
+              <span class="meta">Class 6–7 · Lesson 15 · students can&rsquo;t see the agenda yet</span>
+            </span>
+            <span class="status s-today">Due Thu</span>
+            <button class="btn btn-ghost btn-sm" data-ask="Outline Friday's lesson plan on ratios for Class 6–7.">Open planner</button>
+          </article>
+        </div>
+      </section>
+
+      <!-- ---------- attendance register ---------- -->
+      <section class="block" id="register" aria-labelledby="register-title">
+        <div class="section-head">
+          <div class="sh-left">
+            <span class="mono" id="register-title">Attendance register</span>
+            <span class="sh-meta" id="registerMeta" data-batch-label>1:1 · Ishaan Verma</span>
+          </div>
+          <div class="sh-right">
+            <span class="save-note" id="saveNote" aria-live="polite" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>
+              <span id="saveText">Saved</span>
+            </span>
+            <button class="select-btn" id="registerRange" data-toast="The register shows the available sessions.">Last 2 sessions <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg></button>
+            <button class="btn btn-ink btn-sm" id="saveRegister">Save register</button>
+          </div>
+        </div>
+
+        <p class="swipe-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-swipe"/></svg> Swipe to see all sessions</p>
+
+        <div class="register">
+          <div class="table-scroll">
+            <table class="matrix">
+              <caption id="registerCaption">1:1 attendance for Ishaan Verma over the last 2 sessions. Today&rsquo;s column is editable.</caption>
+              <thead>
+                <tr id="registerHead">
+                  <th class="student-col" scope="col">Student</th>
+                  <th class="date-col" scope="col"><span>Sun</span><span class="d">22 Nov</span></th>
+                  <th class="date-col today-col" scope="col"><span>Today</span><span class="d">25 Nov</span></th>
+                  <th class="rate-col" scope="col">30 days</th>
+                </tr>
+              </thead>
+              <tbody id="registerBody">
+                <tr>
+                  <th class="student-col" scope="row"><span class="stu"><span class="avatar" aria-hidden="true">IV</span><b>Ishaan Verma</b></span></th>
+                  <td title="Present · 22 Nov"><span class="cell p"></span></td>
+                  <td class="today-col"><button type="button" class="cell editable" data-session-id="ses_live" data-student-id="usr_student_001" data-status="" data-name="Ishaan" aria-label="Ishaan, today: not marked. Activate to mark present."> </button></td>
+                  <td class="rate num">&mdash;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reg-foot">
+            <div class="legend">
+              <span><i class="p"></i>Present</span>
+              <span><i class="a"></i>Absent</span>
+              <span><i class="l"></i>Late</span>
+            </div>
+            <p class="reg-hint">Select today&rsquo;s column to change a mark.</p>
+            <span class="reg-count" id="regCount">0 present · 0 late · 0 absent</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- teaching score + roster ---------- -->
+      <section class="split" aria-label="Teaching quality and students">
+
+        <article class="tps">
+          <div class="tps-head">
+            <span class="mono">Teaching score</span>
+            <span class="tps-period">November</span>
+          </div>
+          <div class="tps-top">
+            <p class="tps-value num">8.4<small>/ 10</small></p>
+            <span class="tps-delta">+0.3 vs Oct</span>
+            <svg class="spark" viewBox="0 0 198 50" role="img" aria-label="Teaching score rising from 7.6 in June to 8.4 in November">
+              <path d="M2 42 40 35 78 39 116 32 154 30 196 22 V50 H2 Z" fill="rgba(18,150,140,.10)"/>
+              <path d="M2 42 40 35 78 39 116 32 154 30 196 22" fill="none" stroke="#0E1420" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="196" cy="22" r="3" fill="#FF5B2E"/>
+            </svg>
+          </div>
+
+          <div class="components">
+            <div class="comp">
+              <div class="comp-label"><span>Basics</span><span class="weight">20%</span></div>
+              <div class="comp-row"><span class="bar"><i style="width:86%"></i></span><b>86</b></div>
+            </div>
+            <div class="comp">
+              <div class="comp-label"><span>Engagement</span><span class="weight">40%</span></div>
+              <div class="comp-row"><span class="bar"><i style="width:79%"></i></span><b>79</b></div>
+            </div>
+            <div class="comp">
+              <div class="comp-label"><span>Teaching style</span><span class="weight">40%</span></div>
+              <div class="comp-row"><span class="bar"><i style="width:84%"></i></span><b>84</b></div>
+            </div>
+          </div>
+
+          <div class="tps-note">
+            <span class="mono">Session 8.2 × 80%</span>
+            <span class="mono">Quiz adherence 9.2 × 20%</span>
+          </div>
+        </article>
+
+        <article class="roster-card">
+          <div class="roster-head">
+            <div><span class="mono">Students</span><span class="count">31</span></div>
+            <a class="roster-link" href="#" data-toast="The full roster lives in Students.">View all <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+          </div>
+          <div class="roster-cols"><span>Student</span><span>Att.</span><span>TPS</span></div>
+          <ul class="roster">
+            <li class="top">
+              <span class="avatar" aria-hidden="true">DS</span>
+              <span class="name"><b>Diya Sharma</b><span>Top 5% · 12-day streak</span></span>
+              <span class="num">100%</span>
+              <span class="num">9.2</span>
+            </li>
+            <li>
+              <span class="avatar" aria-hidden="true">IV</span>
+              <span class="name"><b>Ishaan Verma</b><span>On track</span></span>
+              <span class="num">87%</span>
+              <span class="num">7.9</span>
+            </li>
+            <li>
+              <span class="avatar" aria-hidden="true">MI</span>
+              <span class="name"><b>Meera Iyer</b><span>On track</span></span>
+              <span class="num">94%</span>
+              <span class="num">8.6</span>
+            </li>
+            <li>
+              <span class="avatar" aria-hidden="true">KS</span>
+              <span class="name"><b>Kabir Singh</b><span>1 late arrival this week</span></span>
+              <span class="num">88%</span>
+              <span class="num">7.8</span>
+            </li>
+            <li class="risk">
+              <span class="avatar" aria-hidden="true">AM</span>
+              <span class="name"><b>Aarav Menon</b><span>At risk · 62% attendance</span></span>
+              <span class="num dim">62%</span>
+              <span class="num">6.1</span>
+            </li>
+          </ul>
+          <div class="roster-foot">
+            <span class="mono">Showing 5 of 31</span>
+            <a href="#" data-toast="The full roster lives in Students.">Open roster <span aria-hidden="true">›</span></a>
+          </div>
+        </article>
+
+      </section>
+
+      <footer class="foot">
+        <a href="#">Help centre</a>
+        <a href="#">Payout policy</a>
+        <a href="#">Community</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <span class="c">© 2026 Mathify</span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===================== mobile tabs ===================== -->
+<nav class="tabs" aria-label="Primary">
+  <button class="active" data-tab aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg>
+    <span>Today</span>
+  </button>
+  <button data-tab>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
+    <span>Sessions</span>
+  </button>
+  <button data-tab>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg>
+    <span>Students</span>
+  </button>
+  <button data-tab>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-register"/></svg>
+    <span>Register</span>
+  </button>
+  <button data-tab>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg>
+    <span>Insights</span>
+  </button>
+</nav>
+
+<!-- ===================== copilot ===================== -->
+<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open Mathify copilot">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
+</button>
+
+<aside class="ai" id="aiPanel" hidden aria-label="Mathify copilot">
+  <div class="ai-head">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
+    </span>
+    <span>
+      <b>Mathify copilot</b>
+      <span class="st">Plans · grading · parent notes</span>
+    </span>
+    <button class="x" id="aiClose" aria-label="Close copilot">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+    </button>
+  </div>
+  <div class="ai-body" id="aiBody">
+    <p class="msg bot">Your 4:30 is planned. Want a version for the four students who missed Monday, or a parent note for Aarav?</p>
+    <div class="ai-chips">
+      <button type="button">Differentiate today&rsquo;s set</button>
+      <button type="button">Draft a parent note</button>
+      <button type="button">Summarise last session</button>
+    </div>
+  </div>
+  <form class="ai-form" id="aiForm">
+    <input type="text" id="aiInput" placeholder="Ask about a plan, student or score…" aria-label="Ask Mathify copilot">
+    <button type="submit" aria-label="Send">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg>
+    </button>
+  </form>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ===================== search overlay ===================== -->
+<div class="search-overlay" id="searchOverlay" hidden>
+  <div class="search-card" role="dialog" aria-modal="true" aria-label="Search Mathify">
+    <label class="search-field">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
+      <input id="searchMobile" type="search" placeholder="Search students, sessions" autocomplete="off" aria-label="Search students, sessions and batches">
+      <button type="button" class="esc" id="searchClose" aria-label="Close search">
+        <span class="esc-txt">Esc</span>
+        <svg class="esc-x" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </label>
+    <div class="search-quick">
+      <span class="mono">Quick find</span>
+      <div class="search-tags">
+        <button type="button">Aarav Menon</button>
+        <button type="button">Class 8 · Algebra</button>
+        <button type="button">Quiz · Module 3</button>
+        <button type="button">Friday&rsquo;s plan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="api.js" defer></script>
+<script src="app.js" defer></script>
+
+</body>
+</html>
