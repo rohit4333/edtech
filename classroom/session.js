@@ -673,6 +673,9 @@
         body: { questionId: item.id, optionIndex: chosen }
       }).then(function (data) {
         if (data && data.attemptId) quizState.attemptId = data.attemptId;
+        /* Reveal can land before the answer POST finishes. Re-check as soon as
+           the attempt id exists so a correct required check unlocks promptly. */
+        if (quizState.revealed) refreshParallelResult();
       }).catch(function (error) {
         setFeedback('Answer could not be saved: ' + error.message, 'is-wrong');
       });
