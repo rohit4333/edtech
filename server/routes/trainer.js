@@ -1,5 +1,7 @@
 const express = require('express');
 const db = require('../db');
+const config = require('../config');
+const supabaseDb = require('../db/supabase');
 const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
@@ -158,6 +160,49 @@ router.get('/sessions', function (req, res) {
       .filter(function (session) { return session.trainerId === req.user.id || req.user.role === 'founder'; })
       .map(serializers.toTrainerSummary)
   });
+});
+
+/* POST: Create a new session in Supabase. Live mode only. */
+router.post('/sessions', async function (req, res) {
+  if (config.databaseMode !== 'supabase') {
+    return res.status(503).json({
+      error: 'DATABASE_MODE_NOT_LIVE',
+      message: 'Set DATABASE_MODE=supabase in server/.env to write sessions to Supabase.'
+    });
+  }
+
+  const body = req.body || {};
+  const trainerId = req.user.role === 'founder'
+    ? (body.trainer_id || body.trainerId || req.user.id)
+    : req.user.id;
+  const studentId = body.student_id || body.studentId;
+  const title = body.title || '1-on-1 maths session';
+
+  if (!studentId) {
+    return res.status(400).json({
+      error: 'MISSING_STUDENT',
+      message: 'student_id is required and must be a UUID from public.users.'
+    });
+  }
+
+  try {
+    const row = await supabaseDb.insertSession({
+      trainerId: trainerId,
+      studentId: studentId,
+      title: title,
+      status: 'scheduled'
+    });
+    return res.status(201).json({
+      success: true,
+      message: 'Session created!',
+      data: row
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.code || 'SESSION_CREATE_FAILED',
+      message: error.message
+    });
+  }
 });
 
 router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {

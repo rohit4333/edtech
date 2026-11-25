@@ -148,6 +148,24 @@ Add these env vars in `.env`:
 `TWILIO_WHATSAPP_NUMBER`, `TWILIO_WEBHOOK_URL`, `WHATSAPP_DEMO_PARENT_PHONE`,
 `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`, `NODEMAILER_EMAIL`, `NODEMAILER_PASSWORD`.
 
+### Live session creation
+
+`POST /api/trainer/sessions` writes to Supabase when `DATABASE_MODE=supabase`. It uses the
+authenticated trainer's UUID from the JWT, so a trainer cannot create sessions for another trainer.
+Founders may pass `trainer_id`. The body needs `student_id` as a real UUID from `public.users`;
+`code` and `title` are generated server-side because both are required by `public.sessions`.
+
+Test with a trainer bearer token:
+
+```json
+{
+  "student_id": "00000000-0000-4000-8000-000000000001",
+  "title": "Ratios · live check"
+}
+```
+
+The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are configured.
+
 ## Safety rules already enforced
 
 - Sessions are strictly one trainer and one student.
