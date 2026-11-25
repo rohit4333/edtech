@@ -11,10 +11,48 @@
   'use strict';
 
   var BASE = window.MATHIFY_API_BASE || '/api';
-  var TOKEN_KEY = 'mathify.classroom.token';
   var params = new URLSearchParams(window.location.search);
-  var role = params.get('view') === 'student' || params.get('role') === 'student'
-    ? 'student' : 'trainer';
+  var TOKEN_PREFIX = 'mathify.classroom.token.';
+
+  /* The token payload is read only to choose a client identity, never to grant
+     access. The server verifies every request independently. */
+  function tokenRole(token) {
+    if (typeof token !== 'string' || token.split('.').length !== 3) return null;
+    try {
+      var encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (encoded.length % 4) encoded += '=';
+      var binary = window.atob(encoded);
+      var bytes = new Uint8Array(binary.length);
+      for (var index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      var payload = JSON.parse(new TextDecoder().decode(bytes));
+      return payload.role === 'student' || payload.role === 'trainer' || payload.role === 'founder'
+        ? payload.role : null;
+    } catch (error) { return null; }
+  }
+
+  function storedToken(roleName) {
+    try { return window.localStorage.getItem(TOKEN_PREFIX + roleName); } catch (error) { return null; }
+  }
+
+  function preferredRole() {
+    if (params.get('view') === 'student' || params.get('role') === 'student') return 'student';
+    if (params.get('role') === 'trainer') return 'trainer';
+    var injected = tokenRole(window.MATHIFY_ACCESS_TOKEN);
+    if (injected) return injected === 'founder' ? 'trainer' : injected;
+    var trainerToken = tokenRole(storedToken('trainer'));
+    if (trainerToken) return 'trainer';
+    var studentToken = tokenRole(storedToken('student'));
+    if (studentToken) return 'student';
+    if (window.MATHIFY_USER && window.MATHIFY_USER.role === 'student') return 'student';
+    return 'trainer';
+  }
+
+  var role = preferredRole();
+  /* Student and trainer desks can be open in the same browser. Separate keys
+     stop a trainer token from being reused on student-sized requests. */
+  var TOKEN_KEY = TOKEN_PREFIX + role;
   var memoryToken = null;
   var authPromise = null;
 
@@ -39,6 +77,7 @@
       method: settings.method || 'GET',
       headers: headers,
       credentials: 'same-origin',
+      keepalive: settings.keepalive === true,
       body: settings.body === undefined ? undefined : JSON.stringify(settings.body)
     }).then(function (response) {
       return response.text().then(function (text) {
@@ -124,6 +163,12 @@
       return request('/trainer' + sessionPath(sessionId) + '/quiz/reteach', {
         method: 'POST',
         body: { reason: reason || null }
+      });
+    },
+    grantHint: function (sessionId, questionId, hintIndex) {
+      return request('/trainer' + sessionPath(sessionId) + '/quiz/hints', {
+        method: 'POST',
+        body: { questionId: questionId, hintIndex: hintIndex || 1 }
       });
     }
   };

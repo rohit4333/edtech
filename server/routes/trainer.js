@@ -337,6 +337,50 @@ router.post('/sessions/:sessionId/quiz/reveal', auth.loadSession, function (req,
   return res.json({ session: serializers.toTrainerSession(updated) });
 });
 
+/* A hint is trainer-only material. It reaches the student only through this
+   explicit grant and the student serializer's narrow grantedHints option. */
+router.post('/sessions/:sessionId/quiz/hints', auth.loadSession, function (req, res) {
+  const session = req.sessionRecord;
+  const body = req.body || {};
+  const question = (session.quiz.questions || []).find(function (item) {
+    return item.id === body.questionId;
+  });
+  if (!question) {
+    return res.status(404).json({ error: 'QUESTION_NOT_FOUND', message: 'Unknown question.' });
+  }
+
+  const ordered = Array.isArray(question.hints) && question.hints.filter(Boolean);
+  const requested = Number(body.hintIndex || 1);
+  const index = Number.isInteger(requested) && requested > 0 ? requested - 1 : 0;
+  const hint = ordered && ordered.length
+    ? ordered[Math.min(index, ordered.length - 1)]
+    : question.hint;
+  if (typeof hint !== 'string' || !hint.trim()) {
+    return res.status(404).json({ error: 'HINT_NOT_FOUND', message: 'This question has no trainer hint.' });
+  }
+
+  session.quiz.grantedHints = session.quiz.grantedHints || {};
+  session.quiz.grantedHints[question.id] = {
+    hint: hint.slice(0, 500),
+    index: index + 1,
+    grantedBy: req.user.id,
+    grantedAt: new Date().toISOString()
+  };
+
+  const updated = db.updateSession(session.id, function () { return session; });
+  /* No hint text on the shared channel: only a nudge to re-read the safe state. */
+  realtime.publish(updated.id, 'quiz.assistance.granted', {
+    questionId: question.id,
+    at: session.quiz.grantedHints[question.id].grantedAt
+  });
+
+  return res.json({
+    session: serializers.toTrainerSession(updated),
+    questionId: question.id,
+    hint: session.quiz.grantedHints[question.id].hint
+  });
+});
+
 router.post('/sessions/:sessionId/quiz/next', auth.loadSession, function (req, res) {
   const session = req.sessionRecord;
   const body = req.body || {};

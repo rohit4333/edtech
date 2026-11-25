@@ -22,9 +22,13 @@
   var user = Object.assign({}, window.MATHIFY_USER || window.currentUser || api.user || {});
   var roleParam = params.get('role');
   if (roleParam) user.role = roleParam;
+  else if (!user.role && window.mathifyClassroomApi && window.mathifyClassroomApi.role) {
+    /* api.js defaults to the trainer desk unless the URL asks for student view. */
+    user.role = window.mathifyClassroomApi.role;
+  }
 
   var studentView = params.get('view') === 'student' || user.role === 'student';
-  var isTrainer = user.role === 'trainer' && !studentView;
+  var isTrainer = (user.role === 'trainer' || user.role === 'founder') && !studentView;
 
   var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || null;
   var accessToken = window.MATHIFY_SUPABASE_ACCESS_TOKEN || null;
@@ -36,7 +40,25 @@
     return window.MATHIFY_ACCESS_TOKEN || accessToken || null;
   }
 
+  function classroomApi() {
+    return api.api || window.mathifyClassroomApi || null;
+  }
+
+  /* classroom/api.js owns token acquisition. When it is present, every session
+     call goes through ensureAuth() so a page without an injected token still
+     authenticates with the role-correct demo account. */
+  function hasApiAccess() {
+    var client = classroomApi();
+    return Boolean((client && typeof client.request === 'function') || authToken());
+  }
+
   function apiRequest(path, options) {
+    var client = classroomApi();
+    if (client && typeof client.request === 'function') {
+      return client.request(path.charAt(0) === '/' ? path : '/' + path, options);
+    }
+
+    /* Raw fallback for pages that deliberately omit the API client. */
     var settings = options || {};
     var headers = { Accept: 'application/json' };
     var token = authToken();
@@ -63,11 +85,37 @@
     });
   }
 
-  if (studentView || !isTrainer) {
+  function hideTrainerUi() {
     document.body.classList.add('view-student');
     /* Remove hidden instruction payloads and trainer controls from the DOM entirely. */
     $$('[data-instruction]').forEach(function (el) { el.removeAttribute('data-instruction'); });
     $$('.trainer-only').forEach(function (el) { el.remove(); });
+  }
+
+  if (studentView || !isTrainer) hideTrainerUi();
+
+  /* The server state DTO is authoritative about who is viewing. An explicit
+     ?role= QA override wins, but a normal page load adopts the JWT role so a
+     student can never inherit trainer controls just because the HTML is shared. */
+  function applyViewerRole(nextRole) {
+    var next = String(nextRole || '').toLowerCase();
+    if (next !== 'student' && next !== 'trainer' && next !== 'founder') return false;
+    var changed = user.role !== next;
+    user.role = next;
+    studentView = params.get('view') === 'student' || next === 'student';
+    isTrainer = (next === 'trainer' || next === 'founder') && !studentView;
+    if (studentView || !isTrainer) hideTrainerUi();
+    return changed;
+  }
+
+  function syncViewerRoleFromState() {
+    if (!sessionId || roleParam) return Promise.resolve(false);
+    var client = classroomApi();
+    if (!client || typeof client.getSessionState !== 'function') return Promise.resolve(false);
+    return client.getSessionState(sessionId).then(function (state) {
+      if (!state || !state.viewerRole) return false;
+      return applyViewerRole(state.viewerRole);
+    }).catch(function () { return false; });
   }
 
   /* ------------------------------------------ trainer-only notes sidebar */
@@ -177,27 +225,18 @@
       return Promise.resolve(false);
     }
 
-    var token = window.MATHIFY_ACCESS_TOKEN || accessToken || null;
-    var headers = { Accept: 'application/json' };
-    if (token) headers.Authorization = 'Bearer ' + token;
-
-    return fetch('/api/trainer/sessions/' + encodeURIComponent(sessionId), {
-      headers: headers,
-      credentials: 'same-origin'
-    }).then(function (response) {
-      if (!response.ok) throw new Error('Trainer session request failed: ' + response.status);
-      return response.json();
-    }).then(function (data) {
-      trainerSession = data.session || data;
-      notesLoaded = true;
-      renderInstructions();
-      return true;
-    }).catch(function (error) {
-      notesLoaded = true;
-      renderInstructions();
-      console.warn('[mathify] Trainer Notes unavailable:', error.message);
-      return false;
-    });
+    return apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId))
+      .then(function (data) {
+        trainerSession = data.session || data;
+        notesLoaded = true;
+        renderInstructions();
+        return true;
+      }).catch(function (error) {
+        notesLoaded = true;
+        renderInstructions();
+        console.warn('[mathify] Trainer Notes unavailable:', error.message);
+        return false;
+      });
   }
 
   trainerLayerBtn && trainerLayerBtn.addEventListener('click', function () {
@@ -406,53 +445,46 @@
   var readinessBar = $('#readinessBar');
   var readinessNote = $('.readiness small');
 
-  var questions = [
+  /* Static classroom assets contain academic prompts only. Answer keys,
+     explanations and trainer hints are loaded at runtime from the role-scoped
+     session API; a student bundle never ships them. */
+  var localQuestions = [
     {
       q: 'Which ratio is equivalent to 3 : 5?',
-      options: ['6 : 10', '5 : 3', '9 : 12', '3 : 8'],
-      answer: 0,
-      hint: 'Multiply both parts by the same number.',
-      why: 'Both parts were multiplied by 2.'
+      options: ['6 : 10', '5 : 3', '9 : 12', '3 : 8']
     },
     {
       q: 'In a 3 : 5 ribbon, the shorter piece is 12 cm. How long is the longer piece?',
-      options: ['15 cm', '20 cm', '24 cm', '30 cm'],
-      answer: 1,
-      hint: 'One part is 12 ÷ 3 = 4 cm.',
-      why: 'One part is 4 cm, so 5 parts are 20 cm.'
+      options: ['15 cm', '20 cm', '24 cm', '30 cm']
     },
     {
       q: 'Red : blue beads are 4 : 7. There are 44 beads in all. How many are blue?',
-      options: ['16', '24', '28', '32'],
-      answer: 2,
-      hint: 'There are 11 parts in the whole.',
-      why: 'One part is 4 beads, so blue is 7 × 4 = 28.'
+      options: ['16', '24', '28', '32']
     }
   ];
 
-  var baseQuestions = questions.map(function (question, index) {
+  var questions = localQuestions.map(function (question, index) {
     return Object.assign({}, question, {
       id: 'q_base_' + (index + 1),
-      options: question.options.slice()
+      options: question.options.slice(),
+      localPreview: true
     });
+  });
+
+  var baseQuestions = questions.map(function (question) {
+    return Object.assign({}, question, { options: question.options.slice() });
   });
 
   var recheckBank = [
     {
       q: 'Which ratio is equivalent to 4 : 7?',
       options: ['8 : 14', '7 : 4', '12 : 14', '4 : 10'],
-      answer: 0,
-      hint: 'Multiply both parts by the same number.',
-      why: 'Both parts were multiplied by 2.',
       recheck: true,
       requiresCorrectAnswer: true
     },
     {
       q: 'A 3 : 4 mix uses 9 red beads. How many blue beads are needed?',
       options: ['4', '12', '16', '21'],
-      answer: 1,
-      hint: 'One part is 9 ÷ 3 = 3 beads.',
-      why: 'One part is 3 beads, so 4 parts are 12 beads.',
       recheck: true,
       requiresCorrectAnswer: true
     }
@@ -480,6 +512,7 @@
     seconds: 120,
     timer: null,
     attemptId: null,
+    revealRecorded: false,
     parallelSolved: false,
     pollTimer: null
   };
@@ -497,6 +530,49 @@
 
   function currentQuizItem() {
     return questions[quizState.index] || null;
+  }
+
+  function mapQuizQuestion(source, index) {
+    var options = Array.isArray(source.options) ? source.options.map(function (option) {
+      return typeof option === 'string' ? option : option && option.text ? option.text : '';
+    }) : [];
+    var mapped = {
+      id: source.id || 'q_runtime_' + index,
+      q: source.prompt || source.stem || source.q || '',
+      options: options,
+      requiresCorrectAnswer: source.requiresCorrectAnswer === true,
+      recheck: source.recheck === true
+    };
+    /* Only an authenticated trainer view receives answer material. */
+    if (isTrainer && Number.isInteger(source.answerIndex)) mapped.answer = source.answerIndex;
+    if (isTrainer && typeof source.explanation === 'string' && source.explanation) {
+      mapped.why = source.explanation;
+    }
+    /* On the student path this field exists only after a trainer grants it. */
+    if (typeof source.hint === 'string' && source.hint) mapped.hint = source.hint;
+    return mapped;
+  }
+
+  function loadQuizQuestions() {
+    if (!sessionId) return Promise.resolve(false);
+    var client = classroomApi();
+    if (!client || typeof client.request !== 'function') return Promise.resolve(false);
+
+    var path = (isTrainer ? '/trainer' : '/student') +
+      '/sessions/' + encodeURIComponent(sessionId);
+    return client.request(path).then(function (data) {
+      var session = data && (data.session || data);
+      var source = session && session.quiz && session.quiz.questions;
+      if (!Array.isArray(source) || !source.length) return false;
+      questions = source.map(mapQuizQuestion);
+      baseQuestions = questions.map(function (question) {
+        return Object.assign({}, question, { options: question.options.slice() });
+      });
+      return true;
+    }).catch(function (error) {
+      console.warn('[mathify] Quiz questions unavailable · local preview only:', error.message);
+      return false;
+    });
   }
 
   function isRequiredQuestion(item) {
@@ -539,9 +615,31 @@
 
   function showQuizHint() {
     if (!isAnswerable() || quizState.answered) return;
-    var item = questions[quizState.index];
+    var item = currentQuizItem();
     if (!item) return;
-    setFeedback('Hint: ' + item.hint, '');
+    var hint = typeof item.hint === 'string' ? item.hint.trim() : '';
+    setFeedback(hint ? 'Hint: ' + hint : 'No trainer hint has been granted for this question yet.', '');
+  }
+
+  function requestHint() {
+    if (!isAnswerable() || quizState.answered) return;
+    var item = currentQuizItem();
+    if (!item || !item.id || !isTrainer || !sessionId) {
+      showQuizHint();
+      return;
+    }
+    var client = classroomApi();
+    if (!client || typeof client.grantHint !== 'function') {
+      showQuizHint();
+      return;
+    }
+    client.grantHint(sessionId, item.id, 1).then(function (data) {
+      if (data && typeof data.hint === 'string') item.hint = data.hint;
+      showQuizHint();
+      toast('Hint granted to ' + studentLabel() + '.');
+    }).catch(function (error) {
+      toast('Could not grant the hint: ' + error.message);
+    });
   }
 
   function setTrainerActions() {
@@ -611,6 +709,7 @@
     quizState.chosen = null;
     quizState.revealed = false;
     quizState.attemptId = null;
+    quizState.revealRecorded = false;
     quizState.parallelSolved = false;
     clearQuizInk(false);
 
@@ -637,7 +736,9 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.setAttribute('data-opt', String(i));
-        if (!studentView) btn.setAttribute('data-correct', i === item.answer ? '1' : '0');
+        if (isTrainer && typeof item.answer === 'number') {
+          btn.setAttribute('data-correct', i === item.answer ? '1' : '0');
+        }
 
         var letter = document.createElement('span');
         letter.className = 'opt-letter';
@@ -663,7 +764,11 @@
 
     var chosen = Number(btn.getAttribute('data-opt'));
     quizState.chosen = chosen;
-    if (chosen === item.answer) quizState.correct += 1;
+    /* Students never score locally. Correctness is released by the server after
+       the trainer reveals; only the authenticated trainer view may pre-score. */
+    if (isTrainer && typeof item.answer === 'number' && chosen === item.answer) {
+      quizState.correct += 1;
+    }
 
     $$('button', quizOptions).forEach(function (option, i) {
       option.disabled = true;
@@ -671,12 +776,18 @@
     });
 
     setFeedback('Answer saved. Your trainer will reveal feedback.', 'is-waiting');
-    setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) + ' · key ' + 'ABCD'.charAt(item.answer) + '.');
+    if (isTrainer && typeof item.answer === 'number') {
+      setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) +
+        ' · key ' + 'ABCD'.charAt(item.answer) + '.');
+    } else {
+      setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) +
+        '. Trainer feedback is pending.');
+    }
     setQuizPhase('awaiting_reveal');
     updateReadiness();
 
     /* The server owns attempt ids and releases correctness only after reveal. */
-    if (sessionId && authToken() && item.id) {
+    if (sessionId && hasApiAccess() && item.id) {
       apiRequest('/student/sessions/' + encodeURIComponent(sessionId) + '/quiz/answers', {
         method: 'POST',
         body: { questionId: item.id, optionIndex: chosen }
@@ -694,7 +805,7 @@
   function refreshParallelResult() {
     var item = currentQuizItem();
     if (!isRequiredQuestion(item)) return Promise.resolve(false);
-    if (!sessionId || !authToken() || !quizState.attemptId) return Promise.resolve(false);
+    if (!sessionId || !hasApiAccess() || !quizState.attemptId) return Promise.resolve(false);
 
     return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
       '/quiz/attempts/' + encodeURIComponent(quizState.attemptId)).then(function (data) {
@@ -711,10 +822,15 @@
   }
 
   function refreshRevealResult(attemptId) {
-    if (!sessionId || !authToken() || !attemptId) return Promise.resolve(null);
+    if (!sessionId || !hasApiAccess() || !attemptId) return Promise.resolve(null);
     return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
       '/quiz/attempts/' + encodeURIComponent(attemptId)).then(function (data) {
       if (!data.revealed || quizState.attemptId !== attemptId) return null;
+      if (typeof data.correct === 'boolean' && !quizState.revealRecorded) {
+        quizState.revealRecorded = true;
+        if (data.correct) quizState.correct += 1;
+        updateReadiness();
+      }
       $$('button', quizOptions).forEach(function (option, index) {
         if (index === quizState.chosen) option.classList.toggle('is-correct', data.correct === true);
       });
@@ -732,12 +848,20 @@
     if (!item) return;
     quizState.revealed = true;
     lockOptions(true);
+    if (typeof item.answer !== 'number') {
+      setFeedback('Answer key unavailable in local preview · connect the session API.', 'is-waiting');
+      setAnswerState('Reveal recorded · key withheld until the session API loads.');
+      setQuizPhase('revealed');
+      return;
+    }
     var right = quizState.chosen === item.answer;
+    var key = 'ABCD'.charAt(item.answer);
+    var why = typeof item.why === 'string' ? item.why : '';
     if (quizState.chosen === null) {
-      setFeedback('The key is ' + 'ABCD'.charAt(item.answer) + '. ' + item.why, '');
+      setFeedback('The key is ' + key + '. ' + why, '');
       setAnswerState('Revealed · skipped.');
     } else {
-      setFeedback((right ? 'Correct. ' : 'Not quite. ') + item.why, right ? 'is-correct' : 'is-wrong');
+      setFeedback((right ? 'Correct. ' : 'Not quite. ') + why, right ? 'is-correct' : 'is-wrong');
       setAnswerState('Revealed · ' + studentLabel() + ' chose ' + 'ABCD'.charAt(quizState.chosen) + '.');
     }
     setQuizPhase('revealed');
@@ -750,7 +874,7 @@
     var item = questions[quizState.index];
     if (!item) return;
 
-    if (!sessionId || !authToken()) {
+    if (!sessionId || !hasApiAccess()) {
       paintReveal();
       publishQuizEvent('quiz.answer.revealed', { questionIds: [item.id] });
       return;
@@ -776,7 +900,11 @@
     quizState.seen += 1;
     lockOptions(false);
     setFeedback('Skipped. Your trainer controls feedback.', 'is-waiting');
-    setAnswerState('Skipped · key ' + 'ABCD'.charAt(item.answer) + '.');
+    if (isTrainer && typeof item.answer === 'number') {
+      setAnswerState('Skipped · key ' + 'ABCD'.charAt(item.answer) + '.');
+    } else {
+      setAnswerState('Skipped · trainer feedback is pending.');
+    }
     setQuizPhase('awaiting_reveal');
     updateReadiness();
   }
@@ -801,7 +929,7 @@
       return;
     }
 
-    if (!sessionId || !authToken()) {
+    if (!sessionId || !hasApiAccess()) {
       paintReteach();
       publishQuizEvent('quiz.reteach.started', {
         questionId: currentQuizItem() ? currentQuizItem().id : null
@@ -843,7 +971,7 @@
 
   function addRecheckQuestion() {
     var failed = currentQuizItem();
-    if (!sessionId || !authToken()) {
+    if (!sessionId || !hasApiAccess()) {
       addLocalRecheckQuestion();
       return;
     }
@@ -862,16 +990,10 @@
         return question.id === (data.questionId || quiz.currentQuestionId);
       });
       if (!generated) throw new Error('New check was not returned.');
-      installParallelQuestion({
-        id: generated.id,
-        q: generated.prompt || generated.stem,
-        options: (generated.options || []).slice(),
-        hint: generated.hint || '',
-        why: '',
-        answer: Number(generated.answerIndex),
+      installParallelQuestion(Object.assign(mapQuizQuestion(generated, questions.length), {
         recheck: true,
         requiresCorrectAnswer: true
-      });
+      }));
     }).catch(function (error) {
       toast('Parallel check unavailable (' + error.message + '). Using local check.');
       addLocalRecheckQuestion();
@@ -950,7 +1072,7 @@
   quizReveal && quizReveal.addEventListener('click', revealQuizAnswer);
   quizReteach && quizReteach.addEventListener('click', reteachQuiz);
 
-  quizHint && quizHint.addEventListener('click', showQuizHint);
+  quizHint && quizHint.addEventListener('click', requestHint);
 
   quizSkip && quizSkip.addEventListener('click', skipQuiz);
 
@@ -972,7 +1094,7 @@
       toast('Solve the practice question first, or use trainer override.');
       return;
     }
-    if (!sessionId || !authToken()) {
+    if (!sessionId || !hasApiAccess()) {
       finishAdvance();
       return;
     }
@@ -991,35 +1113,47 @@
   quizNext && quizNext.addEventListener('click', function () { advanceQuiz(false); });
   quizForceNext && quizForceNext.addEventListener('click', function () { advanceQuiz(true); });
 
+  function applyStudentQuizState(data) {
+    var quiz = data && data.session && data.session.quiz;
+    if (!quiz || !quiz.currentQuestionId) return;
+
+    var found = (quiz.questions || []).find(function (question) {
+      return question.id === quiz.currentQuestionId;
+    });
+    if (!found) return;
+
+    var current = currentQuizItem();
+    if (current && current.id === found.id) {
+      var granted = typeof found.hint === 'string' ? found.hint.trim() : '';
+      if (granted && granted !== current.hint) {
+        current.hint = granted;
+        if (!quizState.answered) setFeedback('Hint: ' + granted, '');
+      }
+      return;
+    }
+
+    /* mapQuizQuestion never copies answer or explanation for a student view. */
+    questions.push(mapQuizQuestion(found, questions.length));
+    quizState.index = questions.length - 1;
+    startQuizClock();
+    renderQuiz();
+    toast('New practice question ready.');
+  }
+
+  function syncStudentQuestion() {
+    if (!studentView || !sessionId || !hasApiAccess()) return Promise.resolve(false);
+    return apiRequest('/student/sessions/' + encodeURIComponent(sessionId))
+      .then(function (data) {
+        if (quizLive()) applyStudentQuizState(data);
+        return true;
+      })
+      .catch(function () { return false; });
+  }
+
   function startQuestionSync() {
-    if (!studentView || !sessionId || !authToken()) return;
+    if (!studentView || !sessionId || !hasApiAccess()) return;
     clearInterval(quizState.pollTimer);
-    quizState.pollTimer = setInterval(function () {
-      if (!quizLive()) return;
-      apiRequest('/student/sessions/' + encodeURIComponent(sessionId)).then(function (data) {
-        var quiz = data.session && data.session.quiz;
-        if (!quiz || !quiz.currentQuestionId) return;
-        var current = currentQuizItem();
-        if (current && current.id === quiz.currentQuestionId) return;
-        var found = (quiz.questions || []).find(function (question) {
-          return question.id === quiz.currentQuestionId;
-        });
-        if (!found) return;
-        questions.push({
-          id: found.id,
-          q: found.prompt,
-          options: (found.options || []).slice(),
-          hint: found.hint || '',
-          why: '',
-          answer: null,
-          requiresCorrectAnswer: found.requiresCorrectAnswer === true
-        });
-        quizState.index = questions.length - 1;
-        startQuizClock();
-        renderQuiz();
-        toast('New practice question ready.');
-      }).catch(function () {});
-    }, 2000);
+    quizState.pollTimer = setInterval(syncStudentQuestion, 2000);
   }
 
   /* -------------------------------------------------- trainer scratchpad */
@@ -1237,6 +1371,9 @@
       setFeedback('Your trainer is going over this once more.', 'is-waiting');
     } else if ((event.event === 'quiz.question.changed' || event.event === 'quiz.check.added') && studentView) {
       startQuestionSync();
+    } else if (event.event === 'quiz.assistance.granted' && studentView) {
+      /* The event carries no hint text. Fetch the granted hint from the safe state. */
+      syncStudentQuestion();
     } else if (event.event === 'session.ended') {
       document.body.classList.add('is-ended');
       var word = $('#liveWord');
@@ -1365,8 +1502,7 @@
   quizActionHint && quizActionHint.addEventListener('click', function () {
     if (quizActionHint.disabled) return;
     setDoubtMenu(false);
-    showQuizHint();
-    toast('Hint shown · answer key stays hidden.');
+    requestHint();
   });
   quizActionSkip && quizActionSkip.addEventListener('click', function () {
     if (quizActionSkip.disabled) return;
@@ -1523,7 +1659,14 @@
   requestAnimationFrame(clampPip);
 
   /* ------------------------------------------------------------------ init */
-  loadTrainerSession();
+  var roleReady = syncViewerRoleFromState();
+  var quizReady = roleReady.then(function () {
+    if (isTrainer) loadTrainerSession();
+    return loadQuizQuestions();
+  }).then(function () {
+    if (document.body.classList.contains('quiz-live')) renderQuiz();
+    return true;
+  });
   updateReadiness();
   paintQuizClock();
 
@@ -1531,23 +1674,25 @@
 
   var quizQA = params.get('quiz');
   if (quizQA === '1') {
-    setTimeout(launchQuiz, 120);
+    quizReady.then(function () { setTimeout(launchQuiz, 120); });
   } else if (quizQA) {
-    setTimeout(function () {
-      launchQuiz();
-      var first = $('button[data-opt="0"]', quizOptions) || $('button', quizOptions);
+    quizReady.then(function () {
+      setTimeout(function () {
+        launchQuiz();
+        var first = $('button[data-opt="0"]', quizOptions) || $('button', quizOptions);
 
-      if (quizQA !== 'reteach' && quizQA !== 'recheck' && first) {
-        answerQuiz(first, questions[quizState.index]);
-      }
-      if (!studentView && (quizQA === 'reveal' || quizQA === 'complete')) revealQuizAnswer();
-      if (!studentView && quizQA === 'reteach') reteachQuiz();
-      if (!studentView && quizQA === 'recheck') {
-        reteachQuiz();
-        addRecheckQuestion();
-      }
-      if (quizQA === 'complete') completeQuiz();
-    }, 140);
+        if (quizQA !== 'reteach' && quizQA !== 'recheck' && first) {
+          answerQuiz(first, questions[quizState.index]);
+        }
+        if (!studentView && (quizQA === 'reveal' || quizQA === 'complete')) revealQuizAnswer();
+        if (!studentView && quizQA === 'reteach') reteachQuiz();
+        if (!studentView && quizQA === 'recheck') {
+          reteachQuiz();
+          addRecheckQuestion();
+        }
+        if (quizQA === 'complete') completeQuiz();
+      }, 140);
+    });
   }
   if (params.get('state') === 'ended') {
     document.body.classList.add('is-ended');
@@ -1571,22 +1716,14 @@
 
   function sendPresence(leaving) {
     if (!sessionId || (!isTrainer && !studentView)) return Promise.resolve(null);
-    var token = window.MATHIFY_ACCESS_TOKEN || accessToken || null;
-    var headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = 'Bearer ' + token;
-
-    return fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/presence', {
+    return apiRequest('/sessions/' + encodeURIComponent(sessionId) + '/presence', {
       method: 'POST',
-      headers: headers,
-      credentials: 'same-origin',
       keepalive: true,
-      body: JSON.stringify({
+      body: {
         active: !leaving && document.visibilityState === 'visible' && Date.now() - lastInteraction < 60000,
         learningEvents: learningEvents,
         leaving: Boolean(leaving)
-      })
-    }).then(function (response) {
-      return response.ok ? response.json() : null;
+      }
     }).catch(function () { return null; });
   }
 
@@ -1602,6 +1739,7 @@
   api.closeQuiz = exitQuiz;
   api.renderInstructions = renderInstructions;
   api.loadTrainerSession = loadTrainerSession;
+  api.loadQuizQuestions = loadQuizQuestions;
   api.answerQuiz = function (index) {
     var buttons = $$('button', quizOptions);
     var button = buttons[Number(index || 0)];

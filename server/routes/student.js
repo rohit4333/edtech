@@ -18,9 +18,18 @@ router.get('/dashboard', function (req, res) {
 
 router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
   /* Explicit boundary before serialization: trainer-only guidance is removed here,
-     then toStudentSession strips it again as a second layer of defence. */
+     then toStudentSession strips it again as a second layer of defence. Hints are
+     released only when a trainer has explicitly granted them on the server. */
   const studentSafeSession = serializers.stripTrainerOnlyFields(req.sessionRecord);
-  return res.json({ session: serializers.toStudentSession(studentSafeSession) });
+  const grantedHints = {};
+  Object.keys((studentSafeSession.quiz && studentSafeSession.quiz.grantedHints) || {})
+    .forEach(function (questionId) {
+      const value = studentSafeSession.quiz.grantedHints[questionId];
+      grantedHints[questionId] = value && typeof value === 'object' ? value.hint : value;
+    });
+  return res.json({
+    session: serializers.toStudentSession(studentSafeSession, { grantedHints: grantedHints })
+  });
 });
 
 router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req, res) {

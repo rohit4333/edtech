@@ -35,6 +35,15 @@ npm start
 
 The API listens on `http://localhost:4000/api` by default. Copy `server/.env.example` to `server/.env` before adding credentials; `.env` is git-ignored.
 
+Review the ordered SQL plan with:
+
+```powershell
+cd server
+npm run migrate
+```
+
+`npm run migrate` is a dry run and contacts no database. Applying is blocked until both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply` are set deliberately; see `server/migrations/README.md`.
+
 ## Demo logins
 
 | Role | Email | Password |

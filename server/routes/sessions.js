@@ -27,7 +27,7 @@ router.post('/:sessionId/rtc-token', function (req, res) {
 const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
-  'quiz.completed', 'session.ended', 'page.changed'
+  'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 

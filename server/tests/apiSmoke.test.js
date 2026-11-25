@@ -145,6 +145,29 @@ async function main() {
       curriculum: 'CBSE', grade: '7', schoolChapter: 'Ratios'
     }, trainer);
 
+    /* Hints stay server-owned until a trainer explicitly grants one. */
+    const beforeHint = await request('GET', '/api/student/sessions/ses_math_001', undefined, student);
+    assert.strictEqual(beforeHint.status, 200);
+    assert.strictEqual(beforeHint.body.session.quiz.questions[0].hint, undefined);
+    const hintAsStudent = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/hints', {
+      questionId: 'q_1'
+    }, student);
+    assert.strictEqual(hintAsStudent.status, 403);
+    const hintGrant = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/hints', {
+      questionId: 'q_1'
+    }, trainer);
+    assert.strictEqual(hintGrant.status, 200);
+    assert.strictEqual(typeof hintGrant.body.hint, 'string');
+    const afterHint = await request('GET', '/api/student/sessions/ses_math_001', undefined, student);
+    const grantedQuestion = afterHint.body.session.quiz.questions.find(function (question) {
+      return question.id === 'q_1';
+    });
+    assert.strictEqual(grantedQuestion.hint, hintGrant.body.hint);
+    assert.strictEqual(grantedQuestion.answerIndex, undefined);
+    assert.strictEqual(grantedQuestion.explanation, undefined);
+    const safeEvents = await request('GET', '/api/sessions/ses_math_001/events?since=0', undefined, student);
+    assert.strictEqual(JSON.stringify(safeEvents.body.events).indexOf(hintGrant.body.hint), -1);
+
     const studentPayout = await request('GET', '/api/trainer/payouts/2026-11', undefined, student);
     assert.strictEqual(studentPayout.status, 403);
 

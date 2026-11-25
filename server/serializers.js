@@ -142,9 +142,11 @@ function trainerQuiz(session) {
 
 function grantedHint(options, questionId, legacyHint) {
   const settings = options || {};
-  if (settings.grantedHints && settings.grantedHints[questionId]) {
-    return settings.grantedHints[questionId];
+  const granted = settings.grantedHints && settings.grantedHints[questionId];
+  if (granted && typeof granted === 'object') {
+    return typeof granted.hint === 'string' ? granted.hint : granted.text || null;
   }
+  if (granted) return granted;
   if (settings.includeHints === true && legacyHint) return legacyHint;
   return null;
 }
@@ -306,7 +308,7 @@ function toTrainerSession(session) {
   };
 }
 
-function toStudentSession(session) {
+function toStudentSession(session, options) {
   return stripTrainerOnlyFields({
     id: session.id,
     code: session.code,
@@ -331,7 +333,7 @@ function toStudentSession(session) {
         sketchLabel: page.sketchLabel
       };
     }),
-    quiz: studentQuiz(session),
+    quiz: studentQuiz(session, options),
     board: { version: session.board.version, strokeCount: session.board.strokes.length }
   }, 'student');
 }

@@ -92,6 +92,43 @@ const CONTACT_PATTERNS = [
   });
 });
 
+/* A student can load the same static classroom bundle as a trainer, so no
+   answer key, hint text or explanation may be embedded in client source. */
+const CLIENT_SURFACES = ['classroom', 'student', 'trainer', 'lms'];
+const HARDCODED_KEY_PATTERNS = [
+  { pattern: /\banswer\s*:\s*\d+\b/, label: 'numeric answer key' },
+  { pattern: /[{,]\s*hint\s*:\s*['"`][^'"`]+['"`]/, label: 'hint text' },
+  { pattern: /[{,]\s*why\s*:\s*['"`][^'"`]+['"`]/, label: 'explanation text' },
+  { pattern: /\banswerKey\s*:\s*['"`]/, label: 'answerKey value' },
+  { pattern: /\bcorrectOptionId\s*:\s*['"`]/, label: 'correctOptionId value' }
+];
+CLIENT_SURFACES.forEach(function (surface) {
+  const directory = path.join(__dirname, '..', '..', surface);
+  fs.readdirSync(directory).filter(function (name) { return /\.(js|html)$/.test(name); })
+    .forEach(function (name) {
+      const source = fs.readFileSync(path.join(directory, name), 'utf8');
+      HARDCODED_KEY_PATTERNS.forEach(function (rule) {
+        equal(rule.pattern.test(source), false,
+          surface + '/' + name + ' has no embedded ' + rule.label);
+      });
+    });
+});
+
+/* Classroom calls must use the API client's ensureAuth flow, and the client
+   must keep student and trainer tokens apart. */
+const workspaceRoot = path.join(__dirname, '..', '..');
+const classroomApiSource = fs.readFileSync(path.join(workspaceRoot, 'classroom', 'api.js'), 'utf8');
+const classroomSessionSource = fs.readFileSync(
+  path.join(workspaceRoot, 'classroom', 'session.js'), 'utf8');
+ok(/TOKEN_PREFIX \+ role/.test(classroomApiSource),
+  'classroom API stores tokens per viewer role');
+ok(/function hasApiAccess\(\)/.test(classroomSessionSource),
+  'classroom session checks API auth capability');
+ok(/client\.request\(path/.test(classroomSessionSource),
+  'classroom session routes requests through the authenticated client');
+ok(/function syncViewerRoleFromState\(\)/.test(classroomSessionSource),
+  'classroom session adopts the server-verified viewer role');
+
 /* The database layer enforces the same boundary for browser clients. */
 const schema = fs.readFileSync(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8');
 ok(/create view public\.session_participant_names/.test(schema),

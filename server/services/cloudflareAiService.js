@@ -1,8 +1,8 @@
 /* Mathify Cloudflare Workers AI service.
  *
  * The single AI provider for curriculum authoring, adaptive quiz drafts,
- * parallel checks and the parent-support assistant. DeepSeek is gone; every
- * completion goes through the Workers AI REST endpoint below.
+ * parallel checks and the parent-support assistant. Every completion goes
+ * through the Workers AI REST endpoint below.
  *
  * Credentials are read at call time so tests and env rotations do not require
  * a process restart. The caller owns Zod validation; this module guarantees a
@@ -58,7 +58,7 @@ function problem(message, code, status) {
   return issue;
 }
 
-/** Workers AI returns result.response or an OpenAI-style choices array. */
+/** Workers AI returns result.response or a chat-compatible choices array. */
 function extractGenerated(envelope) {
   const result = envelope.result || envelope;
   if (result && result.response !== undefined && result.response !== null) {

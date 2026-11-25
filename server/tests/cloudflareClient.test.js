@@ -1,6 +1,8 @@
 /* Cloudflare Workers AI client contract. All network calls are stubbed. */
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const service = require('../services/cloudflareClient');
 
 const envKeys = [
@@ -76,7 +78,7 @@ async function main() {
       'JSON-only instruction is appended');
     equal(body.messages[1].content, 'User prompt', 'user prompt is passed through');
 
-    /* Live Workers AI currently returns an OpenAI-style choices envelope. */
+    /* Live Workers AI currently returns a chat-compatible choices envelope. */
     global.fetch = async function () {
       return {
         ok: true,
@@ -91,7 +93,7 @@ async function main() {
       };
     };
     equal(await service.generateAIResponse('s', 'u'), '{"choice":true}',
-      'OpenAI-style choices envelope is supported');
+      'chat-compatible choices envelope is supported');
 
     global.fetch = async function () {
       return {
@@ -108,6 +110,34 @@ async function main() {
       /Unknown model/
     );
     checks += 1;
+
+    /* Cloudflare Workers AI is the only provider in shipped source. */
+    const serverRoot = path.join(__dirname, '..');
+    const workspaceRoot = path.join(serverRoot, '..');
+    const providerPattern = /deepseek|openai|gpt-/i;
+    [
+      serverRoot,
+      path.join(serverRoot, 'services'),
+      path.join(serverRoot, 'routes'),
+      path.join(serverRoot, 'quiz'),
+      path.join(serverRoot, 'db'),
+      path.join(serverRoot, 'middleware'),
+      path.join(serverRoot, 'realtime'),
+      path.join(workspaceRoot, 'classroom'),
+      path.join(workspaceRoot, 'student'),
+      path.join(workspaceRoot, 'trainer'),
+      path.join(workspaceRoot, 'lms'),
+      path.join(workspaceRoot, 'public')
+    ].forEach(function (directory) {
+      if (!fs.existsSync(directory)) return;
+      fs.readdirSync(directory)
+        .filter(function (name) { return /\.js$/.test(name); })
+        .forEach(function (name) {
+          const source = fs.readFileSync(path.join(directory, name), 'utf8');
+          equal(providerPattern.test(source), false,
+            path.basename(directory) + '/' + name + ' names only Cloudflare as AI provider');
+        });
+    });
 
     console.log('cloudflareClient: ' + checks + ' assertions passed');
   } finally {
