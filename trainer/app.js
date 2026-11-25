@@ -771,6 +771,140 @@
     });
   }
 
+  /* ------------------------------------------------------- payout trend */
+  function inr(value) {
+    return '₹' + Number(value || 0).toLocaleString('en-IN');
+  }
+
+  function compactInr(value) {
+    var amount = Number(value || 0);
+    if (amount >= 100000) return '₹' + (amount / 100000).toFixed(1).replace(/\.0$/, '') + 'L';
+    if (amount >= 1000) return '₹' + Math.round(amount / 1000) + 'k';
+    return '₹' + Math.round(amount);
+  }
+
+  function escapeXml(value) {
+    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value).replace(/[&<>"']/g, function (character) { return map[character]; });
+  }
+
+  function renderPayoutTrend(payout) {
+    var mount = $('#payoutChart');
+    if (!mount) return;
+
+    var series = payout && payout.dailySeries;
+    var points = series && Array.isArray(series.points) ? series.points : [];
+    var foot = $('.trend-foot');
+    var badge = $('#payoutTrendBadge');
+    var note = $('#payoutTrendNote');
+
+    if (payout && payout.period) {
+      var year = Number(String(payout.period).slice(0, 4));
+      var month = Number(String(payout.period).slice(5, 7));
+      if (year && month) {
+        setText('#payoutTrendPeriod', new Date(Date.UTC(year, month - 1, 1))
+          .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }));
+      }
+    }
+
+    if (!points.length) {
+      mount.textContent = 'No payout history yet.';
+      setText('#payoutTrendTotal', '—');
+      setText(badge, 'Unconfigured');
+      setText(note, 'The daily trend appears once payout rules are confirmed.');
+      return;
+    }
+
+    var width = 760;
+    var height = 230;
+    var left = 46;
+    var right = 748;
+    var top = 14;
+    var baseline = 182;
+    var plotWidth = right - left;
+    var plotHeight = baseline - top;
+    var maxValue = 1;
+
+    points.forEach(function (point) {
+      maxValue = Math.max(maxValue, Number(point.daily) || 0, Number(point.cumulative) || 0);
+    });
+    maxValue = maxValue * 1.12;
+
+    function y(value) {
+      return baseline - (Number(value) || 0) / maxValue * plotHeight;
+    }
+
+    var count = points.length;
+    var group = plotWidth / count;
+    var barWidth = Math.min(13, Math.max(3, group * 0.3));
+    var chunks = [];
+
+    [0.25, 0.5, 0.75, 1].forEach(function (fraction) {
+      var gridY = baseline - fraction * plotHeight;
+      chunks.push('<line class="tc-grid" x1="' + left + '" y1="' + gridY.toFixed(1) +
+        '" x2="' + right + '" y2="' + gridY.toFixed(1) + '"/>');
+      chunks.push('<text class="tc-axis" x="' + (left - 8) + '" y="' + (gridY + 3).toFixed(1) +
+        '" text-anchor="end">' + compactInr(maxValue * fraction) + '</text>');
+    });
+    chunks.push('<line class="tc-base" x1="' + left + '" y1="' + baseline +
+      '" x2="' + right + '" y2="' + baseline + '"/>');
+
+    var linePoints = [];
+    var labelEvery = Math.max(1, Math.ceil(count / 8));
+
+    points.forEach(function (point, index) {
+      var center = left + group * (index + 0.5);
+      var daily = Number(point.daily) || 0;
+      var cumulative = Number(point.cumulative) || 0;
+      var dailyHeight = daily > 0 ? Math.max(2, baseline - y(daily)) : 0;
+      var cumulativeHeight = cumulative > 0 ? Math.max(2, baseline - y(cumulative)) : 0;
+      var title = escapeXml((point.label || '') + ' · daily ' + inr(daily) +
+        ' · accumulated ' + inr(cumulative));
+
+      chunks.push('<g><title>' + title + '</title>');
+      chunks.push('<rect class="tc-bar-cumulative" x="' + (center + 1).toFixed(1) +
+        '" y="' + (baseline - cumulativeHeight).toFixed(1) + '" width="' + barWidth.toFixed(1) +
+        '" height="' + cumulativeHeight.toFixed(1) + '" rx="2"/>');
+      chunks.push('<rect class="tc-bar-daily" x="' + (center - barWidth - 1).toFixed(1) +
+        '" y="' + (baseline - dailyHeight).toFixed(1) + '" width="' + barWidth.toFixed(1) +
+        '" height="' + dailyHeight.toFixed(1) + '" rx="2"/>');
+      chunks.push('</g>');
+
+      linePoints.push(center.toFixed(1) + ',' + y(cumulative).toFixed(1));
+
+      if (index % labelEvery === 0 || index === count - 1) {
+        chunks.push('<text class="tc-axis" x="' + center.toFixed(1) + '" y="' + (baseline + 16) +
+          '" text-anchor="middle">' + escapeXml(point.label || '') + '</text>');
+      }
+    });
+
+    chunks.push('<polyline class="tc-line" points="' + linePoints.join(' ') + '"/>');
+
+    var dotEvery = Math.max(1, Math.ceil(count / 6));
+    points.forEach(function (point, index) {
+      if (index !== 0 && index !== count - 1 && index % dotEvery !== 0) return;
+      chunks.push('<circle class="tc-dot" cx="' + (left + group * (index + 0.5)).toFixed(1) +
+        '" cy="' + y(point.cumulative).toFixed(1) + '" r="2.6"/>');
+    });
+
+    var latest = points[count - 1];
+    var lastX = left + group * (count - 0.5);
+    var lastY = y(latest.cumulative);
+    chunks.push('<circle class="tc-dot-latest" cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="4"/>');
+    chunks.push('<text class="tc-latest-label" x="' + (lastX - 8).toFixed(1) + '" y="' + (lastY - 10).toFixed(1) +
+      '" text-anchor="end">' + inr(latest.cumulative) + '</text>');
+
+    mount.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + height +
+      '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + chunks.join('') + '</svg>';
+    mount.setAttribute('aria-label', 'Daily and accumulated payout for ' + (payout.period || 'this period') +
+      '. Latest accumulated ' + inr(latest.cumulative) + (series.isIllustrative ? ', illustrative preview' : '') + '.');
+
+    setText('#payoutTrendTotal', (series.isIllustrative ? '≈ ' : '') + inr(latest.cumulative));
+    if (foot) foot.classList.toggle('is-live', !series.isIllustrative);
+    setText(badge, series.isIllustrative ? 'Preview' : 'Recorded');
+    setText(note, series.note || '');
+  }
+
   function renderMetrics(dashboard, score, payout) {
     var attendance = dashboard.metrics && dashboard.metrics.attendance;
     if (attendance && attendance.value !== null) {
@@ -830,6 +964,7 @@
 
     renderTimeline(dashboard.today);
     renderMetrics(dashboard, score, payout);
+    renderPayoutTrend(payout);
     renderAttention((attention && attention.items) || dashboard.attention);
     if (register) renderRegister(register);
   }

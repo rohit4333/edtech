@@ -171,6 +171,11 @@
   .ai-form input{font-size:16px}
   .ai{max-height:calc(100dvh - 190px)}
   .ai-body{flex:1;max-height:none}
+
+  .trend-body{padding:14px 14px 12px}
+  .trend-total{font-size:23px}
+  .trend-legend{gap:10px;font-size:9.5px}
+  .trend-foot{align-items:flex-start}
 }
 
 @media (max-width:400px){

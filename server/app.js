@@ -11,6 +11,7 @@ const studentRoutes = require('./routes/student');
 const sessionRoutes = require('./routes/sessions');
 const policyRoutes = require('./routes/policy');
 const webhookRoutes = require('./routes/webhooks');
+const adminRoutes = require('./routes/admin');
 const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
 
@@ -40,6 +41,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/policy', policyRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/razorpay', razorpayRoutes);
 

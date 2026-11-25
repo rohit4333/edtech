@@ -1,5 +1,6 @@
 /* Role-aware response builders. Student serializers never touch trainer_instructions. */
 const db = require('./db');
+const payoutService = require('./services/payoutService');
 
 function person(userId) {
   const user = db.findUserById(userId);
@@ -227,46 +228,7 @@ function toAttendanceRegister(sessions, attendance) {
 }
 
 function toTrainerPayout(user, sessions, period, policy) {
-  const config = (policy && policy.payout) || {};
-  const inPeriod = sessions.filter(function (session) {
-    return session.startedAt && String(session.startedAt).slice(0, 7) === period;
-  });
-  const parts = period.split('-').map(Number);
-  const statementDate = new Date(Date.UTC(parts[0], parts[1], 1)).toISOString().slice(0, 10);
-
-  return {
-    trainer: {
-      id: user.id,
-      name: user.name,
-      role: user.role
-    },
-    period: period,
-    statementDate: statementDate,
-    sessionCount: inPeriod.length,
-    ratePerSession: user.payPerSession || null,
-    amount: {
-      value: null,
-      currency: 'INR',
-      source: 'unconfigured',
-      note: 'Payout totals are not calculated until bonus and fine rules are confirmed.'
-    },
-    bonuses: {
-      value: null,
-      rules: config.bonusRules || null,
-      source: 'unconfigured'
-    },
-    fines: {
-      value: null,
-      rules: config.fineRules || null,
-      source: 'unconfigured'
-    },
-    policy: {
-      rateRange: config.rateRange || null,
-      maxHoursPerDay: config.maxHoursPerDay || null,
-      maxSessionsPerDay: config.maxSessionsPerDay || null
-    },
-    provenance: 'mock'
-  };
+  return payoutService.buildPayout(user, sessions, period, policy);
 }
 
 function toTrainerScore(user, policy) {

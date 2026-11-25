@@ -292,6 +292,32 @@
         </article>
       </section>
 
+      <!-- ---------- payout trend ---------- -->
+      <section class="block payout-trend" aria-labelledby="payout-trend-title">
+        <div class="block-head">
+          <span class="mono" id="payout-trend-title">Payout trend</span>
+          <span class="chip-count" id="payoutTrendPeriod">November 2026</span>
+          <a class="link" href="#" data-toast="Full payout statements open in Finance.">Statement <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="trend-body">
+          <div class="trend-headline">
+            <div>
+              <p class="mono">Accumulated this period</p>
+              <p class="trend-total num" id="payoutTrendTotal">₹—</p>
+            </div>
+            <div class="trend-legend" aria-hidden="true">
+              <span><i class="legend-daily"></i>Today&rsquo;s earning</span>
+              <span><i class="legend-cumulative"></i>Accumulated</span>
+            </div>
+          </div>
+          <div class="trend-chart" id="payoutChart" role="img" aria-label="Daily and accumulated payout trend"></div>
+          <div class="trend-foot">
+            <span class="pill-preview" id="payoutTrendBadge">Preview</span>
+            <span id="payoutTrendNote">Illustrative trend · final amounts unlock when payout rules are confirmed.</span>
+          </div>
+        </div>
+      </section>
+
       <!-- ---------- needs attention ---------- -->
       <section class="block" aria-labelledby="attention-title">
         <div class="block-head">

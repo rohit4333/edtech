@@ -31,8 +31,18 @@
     padding-left:16px;
     border-left:1px solid var(--line);
   }
-  .built{
+  .public-link{
     margin-left:auto;
+    font-family:var(--mono);
+    font-size:9px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--ink);
+    border-bottom:1px solid var(--coral);
+    padding-bottom:2px;
+  }
+  .built{
+    margin-left:0;
     display:inline-flex;
     align-items:center;
     gap:7px;
@@ -235,6 +245,7 @@
 <header class="top">
   <a class="brand" href="index.html" aria-label="Mathify, learning OS home">Mathify<i>.</i></a>
   <span class="suite">Learning OS · UI suite</span>
+  <a class="public-link" href="home/index.html">Public site ↗</a>
   <span class="built">3 of 7 surfaces live</span>
 </header>
 

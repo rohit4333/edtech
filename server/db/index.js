@@ -132,6 +132,35 @@ function addSessions(studentId, sessions, payment) {
   return copy(user);
 }
 
+function findWhatsappMessage(id) {
+  const found = store.whatsappMessages.find(function (item) { return item.id === id; });
+  return found ? copy(found) : null;
+}
+
+function recordWhatsappMessage(message) {
+  const existing = findWhatsappMessage(message.id);
+  if (existing) return existing;
+  store.whatsappMessages.push(copy(message));
+  return copy(message);
+}
+
+function recordSupportEscalation(escalation) {
+  store.supportEscalations.push(copy(escalation));
+  return copy(escalation);
+}
+
+function updateSupportEscalation(id, patch) {
+  const found = store.supportEscalations.find(function (item) { return item.id === id; });
+  if (!found) return null;
+  Object.assign(found, copy(patch) || {});
+  return copy(found);
+}
+
+function listSupportEscalations(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit || 50)));
+  return copy(store.supportEscalations.slice(-size).reverse());
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -148,5 +177,10 @@ module.exports = {
   findRazorpayOrder,
   findPayment,
   recordPayment,
-  addSessions
+  addSessions,
+  findWhatsappMessage,
+  recordWhatsappMessage,
+  recordSupportEscalation,
+  updateSupportEscalation,
+  listSupportEscalations
 };

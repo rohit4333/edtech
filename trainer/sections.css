@@ -308,5 +308,99 @@
 }
 
 
+/* ---------- payout trend ---------- */
+.payout-trend{margin-top:18px}
+.trend-body{padding:16px 20px 14px}
+.trend-headline{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.trend-headline .mono{
+  font-size:8.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.trend-total{
+  margin-top:2px;
+  font-size:28px;
+  font-weight:500;
+  letter-spacing:-.03em;
+  line-height:1.1;
+}
+.trend-legend{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+  font-size:10.5px;
+  color:var(--muted);
+}
+.trend-legend span{display:inline-flex;align-items:center;gap:6px}
+.trend-legend i{display:inline-block;width:9px;height:9px;border-radius:2px}
+.legend-daily{background:var(--coral)}
+.legend-cumulative{background:var(--ink);opacity:.22}
+
+.trend-chart{
+  position:relative;
+  margin-top:14px;
+  width:100%;
+  min-height:120px;
+  color:var(--faint);
+  font-size:11px;
+}
+.trend-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.tc-grid{stroke:var(--line-soft);stroke-width:1}
+.tc-base{stroke:var(--line);stroke-width:1}
+.tc-axis{
+  fill:var(--faint);
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:.02em;
+}
+.tc-bar-daily{fill:var(--coral)}
+.tc-bar-cumulative{fill:var(--ink);opacity:.13}
+.tc-line{
+  fill:none;
+  stroke:var(--ink);
+  stroke-width:1.8;
+  stroke-linejoin:round;
+  stroke-linecap:round;
+}
+.tc-dot{fill:var(--card);stroke:var(--ink);stroke-width:1.6}
+.tc-dot-latest{fill:var(--coral);stroke:var(--card);stroke-width:1.6}
+.tc-latest-label{
+  fill:var(--coral-deep);
+  font-family:var(--mono);
+  font-size:9px;
+  font-weight:600;
+}
+.trend-foot{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid var(--line-soft);
+  font-size:10px;
+  line-height:1.5;
+  color:var(--muted);
+}
+.pill-preview{
+  flex:none;
+  padding:3px 8px;
+  border-radius:var(--r-full);
+  background:var(--amber-soft);
+  color:var(--amber);
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.trend-foot.is-live .pill-preview{background:var(--teal-soft);color:var(--teal-ink)}
+
 /* ---------- table scroll hint on small screens ---------- */
 .swipe-hint{display:none}

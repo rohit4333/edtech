@@ -240,6 +240,8 @@ const recordings = [];
 const razorpayOrders = [];
 const payments = [];
 const packs = [];
+const whatsappMessages = [];
+const supportEscalations = [];
 
 module.exports = {
   users: users,
@@ -249,5 +251,7 @@ module.exports = {
   razorpayOrders: razorpayOrders,
   payments: payments,
   packs: packs,
+  whatsappMessages: whatsappMessages,
+  supportEscalations: supportEscalations,
   demoPassword: demoPassword
 };

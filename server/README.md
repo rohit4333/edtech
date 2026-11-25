@@ -114,6 +114,8 @@ Realtime events:
 | --- | --- | --- |
 | `GET` | `/api/policy/config` | Configurable rules; unresolved values are `null` |
 | `POST` | `/api/webhooks/recording` | Store vendor recording URL and notify |
+| `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
+| `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
 
 ### DeepSeek, Agora, Razorpay
@@ -131,10 +133,19 @@ Realtime events:
 `{ questions: [...] }` object with `question_text`, `options`, `correct_option_index` and `hint`.
 Drafts stay trainer-only until approved.
 
+`services/whatsappAiService.js` uses the same DeepSeek client. It queries the mock Supabase adapter for
+quiz scores, attendance and session balance, then returns either a parent-safe reply, `ACTION: RESCHEDULE_REQUEST`
+or `HUMAN_HANDOFF_REQUIRED`. The webhook logs handoffs, publishes a `support.handoff_required` event and fires
+Slack/email alerts through `services/notificationService.js`. Twilio signature verification activates when both
+`TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are set.
+
 Add these env vars in `.env`:
 `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
 `RAZORPAY_WEBHOOK_SECRET`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`,
-`AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`.
+`AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`,
+`SUPABASE_URL`, `SUPABASE_KEY`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_WHATSAPP_NUMBER`, `TWILIO_WEBHOOK_URL`, `WHATSAPP_DEMO_PARENT_PHONE`,
+`SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`, `NODEMAILER_EMAIL`, `NODEMAILER_PASSWORD`.
 
 ## Safety rules already enforced
 
@@ -162,4 +173,4 @@ Add these env vars in `.env`:
 2. Replace `realtime/index.js` with Supabase Realtime channels.
 3. Replace the mock `realtime/agora.js` seam with the `/api/agora/token` service everywhere.
 4. Wire the existing classroom frontend to `/state`, `/rtc-token` and the realtime channel.
-5. Mirror the mock `recordings`, `razorpay_orders`, `payments` and `packs` stores onto `schema.sql`.
+5. Mirror the mock `recordings`, `razorpay_orders`, `payments`, `packs`, `whatsapp_messages` and `support_escalations` stores onto `schema.sql`.
