@@ -99,6 +99,12 @@
     base: BASE,
     request: request,
     ensureAuth: ensureAuth,
-    getDashboard: function () { return request('/student/dashboard').then(function (d) { return d.dashboard; }); }
+    getDashboard: function () { return request('/student/dashboard').then(function (d) { return d.dashboard; }); },
+    askTutor: function (question, sessionId) {
+      return request('/student/tutor/query', {
+        method: 'POST',
+        body: { question: question, sessionId: sessionId || null }
+      });
+    }
   };
 })();

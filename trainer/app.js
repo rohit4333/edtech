@@ -514,21 +514,17 @@
     }
   }
 
-  function replyFor(text) {
-    var q = text.toLowerCase();
-    if (q.indexOf('parent') > -1) {
-      return 'Draft note: “Hi, this is Ananya from Mathify. Aarav has missed 4 of the last 6 sessions. He is strong on geometry but losing pace on fractions. Could we speak this week about a steadier routine?” Want it warmer or firmer?';
+  /* The copilot is a real Cloudflare call. No keyword branches and no seeded
+     student names — the server supplies only academic context. */
+  function askCopilot(text) {
+    var api = window.mathifyTrainerApi;
+    if (!api || typeof api.askCopilot !== 'function') {
+      return Promise.resolve({
+        reply: 'The copilot service is unavailable right now. Please retry in a moment.',
+        source: 'offline'
+      });
     }
-    if (q.indexOf('summar') > -1 || q.indexOf('recap') > -1) {
-      return 'Last session (Class 8 · Algebra): 27 of 29 present, median exit ticket 4/5. The commute-of-addition example landed best. Two students still mix up signs — flagged for Friday.';
-    }
-    if (q.indexOf('plan') > -1 || q.indexOf('different') > -1 || q.indexOf('set') > -1) {
-      return 'I kept bar models as the spine and added a 5-minute re-entry task on equivalent fractions for the four who missed Monday. The exit ticket is now three tiers; I trimmed the warm-up to 6 minutes.';
-    }
-    if (q.indexOf('score') > -1 || q.indexOf('tps') > -1) {
-      return 'Your teaching score is 8.4: Basics 86, Engagement 79, Teaching style 84. Engagement is the only sub-score below your target — shorter turns for the quiet half of the room would lift it fastest.';
-    }
-    return 'I can help with plans, differentiated sets, parent notes, session recaps and your teaching score. Which one do you need before 4:30?';
+    return api.askCopilot(text, window.MATHIFY_SESSION_ID || null);
   }
 
   function send(text) {
@@ -536,7 +532,22 @@
     if (!value) return;
     bubble(value, true);
     if (input) input.value = '';
-    setTimeout(function () { bubble(replyFor(value), false); }, 480);
+
+    var pending = document.createElement('p');
+    pending.className = 'msg bot';
+    pending.textContent = 'Thinking…';
+    if (body) {
+      body.appendChild(pending);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    askCopilot(value).then(function (data) {
+      pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
+      if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
+    }).catch(function () {
+      pending.textContent = 'The copilot could not be reached. Please retry in a moment.';
+      pending.dataset.source = 'offline';
+    });
   }
 
   if (form) {

@@ -176,22 +176,26 @@
     btn.addEventListener('click', openPanel);
   });
 
-  /* ---------- tutor conversation ---------- */
-  var replies = [
-    'Good question. Break it into two steps and solve the smaller one first — what do you get?',
-    'Try substituting x = 2 and see whether both sides match. Tell me what happens.',
-    'Look at the denominators first. What common number works for both?',
-    'You are one step away. Isolate the variable on the left, then divide.'
-  ];
-  var replyIndex = 0;
-
+  /* ---------- tutor conversation (Cloudflare-backed) ---------- */
   function addMessage(text, who) {
-    if (!body) return;
+    if (!body) return null;
     var p = document.createElement('p');
     p.className = 'msg ' + who;
     p.textContent = text;
     body.appendChild(p);
     body.scrollTop = body.scrollHeight;
+    return p;
+  }
+
+  function askTutor(text) {
+    var api = window.mathifyStudentApi;
+    if (!api || typeof api.askTutor !== 'function') {
+      return Promise.resolve({
+        reply: 'The tutor service is unavailable right now. Please retry in a moment.',
+        source: 'offline'
+      });
+    }
+    return api.askTutor(text, window.MATHIFY_SESSION_ID || null);
   }
 
   if (form && input) {
@@ -202,11 +206,18 @@
 
       addMessage(text, 'me');
       input.value = '';
+      var pending = addMessage('Thinking…', 'bot');
 
-      window.setTimeout(function () {
-        addMessage(replies[replyIndex % replies.length], 'bot');
-        replyIndex += 1;
-      }, 650);
+      askTutor(text).then(function (data) {
+        if (!pending) return;
+        pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
+        if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
+      }).catch(function () {
+        if (pending) {
+          pending.textContent = 'The tutor could not be reached. Please retry in a moment.';
+          pending.dataset.source = 'offline';
+        }
+      });
     });
   }
 

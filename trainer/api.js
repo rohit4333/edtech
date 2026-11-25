@@ -130,6 +130,12 @@
     },
     deleteSlot: function (id) {
       return request('/trainer/slots/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (d) { return d; });
+    },
+    askCopilot: function (question, sessionId) {
+      return request('/trainer/copilot/query', {
+        method: 'POST',
+        body: { question: question, sessionId: sessionId || null }
+      });
     }
   };
 })();

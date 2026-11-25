@@ -13,6 +13,7 @@ const aiCurriculumService = require('../services/aiCurriculumService');
 const masteryGating = require('../services/masteryGating');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
+const chatAssistant = require('../services/chatAssistantService');
 
 const router = express.Router();
 
@@ -592,6 +593,39 @@ router.get('/schedule', function (req, res) {
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
     ? String(req.query.month) : currentPeriod();
   return res.json({ schedule: slotService.monthView(req.user, month, sessionsFor(req.user)) });
+});
+
+/* Cloudflare-backed planner copilot. Academic context comes from an assigned
+   session only; contact details never enter the prompt. */
+router.post('/copilot/query', async function (req, res) {
+  const body = req.body || {};
+  let studentId = null;
+
+  if (body.sessionId) {
+    const session = db.findSession(body.sessionId);
+    if (!session || !auth.canAccessSession(req.user, session)) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not assigned to this session.' });
+    }
+    studentId = session.studentId;
+  } else if (body.studentId) {
+    const student = db.findUserById(body.studentId);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
+    }
+    const assigned = db.listSessionsForUser(req.user).some(function (session) {
+      return session.studentId === student.id;
+    });
+    if (!assigned && req.user.role !== 'founder') {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
+    }
+    studentId = student.id;
+  }
+
+  const result = await chatAssistant.reply('trainer', body.question, {
+    studentId: studentId,
+    sessionId: body.sessionId || null
+  });
+  return res.json({ reply: result.reply, source: result.source });
 });
 
 module.exports = router;

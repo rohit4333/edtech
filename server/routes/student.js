@@ -3,6 +3,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
+const chatAssistant = require('../services/chatAssistantService');
 
 const router = express.Router();
 
@@ -103,6 +104,29 @@ router.get('/sessions/:sessionId/quiz/attempts/:attemptId', auth.loadSession, fu
     revealed: true,
     correct: attempt.correct === true
   });
+});
+
+/* Cloudflare-backed study tutor. The request is scoped to the signed-in
+   student and never receives contact details or trainer-only material. */
+router.post('/tutor/query', async function (req, res) {
+  const body = req.body || {};
+  const ownId = req.user.id;
+
+  if (body.studentId && body.studentId !== ownId && req.user.role !== 'founder') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'You can only ask for your own tutor.' });
+  }
+  if (body.sessionId) {
+    const session = db.findSession(body.sessionId);
+    if (!session || !auth.canAccessSession(req.user, session)) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not part of this session.' });
+    }
+  }
+
+  const result = await chatAssistant.reply('student', body.question, {
+    studentId: body.studentId || ownId,
+    sessionId: body.sessionId || null
+  });
+  return res.json({ reply: result.reply, source: result.source });
 });
 
 module.exports = router;

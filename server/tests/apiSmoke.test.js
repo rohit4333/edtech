@@ -94,6 +94,32 @@ async function main() {
     assert.strictEqual(me.status, 200);
     assert.strictEqual(me.body.user.role, 'trainer');
 
+    /* AI chat endpoints are role-scoped and fall back honestly without creds. */
+    const tutorReply = await request('POST', '/api/student/tutor/query', {
+      question: 'How do I start the ratios problem?', sessionId: 'ses_math_001'
+    }, student);
+    assert.strictEqual(tutorReply.status, 200);
+    assert.strictEqual(tutorReply.body.source, 'fallback');
+    assert.strictEqual(typeof tutorReply.body.reply, 'string');
+    const tutorAsTrainer = await request('POST', '/api/student/tutor/query', {
+      question: 'Hello'
+    }, trainer);
+    assert.strictEqual(tutorAsTrainer.status, 403);
+    const tutorOtherStudent = await request('POST', '/api/student/tutor/query', {
+      question: 'Hello', studentId: 'usr_trainer_001'
+    }, student);
+    assert.strictEqual(tutorOtherStudent.status, 403);
+
+    const copilotReply = await request('POST', '/api/trainer/copilot/query', {
+      question: 'Plan the next 1-on-1 step?', sessionId: 'ses_math_001'
+    }, trainer);
+    assert.strictEqual(copilotReply.status, 200);
+    assert.strictEqual(copilotReply.body.source, 'fallback');
+    const copilotAsStudent = await request('POST', '/api/trainer/copilot/query', {
+      question: 'Hello'
+    }, student);
+    assert.strictEqual(copilotAsStudent.status, 403);
+
     const studentPayout = await request('GET', '/api/trainer/payouts/2026-11', undefined, student);
     assert.strictEqual(studentPayout.status, 403);
 
