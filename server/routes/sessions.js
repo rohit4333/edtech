@@ -6,6 +6,7 @@ const realtime = require('../realtime');
 const agora = require('../realtime/agora');
 const masteryGating = require('../services/masteryGating');
 const presenceService = require('../services/presenceService');
+const appPolicy = require('../config/policy.json');
 
 const router = express.Router();
 
@@ -52,7 +53,16 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     ? body.currentQuizScore
     : serializers.readiness(session);
   const topicId = session.topicId || session.title || 'general-mathematics';
-  const gating = masteryGating.checkMasteryGating(session.studentId, topicId, scoreOverride);
+  const unlockThreshold = masteryGating.configuredThreshold(
+    appPolicy.quiz && appPolicy.quiz.unlockThreshold
+  );
+  const gating = masteryGating.checkMasteryGating(
+    session.studentId,
+    topicId,
+    scoreOverride,
+    unlockThreshold
+  );
+  const finalScore = gating.currentScore;
 
   const endedAt = new Date().toISOString();
   const updated = db.updateSession(session.id, function (current) {
@@ -70,6 +80,23 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
       readyAt: endedAt
     };
     return current;
+  });
+
+  db.updateUser(session.studentId, function (student) {
+    student.mastery = finalScore;
+    student.masteryByTopic = student.masteryByTopic || {};
+    student.masteryByTopic[topicId] = {
+      score: finalScore,
+      reteachRequired: gating.reteachRequired,
+      unlockedNext: gating.unlockedNext,
+      currentTopicId: gating.reteachRequired ? topicId : (student.currentTopicId || topicId),
+      updatedAt: gating.checkedAt
+    };
+    student.reteachRequired = gating.reteachRequired;
+    student.unlockedNext = gating.unlockedNext;
+    student.currentTopicId = gating.reteachRequired ? topicId : student.currentTopicId;
+    if (gating.unlockedNext) student.nextTopicUnlocked = true;
+    return student;
   });
 
   const presence = presenceService.finalize(updated, endedAt);
@@ -90,6 +117,7 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
       pagesCompleted: updated.currentPage,
       quizAttempts: updated.quiz.attempts.length,
       readiness: serializers.readiness(updated),
+      score: finalScore,
       unlockedNext: gating.unlockedNext,
       reteachRequired: gating.reteachRequired,
       currentScore: gating.currentScore,

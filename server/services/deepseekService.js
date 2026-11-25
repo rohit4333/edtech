@@ -1,18 +1,21 @@
 /* Mathify curriculum authoring.
  *
- * Full planner + all three quiz tiers do not fit safely in one completion, so
- * generation is deliberately split into two calls:
+ * Two-phase generation keeps each DeepSeek completion inside the output token
+ * limit:
  *   1. generatePlannerAndCurriculum(context)
  *   2. generateQuizTiers(context, plannerOutput)
  *
- * Both calls are strict-JSON, manually validated, and trainer-reviewable.
- * Student-facing filtering lives in serializers.js, never in this file.
+ * Responses are parsed as strict JSON, validated with Zod, and checked for
+ * cross-field curriculum rules. Student-side filtering belongs in
+ * serializers.js, never here.
  */
 
+const { z } = require('zod');
 const generator = require('../quiz/generator');
 const serializers = require('../serializers');
 
 const DEFAULT_TIMEOUT_MS = 15000;
+const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
 const BLOCK_TYPES = ['heading', 'text', 'image', 'sketch_space', 'analogy', 'story'];
 const TIER_SPECS = [
   { key: 'level_1', timeLimit: 45, bloom: 'Understand' },
@@ -22,8 +25,7 @@ const TIER_SPECS = [
 
 let missingKeyWarned = false;
 
-const SYSTEM_PROMPT_PLANNER = `You are Mathify's curriculum author for 1-on-1 math tutoring.
-Return ONLY valid JSON. No prose, no markdown fences.
+const SYSTEM_PROMPT_PLANNER = `You are Mathify's curriculum author. Return ONLY valid JSON. Sequence: hook -> visual analogy (Indian context) -> story narration -> concept -> worked example. After each text/image, insert a \`sketch_space\` block (minHeight: 220, expandable: true). For EVERY block, write \`trainerInstructions\` (what to say/draw) and \`misconception_watch\`. This is trainer-only.
 
 INPUT
   board: {{board}}   grade: {{grade}}   topic: {{topic}}
@@ -59,7 +61,9 @@ SCHEMA
   }
 }`;
 
-const SYSTEM_PROMPT_QUIZ = `You are Mathify's quiz author for 1-on-1 math tutoring.
+const SYSTEM_PROMPT_QUIZ = `Generate 3 tiers: level_1, level_2, level_3. Each item: exactly 4 options, 1 correct, \`distractor_rationale\`, 2 hints (gentle -> direct), \`time_limit_sec\` (45, 75, 120), and \`requires_sketch\` boolean. Do NOT repeat previously asked questions.
+
+You are Mathify's quiz author for 1-on-1 math tutoring.
 Return ONLY valid JSON. No prose, no markdown fences.
 
 INPUT
@@ -88,6 +92,141 @@ SCHEMA
   "parent_summary": "2 sentences, plain language, no jargon."
 }`;
 
+/* ---------- Zod schemas ---------- */
+
+const plannerBlockSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(BLOCK_TYPES),
+  content: z.object({
+    text: z.string().default(''),
+    image_prompt: z.string().default(''),
+    alt: z.string().default(''),
+    caption: z.string().default('')
+  }),
+  sketch: z.object({
+    minHeight: z.number().int().min(120),
+    expandable: z.literal(true),
+    prompt_for_trainer: z.string().min(1)
+  }).optional(),
+  trainerInstructions: z.string().min(1),
+  misconception_watch: z.array(z.string().min(1)).min(1)
+}).superRefine(function (block, context) {
+  if (block.type === 'sketch_space' && !block.sketch) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sketch'],
+      message: 'sketch_space blocks require a sketch object.'
+    });
+  }
+  if (block.type === 'analogy' && !block.content.image_prompt && !block.content.caption) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['content', 'image_prompt'],
+      message: 'Analogy blocks need an image prompt or caption.'
+    });
+  }
+});
+
+const plannerSchema = z.object({
+  topic_id: z.string().min(1),
+  curriculum_map: z.object({
+    board: z.string().min(1),
+    grade: z.number().int(),
+    chapter: z.string().default(''),
+    learning_objectives: z.array(z.string().min(1)).min(1)
+  }),
+  planner: z.object({
+    version: z.number().int().min(1),
+    estimated_minutes: z.number().int().min(15),
+    blocks: z.array(plannerBlockSchema).min(1)
+  })
+}).superRefine(function (payload, context) {
+  const types = payload.planner.blocks.map(function (block) { return block.type; });
+  ['analogy', 'story', 'sketch_space'].forEach(function (required) {
+    if (types.indexOf(required) === -1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['planner', 'blocks'],
+        message: 'Planner must include at least one ' + required + ' block.'
+      });
+    }
+  });
+});
+
+const quizOptionSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1)
+});
+
+const quizItemBaseSchema = z.object({
+  id: z.string().min(1),
+  stem: z.string().min(1),
+  options: z.array(quizOptionSchema).length(4),
+  correctOptionId: z.string().min(1),
+  answerKey: z.string().min(1),
+  explanation: z.string().min(1),
+  hints: z.array(z.string().min(1)).length(2),
+  time_limit_sec: z.number().int(),
+  distractor_rationale: z.record(z.string().min(1)),
+  requires_sketch: z.boolean(),
+  bloom: z.string().min(1)
+});
+
+function refineQuizItem(item, context) {
+  const ids = item.options.map(function (option) { return option.id; });
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['options'],
+      message: 'Quiz option ids must be unique.'
+    });
+  }
+  if (ids.indexOf(item.correctOptionId) === -1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['correctOptionId'],
+      message: 'correctOptionId must match one of the options.'
+    });
+  }
+  if (item.hints[0] === item.hints[1]) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['hints'],
+      message: 'Hints must be ordered gentle then direct.'
+    });
+  }
+  ids.forEach(function (id) {
+    if (id !== item.correctOptionId && !item.distractor_rationale[id]) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['distractor_rationale', id],
+        message: 'Each distractor needs a misconception rationale.'
+      });
+    }
+  });
+}
+
+function tierItemSchema(limit) {
+  return quizItemBaseSchema.extend({
+    time_limit_sec: z.literal(limit)
+  }).superRefine(refineQuizItem);
+}
+
+const quizSchema = z.object({
+  quiz: z.object({
+    level_1: z.array(tierItemSchema(45)).min(1),
+    level_2: z.array(tierItemSchema(75)).min(1),
+    level_3: z.array(tierItemSchema(120)).min(1)
+  }),
+  advance_criteria: z.object({
+    gate_pct: z.number().min(70).max(80),
+    repeat_if_below: z.literal(true)
+  }),
+  parent_summary: z.string().min(1)
+});
+
+/* ---------- Helpers ---------- */
+
 function failure(message, code, status) {
   const problem = new Error(message);
   problem.code = code;
@@ -97,6 +236,13 @@ function failure(message, code, status) {
 
 function invalid(message) {
   return failure(message, 'DEEPSEEK_INVALID_JSON', 502);
+}
+
+function zodMessage(error) {
+  const issue = error && error.issues && error.issues[0];
+  if (!issue) return 'Payload failed schema validation.';
+  const path = issue.path && issue.path.length ? issue.path.join('.') + ': ' : '';
+  return path + issue.message;
 }
 
 function isObject(value) {
@@ -123,18 +269,25 @@ function number(value, fallback) {
   return Number.isFinite(result) ? result : fallback;
 }
 
-function integer(value, label) {
-  const result = number(value, NaN);
-  if (!Number.isFinite(result)) throw invalid(label + ' must be a number.');
-  return result;
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
 function normalizeStem(value) {
   return text(value, '').toLowerCase();
+}
+
+/** Move up at >=80, down below 40, otherwise hold the current band. */
+function calculateNextDifficulty(currentLevel, score) {
+  const level = text(currentLevel, 'medium').toLowerCase();
+  const index = DIFFICULTY_LEVELS.indexOf(level);
+  const currentIndex = index === -1 ? 1 : index;
+  const value = number(score, 0);
+  const safeScore = clamp(Math.round(value), 0, 100);
+
+  if (safeScore >= 80) return DIFFICULTY_LEVELS[Math.min(currentIndex + 1, DIFFICULTY_LEVELS.length - 1)];
+  if (safeScore < 40) return DIFFICULTY_LEVELS[Math.max(currentIndex - 1, 0)];
+  return DIFFICULTY_LEVELS[currentIndex];
 }
 
 function stripTrailingCommas(source) {
@@ -171,10 +324,10 @@ function stripTrailingCommas(source) {
   return output;
 }
 
-/** Parse strict JSON from a model response, tolerating fences and trailing commas. */
-function safeParseJSON(input) {
-  let content = String(input === null || input === undefined ? '' : input).trim();
-  if (!content) throw invalid('DeepSeek returned an empty response.');
+/** Parse fences and trailing commas. Returns null instead of throwing. */
+function safeParseJSON(raw) {
+  let content = String(raw === null || raw === undefined ? '' : raw).trim();
+  if (!content) return null;
 
   const fenced = content.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fenced) content = fenced[1].trim();
@@ -182,7 +335,7 @@ function safeParseJSON(input) {
   try {
     return JSON.parse(stripTrailingCommas(content));
   } catch (problem) {
-    throw invalid('Model response was not valid JSON.');
+    return null;
   }
 }
 
@@ -218,7 +371,7 @@ function normalizeContext(context) {
       ''
     ),
     mastery_pct: clamp(number(input.mastery_pct, 0), 0, 100),
-    current_level: clamp(Math.round(number(input.current_level, 1)), 1, 3),
+    current_level: calculateNextDifficulty(input.current_level, input.mastery_pct),
     previously_asked_questions: previous,
     learning_objectives: objectives,
     estimated_minutes: clamp(number(input.estimated_minutes, 45), 15, 120),
@@ -282,12 +435,17 @@ async function requestJSON(systemPrompt, userPrompt, allowFallback) {
     }
 
     const envelope = safeParseJSON(bodyText);
-    const content = envelope && envelope.choices && envelope.choices[0] &&
-      envelope.choices[0].message && envelope.choices[0].message.content;
+    if (!envelope) throw invalid('DeepSeek response was not valid JSON.');
+
+    const content = envelope.choices && envelope.choices[0] && envelope.choices[0].message &&
+      envelope.choices[0].message.content;
     if (typeof content !== 'string') {
       throw invalid('DeepSeek response did not contain message content.');
     }
-    return safeParseJSON(content);
+
+    const parsed = safeParseJSON(content);
+    if (!parsed) throw invalid('Model response was not valid JSON.');
+    return parsed;
   } catch (problem) {
     if (problem && problem.name === 'AbortError') {
       throw failure('DeepSeek request timed out.', 'DEEPSEEK_TIMEOUT', 504);
@@ -298,118 +456,143 @@ async function requestJSON(systemPrompt, userPrompt, allowFallback) {
   }
 }
 
-function normalizeBlock(raw, index, seenIds) {
-  if (!isObject(raw)) throw invalid('Planner block ' + (index + 1) + ' must be an object.');
-
-  const id = nonEmptyText(raw.id, 'Planner block ' + (index + 1) + ' id');
-  if (seenIds.indexOf(id) !== -1) throw invalid('Planner block ids must be unique.');
-  seenIds.push(id);
-
-  const type = nonEmptyText(raw.type, 'Planner block ' + id + ' type');
-  if (BLOCK_TYPES.indexOf(type) === -1) {
-    throw invalid('Planner block ' + id + ' has an unsupported type.');
-  }
-  if (!isObject(raw.content)) throw invalid('Planner block ' + id + ' needs a content object.');
-
-  const content = {
-    text: text(raw.content.text, ''),
-    image_prompt: text(raw.content.image_prompt, ''),
-    alt: text(raw.content.alt, ''),
-    caption: text(raw.content.caption, '')
-  };
-  if (type === 'analogy' && !content.image_prompt && !content.caption) {
-    throw invalid('Analogy block ' + id + ' needs an image prompt or caption.');
-  }
-
-  const block = { id: id, type: type, content: content };
-  if (type === 'sketch_space') {
-    if (!isObject(raw.sketch)) {
-      throw invalid('Sketch block ' + id + ' needs a sketch object.');
-    }
-    const minHeight = integer(raw.sketch.minHeight, 'Sketch ' + id + ' minHeight');
-    if (minHeight < 120) throw invalid('Sketch ' + id + ' minHeight must be at least 120.');
-    if (raw.sketch.expandable !== true) {
-      throw invalid('Sketch ' + id + ' must be expandable.');
-    }
-    block.sketch = {
-      minHeight: Math.round(minHeight),
-      expandable: true,
-      prompt_for_trainer: nonEmptyText(raw.sketch.prompt_for_trainer, 'Sketch ' + id + ' prompt')
-    };
-  }
-
-  block.trainerInstructions = nonEmptyText(
-    raw.trainerInstructions,
-    'Planner block ' + id + ' trainerInstructions'
-  );
-
-  if (!Array.isArray(raw.misconception_watch) || !raw.misconception_watch.length) {
-    throw invalid('Planner block ' + id + ' needs misconception_watch.');
-  }
-  block.misconception_watch = raw.misconception_watch.map(function (item) {
-    return nonEmptyText(item, 'Planner block ' + id + ' misconception_watch item');
-  });
-
-  return block;
-}
-
-/** Manual schema validation for the planner completion. */
+/** Zod validation for the planner completion. */
 function validatePlannerOutput(parsed, context) {
-  if (!isObject(parsed)) throw invalid('Planner response must be a JSON object.');
-
-  const topicId = nonEmptyText(parsed.topic_id, 'topic_id');
-  if (!isObject(parsed.curriculum_map)) throw invalid('curriculum_map must be an object.');
-
-  const chapter = text(parsed.curriculum_map.chapter, '');
-  const objectives = parsed.curriculum_map.learning_objectives;
-  if (!Array.isArray(objectives) || !objectives.length) {
-    throw invalid('curriculum_map.learning_objectives must be a non-empty array.');
+  const result = plannerSchema.safeParse(parsed);
+  if (!result.success) {
+    throw invalid('Planner response failed schema validation: ' + zodMessage(result.error));
   }
 
-  const curriculumMap = {
-    board: nonEmptyText(parsed.curriculum_map.board, 'curriculum_map.board'),
-    grade: integer(parsed.curriculum_map.grade, 'curriculum_map.grade'),
-    chapter: chapter,
-    learning_objectives: objectives.map(function (objective) {
-      return nonEmptyText(objective, 'learning objective');
-    })
-  };
-  if (context && context.mode === 'school_curriculum' && !chapter) {
+  const output = result.data;
+  if (context && context.mode === 'school_curriculum' && !output.curriculum_map.chapter) {
     throw invalid('school_curriculum mode requires curriculum_map.chapter.');
   }
 
-  if (!isObject(parsed.planner)) throw invalid('planner must be an object.');
-  if (integer(parsed.planner.version, 'planner.version') < 1) {
-    throw invalid('planner.version must be at least 1.');
-  }
-  const estimatedMinutes = integer(parsed.planner.estimated_minutes, 'planner.estimated_minutes');
-  if (estimatedMinutes < 15) throw invalid('planner.estimated_minutes must be at least 15.');
-
-  if (!Array.isArray(parsed.planner.blocks) || !parsed.planner.blocks.length) {
-    throw invalid('planner.blocks must be a non-empty array.');
-  }
-
-  const seenIds = [];
-  const blocks = parsed.planner.blocks.map(function (block, index) {
-    return normalizeBlock(block, index, seenIds);
-  });
-  const types = blocks.map(function (block) { return block.type; });
-  ['analogy', 'story', 'sketch_space'].forEach(function (required) {
-    if (types.indexOf(required) === -1) {
-      throw invalid('Planner must include at least one ' + required + ' block.');
-    }
-  });
-
   return {
-    topic_id: topicId,
-    curriculum_map: curriculumMap,
+    topic_id: output.topic_id,
+    curriculum_map: {
+      board: output.curriculum_map.board,
+      grade: output.curriculum_map.grade,
+      chapter: output.curriculum_map.chapter,
+      learning_objectives: output.curriculum_map.learning_objectives.slice()
+    },
     planner: {
-      version: Math.round(integer(parsed.planner.version, 'planner.version')),
-      estimated_minutes: Math.round(estimatedMinutes),
-      blocks: blocks
+      version: output.planner.version,
+      estimated_minutes: output.planner.estimated_minutes,
+      blocks: output.planner.blocks.map(function (block) {
+        const safe = {
+          id: block.id,
+          type: block.type,
+          content: {
+            text: block.content.text,
+            image_prompt: block.content.image_prompt,
+            alt: block.content.alt,
+            caption: block.content.caption
+          },
+          trainerInstructions: block.trainerInstructions,
+          misconception_watch: block.misconception_watch.slice()
+        };
+        if (block.type === 'sketch_space' && block.sketch) safe.sketch = block.sketch;
+        return safe;
+      })
     }
   };
 }
+
+/** Zod validation plus cross-item rules for the three-tier quiz. */
+function validateQuizOutput(parsed, context) {
+  const result = quizSchema.safeParse(parsed);
+  if (!result.success) {
+    throw invalid('Quiz response failed schema validation: ' + zodMessage(result.error));
+  }
+
+  const output = result.data;
+  const seenIds = [];
+  const seenStems = [];
+  const previousStems = (context && context.previously_asked_questions
+    ? context.previously_asked_questions
+    : []).map(function (item) {
+    return normalizeStem(isObject(item) ? (item.stem || item.question || item.text) : item);
+  }).filter(Boolean);
+  let hasSketchItem = false;
+
+  const quiz = {};
+  TIER_SPECS.forEach(function (spec) {
+    quiz[spec.key] = output.quiz[spec.key].map(function (item) {
+      if (seenIds.indexOf(item.id) !== -1) {
+        throw invalid('Quiz item ids must be unique.');
+      }
+      seenIds.push(item.id);
+
+      const stemKey = normalizeStem(item.stem);
+      if (seenStems.indexOf(stemKey) !== -1 || previousStems.indexOf(stemKey) !== -1) {
+        throw invalid('Quiz item ' + item.id + ' repeats a previously asked question.');
+      }
+      seenStems.push(stemKey);
+
+      const correctOption = item.options.find(function (option) {
+        return option.id === item.correctOptionId;
+      });
+      if (!correctOption) throw invalid('Quiz item ' + item.id + ' has no valid correct option.');
+      if (item.answerKey !== item.correctOptionId && item.answerKey !== correctOption.text) {
+        throw invalid('Quiz item ' + item.id + ' answerKey must match the correct option.');
+      }
+
+      const answerKey = correctOption.text;
+      const hints = item.hints.slice();
+      if (hints.some(function (hint) {
+        return hint.toLowerCase().indexOf(answerKey.toLowerCase()) !== -1;
+      })) {
+        throw invalid('Quiz item ' + item.id + ' hint must not restate the answer.');
+      }
+
+      const distractorRationale = {};
+      item.options.forEach(function (option) {
+        if (option.id === item.correctOptionId) return;
+        distractorRationale[option.id] = item.distractor_rationale[option.id];
+      });
+
+      if (item.requires_sketch) hasSketchItem = true;
+
+      return {
+        id: item.id,
+        stem: item.stem,
+        options: item.options.map(function (option) {
+          return { id: option.id, text: option.text };
+        }),
+        correctOptionId: item.correctOptionId,
+        answerKey: answerKey,
+        explanation: item.explanation,
+        hints: hints,
+        time_limit_sec: spec.timeLimit,
+        distractor_rationale: distractorRationale,
+        requires_sketch: item.requires_sketch,
+        bloom: item.bloom
+      };
+    });
+  });
+
+  if (!hasSketchItem) {
+    throw invalid('At least one quiz item must have requires_sketch set to true.');
+  }
+
+  const parentSummary = text(output.parent_summary, '');
+  const sentences = parentSummary.split(/[.!?]+(?:\s|$)/).filter(function (part) { return part.trim(); });
+  if (sentences.length !== 2) {
+    throw invalid('parent_summary must be exactly 2 plain-language sentences.');
+  }
+
+  return {
+    quiz: quiz,
+    advance_criteria: {
+      gate_pct: output.advance_criteria.gate_pct,
+      repeat_if_below: true
+    },
+    parent_summary: parentSummary
+  };
+}
+
+/* ---------- Deterministic fallback (no API key) ---------- */
 
 function fallbackBlock(id, type, contentText, instructions, misconceptions, options) {
   const settings = options || {};
@@ -435,7 +618,6 @@ function fallbackBlock(id, type, contentText, instructions, misconceptions, opti
   return block;
 }
 
-/** Deterministic, schema-valid planner used only when no API key is configured. */
 function buildPlannerFallback(context) {
   const topic = context.topic;
   const chapter = context.mode === 'school_curriculum'
@@ -483,7 +665,7 @@ function buildPlannerFallback(context) {
       {})
   ];
 
-  return {
+  return validatePlannerOutput({
     topic_id: text(topic, 'general-mathematics')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -499,178 +681,15 @@ function buildPlannerFallback(context) {
       estimated_minutes: Math.round(context.estimated_minutes),
       blocks: blocks
     }
-  };
-}
-
-/** Call 1: curriculum map + planner blocks. */
-async function generatePlannerAndCurriculum(context) {
-  const settings = normalizeContext(context);
-  const rendered = renderPrompt(SYSTEM_PROMPT_PLANNER, {
-    board: settings.board,
-    grade: settings.grade,
-    topic: settings.topic,
-    age: settings.student_age,
-    lang: settings.language,
-    mode: settings.mode,
-    context: settings.school_chapter_context
-  });
-
-  const parsed = await requestJSON(
-    rendered,
-    'Create the planner for ' + settings.topic + '. Follow the JSON schema exactly.',
-    settings.allowFallback
-  );
-  const output = parsed || buildPlannerFallback(settings);
-  return validatePlannerOutput(output, settings);
+  }, context);
 }
 
 function optionLetter(index) {
   return String.fromCharCode(97 + index);
 }
 
-function validateQuizOutput(parsed, context) {
-  if (!isObject(parsed)) throw invalid('Quiz response must be a JSON object.');
-  if (!isObject(parsed.quiz)) throw invalid('quiz must be an object.');
-
-  const seenIds = [];
-  const seenStems = [];
-  const previousStems = (context && context.previously_asked_questions ?
-    context.previously_asked_questions : []).map(function (item) {
-    return normalizeStem(isObject(item) ? (item.stem || item.question || item.text) : item);
-  }).filter(Boolean);
-  let hasSketchItem = false;
-
-  const quiz = {};
-  TIER_SPECS.forEach(function (spec) {
-    const rawItems = parsed.quiz[spec.key];
-    if (!Array.isArray(rawItems) || !rawItems.length) {
-      throw invalid('quiz.' + spec.key + ' must be a non-empty array.');
-    }
-
-    quiz[spec.key] = rawItems.map(function (raw, index) {
-      if (!isObject(raw)) throw invalid(spec.key + ' item ' + (index + 1) + ' must be an object.');
-
-      const id = nonEmptyText(raw.id, spec.key + ' item id');
-      if (seenIds.indexOf(id) !== -1) throw invalid('Quiz item ids must be unique.');
-      seenIds.push(id);
-
-      const stem = nonEmptyText(raw.stem, spec.key + ' item stem');
-      const stemKey = normalizeStem(stem);
-      if (seenStems.indexOf(stemKey) !== -1 || previousStems.indexOf(stemKey) !== -1) {
-        throw invalid('Quiz item ' + id + ' repeats a previously asked question.');
-      }
-      seenStems.push(stemKey);
-
-      if (!Array.isArray(raw.options) || raw.options.length !== 4) {
-        throw invalid('Quiz item ' + id + ' needs exactly 4 options.');
-      }
-      const optionIds = [];
-      const options = raw.options.map(function (option, optionIndex) {
-        if (!isObject(option)) throw invalid('Quiz item ' + id + ' option must be an object.');
-        const optionId = nonEmptyText(option.id, 'Quiz item ' + id + ' option id');
-        if (optionIds.indexOf(optionId) !== -1) {
-          throw invalid('Quiz item ' + id + ' has duplicate option ids.');
-        }
-        optionIds.push(optionId);
-        return {
-          id: optionId,
-          text: nonEmptyText(option.text, 'Quiz item ' + id + ' option text')
-        };
-      });
-
-      const correctOptionId = nonEmptyText(raw.correctOptionId, 'Quiz item ' + id + ' correctOptionId');
-      if (optionIds.indexOf(correctOptionId) === -1) {
-        throw invalid('Quiz item ' + id + ' correctOptionId must match an option.');
-      }
-      const correctOption = options.find(function (option) { return option.id === correctOptionId; });
-      const suppliedAnswerKey = nonEmptyText(raw.answerKey, 'Quiz item ' + id + ' answerKey');
-      if (suppliedAnswerKey !== correctOptionId && suppliedAnswerKey !== correctOption.text) {
-        throw invalid('Quiz item ' + id + ' answerKey must match the correct option.');
-      }
-      const answerKey = correctOption.text;
-
-      if (!Array.isArray(raw.hints) || raw.hints.length !== 2) {
-        throw invalid('Quiz item ' + id + ' needs exactly 2 hints.');
-      }
-      const hints = raw.hints.map(function (hint) {
-        const clean = nonEmptyText(hint, 'Quiz item ' + id + ' hint');
-        if (clean.toLowerCase().indexOf(answerKey.toLowerCase()) !== -1) {
-          throw invalid('Quiz item ' + id + ' hint must not restate the answer.');
-        }
-        return clean;
-      });
-      if (hints[0] === hints[1]) throw invalid('Quiz item ' + id + ' hints must be ordered gentle then direct.');
-
-      const timeLimit = integer(raw.time_limit_sec, 'Quiz item ' + id + ' time_limit_sec');
-      if (timeLimit !== spec.timeLimit) {
-        throw invalid('Quiz item ' + id + ' time_limit_sec must be ' + spec.timeLimit + '.');
-      }
-
-      if (!isObject(raw.distractor_rationale)) {
-        throw invalid('Quiz item ' + id + ' needs distractor_rationale.');
-      }
-      const distractorRationale = {};
-      optionIds.forEach(function (optionId) {
-        if (optionId === correctOptionId) return;
-        distractorRationale[optionId] = nonEmptyText(
-          raw.distractor_rationale[optionId],
-          'Quiz item ' + id + ' distractor_rationale.' + optionId
-        );
-      });
-
-      if (typeof raw.requires_sketch !== 'boolean') {
-        throw invalid('Quiz item ' + id + ' needs requires_sketch as a boolean.');
-      }
-      if (raw.requires_sketch) hasSketchItem = true;
-
-      return {
-        id: id,
-        stem: stem,
-        options: options,
-        correctOptionId: correctOptionId,
-        answerKey: answerKey,
-        explanation: nonEmptyText(raw.explanation, 'Quiz item ' + id + ' explanation'),
-        hints: hints,
-        time_limit_sec: spec.timeLimit,
-        distractor_rationale: distractorRationale,
-        requires_sketch: raw.requires_sketch,
-        bloom: nonEmptyText(raw.bloom, 'Quiz item ' + id + ' bloom')
-      };
-    });
-  });
-
-  if (!hasSketchItem) {
-    throw invalid('At least one quiz item must have requires_sketch set to true.');
-  }
-
-  if (!isObject(parsed.advance_criteria)) {
-    throw invalid('advance_criteria must be an object.');
-  }
-  const gate = number(parsed.advance_criteria.gate_pct, NaN);
-  if (!Number.isFinite(gate) || gate < 70 || gate > 80) {
-    throw invalid('advance_criteria.gate_pct must be between 70 and 80.');
-  }
-  if (parsed.advance_criteria.repeat_if_below !== true) {
-    throw invalid('advance_criteria.repeat_if_below must be true.');
-  }
-
-  const parentSummary = nonEmptyText(parsed.parent_summary, 'parent_summary');
-  const sentences = parentSummary.split(/[.!?]+(?:\s|$)/).filter(function (part) { return part.trim(); });
-  if (sentences.length !== 2) {
-    throw invalid('parent_summary must be exactly 2 plain-language sentences.');
-  }
-
-  return {
-    quiz: quiz,
-    advance_criteria: { gate_pct: gate, repeat_if_below: true },
-    parent_summary: parentSummary
-  };
-}
-
-/** Deterministic, schema-valid quiz tiers used only without an API key. */
-function buildQuizFallback(context, plannerOutput) {
+function buildQuizFallback(context) {
   const topic = context.topic;
-  const score = context.mastery_pct;
   const usedPrompts = (context.previously_asked_questions || []).map(function (item) {
     return isObject(item) ? (item.stem || item.question || item.text) : item;
   }).filter(Boolean);
@@ -678,11 +697,10 @@ function buildQuizFallback(context, plannerOutput) {
   let itemNumber = 0;
 
   TIER_SPECS.forEach(function (spec, tierIndex) {
-    const question = generator.buildFallbackQuiz(topic, score, {
+    const question = generator.buildFallbackQuiz(topic, context.mastery_pct, {
       count: 1,
       level: tierIndex + 1,
-      usedPrompts: usedPrompts,
-      allowFallback: true
+      usedPrompts: usedPrompts
     })[0];
     usedPrompts.push(question.prompt);
 
@@ -719,11 +737,34 @@ function buildQuizFallback(context, plannerOutput) {
     }];
   });
 
-  return {
+  return validateQuizOutput({
     quiz: quiz,
     advance_criteria: { gate_pct: 75, repeat_if_below: true },
     parent_summary: 'This checkpoint checks the topic one small step at a time. We will revisit the same topic until the idea is secure.'
-  };
+  }, context);
+}
+
+/* ---------- Public API ---------- */
+
+/** Call 1: curriculum map + planner blocks. */
+async function generatePlannerAndCurriculum(context) {
+  const settings = normalizeContext(context);
+  const rendered = renderPrompt(SYSTEM_PROMPT_PLANNER, {
+    board: settings.board,
+    grade: settings.grade,
+    topic: settings.topic,
+    age: settings.student_age,
+    lang: settings.language,
+    mode: settings.mode,
+    context: settings.school_chapter_context
+  });
+
+  const parsed = await requestJSON(
+    rendered,
+    'Create the planner for ' + settings.topic + '. Follow the JSON schema exactly.',
+    settings.allowFallback
+  );
+  return validatePlannerOutput(parsed || buildPlannerFallback(settings), settings);
 }
 
 /** Call 2: three quiz tiers, grounded in the planner output from call 1. */
@@ -750,8 +791,7 @@ async function generateQuizTiers(context, plannerOutput) {
     'Create the three quiz tiers for ' + settings.topic + ' from this curriculum context. Follow the JSON schema exactly.',
     settings.allowFallback
   );
-  const output = parsed || buildQuizFallback(settings, plannerOutput);
-  return validateQuizOutput(output, settings);
+  return validateQuizOutput(parsed || buildQuizFallback(settings), settings);
 }
 
 const DIFFICULTY_SCORES = {
@@ -771,7 +811,7 @@ function scoreForDifficulty(difficulty) {
   return DIFFICULTY_SCORES[key] || DIFFICULTY_SCORES.level2;
 }
 
-/** Legacy export kept so existing callers do not break. */
+/** Backward-compatible wrapper for existing callers. */
 async function generateQuizDraft(topic, difficulty) {
   return generator.generateAdaptiveQuiz(topic, scoreForDifficulty(difficulty), { count: 3 });
 }
@@ -779,12 +819,16 @@ async function generateQuizDraft(topic, difficulty) {
 module.exports = Object.assign({}, generator, {
   SYSTEM_PROMPT_PLANNER: SYSTEM_PROMPT_PLANNER,
   SYSTEM_PROMPT_QUIZ: SYSTEM_PROMPT_QUIZ,
+  DIFFICULTY_LEVELS: DIFFICULTY_LEVELS,
+  plannerSchema: plannerSchema,
+  quizSchema: quizSchema,
   safeParseJSON: safeParseJSON,
+  calculateNextDifficulty: calculateNextDifficulty,
+  calculateNextNumericDifficulty: generator.calculateNextDifficulty,
   generatePlannerAndCurriculum: generatePlannerAndCurriculum,
   generateQuizTiers: generateQuizTiers,
   validatePlannerOutput: validatePlannerOutput,
   validateQuizOutput: validateQuizOutput,
   generateQuizDraft: generateQuizDraft,
-  difficultyLabel: generator.difficultyLabel,
-  calculateNextDifficulty: generator.calculateNextDifficulty
+  difficultyLabel: generator.difficultyLabel
 });

@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const app = require('../app');
+const db = require('../db');
 
 async function main() {
   const server = await new Promise(function (resolve) {
@@ -123,6 +124,14 @@ async function main() {
     assert.strictEqual(unlocked.status, 200);
     assert.strictEqual(unlocked.body.unlockedNext, true);
     assert.strictEqual(unlocked.body.reteachRequired, false);
+    assert.strictEqual(unlocked.body.recap.score, 85);
+    const persistedStudent = db.findUserById('usr_student_001');
+    assert.strictEqual(persistedStudent.mastery, 85);
+    assert.strictEqual(persistedStudent.reteachRequired, false);
+    assert.strictEqual(
+      persistedStudent.masteryByTopic['Ratios · Lesson 16'].unlockedNext,
+      true
+    );
     assert.strictEqual(typeof unlocked.body.recap.presence.participants.trainer.activeMinutes, 'number');
     assert.strictEqual(unlocked.body.recap.presence.payoutEligible, false);
     assert.ok(unlocked.body.presence);
@@ -146,7 +155,7 @@ async function main() {
     const unknown = await call('/api/does-not-exist');
     assert.strictEqual(unknown.status, 404);
 
-    console.log('apiSmoke: 33 assertions passed');
+    console.log('apiSmoke: 37 assertions passed');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

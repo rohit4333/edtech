@@ -20,15 +20,24 @@ function normalizeScore(value) {
   return Math.min(100, Math.max(0, Math.round(number)));
 }
 
-function checkMasteryGating(studentId, topicId, currentQuizScore) {
+function configuredThreshold(override) {
+  if (override !== undefined && override !== null && override !== '') {
+    const value = Number(override);
+    if (Number.isFinite(value)) return value;
+  }
+  return UNLOCK_THRESHOLD;
+}
+
+function checkMasteryGating(studentId, topicId, currentQuizScore, thresholdOverride) {
   const currentScore = normalizeScore(currentQuizScore);
-  const unlockedNext = currentScore >= UNLOCK_THRESHOLD;
+  const threshold = configuredThreshold(thresholdOverride);
+  const unlockedNext = currentScore >= threshold;
 
   return {
     studentId: studentId || null,
     topicId: topicId || null,
     currentScore: currentScore,
-    threshold: UNLOCK_THRESHOLD,
+    threshold: threshold,
     unlockedNext: unlockedNext,
     reteachRequired: !unlockedNext,
     nextTopicId: unlockedNext ? null : (topicId || null),
@@ -72,5 +81,6 @@ module.exports = {
   applyMasteryGating: applyMasteryGating,
   scoreFromAttempts: scoreFromAttempts,
   scoreFromSession: scoreFromSession,
+  configuredThreshold: configuredThreshold,
   UNLOCK_THRESHOLD: UNLOCK_THRESHOLD
 };

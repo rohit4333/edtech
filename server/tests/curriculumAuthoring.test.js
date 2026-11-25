@@ -1,6 +1,7 @@
 const assert = require('assert');
 const service = require('../services/deepseekService');
 const serializers = require('../serializers');
+const policy = require('../config/policy.json');
 
 const originalKey = process.env.DEEPSEEK_API_KEY;
 const originalBaseUrl = process.env.DEEPSEEK_BASE_URL;
@@ -49,6 +50,30 @@ async function main() {
 
     deepEqual(service.safeParseJSON('```json\n{"a":1,}\n```'), { a: 1 },
       'safeParseJSON strips fences and trailing commas');
+    equal(service.safeParseJSON('{ definitely not json '), null,
+      'safeParseJSON returns null on invalid JSON');
+
+    equal(service.calculateNextDifficulty('medium', 85), 'hard',
+      'score >=80 moves one difficulty level up');
+    equal(service.calculateNextDifficulty('medium', 35), 'easy',
+      'score <40 moves one difficulty level down');
+    equal(service.calculateNextDifficulty('medium', 72), 'medium',
+      'score 40–79 keeps the current difficulty level');
+    equal(service.calculateNextDifficulty('hard', 95), 'hard',
+      'difficulty never moves past hard');
+    equal(service.calculateNextDifficulty('easy', 20), 'easy',
+      'difficulty never moves below easy');
+
+    deepEqual(policy.quiz.scoringBands, {
+      easy: { min: 0, max: 40 },
+      medium: { min: 41, max: 79 },
+      hard: { min: 80, max: 100 }
+    }, 'policy exposes authoritative scoring bands');
+
+    assert.throws(function () {
+      service.validatePlannerOutput({ topic_id: 'incomplete' }, context);
+    }, /schema validation/);
+    checks += 1;
 
     const planner = await service.generatePlannerAndCurriculum(context);
     equal(planner.planner.version, 1, 'planner schema version is 1');

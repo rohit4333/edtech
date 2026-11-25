@@ -2,8 +2,12 @@
   "mode": "configurable",
   "note": "Unresolved founder-doc values stay unset. Do not ship a guessed rule as fact.",
   "quiz": {
-    "scoringBands": null,
     "unlockThreshold": 80,
+    "scoringBands": {
+      "easy": { "min": 0, "max": 40 },
+      "medium": { "min": 41, "max": 79 },
+      "hard": { "min": 80, "max": 100 }
+    },
     "difficultyMapping": {
       "level1": { "label": "easy", "level": 1, "scoreBand": [0, 39] },
       "level2": { "label": "medium", "level": 2, "scoreBand": [40, 79] },

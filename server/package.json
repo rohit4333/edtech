@@ -19,6 +19,7 @@
     "express": "^4.18.3",
     "nodemailer": "^6.9.14",
     "openai": "^4.47.1",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "zod": "^3.25.76"
   }
 }

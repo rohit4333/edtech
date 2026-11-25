@@ -43,6 +43,15 @@ function updateSession(id, updater) {
   return copy(store.sessions[index]);
 }
 
+function updateUser(id, updater) {
+  const index = store.users.findIndex(function (user) { return user.id === id; });
+  if (index === -1) return null;
+  const current = store.users[index];
+  const next = updater(copy(current));
+  store.users[index] = next || current;
+  return copy(store.users[index]);
+}
+
 function listAttendance() {
   return copy(store.attendance);
 }
@@ -261,6 +270,7 @@ module.exports = {
   listSessionsForUser,
   findSession,
   updateSession,
+  updateUser,
   listAttendance,
   listAttendanceForSession,
   upsertAttendance,

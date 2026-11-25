@@ -13,8 +13,13 @@ const TRAINER_ONLY_KEYS = [
   'prompt_for_trainer'
 ];
 
-/* Correctness is server/trainer-only until an explicit reveal or hint grant. */
-const ANSWER_ONLY_KEYS = [
+/* Keys that must never reach a student payload. */
+const STUDENT_FORBIDDEN_KEYS = [
+  'trainer_instructions',
+  'trainerInstructions',
+  'trainerNotes',
+  'misconception_watch',
+  'prompt_for_trainer',
   'answerKey',
   'correctOptionId',
   'answerIndex',
@@ -26,26 +31,62 @@ const ANSWER_ONLY_KEYS = [
   'why'
 ];
 
-function stripByKeys(value, keys, transform) {
+/* A warning is emitted only for the business-critical trainer/answer keys. */
+const STUDENT_SECURITY_KEYS = [
+  'trainerInstructions',
+  'misconception_watch',
+  'answerKey',
+  'correctOptionId',
+  'explanation'
+];
+
+function cloneValue(value) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function stripByKeys(value, keys, onStrip) {
   if (Array.isArray(value)) {
-    return value.map(function (item) { return stripByKeys(item, keys, transform); });
+    return value.map(function (item) { return stripByKeys(item, keys, onStrip); });
   }
   if (!value || typeof value !== 'object') return value;
 
   const safe = {};
   Object.keys(value).forEach(function (key) {
-    if (keys.indexOf(key) !== -1) return;
-    safe[key] = stripByKeys(value[key], keys, transform);
+    if (keys.indexOf(key) !== -1) {
+      if (onStrip) onStrip(key);
+      return;
+    }
+    safe[key] = stripByKeys(value[key], keys, onStrip);
   });
-  return transform ? transform(safe) : safe;
+  return safe;
 }
 
-function stripTrainerOnlyFields(value) {
-  return stripByKeys(value, TRAINER_ONLY_KEYS);
+/**
+ * Role-aware sanitizer.
+ * - No role: legacy safe context used internally; strips trainer guidance.
+ * - student: deep-clones and aggressively removes all forbidden keys.
+ * - trainer/founder: deep-clones without stripping trainer content.
+ */
+function stripTrainerOnlyFields(payload, role) {
+  const normalizedRole = role === null || role === undefined ? null : String(role).toLowerCase();
+
+  if (normalizedRole && normalizedRole !== 'student') return cloneValue(payload);
+
+  const keys = normalizedRole === 'student' ? STUDENT_FORBIDDEN_KEYS : TRAINER_ONLY_KEYS;
+  let foundSecurityKey = false;
+  const safe = stripByKeys(payload, keys, function (key) {
+    if (STUDENT_SECURITY_KEYS.indexOf(key) !== -1) foundSecurityKey = true;
+  });
+
+  if (normalizedRole === 'student' && foundSecurityKey) {
+    console.warn('[SECURITY] Trainer-only fields detected in student payload!');
+  }
+  return safe;
 }
 
 function stripStudentRestrictedFields(value) {
-  return stripByKeys(stripTrainerOnlyFields(value), ANSWER_ONLY_KEYS);
+  return stripTrainerOnlyFields(value, 'student');
 }
 
 function person(userId) {
@@ -277,7 +318,7 @@ function toStudentSession(session) {
     }),
     quiz: studentQuiz(session),
     board: { version: session.board.version, strokeCount: session.board.strokes.length }
-  });
+  }, 'student');
 }
 
 function toSessionState(session, user) {
