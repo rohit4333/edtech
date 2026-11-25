@@ -1,7 +1,7 @@
 /* Mathify curriculum authoring.
  *
- * Two-phase generation keeps each DeepSeek completion inside the output token
- * limit:
+ * Two-phase generation keeps each Workers AI completion inside the output
+ * token limit:
  *   1. generatePlannerAndCurriculum(context)
  *   2. generateQuizTiers(context, plannerOutput)
  *
@@ -13,9 +13,7 @@
 const { z } = require('zod');
 const generator = require('../quiz/generator');
 const serializers = require('../serializers');
-const aiService = require('./aiService');
-
-const DEFAULT_TIMEOUT_MS = 15000;
+const cloudflareClient = require('./cloudflareClient');
 const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
 const BLOCK_TYPES = ['heading', 'text', 'image', 'sketch_space', 'analogy', 'story'];
 const TIER_SPECS = [
@@ -24,7 +22,7 @@ const TIER_SPECS = [
   { key: 'level_3', timeLimit: 120, bloom: 'Analyze' }
 ];
 
-let missingKeyWarned = false;
+let missingProviderWarned = false;
 
 const SYSTEM_PROMPT_PLANNER = `You are Mathify's curriculum author. Return ONLY valid JSON. Sequence: hook -> visual analogy (Indian context) -> story narration -> concept -> worked example. After each text/image, insert a \`sketch_space\` block (minHeight: 220, expandable: true). For EVERY block, write \`trainerInstructions\` (what to say/draw) and \`misconception_watch\`. This is trainer-only.
 
@@ -264,7 +262,7 @@ function failure(message, code, status) {
 }
 
 function invalid(message) {
-  return failure(message, 'DEEPSEEK_INVALID_JSON', 502);
+  return failure(message, 'CLOUDFLARE_INVALID_JSON', 502);
 }
 
 function zodMessage(error) {
@@ -422,95 +420,25 @@ function normalizeContext(context) {
   };
 }
 
-function warnMissingKey() {
-  if (missingKeyWarned) return;
-  missingKeyWarned = true;
-  console.warn('[deepseek] DEEPSEEK_API_KEY is not configured; using deterministic fallback.');
-}
-
-function endpoint() {
-  const base = String(process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
-  return base + '/chat/completions';
+function warnMissingProvider() {
+  if (missingProviderWarned) return;
+  missingProviderWarned = true;
+  console.warn('[cloudflare] Workers AI credentials missing; using deterministic fallback.');
 }
 
 async function requestJSON(systemPrompt, userPrompt, allowFallback) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    /* Cloudflare Workers AI is the free fallback while DeepSeek is unkeyed. */
-    if (aiService.isConfigured()) {
-      const cloudflareText = await aiService.generateAIResponse(systemPrompt, userPrompt, {
-        allowFallback: allowFallback
-      });
-      const cloudflareJSON = safeParseJSON(cloudflareText);
-      if (cloudflareJSON) return cloudflareJSON;
-      if (allowFallback === false) {
-        throw invalid('Cloudflare Workers AI response was not valid JSON.');
-      }
-      warnMissingKey();
-      return null;
-    }
+  const generatedText = await cloudflareClient.generateAIResponse(systemPrompt, userPrompt, {
+    allowFallback: allowFallback,
+    jsonOnly: true
+  });
+  const parsed = safeParseJSON(generatedText);
+  if (parsed) return parsed;
 
-    if (allowFallback === false) {
-      throw failure('DEEPSEEK_API_KEY is not configured.', 'DEEPSEEK_NOT_CONFIGURED', 503);
-    }
-    warnMissingKey();
-    return null;
+  if (allowFallback === false) {
+    throw invalid('Cloudflare Workers AI response was not valid JSON.');
   }
-
-  const configuredTimeout = number(process.env.DEEPSEEK_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
-  const timeoutMs = configuredTimeout > 0 ? configuredTimeout : DEFAULT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, timeoutMs);
-
-  try {
-    const response = await fetch(endpoint(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        response_format: { type: 'json_object' },
-        temperature: 0.25,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      }),
-      signal: controller.signal
-    });
-
-    const bodyText = await response.text();
-    if (!response.ok) {
-      const unauthorized = response.status === 401 || response.status === 403;
-      throw failure(
-        'DeepSeek request failed with HTTP ' + response.status + '.',
-        unauthorized ? 'DEEPSEEK_UNAUTHORIZED' : 'DEEPSEEK_REQUEST_FAILED',
-        502
-      );
-    }
-
-    const envelope = safeParseJSON(bodyText);
-    if (!envelope) throw invalid('DeepSeek response was not valid JSON.');
-
-    const content = envelope.choices && envelope.choices[0] && envelope.choices[0].message &&
-      envelope.choices[0].message.content;
-    if (typeof content !== 'string') {
-      throw invalid('DeepSeek response did not contain message content.');
-    }
-
-    const parsed = safeParseJSON(content);
-    if (!parsed) throw invalid('Model response was not valid JSON.');
-    return parsed;
-  } catch (problem) {
-    if (problem && problem.name === 'AbortError') {
-      throw failure('DeepSeek request timed out.', 'DEEPSEEK_TIMEOUT', 504);
-    }
-    throw problem;
-  } finally {
-    clearTimeout(timer);
-  }
+  warnMissingProvider();
+  return null;
 }
 
 /** Zod validation for the planner completion. */

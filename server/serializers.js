@@ -89,10 +89,19 @@ function stripStudentRestrictedFields(value) {
   return stripTrainerOnlyFields(value, 'student');
 }
 
-function person(userId) {
+/* Cross-role participant data is deliberately name-only. Contact details,
+   profile ids, job titles and business fields never cross the session boundary. */
+function participant(userId) {
   const user = db.findUserById(userId);
   if (!user) return null;
-  return { id: user.id, name: user.name, role: user.role, title: user.title || null };
+  return { name: user.name };
+}
+
+/* Trainer-only attendance rows need an opaque row key, never contact data. */
+function attendanceStudent(userId) {
+  const user = db.findUserById(userId);
+  if (!user) return null;
+  return { id: user.id, name: user.name };
 }
 
 function readiness(session) {
@@ -182,7 +191,7 @@ function studentQuiz(session, options) {
   return payload;
 }
 
-/** Student view of the new three-tier curriculum quiz from deepseekService. */
+/** Student view of the new three-tier curriculum quiz from cloudflareService. */
 function toStudentQuizTiers(payload, options) {
   if (!payload || typeof payload !== 'object') return null;
 
@@ -258,7 +267,7 @@ function toTrainerSummary(session) {
     status: session.status,
     startedAt: session.startedAt,
     currentPage: session.currentPage,
-    student: person(session.studentId),
+    student: participant(session.studentId),
     pack: session.pack,
     mastery: session.mastery,
     recordingUrl: session.recording ? session.recording.url : null
@@ -274,8 +283,8 @@ function toTrainerSession(session) {
     startedAt: session.startedAt,
     elapsedSeconds: session.elapsedSeconds,
     currentPage: session.currentPage,
-    trainer: person(session.trainerId),
-    student: person(session.studentId),
+    trainer: participant(session.trainerId),
+    student: participant(session.studentId),
     pack: session.pack,
     mastery: session.mastery,
     recording: session.recording,
@@ -306,8 +315,8 @@ function toStudentSession(session) {
     startedAt: session.startedAt,
     elapsedSeconds: session.elapsedSeconds,
     currentPage: session.currentPage,
-    trainer: person(session.trainerId),
-    student: person(session.studentId),
+    trainer: participant(session.trainerId),
+    student: participant(session.studentId),
     pack: session.pack,
     mastery: session.mastery,
     recording: session.recording,
@@ -341,8 +350,8 @@ function toSessionState(session, user) {
     currentTopicId: session.currentTopicId || null,
     recordingUrl: session.recording ? session.recording.url : null,
     participants: {
-      trainer: person(session.trainerId),
-      student: person(session.studentId)
+      trainer: participant(session.trainerId),
+      student: participant(session.studentId)
     },
     viewerRole: user ? user.role : 'anonymous',
     permissions: {
@@ -401,7 +410,7 @@ function toAttendanceRegister(sessions, attendance) {
         appPolicy
       );
     });
-    return { student: person(studentId), cells: cells };
+    return { student: attendanceStudent(studentId), cells: cells };
   });
 
   return {
@@ -474,7 +483,7 @@ function trainerAttention(sessions, attendance) {
         title: open + ' planner step' + (open === 1 ? '' : 's') + ' still open',
         meta: next.title,
         sessionId: next.id,
-        student: person(next.studentId),
+        student: participant(next.studentId),
         status: 'today',
         action: 'open_planner',
         source: 'planner_items'
@@ -493,7 +502,7 @@ function trainerAttention(sessions, attendance) {
         title: 'Attendance not saved',
         meta: session.title,
         sessionId: session.id,
-        student: person(session.studentId),
+        student: participant(session.studentId),
         status: 'today',
         action: 'open_register',
         source: 'attendance_records'
@@ -508,7 +517,7 @@ function trainerAttention(sessions, attendance) {
         title: drafts.length + ' AI draft' + (drafts.length === 1 ? '' : 's') + ' awaiting review',
         meta: session.title,
         sessionId: session.id,
-        student: person(session.studentId),
+        student: participant(session.studentId),
         status: 'info',
         action: 'review_drafts',
         source: 'quiz_drafts'
@@ -522,7 +531,7 @@ function trainerAttention(sessions, attendance) {
         title: quiz.attempts.length + ' answer' + (quiz.attempts.length === 1 ? '' : 's') + ' waiting for reveal',
         meta: session.title,
         sessionId: session.id,
-        student: person(session.studentId),
+        student: participant(session.studentId),
         status: 'today',
         action: 'reveal_answers',
         source: 'quiz_attempts'
@@ -536,7 +545,7 @@ function trainerAttention(sessions, attendance) {
         title: 'Quiz ready to launch',
         meta: session.title,
         sessionId: session.id,
-        student: person(session.studentId),
+        student: participant(session.studentId),
         status: 'info',
         action: 'launch_quiz',
         source: 'quizzes'
@@ -550,7 +559,7 @@ function trainerAttention(sessions, attendance) {
         title: 'Recording link pending',
         meta: session.title,
         sessionId: session.id,
-        student: person(session.studentId),
+        student: participant(session.studentId),
         status: 'later',
         action: 'open_recap',
         source: 'recordings'
@@ -591,7 +600,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       title: session.title,
       status: session.status,
       startsAt: session.startedAt,
-      student: person(session.studentId),
+      student: participant(session.studentId),
       attendance: attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy)
     };
   });
@@ -635,7 +644,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       status: next.status,
       startsAt: next.startedAt,
       currentPage: next.currentPage,
-      student: person(next.studentId),
+      student: participant(next.studentId),
       planner: next.planner.map(function (item) { return Object.assign({}, item); }),
       recordingUrl: next.recording ? next.recording.url : null
     } : null,
@@ -698,7 +707,7 @@ function toStudentDashboard(user, sessions) {
           title: live.title,
           startedAt: live.startedAt,
           status: live.status,
-          trainer: person(live.trainerId)
+          trainer: participant(live.trainerId)
         }
       : null,
     recordings: recordings,

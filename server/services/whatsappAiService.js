@@ -1,7 +1,7 @@
 /* Mathify parent-support AI service.
    Phase 1 uses a mock Supabase adapter; Phase 2 swaps mockSupabase for @supabase/supabase-js.
-   DeepSeek never talks to parents directly: the route decides what is safe to send. */
-const OpenAI = require('openai');
+   Cloudflare Workers AI never talks to parents directly: the route decides what is safe to send. */
+const cloudflareClient = require('./cloudflareClient');
 
 const HANDOFF_REPLY =
   'Thank you for reaching out. A senior Mathify coordinator has been notified and will personally assist you shortly.';
@@ -36,19 +36,6 @@ const SYSTEM_PROMPT = [
 function normalizePhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits ? '+' + digits : '';
-}
-
-function client() {
-  if (!process.env.DEEPSEEK_API_KEY) {
-    const error = new Error('DEEPSEEK_API_KEY is not configured.');
-    error.code = 'DEEPSEEK_NOT_CONFIGURED';
-    throw error;
-  }
-
-  return new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: 'https://api.deepseek.com'
-  });
 }
 
 /* Phase 1 mock Supabase adapter. The method names mirror the Phase 2 queries. */
@@ -199,25 +186,15 @@ async function generateAiResponse(parentPhone, userMessage) {
     const balance = await mockSupabase.getSessionBalance(student.id);
     const context = buildContext(student, scores, attendance, balance);
 
-    const response = await client().chat.completions.create({
-      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-      temperature: 0.4,
-      max_tokens: 300,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: 'Parent context:\n' + context + '\n\nParent message: "' + message + '"'
-        }
-      ]
-    });
-
-    const raw = response && response.choices && response.choices[0] &&
-      response.choices[0].message && response.choices[0].message.content;
-    const content = String(raw || '').trim();
+    const generated = await cloudflareClient.generateAIResponse(
+      SYSTEM_PROMPT,
+      'Parent context:\n' + context + '\n\nParent message: "' + message + '"',
+      { jsonOnly: false }
+    );
+    const content = String(generated || '').trim();
 
     if (!content) {
-      throw new Error('DeepSeek returned an empty response.');
+      throw new Error('Cloudflare Workers AI returned an empty response.');
     }
 
     const handoffMatch = content.match(/^HUMAN_HANDOFF_REQUIRED\s*:\s*(.+)$/i);
@@ -234,7 +211,7 @@ async function generateAiResponse(parentPhone, userMessage) {
 
     return result(sanitizeReply(content) || UNKNOWN_PARENT_REPLY, 'REPLY', student, null);
   } catch (error) {
-    console.error('DeepSeek WhatsApp AI error:', error.message);
+    console.error('Cloudflare WhatsApp AI error:', error.message);
     return result(UNAVAILABLE_REPLY, 'AI_UNAVAILABLE', student, {
       required: true,
       summary: 'AI unavailable for parent message: ' + sanitizeReply(message).slice(0, 200)

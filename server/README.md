@@ -133,6 +133,14 @@ RLS permits trainer/founder writes and participant reads. Without these values t
 local canvas still works and Realtime is skipped. No answer key or correctness is
 ever sent through the stroke channel.
 
+#### Participant privacy
+
+Trainer and student payloads expose each other's display name only — no email, phone,
+social link, profile id, title or pay rate. `serializers.participant()` is the only
+cross-role identity builder, and `public.session_participant_names` is the only
+browser-readable Supabase view for session partners. Face, voice, names, role and
+whiteboard/Wacom activity are the only shared signals.
+
 ### Policy / webhooks
 
 | Method | Path | Purpose |
@@ -144,7 +152,7 @@ ever sent through the stroke channel.
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
 | `GET` | `/api/public/config` | Browser-safe Supabase URL and publishable key only |
 
-### DeepSeek, Agora, Razorpay
+### Cloudflare Workers AI, Agora, Razorpay
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -154,27 +162,32 @@ ever sent through the stroke channel.
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
 
-`services/deepseekService.js` generates curriculum in two DeepSeek calls:
+`services/cloudflareService.js` generates curriculum in two Workers AI calls:
 `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner blocks;
 `generateQuizTiers(context, plannerOutput)` returns `level_1`, `level_2`, `level_3` and
 `advance_criteria`. Each call renders its own system prompt, parses strict JSON (with fences and
-trailing commas tolerated), and validates the shape manually. If `DEEPSEEK_API_KEY` is empty, a
-deterministic trainer-reviewable fallback is used. `generateQuizDraft(topic, difficulty)` remains as
+trailing commas tolerated), and validates the shape with Zod. A deterministic trainer-reviewable
+fallback is used when Workers AI is unavailable. `generateQuizDraft(topic, difficulty)` remains as
 a backward-compatible wrapper for the adaptive quiz generator.
+
+`services/cloudflareClient.js` is the single provider client. It handles bearer auth, timeouts,
+both Workers AI response envelopes and JSON cleanup. `generateParallelQuestion(concept, difficulty)`
+uses the same client to create the required scaffolding check after a trainer explanation.
 
 Student payloads use `serializers.toStudentCurriculum()` and `serializers.toStudentQuizTiers()`.
 Those allowlists strip `trainerInstructions`, `misconception_watch`, sketch trainer prompts, answer
 keys, explanations and withheld hints. A hint only appears when the server passes an explicit
 `grantedHints` map; correctness remains post-reveal only.
 
-`services/whatsappAiService.js` uses the same DeepSeek client. It queries the mock Supabase adapter for
+`services/whatsappAiService.js` uses the same Workers AI client. It queries the mock Supabase adapter for
 quiz scores, attendance and session balance, then returns either a parent-safe reply, `ACTION: RESCHEDULE_REQUEST`
 or `HUMAN_HANDOFF_REQUIRED`. The webhook logs handoffs, publishes a `support.handoff_required` event and fires
 Slack/email alerts through `services/notificationService.js`. Twilio signature verification activates when both
 `TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are set.
 
 Add these env vars in `.env`:
-`DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_MODEL`, `CLOUDFLARE_TIMEOUT_MS`,
+`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
 `RAZORPAY_WEBHOOK_SECRET`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`,
 `AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`,
 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server-only),

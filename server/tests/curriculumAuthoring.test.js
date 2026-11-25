@@ -1,19 +1,17 @@
 const assert = require('assert');
-const service = require('../services/deepseekService');
+const service = require('../services/cloudflareService');
 const serializers = require('../serializers');
 const policy = require('../config/policy.json');
 
-const originalKey = process.env.DEEPSEEK_API_KEY;
-const originalBaseUrl = process.env.DEEPSEEK_BASE_URL;
 const originalFetch = global.fetch;
-const cloudflareKeys = [
+const providerKeys = [
   'CLOUDFLARE_ACCOUNT_ID',
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_MODEL',
   'CLOUDFLARE_TIMEOUT_MS'
 ];
-const originalCloudflare = {};
-cloudflareKeys.forEach(function (key) { originalCloudflare[key] = process.env[key]; });
+const originalProviderEnv = {};
+providerKeys.forEach(function (key) { originalProviderEnv[key] = process.env[key]; });
 let checks = 0;
 
 function ok(value, label) {
@@ -39,9 +37,8 @@ function envelope(content) {
 
 async function main() {
   try {
-    delete process.env.DEEPSEEK_API_KEY;
-    /* Keep fallback assertions deterministic even when .env has Cloudflare. */
-    cloudflareKeys.forEach(function (key) { delete process.env[key]; });
+    /* Keep fallback assertions deterministic even when .env has credentials. */
+    providerKeys.forEach(function (key) { delete process.env[key]; });
 
     const context = {
       board: 'CBSE',
@@ -190,8 +187,9 @@ async function main() {
       /repeats a previously asked question/);
     checks += 1;
 
-    process.env.DEEPSEEK_API_KEY = 'test-key';
-    process.env.DEEPSEEK_BASE_URL = 'https://example.test/v1';
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.CLOUDFLARE_MODEL = '@cf/meta/llama-3.1-8b-instruct';
     let calls = 0;
     const systemPrompts = [];
     global.fetch = async function (url, options) {
@@ -224,7 +222,8 @@ async function main() {
     /* Scaffolded mastery: one parallel question after a trainer explanation. */
     equal(service.SYSTEM_PROMPT_PARALLEL.indexOf('[failedQuestionConcept]') !== -1, true,
       'parallel prompt exposes the failed concept placeholder');
-    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    delete process.env.CLOUDFLARE_API_TOKEN;
     const parallel = await service.generateParallelQuestion('Equivalent ratios', 2, {
       usedPrompts: [context.previously_asked_questions[0].stem]
     });
@@ -265,11 +264,18 @@ async function main() {
       explanation: 'One part is 5 cm, so three parts are 15 cm.',
       hint: 'Find the value of one part first.'
     };
-    process.env.DEEPSEEK_API_KEY = 'test-key';
+    /* Workers AI drives the same parallel-check contract through one call. */
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.CLOUDFLARE_MODEL = '@cf/meta/llama-3.1-8b-instruct';
     let parallelCalls = 0;
+    let parallelUrl = '';
+    let parallelAuth = '';
     const parallelPrompts = [];
     global.fetch = async function (url, options) {
       parallelCalls += 1;
+      parallelUrl = url;
+      parallelAuth = options.headers.Authorization;
       const body = JSON.parse(options.body);
       parallelPrompts.push(body.messages[0].content);
       return {
@@ -280,52 +286,19 @@ async function main() {
     };
     const generatedParallel = await service.generateParallelQuestion('Equivalent ratios', 1);
     equal(parallelCalls, 1, 'parallel question uses a single API call');
+    ok(parallelUrl.indexOf('/ai/run/@cf/meta/llama-3.1-8b-instruct') !== -1,
+      'parallel call uses the configured Workers AI model');
+    equal(parallelAuth, 'Bearer test-token', 'parallel call uses the API token');
     ok(parallelPrompts[0].indexOf('Equivalent ratios') !== -1,
       'parallel system prompt renders the failed concept');
     equal(generatedParallel.source, 'ai', 'remote parallel question is marked as AI output');
     equal(generatedParallel.correctOptionId, 'b', 'remote parallel question keeps correct option');
 
-    /* Cloudflare Workers AI drives the same curriculum contract when DeepSeek
-       has no key. */
-    delete process.env.DEEPSEEK_API_KEY;
-    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
-    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
-    process.env.CLOUDFLARE_MODEL = '@cf/meta/llama-3.1-8b-instruct';
-    let cloudflareUrl = '';
-    let cloudflareAuth = '';
-    let cloudflareCalls = 0;
-    global.fetch = async function (url, options) {
-      cloudflareCalls += 1;
-      cloudflareUrl = url;
-      cloudflareAuth = options.headers.Authorization;
-      return {
-        ok: true,
-        text: async function () {
-          return JSON.stringify({
-            success: true,
-            result: { choices: [{ message: { content: JSON.stringify(remoteParallel) } }] }
-          });
-        }
-      };
-    };
-    const cloudflareParallel = await service.generateParallelQuestion('Equivalent ratios', 1);
-    equal(cloudflareCalls, 1, 'Cloudflare path uses a single API call');
-    ok(cloudflareUrl.indexOf('/ai/run/@cf/meta/llama-3.1-8b-instruct') !== -1,
-      'Cloudflare endpoint uses the configured model');
-    equal(cloudflareAuth, 'Bearer test-token', 'Cloudflare endpoint uses the API token');
-    equal(cloudflareParallel.correctOptionId, 'b',
-      'Cloudflare parallel question keeps the validated correct option');
-    equal(cloudflareParallel.source, 'ai', 'Cloudflare output is marked as AI output');
-
     console.log('curriculumAuthoring: ' + checks + ' assertions passed');
   } finally {
-    if (originalKey === undefined) delete process.env.DEEPSEEK_API_KEY;
-    else process.env.DEEPSEEK_API_KEY = originalKey;
-    if (originalBaseUrl === undefined) delete process.env.DEEPSEEK_BASE_URL;
-    else process.env.DEEPSEEK_BASE_URL = originalBaseUrl;
-    cloudflareKeys.forEach(function (key) {
-      if (originalCloudflare[key] === undefined) delete process.env[key];
-      else process.env[key] = originalCloudflare[key];
+    providerKeys.forEach(function (key) {
+      if (originalProviderEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalProviderEnv[key];
     });
     global.fetch = originalFetch;
   }

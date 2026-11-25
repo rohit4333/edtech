@@ -628,6 +628,31 @@ where a.student_id = (select auth.uid())
   and ((select auth.jwt())->'app_metadata'->>'role') = 'student';
 
 -- ---------------------------------------------------------------------------
+-- Session partner identity. Only the display name crosses the 1:1 boundary;
+-- no id, email, phone, social handle, title or profile field is exposed.
+-- The view is security-definer so its explicit predicate is the only filter.
+-- ---------------------------------------------------------------------------
+
+drop view if exists public.session_participant_names;
+create view public.session_participant_names
+with (security_barrier = true) as
+select u.name
+from public.users u
+where
+  u.id = (select auth.uid())
+  or ((select auth.jwt())->'app_metadata'->>'role') = 'founder'
+  or (
+    ((select auth.jwt())->'app_metadata'->>'role') = 'trainer'
+    and exists (select 1 from public.sessions s
+                where s.trainer_id = (select auth.uid()) and s.student_id = u.id)
+  )
+  or (
+    ((select auth.jwt())->'app_metadata'->>'role') = 'student'
+    and exists (select 1 from public.sessions s
+                where s.student_id = (select auth.uid()) and s.trainer_id = u.id)
+  );
+
+-- ---------------------------------------------------------------------------
 -- Enable RLS on every application table (including any table added later).
 -- ---------------------------------------------------------------------------
 
@@ -653,20 +678,13 @@ create policy p_users_founder on public.users for all to authenticated
   with check (((select auth.jwt())->'app_metadata'->>'role') = 'founder');
 
 drop policy if exists p_users_self_or_session_partner on public.users;
-create policy p_users_self_or_session_partner on public.users for select to authenticated
-  using (
-    id = (select auth.uid())
-    or (
-      ((select auth.jwt())->'app_metadata'->>'role') = 'trainer'
-      and exists (select 1 from public.sessions s
-                  where s.trainer_id = (select auth.uid()) and s.student_id = users.id)
-    )
-    or (
-      ((select auth.jwt())->'app_metadata'->>'role') = 'student'
-      and exists (select 1 from public.sessions s
-                  where s.student_id = (select auth.uid()) and s.trainer_id = users.id)
-    )
-  );
+create policy p_users_self_only on public.users for select to authenticated
+  using (id = (select auth.uid()));
+
+-- Session partners read each other through public.session_participant_names,
+-- which exposes a name and nothing else. Direct user/profile reads are revoked
+-- at the privilege layer below, so emails, phone numbers and pay rates cannot
+-- cross the trainer/student boundary.
 
 drop policy if exists p_users_update_self on public.users;
 create policy p_users_update_self on public.users for update to authenticated
@@ -684,14 +702,7 @@ create policy p_trainer_profiles_own on public.trainer_profiles for all to authe
   using (user_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer')
   with check (user_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer');
 
-drop policy if exists p_trainer_profiles_student_view on public.trainer_profiles;
-create policy p_trainer_profiles_student_view on public.trainer_profiles
-  for select to authenticated
-  using (
-    ((select auth.jwt())->'app_metadata'->>'role') = 'student'
-    and exists (select 1 from public.sessions s
-                where s.student_id = (select auth.uid()) and s.trainer_id = user_id)
-  );
+-- Students never read trainer_profiles: pay rates are business-private.
 
 -- student_profiles
 drop policy if exists p_student_profiles_founder on public.student_profiles;
@@ -704,14 +715,8 @@ create policy p_student_profiles_own on public.student_profiles for all to authe
   using (user_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'student')
   with check (user_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'student');
 
-drop policy if exists p_student_profiles_trainer_view on public.student_profiles;
-create policy p_student_profiles_trainer_view on public.student_profiles
-  for select to authenticated
-  using (
-    ((select auth.jwt())->'app_metadata'->>'role') = 'trainer'
-    and exists (select 1 from public.sessions s
-                where s.trainer_id = (select auth.uid()) and s.student_id = user_id)
-  );
+-- Trainers never read student_profiles directly; attendance and progress are
+-- served by the Express service_role through serializer allowlists.
 
 -- packs
 drop policy if exists p_packs_founder on public.packs;
@@ -1331,7 +1336,8 @@ grant all on all tables in schema public to service_role;
 -- every account through PostgREST and pg_graphql.
 revoke all on all tables in schema public from authenticated;
 grant select, insert on public.quiz_canvas_strokes to authenticated;
-grant select on public.student_quiz_questions, public.student_quiz_attempts to authenticated;
+grant select on public.student_quiz_questions, public.student_quiz_attempts,
+  public.session_participant_names to authenticated;
 
 -- Supabase applies default table grants to anon on new tables. No public page
 -- talks to Postgres directly, so anon gets nothing. Presence evidence is
@@ -1360,7 +1366,8 @@ revoke all on public.trainer_notes, public.quiz_templates, public.quiz_drafts,
   public.quiz_questions, public.quiz_attempts, public.payouts,
   public.trainer_incidents, public.attendance_bonus_months, public.mvt_rankings,
   public.whatsapp_messages, public.support_escalations from anon;
-revoke all on public.student_quiz_questions, public.student_quiz_attempts from anon;
+revoke all on public.student_quiz_questions, public.student_quiz_attempts,
+  public.session_participant_names from anon;
 
 -- rls_auto_enable is an event-trigger function, not a client RPC. Closing its
 -- EXECUTE privilege removes the anon/authenticated Data API surface flagged by

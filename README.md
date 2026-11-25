@@ -13,7 +13,7 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 | `trainer/index.html` | Trainer console — attendance, timeline, attention queue and live-call panel. |
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
 | `lms/` | LMS surface (partial). |
-| `server/` | Express API, mock DB, auth/RBAC, quizzer, Agora, DeepSeek and Razorpay seams. |
+| `server/` | Express API, mock DB, auth/RBAC, quizzer, Agora, Cloudflare Workers AI and Razorpay seams. |
 
 ## Run locally
 

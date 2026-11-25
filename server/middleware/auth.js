@@ -1,11 +1,30 @@
 const db = require('../db');
 const token = require('../auth/token');
 
-function publicUser(user) {
+/* Identity returned to the browser. Contact details are never part of it. */
+const PUBLIC_USER_KEYS = ['id', 'name', 'role'];
+
+/* Business fields the Express handlers need for the signed-in user only. */
+const SESSION_USER_KEYS = [
+  'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
+  'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay'
+];
+
+function pickKeys(user, keys) {
   if (!user) return null;
-  const safe = Object.assign({}, user);
-  delete safe.passwordHash;
+  const safe = {};
+  keys.forEach(function (key) {
+    if (user[key] !== undefined) safe[key] = user[key];
+  });
   return safe;
+}
+
+function publicUser(user) {
+  return pickKeys(user, PUBLIC_USER_KEYS);
+}
+
+function sessionUser(user) {
+  return pickKeys(user, SESSION_USER_KEYS);
 }
 
 function getBearer(req) {
@@ -25,7 +44,7 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Account is not active.' });
   }
 
-  req.user = publicUser(user);
+  req.user = sessionUser(user);
   return next();
 }
 
@@ -77,6 +96,7 @@ function loadSession(req, res, next) {
 
 module.exports = {
   publicUser,
+  sessionUser,
   requireAuth,
   requireRole,
   canAccessSession,

@@ -4,6 +4,11 @@
 
   var BASE = window.MATHIFY_API_BASE || 'http://localhost:4000/api';
   var TOKEN_KEY = 'mathify.student.token';
+  var DEMO_LOGINS = {
+    founder: 'founder@mathify.app',
+    trainer: 'trainer@mathify.app',
+    student: 'student@mathify.app'
+  };
   var memoryToken = null;
   var authPromise = null;
 
@@ -69,8 +74,9 @@
     authPromise = rawRequest('/auth/demo', { skipAuth: true })
       .then(function (info) {
         var account = (info.accounts || []).find(function (item) { return item.role === 'student'; });
+        var role = account ? account.role : 'student';
         return login(
-          account ? account.email : 'student@mathify.app',
+          DEMO_LOGINS[role] || DEMO_LOGINS.student,
           info.password || 'mathify-demo'
         );
       })

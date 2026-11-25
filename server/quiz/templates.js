@@ -1,7 +1,7 @@
 /* Curriculum catalogue for adaptive quiz generation.
-   DeepSeek writes the questions at runtime. This file keeps curriculum
-   objectives, the three difficulty contracts and a deterministic fallback
-   used only when DEEPSEEK_API_KEY is not configured. */
+   Cloudflare Workers AI writes the questions at runtime. This file keeps
+   curriculum objectives, the three difficulty contracts and a deterministic
+   fallback used when Workers AI is unavailable. */
 
 const OBJECTIVES = [
   {

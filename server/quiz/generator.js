@@ -1,14 +1,14 @@
 /* Adaptive quiz generation.
-   Production path: direct DeepSeek fetch, strict JSON output, trainer review
+   Production path: Cloudflare Workers AI, strict JSON output, trainer review
    before any question reaches a student. Local fallback: deterministic
-   curriculum scaffold used only when DEEPSEEK_API_KEY is not configured. */
+   curriculum scaffold used when Workers AI is unavailable. */
 
 const templates = require('./templates');
 const policy = require('../config/policy.json');
+const cloudflareClient = require('../services/cloudflareClient');
 
 const DEFAULT_COUNT = 3;
 const MAX_COUNT = 5;
-const DEFAULT_TIMEOUT_MS = 15000;
 const MASTERY_LEVEL_2 = 60;
 const DEFAULT_LEVEL = 2;
 
@@ -97,7 +97,7 @@ function parseJsonObject(text) {
     }
     return parsed;
   } catch (failure) {
-    throw error('DeepSeek response was not a strict JSON object.', 'DEEPSEEK_INVALID_JSON', 502);
+    throw error('Workers AI response was not a strict JSON object.', 'CLOUDFLARE_INVALID_JSON', 502);
   }
 }
 
@@ -128,8 +128,8 @@ function validatePayload(parsed, expectedCount, usedPrompts) {
   const questions = parsed && parsed.questions;
   if (!Array.isArray(questions) || questions.length !== expectedCount) {
     throw error(
-      'DeepSeek must return exactly ' + expectedCount + ' question(s) in a questions array.',
-      'DEEPSEEK_INVALID_JSON',
+      'Workers AI must return exactly ' + expectedCount + ' question(s) in a questions array.',
+      'CLOUDFLARE_INVALID_JSON',
       502
     );
   }
@@ -137,20 +137,20 @@ function validatePayload(parsed, expectedCount, usedPrompts) {
   const seen = (usedPrompts || []).slice();
   questions.forEach(function (question, index) {
     if (!question || typeof question.question !== 'string' || !question.question.trim()) {
-      throw error('Question ' + (index + 1) + ' has no question text.', 'DEEPSEEK_INVALID_JSON', 502);
+      throw error('Question ' + (index + 1) + ' has no question text.', 'CLOUDFLARE_INVALID_JSON', 502);
     }
     if (!Array.isArray(question.options) || question.options.length !== 4 ||
         question.options.some(function (option) { return typeof option !== 'string' || !option.trim(); })) {
-      throw error('Question ' + (index + 1) + ' needs exactly 4 non-empty string options.', 'DEEPSEEK_INVALID_JSON', 502);
+      throw error('Question ' + (index + 1) + ' needs exactly 4 non-empty string options.', 'CLOUDFLARE_INVALID_JSON', 502);
     }
     if (typeof question.correctAnswer !== 'string' || !question.correctAnswer.trim()) {
-      throw error('Question ' + (index + 1) + ' has no correctAnswer.', 'DEEPSEEK_INVALID_JSON', 502);
+      throw error('Question ' + (index + 1) + ' has no correctAnswer.', 'CLOUDFLARE_INVALID_JSON', 502);
     }
     if (typeof question.hint !== 'string' || !question.hint.trim()) {
-      throw error('Question ' + (index + 1) + ' has no hint.', 'DEEPSEEK_INVALID_JSON', 502);
+      throw error('Question ' + (index + 1) + ' has no hint.', 'CLOUDFLARE_INVALID_JSON', 502);
     }
     if (seen.indexOf(question.question.trim()) !== -1) {
-      throw error('Question ' + (index + 1) + ' repeats a prompt.', 'DEEPSEEK_INVALID_JSON', 502);
+      throw error('Question ' + (index + 1) + ' repeats a prompt.', 'CLOUDFLARE_INVALID_JSON', 502);
     }
     seen.push(question.question.trim());
   });
@@ -167,7 +167,7 @@ function normalizeQuestion(raw, index, level, templateId) {
   const correctAnswer = raw.correctAnswer.trim();
   const answerIndex = options.indexOf(correctAnswer);
   if (answerIndex === -1) {
-    throw error('correctAnswer must match one of the four options.', 'DEEPSEEK_INVALID_JSON', 502);
+    throw error('correctAnswer must match one of the four options.', 'CLOUDFLARE_INVALID_JSON', 502);
   }
 
   const objective = templates.resolveObjective(templateId);
@@ -186,63 +186,17 @@ function normalizeQuestion(raw, index, level, templateId) {
   };
 }
 
-function endpoint() {
-  const base = String(process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
-  return base + '/chat/completions';
-}
-
-async function callDeepSeek(topic, level, count) {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw error('DEEPSEEK_API_KEY is not configured.', 'DEEPSEEK_NOT_CONFIGURED', 503);
-
-  const timeoutValue = Number(process.env.DEEPSEEK_TIMEOUT_MS || DEFAULT_TIMEOUT_MS);
-  const timeoutMs = Number.isFinite(timeoutValue) && timeoutValue > 0 ? timeoutValue : DEFAULT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const timer = setTimeout(function () { controller.abort(); }, timeoutMs);
-
-  try {
-    const response = await fetch(endpoint(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
-        response_format: { type: 'json_object' },
-        temperature: 0.3,
-        messages: buildMessages(topic, level, count)
-      }),
-      signal: controller.signal
-    });
-
-    const bodyText = await response.text();
-    if (!response.ok) {
-      const unauthorized = response.status === 401 || response.status === 403;
-      throw error(
-        'DeepSeek request failed with HTTP ' + response.status + '.',
-        unauthorized ? 'DEEPSEEK_UNAUTHORIZED' : 'DEEPSEEK_REQUEST_FAILED',
-        502
-      );
-    }
-
-    const envelope = parseJsonObject(bodyText);
-    const content = envelope.choices && envelope.choices[0] && envelope.choices[0].message &&
-      envelope.choices[0].message.content;
-
-    if (!content) {
-      throw error('DeepSeek returned an empty response.', 'DEEPSEEK_INVALID_JSON', 502);
-    }
-
-    return parseJsonObject(content);
-  } catch (failure) {
-    if (failure && failure.name === 'AbortError') {
-      throw error('DeepSeek request timed out.', 'DEEPSEEK_TIMEOUT', 504);
-    }
-    throw failure;
-  } finally {
-    clearTimeout(timer);
+async function callCloudflare(topic, level, count) {
+  const messages = buildMessages(topic, level, count);
+  const generatedText = await cloudflareClient.generateAIResponse(
+    messages[0].content,
+    messages[1].content,
+    { jsonOnly: true }
+  );
+  if (!generatedText) {
+    throw error('Workers AI returned no quiz draft.', 'CLOUDFLARE_EMPTY_RESULT', 502);
   }
+  return parseJsonObject(generatedText);
 }
 
 function buildFallbackQuiz(topic, currentMasteryScore, options) {
@@ -281,7 +235,7 @@ async function generateAdaptiveQuiz(topic, currentMasteryScore, options) {
   const count = clamp(Number(settings.count) || DEFAULT_COUNT, 1, MAX_COUNT);
   const usedPrompts = Array.isArray(settings.usedPrompts) ? settings.usedPrompts : [];
 
-  if (!process.env.DEEPSEEK_API_KEY && settings.allowFallback !== false) {
+  if (!cloudflareClient.isConfigured() && settings.allowFallback !== false) {
     return buildFallbackQuiz(safeTopic, score, {
       count: count,
       level: level,
@@ -290,7 +244,7 @@ async function generateAdaptiveQuiz(topic, currentMasteryScore, options) {
     });
   }
 
-  const parsed = await callDeepSeek(safeTopic, level, count);
+  const parsed = await callCloudflare(safeTopic, level, count);
   const validated = validatePayload(parsed, count, usedPrompts);
   return validated.map(function (question, index) {
     return normalizeQuestion(question, index, level, settings.templateId);

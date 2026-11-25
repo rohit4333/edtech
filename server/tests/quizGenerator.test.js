@@ -1,7 +1,19 @@
 const assert = require('assert');
 const generator = require('../quiz/generator');
 
+/* Keep generator assertions deterministic even when .env has Cloudflare creds. */
+const providerKeys = [
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_MODEL',
+  'CLOUDFLARE_TIMEOUT_MS'
+];
+const originalProviderEnv = {};
+providerKeys.forEach(function (key) { originalProviderEnv[key] = process.env[key]; });
+
 async function main() {
+  providerKeys.forEach(function (key) { delete process.env[key]; });
+
   assert.strictEqual(generator.difficultyForMastery(45), 1);
   assert.strictEqual(generator.difficultyForMastery(72), 2);
   assert.strictEqual(generator.difficultyForMastery(80), 3);
@@ -31,4 +43,9 @@ async function main() {
 main().catch(function (failure) {
   console.error(failure);
   process.exitCode = 1;
+}).finally(function () {
+  providerKeys.forEach(function (key) {
+    if (originalProviderEnv[key] === undefined) delete process.env[key];
+    else process.env[key] = originalProviderEnv[key];
+  });
 });

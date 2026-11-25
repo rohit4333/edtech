@@ -1,9 +1,8 @@
 /* Mathify Cloudflare Workers AI client.
  *
- * DeepSeek stays the primary provider when configured. This client is the
- * automatic fallback for curriculum authoring and the scaffolded parallel
- * check while DEEPSEEK_API_KEY is empty. Credentials are read at call time so
- * tests and env rotations do not require a process restart.
+ * Single AI provider for curriculum authoring, adaptive quiz drafts and the
+ * parent-support assistant. Credentials are read at call time so tests and
+ * env rotations do not require a process restart.
  */
 
 require('dotenv').config();
@@ -32,7 +31,7 @@ function endpoint(current) {
     '/ai/run/' + current.model;
 }
 
-/** Same tolerance as deepseekService.safeParseJSON, kept local to avoid a cycle. */
+/** Tolerant JSON cleanup shared by every Mathify AI call. */
 function parseModelJSON(raw) {
   let content = String(raw === null || raw === undefined ? '' : raw).trim();
   if (!content) return null;
@@ -80,7 +79,12 @@ function warnMissing() {
  */
 async function generateAIResponse(systemPrompt, userPrompt, options) {
   const settingsForCall = settings();
-  const allowFallback = !options || options.allowFallback !== false;
+  const callOptions = options || {};
+  const allowFallback = callOptions.allowFallback !== false;
+  const jsonOnly = callOptions.jsonOnly !== false;
+  const systemContent = String(systemPrompt || '') + (jsonOnly
+    ? '\n\nCRITICAL: Return ONLY valid JSON. No markdown, no explanations.'
+    : '');
 
   if (!settingsForCall.accountId || !settingsForCall.apiToken) {
     if (!allowFallback) {
@@ -103,11 +107,7 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
       },
       body: JSON.stringify({
         messages: [
-          {
-            role: 'system',
-            content: String(systemPrompt || '') +
-              '\n\nCRITICAL: Return ONLY valid JSON. No markdown, no explanations.'
-          },
+          { role: 'system', content: systemContent },
           { role: 'user', content: String(userPrompt || '') }
         ]
       }),
@@ -133,6 +133,7 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
 
     const generated = extractGenerated(envelope);
     if (typeof generated === 'string') {
+      if (!jsonOnly) return generated;
       const parsedGenerated = parseModelJSON(generated);
       return parsedGenerated === null ? generated : JSON.stringify(parsedGenerated);
     }

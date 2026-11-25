@@ -8,7 +8,7 @@ const realtime = require('../realtime');
 const payoutService = require('../services/payoutService');
 const quizGenerator = require('../quiz/generator');
 const quizTemplates = require('../quiz/templates');
-const deepseekService = require('../services/deepseekService');
+const cloudflareService = require('../services/cloudflareService');
 const masteryGating = require('../services/masteryGating');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
@@ -435,7 +435,7 @@ router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async functi
       return Object.assign({}, question, {
         id: 'draft_' + Date.now() + '_' + index + '_' + Math.random().toString(36).slice(2, 7),
         note: question.source === 'fallback'
-          ? 'Local draft: set DEEPSEEK_API_KEY to generate with DeepSeek.'
+          ? 'Local draft: configure Cloudflare Workers AI to generate with AI.'
           : 'AI draft awaiting trainer approval.'
       });
     });
@@ -490,7 +490,7 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
     quizGenerator.difficultyLabel(quizGenerator.difficultyForMastery(session.mastery));
 
   try {
-    const generated = await deepseekService.generateParallelQuestion(concept, difficulty, {
+    const generated = await cloudflareService.generateParallelQuestion(concept, difficulty, {
       usedPrompts: usedPrompts,
       allowFallback: body.allowFallback
     });

@@ -33,18 +33,19 @@ router.post('/login', function (req, res) {
 });
 
 router.get('/demo', function (req, res) {
+  /* Demo roles only. Contact addresses stay in the server-side login flow. */
   return res.json({
     password: process.env.DEMO_PASSWORD || 'mathify-demo',
     accounts: [
-      { role: 'founder', email: 'founder@mathify.app' },
-      { role: 'trainer', email: 'trainer@mathify.app' },
-      { role: 'student', email: 'student@mathify.app' }
+      { role: 'founder' },
+      { role: 'trainer' },
+      { role: 'student' }
     ]
   });
 });
 
 router.get('/me', auth.requireAuth, function (req, res) {
-  return res.json({ user: req.user });
+  return res.json({ user: auth.publicUser(req.user) });
 });
 
 module.exports = router;

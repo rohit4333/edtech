@@ -1,7 +1,7 @@
 /* Cloudflare Workers AI client contract. All network calls are stubbed. */
 
 const assert = require('assert');
-const service = require('../services/aiService');
+const service = require('../services/cloudflareClient');
 
 const envKeys = [
   'CLOUDFLARE_ACCOUNT_ID',
@@ -109,7 +109,7 @@ async function main() {
     );
     checks += 1;
 
-    console.log('cloudflareService: ' + checks + ' assertions passed');
+    console.log('cloudflareClient: ' + checks + ' assertions passed');
   } finally {
     global.fetch = originalFetch;
     envKeys.forEach(function (key) {

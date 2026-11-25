@@ -79,6 +79,17 @@ async function main() {
     const founder = founderLogin.body.token;
     assert.strictEqual(trainerLogin.body.user.passwordHash, undefined);
 
+    /* Privacy boundary: auth and demo endpoints carry no contact data. */
+    const demoInfo = await call('/api/auth/demo');
+    assert.strictEqual(demoInfo.status, 200);
+    assert.strictEqual(/@/.test(demoInfo.text), false);
+    [trainerLogin, studentLogin, founderLogin].forEach(function (login) {
+      assert.deepStrictEqual(Object.keys(login.body.user).sort(),
+        ['id', 'name', 'role']);
+      assert.strictEqual(login.body.user.email, undefined);
+      assert.strictEqual(login.body.user.phone, undefined);
+    });
+
     const me = await request('GET', '/api/auth/me', undefined, trainer);
     assert.strictEqual(me.status, 200);
     assert.strictEqual(me.body.user.role, 'trainer');
@@ -114,6 +125,28 @@ async function main() {
 
     const trainerState = await request('GET', '/api/sessions/ses_math_000/state', undefined, trainer);
     assert.strictEqual(trainerState.status, 200);
+
+    /* Participants are name-only in both directions. */
+    const studentParticipants = studentState.body.state.participants;
+    const trainerParticipants = trainerState.body.state.participants;
+    ['trainer', 'student'].forEach(function (role) {
+      assert.deepStrictEqual(Object.keys(studentParticipants[role]).sort(), ['name']);
+      assert.deepStrictEqual(Object.keys(trainerParticipants[role]).sort(), ['name']);
+    });
+    assert.strictEqual(/@|wa\.me|instagram|facebook|twitter|linkedin|tel:|mailto:/i
+      .test(studentState.text), false);
+
+    const studentDashboard = await request('GET', '/api/student/dashboard', undefined, student);
+    assert.strictEqual(studentDashboard.status, 200);
+    assert.deepStrictEqual(Object.keys(studentDashboard.body.dashboard.nextSession.trainer).sort(),
+      ['name']);
+
+    const trainerAttention = await request('GET', '/api/trainer/attention', undefined, trainer);
+    assert.strictEqual(trainerAttention.status, 200);
+    trainerAttention.body.attention.items.filter(function (item) { return item.student; })
+      .forEach(function (item) {
+        assert.deepStrictEqual(Object.keys(item.student).sort(), ['name']);
+      });
 
     const foreignSession = await request('GET', '/api/sessions/ses_math_002/state', undefined, student);
     assert.strictEqual(foreignSession.status, 200);
@@ -241,7 +274,7 @@ async function main() {
     const unknown = await call('/api/does-not-exist');
     assert.strictEqual(unknown.status, 404);
 
-    console.log('apiSmoke: 60 assertions passed');
+    console.log('apiSmoke: passed');
   } finally {
     cloudflareKeys.forEach(function (key) {
       if (originalCloudflare[key] === undefined) delete process.env[key];
