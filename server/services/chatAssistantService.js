@@ -8,6 +8,7 @@
  */
 
 const db = require('../db');
+const curriculumRepository = require('../db/curriculum');
 const cloudflareAiService = require('./cloudflareAiService');
 const curriculumContext = require('./curriculumContext');
 
@@ -38,7 +39,7 @@ function boundText(value, limit) {
     .slice(0, limit);
 }
 
-function academicStudent(student, studentId) {
+async function academicStudent(student, studentId) {
   let source = student && typeof student === 'object' ? student : null;
   if (!source && studentId) {
     const found = db.findUserById(studentId);
@@ -49,6 +50,22 @@ function academicStudent(student, studentId) {
     ACADEMIC_KEYS.forEach(function (key) {
       if (source[key] !== undefined && source[key] !== null) profile[key] = source[key];
     });
+  }
+
+  /* Persisted academic profile wins over the in-memory session object. It is
+     the only source that carries board / language / school chapter. */
+  if (studentId) {
+    try {
+      const persisted = await curriculumRepository.get(studentId);
+      if (persisted) {
+        if (persisted.curriculum) profile.curriculum = persisted.curriculum;
+        if (persisted.grade) profile.grade = persisted.grade;
+        if (persisted.language) profile.language = persisted.language;
+        if (persisted.schoolChapter) profile.schoolChapter = persisted.schoolChapter;
+      }
+    } catch (error) {
+      /* A failed profile read must not break the AI reply. */
+    }
   }
   return profile;
 }
@@ -73,7 +90,7 @@ async function reply(role, question, options) {
   }
 
   const trainer = role === 'trainer';
-  const profile = academicStudent(settings.student, settings.studentId);
+  const profile = await academicStudent(settings.student, settings.studentId);
   const curriculum = curriculumContext.getCurriculumContext(profile);
   const system = trainer ? TRAINER_SYSTEM : STUDENT_SYSTEM + '\n' + curriculum.promptInjection;
   const userPrompt = JSON.stringify({

@@ -279,6 +279,19 @@ const supportEscalations = [];
 const leaveRequests = [];
 const presenceEvents = [];
 const presenceSnapshots = [];
+/* Academic-only curriculum profile. Mirrors public.student_curriculum from
+   migrations/0002_student_curriculum.sql; no contact or identity fields. */
+const studentCurriculum = [
+  {
+    studentId: 'usr_student_001',
+    curriculum: 'CBSE',
+    grade: '7',
+    language: 'English',
+    schoolChapter: 'Ratios',
+    updatedBy: 'usr_trainer_001',
+    updatedAt: '2026-11-01T00:00:00.000Z'
+  }
+];
 const trainerSlots = [
   {
     id: 'slot_001',
@@ -313,6 +326,7 @@ module.exports = {
   leaveRequests: leaveRequests,
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
+  studentCurriculum: studentCurriculum,
   trainerSlots: trainerSlots,
   demoPassword: demoPassword
 };

@@ -14,6 +14,7 @@ const masteryGating = require('../services/masteryGating');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
 const chatAssistant = require('../services/chatAssistantService');
+const curriculumRepository = require('../db/curriculum');
 
 const router = express.Router();
 
@@ -593,6 +594,28 @@ router.get('/schedule', function (req, res) {
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
     ? String(req.query.month) : currentPeriod();
   return res.json({ schedule: slotService.monthView(req.user, month, sessionsFor(req.user)) });
+});
+
+/* Persist a student's school curriculum. Academic fields only — the repository
+   rejects any key resembling a name, email, phone, social link or address. */
+router.put('/students/:studentId/curriculum', async function (req, res) {
+  const student = db.findUserById(req.params.studentId);
+  if (!student || student.role !== 'student') {
+    return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
+  }
+  const assigned = db.listSessionsForUser(req.user).some(function (session) {
+    return session.studentId === student.id;
+  });
+  if (!assigned && req.user.role !== 'founder') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
+  }
+
+  try {
+    const profile = await curriculumRepository.upsert(student.id, req.body || {}, req.user.id);
+    return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.code || 'INVALID_CURRICULUM', message: error.message });
+  }
 });
 
 /* Cloudflare-backed planner copilot. Academic context comes from an assigned

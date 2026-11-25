@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
 const chatAssistant = require('../services/chatAssistantService');
+const curriculumRepository = require('../db/curriculum');
 
 const router = express.Router();
 
@@ -104,6 +105,13 @@ router.get('/sessions/:sessionId/quiz/attempts/:attemptId', auth.loadSession, fu
     revealed: true,
     correct: attempt.correct === true
   });
+});
+
+/* Academic-only curriculum profile for the signed-in student. */
+router.get('/me/curriculum', async function (req, res) {
+  const profile = await curriculumRepository.get(req.user.id);
+  if (!profile) return res.json({ curriculum: null, adapter: curriculumRepository.adapterName() });
+  return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
 });
 
 /* Cloudflare-backed study tutor. The request is scoped to the signed-in

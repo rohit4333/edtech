@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const chatAssistant = require('../services/chatAssistantService');
+const curriculumRepository = require('../db/curriculum');
 
 const providerKeys = [
   'CLOUDFLARE_ACCOUNT_ID',
@@ -58,6 +59,7 @@ async function main() {
   providerKeys.forEach(function (key) { originalEnv[key] = process.env[key]; });
   try {
     providerKeys.forEach(function (key) { delete process.env[key]; });
+    curriculumRepository.reset('mock');
 
     const offline = await chatAssistant.reply('student', 'How do I start?', { student: student });
     equal(offline.source, 'fallback', 'missing credentials yield a labelled fallback');

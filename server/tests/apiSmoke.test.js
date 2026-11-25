@@ -120,6 +120,31 @@ async function main() {
     }, student);
     assert.strictEqual(copilotAsStudent.status, 403);
 
+    /* Persisted curriculum is academic-only and role-scoped. */
+    const ownCurriculum = await request('GET', '/api/student/me/curriculum', undefined, student);
+    assert.strictEqual(ownCurriculum.status, 200);
+    assert.strictEqual(ownCurriculum.body.curriculum.curriculum, 'CBSE');
+    assert.strictEqual(ownCurriculum.body.curriculum.email, undefined);
+    const curriculumAsTrainer = await request('GET', '/api/student/me/curriculum', undefined, trainer);
+    assert.strictEqual(curriculumAsTrainer.status, 403);
+
+    const curriculumUpdate = await request('PUT', '/api/trainer/students/usr_student_001/curriculum', {
+      curriculum: 'ICSE', grade: '8', schoolChapter: 'Ratio and proportion'
+    }, trainer);
+    assert.strictEqual(curriculumUpdate.status, 200);
+    assert.strictEqual(curriculumUpdate.body.curriculum.curriculum, 'ICSE');
+    const curriculumPii = await request('PUT', '/api/trainer/students/usr_student_001/curriculum', {
+      email: 'leak@example.com'
+    }, trainer);
+    assert.strictEqual(curriculumPii.status, 400);
+    const curriculumAsStudent = await request('PUT', '/api/trainer/students/usr_student_001/curriculum', {
+      curriculum: 'CBSE'
+    }, student);
+    assert.strictEqual(curriculumAsStudent.status, 403);
+    await request('PUT', '/api/trainer/students/usr_student_001/curriculum', {
+      curriculum: 'CBSE', grade: '7', schoolChapter: 'Ratios'
+    }, trainer);
+
     const studentPayout = await request('GET', '/api/trainer/payouts/2026-11', undefined, student);
     assert.strictEqual(studentPayout.status, 403);
 
