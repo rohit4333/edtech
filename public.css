@@ -644,6 +644,21 @@ svg { display: block; }
   text-transform: uppercase;
   color: var(--muted);
 }
+.contact-whatsapp { margin: 22px 0 0; }
+.contact-whatsapp a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-sm);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.contact-whatsapp a:hover { border-color: var(--coral); color: var(--coral-deep); }
 .form-card {
   padding: clamp(22px, 3vw, 30px);
   border: 1px solid var(--line);

@@ -515,6 +515,33 @@
 .quiz-feedback.is-correct{color:var(--teal-ink)}
 .quiz-feedback.is-wrong{color:var(--coral-deep)}
 
+.student-ink{
+  margin-top:14px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(253,250,243,.92);
+  animation:fadeIn .18s ease;
+}
+.student-ink > .mono{
+  display:block;
+  margin-bottom:7px;
+  font-size:7px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--coral-deep);
+}
+.student-ink canvas{
+  display:block;
+  width:100%;
+  height:170px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:#FFFEFB;
+  background-image:radial-gradient(rgba(14,20,32,.07) .8px,transparent .8px);
+  background-size:18px 18px;
+}
+
 .quiz-trainer{
   position:relative;
   min-width:0;

@@ -36,6 +36,18 @@ app.get('/api/health', function (req, res) {
   });
 });
 
+/* Browser-safe Supabase config. The secret key is never exposed here. */
+app.get('/api/public/config', function (req, res) {
+  return res.json({
+    supabase: {
+      url: config.supabase.url,
+      publishableKey: config.supabase.publishableKey,
+      realtimeEnabled: Boolean(config.supabase.url && config.supabase.publishableKey)
+    },
+    realtimeMode: realtime.mode
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/trainer', trainerRoutes);
 app.use('/api/student', studentRoutes);

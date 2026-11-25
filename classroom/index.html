@@ -265,6 +265,10 @@
               <button class="mini" id="quizSkip" type="button">Skip</button>
             </div>
             <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer.</p>
+            <div class="student-ink" id="studentInk" hidden>
+              <span class="mono">Trainer sketch · live</span>
+              <canvas id="studentInkCanvas" aria-label="Live trainer sketch shared during the quiz"></canvas>
+            </div>
           </div>
           <div class="quiz-trainer trainer-only">
             <div class="quiz-trainer-head">
@@ -718,6 +722,7 @@
 <p class="visually-hidden" id="chatStatus" aria-live="polite"></p>
 
 <script src="app.js"></script>
+<script src="realtime.js"></script>
 <script src="session.js"></script>
 </body>
 </html>

@@ -108,6 +108,22 @@ Realtime events:
 
 `quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`.
 
+#### Quiz Wacom overlay over Supabase Realtime
+
+`classroom/realtime.js` subscribes to `INSERT` events on `public.quiz_canvas_strokes`.
+The browser receives only the Supabase URL and publishable key from
+`GET /api/public/config`; the secret key stays server-side. A signed-in host supplies:
+
+```js
+window.MATHIFY_SESSION_ID = '<uuid from public.sessions>';
+window.MATHIFY_SUPABASE_ACCESS_TOKEN = '<Supabase user JWT>';
+window.MATHIFY_USER = { role: 'trainer' }; // or 'student'
+```
+
+RLS permits trainer/founder writes and participant reads. Without these values the
+local canvas still works and Realtime is skipped. No answer key or correctness is
+ever sent through the stroke channel.
+
 ### Policy / webhooks
 
 | Method | Path | Purpose |
@@ -117,6 +133,7 @@ Realtime events:
 | `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
 | `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
+| `GET` | `/api/public/config` | Browser-safe Supabase URL and publishable key only |
 
 ### DeepSeek, Agora, Razorpay
 

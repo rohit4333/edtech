@@ -20,6 +20,12 @@
   var studentView = params.get('view') === 'student' || user.role === 'student';
   var isTrainer = user.role === 'trainer' && !studentView;
 
+  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || null;
+  var accessToken = window.MATHIFY_SUPABASE_ACCESS_TOKEN || null;
+  var realtimeLink = null;
+  var strokeId = null;
+  var strokeSeq = 0;
+
   if (studentView || !isTrainer) {
     document.body.classList.add('view-student');
     /* Remove hidden instruction payloads and trainer controls from the DOM entirely. */
@@ -279,6 +285,8 @@
   var scratchCanvas = $('#scratchCanvas');
   var scratchShare = $('#scratchShare');
   var scratchClear = $('#scratchClear');
+  var studentInk = $('#studentInk');
+  var studentInkCanvas = $('#studentInkCanvas');
   var readinessText = $('#readinessText');
   var readinessBar = $('#readinessBar');
   var readinessNote = $('.readiness small');
@@ -571,6 +579,9 @@
     if (!quizStage || document.body.classList.contains('quiz-live')) return;
     setNotes(false);
     closeSheet();
+    initRealtime();
+    remoteLast = {};
+    if (studentInk) studentInk.hidden = true;
     document.body.classList.add('quiz-live');
     if (board) {
       board.hidden = true;
@@ -604,6 +615,11 @@
     document.body.classList.remove('quiz-reteach');
     quizStage.hidden = true;
     closeScratchOverlay();
+    if (realtimeLink) {
+      realtimeLink.close();
+      realtimeLink = null;
+    }
+    if (studentInk) studentInk.hidden = true;
     if (board) {
       board.hidden = false;
       board.removeAttribute('aria-hidden');
@@ -659,6 +675,99 @@
     };
   }
 
+  function newStrokeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+    return 'wacom_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+  }
+
+  function sendStroke(type, point) {
+    if (!realtimeLink || !realtimeLink.enabled || !isTrainer) return;
+    var payload = { stroke_id: strokeId || newStrokeId(), type: type };
+
+    if (point && scratchCanvas) {
+      var rect = scratchCanvas.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        payload.x = Number(Math.min(1, Math.max(0, point.x / rect.width)).toFixed(6));
+        payload.y = Number(Math.min(1, Math.max(0, point.y / rect.height)).toFixed(6));
+        payload.color = '#FF5B2E';
+        payload.width = 2.6;
+      }
+    }
+
+    realtimeLink.send(payload).catch(function (error) {
+      console.warn('[mathify-realtime] stroke sync failed:', error.message);
+    });
+  }
+
+  var studentInkCtx = studentInkCanvas && studentInkCanvas.getContext('2d');
+  var remoteLast = {};
+
+  function fitStudentInk() {
+    if (!studentInkCanvas || !studentInkCtx) return;
+    var rect = studentInkCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    studentInkCanvas.width = Math.round(rect.width * dpr);
+    studentInkCanvas.height = Math.round(rect.height * dpr);
+    studentInkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    studentInkCtx.clearRect(0, 0, rect.width, rect.height);
+  }
+
+  function drawRemoteStroke(row) {
+    if (!studentInkCanvas || !studentInkCtx || !row) return;
+    if (studentInk) studentInk.hidden = false;
+    if (!studentInkCanvas.width) fitStudentInk();
+
+    var key = row.stroke_id || 'remote';
+    if (row.type === 'clear') {
+      studentInkCtx.clearRect(0, 0, studentInkCanvas.clientWidth, studentInkCanvas.clientHeight);
+      remoteLast = {};
+      return;
+    }
+
+    var x = Number(row.x);
+    var y = Number(row.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    var rect = studentInkCanvas.getBoundingClientRect();
+    var px = x * rect.width;
+    var py = y * rect.height;
+
+    studentInkCtx.save();
+    studentInkCtx.strokeStyle = row.color || '#FF5B2E';
+    studentInkCtx.lineWidth = Number(row.width) || 2.6;
+    studentInkCtx.lineCap = 'round';
+    studentInkCtx.lineJoin = 'round';
+
+    if (row.type === 'start' || !remoteLast[key]) {
+      studentInkCtx.fillStyle = row.color || '#FF5B2E';
+      studentInkCtx.beginPath();
+      studentInkCtx.arc(px, py, 1.4, 0, Math.PI * 2);
+      studentInkCtx.fill();
+    } else {
+      studentInkCtx.beginPath();
+      studentInkCtx.moveTo(remoteLast[key].x, remoteLast[key].y);
+      studentInkCtx.lineTo(px, py);
+      studentInkCtx.stroke();
+    }
+    studentInkCtx.restore();
+    remoteLast[key] = { x: px, y: py };
+  }
+
+  function initRealtime() {
+    var bridge = window.classroomRealtime;
+    if (!bridge || realtimeLink || !sessionId || !accessToken) return;
+    realtimeLink = bridge.connect({
+      sessionId: sessionId,
+      accessToken: accessToken,
+      onStroke: drawRemoteStroke,
+      onStatus: function (status) {
+        if (status === 'live' && studentView) toast('Live trainer sketch connected.');
+      }
+    });
+  }
+
   if (scratchCanvas && scratchCtx) {
     scratchCanvas.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -667,6 +776,8 @@
       scratchPointer = event.pointerId;
       try { scratchCanvas.setPointerCapture(event.pointerId); } catch (e) {}
       var p = scratchPoint(event);
+      strokeId = newStrokeId();
+      sendStroke('start', p);
       scratchCtx.save();
       scratchCtx.fillStyle = '#FF5B2E';
       scratchCtx.beginPath();
@@ -679,6 +790,7 @@
       if (!scratchDrawing || event.pointerId !== scratchPointer) return;
       event.preventDefault();
       var p = scratchPoint(event);
+      sendStroke('point', p);
       scratchCtx.save();
       scratchCtx.strokeStyle = '#FF5B2E';
       scratchCtx.lineWidth = 2.6;
@@ -693,8 +805,10 @@
 
     function stopScratch(event) {
       if (event && scratchPointer !== null && event.pointerId !== scratchPointer) return;
+      if (scratchDrawing && event) sendStroke('end', scratchPoint(event));
       scratchDrawing = false;
       scratchPointer = null;
+      strokeId = null;
     }
     scratchCanvas.addEventListener('pointerup', stopScratch);
     scratchCanvas.addEventListener('pointercancel', stopScratch);
@@ -749,10 +863,12 @@
   });
   scratchClear && scratchClear.addEventListener('click', function () {
     if (scratchCtx && scratchCanvas) scratchCtx.clearRect(0, 0, scratchCanvas.clientWidth, scratchCanvas.clientHeight);
+    sendStroke('clear', null);
     toast('Wacom overlay cleared.');
   });
   window.addEventListener('resize', function () {
     if (scratchOverlay && !scratchOverlay.hidden) fitScratch();
+    if (studentInk && !studentInk.hidden) fitStudentInk();
   });
 
   /* ------------------------------------------------ floating camera window */
