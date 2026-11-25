@@ -5,8 +5,8 @@
 
 const templates = require('./templates');
 const policy = require('../config/policy.json');
-const cloudflareAiService = require('../services/cloudflareAiService');
-const curriculumContext = require('../services/curriculumContext');
+const { generateAIResponse, isConfigured } = require('../services/cloudflareAiService');
+const { getCurriculumContext } = require('../services/curriculumContext');
 
 const DEFAULT_COUNT = 3;
 const MAX_COUNT = 5;
@@ -104,12 +104,14 @@ function parseJsonObject(text) {
 
 function buildMessages(topic, level, count, student) {
   const spec = templates.difficultySpec(level);
-  const curriculum = curriculumContext.getCurriculumContext(student || {});
+  const curriculum = getCurriculumContext(student || {});
   const system = [
     'You write math checkpoint questions for a 1-on-1 tutor to review before a student sees them.',
     'The student follows their own school curriculum. Do not introduce group-class context.',
     'Curriculum context (follow its style, notation and illustration context exactly): ' +
       curriculum.promptInjection.replace(/\n/g, ' '),
+    'Teaching design for every block: open with a visual analogy and a short story narration, then reserve a sketch_space block (minHeight 220, expandable: true) for live trainer drawing.',
+    'For EVERY block prepare trainerInstructions (what to say and draw) and misconception_watch. Both are trainer-only: use them to shape the question, but do not emit them in the JSON.',
     'There are exactly three difficulty levels:',
     'Level 1 = Easiest (Baseline). Direct recognition, one clear step, small friendly numbers.',
     'Level 2 = Moderate, exactly +5% harder than Level 1. Add one reasoning step.',
@@ -192,7 +194,7 @@ function normalizeQuestion(raw, index, level, templateId) {
 
 async function callCloudflare(topic, level, count, student) {
   const messages = buildMessages(topic, level, count, student);
-  const generatedText = await cloudflareAiService.generateAIResponse(
+  const generatedText = await generateAIResponse(
     messages[0].content,
     messages[1].content,
     { jsonOnly: true }
@@ -239,7 +241,7 @@ async function generateAdaptiveQuiz(topic, currentMasteryScore, options) {
   const count = clamp(Number(settings.count) || DEFAULT_COUNT, 1, MAX_COUNT);
   const usedPrompts = Array.isArray(settings.usedPrompts) ? settings.usedPrompts : [];
 
-  if (!cloudflareAiService.isConfigured() && settings.allowFallback !== false) {
+  if (!isConfigured() && settings.allowFallback !== false) {
     return buildFallbackQuiz(safeTopic, score, {
       count: count,
       level: level,

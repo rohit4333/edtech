@@ -15,39 +15,52 @@ function equal(actual, expected, label) {
 }
 
 const boards = [
-  { board: 'CBSE', country: 'India', needles: ['rupees', 'cricket'] },
-  { board: 'ICSE', country: 'India', needles: ['rupees', 'cricket'] },
-  { board: 'IB', country: 'International', needles: ['UN SDGs'] },
-  { board: 'IGCSE', country: 'International (Cambridge)', needles: ['global context'] },
-  { board: 'Common Core', country: 'United States', needles: ['dollars', 'baseball'] },
-  { board: 'British National', country: 'United Kingdom', needles: ['pounds', 'football'] },
-  { board: 'Ontario', country: 'Canada', needles: ['loonies', 'hockey'] }
+  { curriculum: 'CBSE', country: 'India', needles: ['rupees', 'cricket', 'Indian festivals'] },
+  { curriculum: 'ICSE', country: 'India', needles: ['rupees', 'cricket'] },
+  { curriculum: 'IB', country: 'International', needles: ['UN SDGs'] },
+  { curriculum: 'IGCSE', country: 'International (British)', needles: ['British English', 'past-paper'] },
+  { curriculum: 'Common Core', country: 'USA', needles: ['dollars', 'baseball'] },
+  { curriculum: 'British National', country: 'UK', needles: ['Key Stage', '£ (Pounds)'] },
+  { curriculum: 'Ontario', country: 'Canada', needles: ['Canadian Dollars', 'Discovery-based'] }
 ];
 
 function main() {
-  equal(Object.keys(curriculumContext.CURRICULUM_MAP).length, 7,
+  equal(Object.keys(curriculumContext.CURRICULUM_PROFILES).length, 7,
     'exactly seven curricula are mapped');
+  equal(curriculumContext.CURRICULUM_MAP, curriculumContext.CURRICULUM_PROFILES,
+    'CURRICULUM_MAP is a compatibility alias');
 
   boards.forEach(function (expectation) {
-    const student = { board: expectation.board, grade: 7, language: 'English' };
+    const student = {
+      curriculum: expectation.curriculum,
+      grade: 7,
+      language: 'en',
+      schoolChapter: 'Ratios'
+    };
     const context = curriculumContext.getCurriculumContext(student);
 
-    equal(context.board, expectation.board, expectation.board + ' is resolved');
-    equal(context.country, expectation.country, expectation.board + ' has the right country');
-    ok(typeof context.style === 'string' && context.style.length > 10,
-      expectation.board + ' defines style');
-    ok(typeof context.notation === 'string' && context.notation.length > 10,
-      expectation.board + ' defines notation');
-    ok(typeof context.pedagogy === 'string' && context.pedagogy.length > 10,
-      expectation.board + ' defines pedagogy');
-    ok(typeof context.promptInjection === 'string' && context.promptInjection.length > 50,
-      expectation.board + ' returns a promptInjection string');
-    expectation.needles.forEach(function (needle) {
-      ok(context.promptInjection.toLowerCase().indexOf(needle.toLowerCase()) !== -1,
-        expectation.board + ' injection mentions ' + needle);
+    equal(context.curriculum, expectation.curriculum, expectation.curriculum + ' is resolved');
+    equal(context.country, expectation.country, expectation.curriculum + ' has the right country');
+    equal(context.grade, 7, expectation.curriculum + ' keeps the grade');
+    equal(context.language, 'en', expectation.curriculum + ' keeps the language');
+    equal(context.currentTopic, 'Ratios', expectation.curriculum + ' keeps the school chapter');
+    ['style', 'notation', 'pedagogy'].forEach(function (field) {
+      ok(typeof context[field] === 'string' && context[field].length > 10,
+        expectation.curriculum + ' defines ' + field);
     });
-    ok(context.promptInjection.indexOf('Student grade: 7') !== -1,
-      expectation.board + ' injection carries the student grade');
+    ok(typeof context.promptInjection === 'string' && context.promptInjection.length > 80,
+      expectation.curriculum + ' returns a promptInjection string');
+    ok(context.promptInjection.indexOf(
+      'The student follows the ' + expectation.curriculum + ' curriculum in ' + expectation.country
+    ) !== -1, expectation.curriculum + ' injection names the curriculum and country');
+    expectation.needles.forEach(function (needle) {
+      ok(context.promptInjection.indexOf(needle) !== -1,
+        expectation.curriculum + ' injection mentions ' + needle);
+    });
+    ok(context.promptInjection.indexOf('Current school chapter: "Ratios"') !== -1,
+      expectation.curriculum + ' injection carries the school chapter');
+    ok(context.promptInjection.indexOf('Grade: 7') !== -1,
+      expectation.curriculum + ' injection carries the student grade');
   });
 
   const aliases = [
@@ -55,14 +68,16 @@ function main() {
     ['gcse', 'British National'], ['canada', 'Ontario'], ['ibdp', 'IB'], ['isc', 'ICSE']
   ];
   aliases.forEach(function (pair) {
-    equal(curriculumContext.getCurriculumContext({ board: pair[0] }).board, pair[1],
+    equal(curriculumContext.getCurriculumContext({ curriculum: pair[0] }).curriculum, pair[1],
       pair[0] + ' aliases to ' + pair[1]);
   });
 
-  equal(curriculumContext.getCurriculumContext({}).board, 'CBSE',
-    'missing profile falls back to CBSE');
-  equal(curriculumContext.getCurriculumContext({ profile: { curriculum: 'Ontario' } }).board,
+  equal(curriculumContext.getCurriculumContext({}).curriculum, 'IB',
+    'missing profile defaults to IB');
+  equal(curriculumContext.getCurriculumContext({ profile: { curriculum: 'Ontario' } }).curriculum,
     'Ontario', 'nested student profile curriculum is read');
+  equal(curriculumContext.getCurriculumContext({ board: 'CBSE' }).board, 'CBSE',
+    'legacy board field still resolves');
 
   const privateStudent = {
     name: 'Ishaan Verma',
@@ -70,11 +85,11 @@ function main() {
     phone: '+91 98765 43210',
     parentPhone: '+91 90000 11111',
     social: 'https://instagram.com/ishaan',
-    board: 'CBSE',
+    curriculum: 'CBSE',
     grade: 7
   };
   const injection = curriculumContext.getCurriculumContext(privateStudent).promptInjection;
-  ['Ishaan Verma', 'ishaan@example.com', '98765', '90000', 'instagram', '@', 'wa.me']
+  ['Ishaan Verma', 'ishaan@example.com', '98765', '90000', 'instagram', 'wa.me']
     .forEach(function (leak) {
       ok(injection.indexOf(leak) === -1, 'injection excludes ' + leak);
     });

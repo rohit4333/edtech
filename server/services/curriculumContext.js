@@ -1,85 +1,73 @@
 /* Global curriculum mapper for Mathify.
  *
- * A student's school board changes the examples, notation and pedagogy the AI
- * is allowed to use. This module turns a student profile into a short, safe
- * prompt injection. Only academic fields (board, grade, language) are read —
- * never a name, email, phone number, social handle or pay detail.
+ * A student's school curriculum changes the examples, notation and pedagogy
+ * the AI is allowed to use. This module turns a student profile into a short,
+ * safe prompt injection. Only academic fields (curriculum, grade, language,
+ * school chapter) are read — never a name, email, phone or social handle.
  */
 
-const CURRICULUM_MAP = {
-  cbse: {
-    key: 'cbse',
-    label: 'CBSE',
+const CURRICULUM_PROFILES = {
+  CBSE: {
     country: 'India',
-    style: 'NCERT-aligned; concept first, then a worked example, then an exam-style application',
-    notation: 'Indian number names (lakh/crore), metric units (cm, m, kg), rupees (₹), ratio a : b',
-    pedagogy: 'Concrete–pictorial–abstract (CPA), bar models, stepwise reasoning, frequent low-stakes checks',
-    illustrationContext: 'Use Indian context (rupees, cricket, NCERT examples, a local shop or festival).',
-    aliases: ['cbse', 'ncert', 'central board', 'india', 'indian']
+    style: 'NCERT textbook-aligned, step-by-step proofs, Indian real-life examples',
+    notation: 'Indian number system (lakhs/crores), metric units, ₹ (Rupees)',
+    pedagogy: 'Concept-first, then application. Heavy on NCERT exercises.',
+    illustrationContext: 'Use Indian context (rupees, cricket, Indian festivals, local geography).'
   },
-  icse: {
-    key: 'icse',
-    label: 'ICSE',
+  ICSE: {
     country: 'India',
-    style: 'ICSE/CISCE; detailed explanatory answers with strong foundational sequencing',
-    notation: 'Metric units, rupees (₹), ratio a : b, fractions written in full',
-    pedagogy: 'Concept clarity through guided practice and reasoning in complete sentences',
-    illustrationContext: 'Use Indian context (rupees, cricket, a school fete, Indian railways).',
-    aliases: ['icse', 'isc', 'cisce', 'indian council']
+    style: 'Detailed, emphasis on analytical thinking, richer vocabulary',
+    notation: 'Indian number system, metric units, ₹ (Rupees)',
+    pedagogy: 'Deeper conceptual understanding, longer word problems.',
+    illustrationContext: 'Use Indian context (rupees, cricket, Indian festivals, local geography).'
   },
-  ib: {
-    key: 'ib',
-    label: 'IB',
+  IB: {
     country: 'International',
-    style: 'Inquiry-led and concept-based; connect the maths to a global issue or transferable idea',
-    notation: 'SI units, ratio a : b, international decimal notation',
-    pedagogy: 'Inquiry, reflection, approaches to learning (ATL) skills, real-world transfer',
-    illustrationContext: 'Use global context (UN SDGs, climate, sustainability, world travel).',
-    aliases: ['ib', 'ibdp', 'international baccalaureate', 'baccalaureate']
+    style: 'Inquiry-based, real-world applications, global context',
+    notation: 'International standard, SI units',
+    pedagogy: 'Conceptual, interdisciplinary, encourages student questioning.',
+    illustrationContext: 'Use global context (UN SDGs, international scenarios, diverse cultures).'
   },
-  igcse: {
-    key: 'igcse',
-    label: 'IGCSE',
-    country: 'International (Cambridge)',
-    style: 'Cambridge IGCSE; graded progression with applied and multi-step problem solving',
-    notation: 'SI units, ratio a : b, decimal notation, standard form where relevant',
-    pedagogy: 'Scaffolded practice, past-paper style reasoning, clear method marks',
-    illustrationContext: 'Use global context (international sport, trade, maps, exchange rates).',
-    aliases: ['igcse', 'cambridge', 'cambridge igcse', 'olevel', 'o level']
+  IGCSE: {
+    country: 'International (British)',
+    style: 'British curriculum, structured progression, exam-focused',
+    notation: 'British English spelling (colour, centre), metric units, £ (Pounds)',
+    pedagogy: 'Clear learning objectives, past-paper style questions.',
+    illustrationContext: 'Use culturally relevant examples for International (British).'
   },
-  'common_core': {
-    key: 'common_core',
-    label: 'Common Core',
-    country: 'United States',
-    style: 'CCSS; balance conceptual understanding, procedural fluency and application',
-    notation: 'US customary units where natural, ratio a : b, fractions and decimals',
-    pedagogy: 'CPA progressions, number talks, mathematical practices, explain-your-reasoning prompts',
-    illustrationContext: 'Use United States context (dollars, baseball, school lunch, local distances).',
-    aliases: ['common core', 'common_core', 'ccss', 'us', 'usa', 'united states', 'american']
+  'Common Core': {
+    country: 'USA',
+    style: 'American curriculum, emphasis on mathematical practices and reasoning',
+    notation: 'US customary + metric, $ (Dollars)',
+    pedagogy: 'Problem-solving first, multiple solution methods encouraged.',
+    illustrationContext: 'Use American context (dollars, miles, US geography, baseball/football).'
   },
-  'british_national': {
-    key: 'british_national',
-    label: 'British National',
-    country: 'United Kingdom',
-    style: 'National Curriculum (England); mastery with reasoning and problem solving',
-    notation: 'Metric/SI units, ratio a : b, pounds (£), decimal notation',
-    pedagogy: 'Mastery through intelligent variation: fluency, then reasoning, then problem solving',
-    illustrationContext: 'Use British context (pounds, football, a high-street shop, train times).',
-    aliases: ['british national', 'british_national', 'uk', 'england', 'national curriculum', 'gcse', 'british']
+  'British National': {
+    country: 'UK',
+    style: 'Key Stage aligned, structured progression',
+    notation: 'British English, £ (Pounds), metric',
+    pedagogy: 'Mastery approach, clear step-by-step progression.',
+    illustrationContext: 'Use culturally relevant examples for UK.'
   },
-  ontario: {
-    key: 'ontario',
-    label: 'Ontario',
+  Ontario: {
     country: 'Canada',
-    style: 'Ontario Mathematics Curriculum; strands revisited and interconnected over time',
-    notation: 'Metric units, ratio a : b, Canadian dollars (CAD)',
-    pedagogy: 'Investigation, mathematical communication, real-world connections, progressive disclosure',
-    illustrationContext: 'Use Canadian context (loonies, hockey, weather, the local community).',
-    aliases: ['ontario', 'canada', 'canadian', 'on']
+    style: 'Canadian curriculum, inclusive examples',
+    notation: 'Metric, $ (Canadian Dollars)',
+    pedagogy: 'Discovery-based, collaborative problem-solving.',
+    illustrationContext: 'Use culturally relevant examples for Canada.'
   }
 };
 
-const DEFAULT_CURRICULUM = 'cbse';
+/* Aliases keep older callers that send a lowercase key, "cambridge" or "uk"
+   working while the canonical profile keys stay exactly as specified. */
+const ALIASES = {
+  cbse: 'CBSE', ncert: 'CBSE', icse: 'ICSE', isc: 'ICSE', ib: 'IB', ibdp: 'IB',
+  igcse: 'IGCSE', cambridge: 'IGCSE', 'common_core': 'Common Core', ccss: 'Common Core',
+  us: 'Common Core', british_national: 'British National', uk: 'British National',
+  gcse: 'British National', ontario: 'Ontario', canada: 'Ontario'
+};
+
+const DEFAULT_CURRICULUM = 'IB';
 
 function text(value, fallback) {
   if (value === null || value === undefined) return fallback;
@@ -87,36 +75,26 @@ function text(value, fallback) {
   return result || fallback;
 }
 
-/** Accepts canonical keys, labels and common aliases; case-insensitive. */
-function normalizeCurriculum(board) {
-  const raw = text(board, '').toLowerCase();
-  if (!raw) return CURRICULUM_MAP[DEFAULT_CURRICULUM];
-
-  const direct = CURRICULUM_MAP[raw.replace(/[\s]+/g, '_')];
-  if (direct) return direct;
-
-  const keys = Object.keys(CURRICULUM_MAP);
+function normalizeCurriculum(value) {
+  const raw = text(value, '').toLowerCase();
+  if (!raw) return DEFAULT_CURRICULUM;
+  if (Object.prototype.hasOwnProperty.call(CURRICULUM_PROFILES, raw)) return raw;
+  if (ALIASES[raw]) return ALIASES[raw];
+  const keys = Object.keys(CURRICULUM_PROFILES);
   for (let index = 0; index < keys.length; index += 1) {
-    const entry = CURRICULUM_MAP[keys[index]];
-    if (entry.aliases.some(function (alias) { return raw === alias || raw.indexOf(alias) !== -1; })) {
-      return entry;
-    }
+    if (keys[index].toLowerCase() === raw) return keys[index];
   }
-  return CURRICULUM_MAP[DEFAULT_CURRICULUM];
+  return DEFAULT_CURRICULUM;
 }
 
-/** Pull academic fields from the several profile shapes used across Mathify. */
+/** Accepts the several profile shapes used across Mathify. */
 function profileOf(student) {
-  if (typeof student === 'string') return { board: student };
+  if (typeof student === 'string') return { curriculum: student };
   if (!student || typeof student !== 'object') return {};
 
   const nested = [
-    student.profile,
-    student.student_profile,
-    student.studentProfile,
-    student.academic,
-    student.academics,
-    student.school
+    student.profile, student.student_profile, student.studentProfile,
+    student.academic, student.academics, student.school
   ].filter(function (value) { return value && typeof value === 'object'; });
 
   const sources = [student].concat(nested);
@@ -131,51 +109,65 @@ function profileOf(student) {
   }
 
   return {
-    board: first(['curriculum', 'curriculum_board', 'curriculumBoard', 'board', 'schoolBoard', 'school_board', 'syllabus']),
+    curriculum: first(['curriculum', 'curriculum_board', 'curriculumBoard', 'board', 'schoolBoard', 'school_board', 'syllabus']),
     grade: first(['grade', 'gradeLevel', 'grade_level', 'class']),
-    language: first(['language', 'medium', 'mediumOfInstruction'])
+    language: first(['language', 'medium', 'mediumOfInstruction']),
+    chapter: first(['schoolChapter', 'school_chapter', 'chapter'])
   };
 }
 
-function buildPromptInjection(curriculum, profile) {
+function buildPromptInjection(curriculumName, profile) {
+  const profileData = CURRICULUM_PROFILES[curriculumName];
+  const language = text(profile.language, 'en');
+  const chapter = text(profile.chapter, 'to be determined by trainer');
   const lines = [
-    'Mathify curriculum context: ' + curriculum.label + ' (' + curriculum.country + ').',
-    'Teaching style: ' + curriculum.style + '.',
-    'Notation and units: ' + curriculum.notation + '.',
-    'Pedagogy: ' + curriculum.pedagogy + '.',
-    'Illustration context: ' + curriculum.illustrationContext
+    'The student follows the ' + curriculumName + ' curriculum in ' + profileData.country + '.',
+    'Teaching style: ' + profileData.style,
+    'Notation: ' + profileData.notation,
+    'Pedagogy: ' + profileData.pedagogy,
+    'Current school chapter: "' + chapter + '"',
+    'Language preference: ' + language,
+    'Use culturally relevant examples for ' + profileData.country + '.',
+    profileData.illustrationContext
   ];
-  if (profile.grade) lines.push('Student grade: ' + text(profile.grade, '') + '.');
-  if (profile.language) lines.push('Language of instruction: ' + text(profile.language, '') + '.');
+  if (profile.grade) lines.push('Grade: ' + text(profile.grade, ''));
   lines.push('Keep every example age-appropriate and strictly 1-on-1; never reference group classes.');
-  return lines.join('\n');
+  return '\n' + lines.join('\n') + '\n';
 }
 
 /**
- * @param {object|string} student student profile (or a board string)
- * @returns {{board:string, country:string, style:string, notation:string, pedagogy:string,
- *            illustrationContext:string, promptInjection:string}}
+ * @param {object|string} student student profile (or a curriculum name)
+ * @returns {{curriculum:string, board:string, country:string, grade:string, language:string,
+ *            currentTopic:string, style:string, notation:string, pedagogy:string, promptInjection:string}}
  */
 function getCurriculumContext(student) {
   const profile = profileOf(student);
-  const curriculum = normalizeCurriculum(profile.board || DEFAULT_CURRICULUM);
+  const curriculumName = normalizeCurriculum(profile.curriculum || DEFAULT_CURRICULUM);
+  const details = CURRICULUM_PROFILES[curriculumName];
 
   return {
-    board: curriculum.label,
-    key: curriculum.key,
-    country: curriculum.country,
-    style: curriculum.style,
-    notation: curriculum.notation,
-    pedagogy: curriculum.pedagogy,
-    illustrationContext: curriculum.illustrationContext,
-    promptInjection: buildPromptInjection(curriculum, profile)
+    curriculum: curriculumName,
+    /* board is a compatibility alias for older integration code. */
+    board: curriculumName,
+    key: curriculumName,
+    country: details.country,
+    grade: profile.grade,
+    language: text(profile.language, 'en'),
+    currentTopic: text(profile.chapter, 'General Mathematics'),
+    style: details.style,
+    notation: details.notation,
+    pedagogy: details.pedagogy,
+    illustrationContext: details.illustrationContext,
+    promptInjection: buildPromptInjection(curriculumName, profile)
   };
 }
 
 module.exports = {
-  CURRICULUM_MAP: CURRICULUM_MAP,
+  getCurriculumContext: getCurriculumContext,
+  CURRICULUM_PROFILES: CURRICULUM_PROFILES,
+  /* Compatibility alias used by the earlier mapper tests. */
+  CURRICULUM_MAP: CURRICULUM_PROFILES,
   DEFAULT_CURRICULUM: DEFAULT_CURRICULUM,
   normalizeCurriculum: normalizeCurriculum,
-  getCurriculumContext: getCurriculumContext,
   buildPromptInjection: buildPromptInjection
 };
