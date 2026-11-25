@@ -1323,8 +1323,14 @@ create policy p_support_founders_only on public.support_escalations
 -- ---------------------------------------------------------------------------
 
 grant usage on schema public to authenticated, service_role;
-grant select, insert, update, delete on all tables in schema public to authenticated;
 grant all on all tables in schema public to service_role;
+
+-- Signed-in Data API clients reach only the trainer sketch-sync table and the
+-- safe student views. Every other table is written and read through the
+-- Express service_role, so broad table grants would expose business data to
+-- every account through PostgREST and pg_graphql.
+revoke all on all tables in schema public from authenticated;
+grant select, insert on public.quiz_canvas_strokes to authenticated;
 grant select on public.student_quiz_questions, public.student_quiz_attempts to authenticated;
 
 -- Supabase applies default table grants to anon on new tables. No public page

@@ -50,8 +50,20 @@ function canAccessSession(user, session) {
   return false;
 }
 
+/* Router-level middleware runs before Express populates route params, so the
+   session id must also be readable from the URL when this is mounted with
+   router.use('/:sessionId/...'). Route-level mounts still use req.params. */
+function sessionIdFrom(req) {
+  if (req.params && (req.params.sessionId || req.params.id)) {
+    return req.params.sessionId || req.params.id;
+  }
+  const path = String(req.path || req.originalUrl || '');
+  const match = path.match(/\/([^/]+)(?:\/|$)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function loadSession(req, res, next) {
-  const id = req.params.sessionId || req.params.id;
+  const id = sessionIdFrom(req);
   const session = db.findSession(id);
   if (!session) {
     return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session does not exist.' });

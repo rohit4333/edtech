@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node tests/payoutService.test.js && node tests/studentSerializer.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js"
+    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/studentSerializer.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js"
   },
   "engines": {
     "node": ">=18"

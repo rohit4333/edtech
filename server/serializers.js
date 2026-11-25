@@ -180,6 +180,9 @@ function toSessionState(session, user) {
     boardVersion: session.board.version,
     quizStatus: session.quiz.status,
     quizPhase: session.quiz.phase,
+    reteachRequired: Boolean(session.reteachRequired),
+    unlockedNext: Boolean(session.unlockedNext),
+    currentTopicId: session.currentTopicId || null,
     recordingUrl: session.recording ? session.recording.url : null,
     participants: {
       trainer: person(session.trainerId),
