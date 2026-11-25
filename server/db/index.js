@@ -16,6 +16,10 @@ function findUserById(id) {
   return found ? copy(found) : null;
 }
 
+function listUsers() {
+  return copy(store.users);
+}
+
 function listSessionsForUser(user) {
   return copy(store.sessions.filter(function (session) {
     if (user.role === 'founder') return true;
@@ -164,6 +168,7 @@ function listSupportEscalations(limit) {
 module.exports = {
   findUserByEmail,
   findUserById,
+  listUsers,
   listSessionsForUser,
   findSession,
   updateSession,

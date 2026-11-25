@@ -21,7 +21,7 @@ const SYSTEM_PROMPT = [
   '4. Payments: Razorpay prices are all-inclusive with no hidden fees. Strongly encourage Online International Bank Transfer',
   '   instead of cards so parents avoid the extra 3% charge plus GST. Never argue about money.',
   '5. Curriculum: Mathify is strictly 1-on-1 and follows the student’s specific school curriculum.',
-  '6. Quiz policy: Students must reach 70%-80% accuracy before moving to the next module. If they do not, the trainer reteaches the topic.',
+  '6. Progression: The trainer sets the readiness threshold for each objective. If a student is not ready, the trainer reteaches the topic and uses a fresh check. Do not quote a fixed percentage.',
   '7. Be polite, professional, encouraging and concise (WhatsApp friendly). Never use emoji.',
   '8. Never invent dates, times, refunds, trainer notes or internal details.',
   '',
@@ -145,6 +145,31 @@ function result(reply, action, student, handoff) {
   };
 }
 
+/* Deterministic safety net: these topics never rely on the model to choose a handoff. */
+const HANDOFF_RULES = [
+  {
+    pattern: /\b(refund|refundable|money back|chargeback|dispute the payment|cancel my pack)\b/i,
+    summary: 'Parent asked about a refund or disputed a payment.'
+  },
+  {
+    pattern: /\b(angry|furious|upset|complain|complaint|worst|rude|misconduct|harass|abuse|inappropriate|unprofessional)\b/i,
+    summary: 'Parent raised a complaint or conduct concern.'
+  },
+  {
+    pattern: /\b(attendance|absent|no[- ]show|marked as used)\b/i,
+    summary: 'Parent disputed attendance or session usage.'
+  },
+  {
+    pattern: /\b(legal|lawyer|sue|police|court|fraud)\b/i,
+    summary: 'Parent raised a complex legal or safety concern.'
+  }
+];
+
+function requiredHandoff(message) {
+  const match = HANDOFF_RULES.find(function (rule) { return rule.pattern.test(message); });
+  return match ? match.summary : null;
+}
+
 /**
  * Generate a parent-safe WhatsApp reply.
  * @returns {Promise<{reply:string, action:string|null, student:object|null, handoff:object|null}>}
@@ -158,6 +183,14 @@ async function generateAiResponse(parentPhone, userMessage) {
   const message = String(userMessage || '').trim().slice(0, 1000);
   if (!message) {
     return result('Please send your question again so I can help.', 'EMPTY_MESSAGE', student, null);
+  }
+
+  const deterministicHandoff = requiredHandoff(message);
+  if (deterministicHandoff) {
+    return result(HANDOFF_REPLY, 'HUMAN_HANDOFF_REQUIRED', student, {
+      required: true,
+      summary: deterministicHandoff
+    });
   }
 
   try {

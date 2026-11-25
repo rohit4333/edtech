@@ -54,7 +54,7 @@ Send the token as `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | `GET` | `/api/trainer/dashboard` | Hero, today timeline, attention queue and metric sources |
 | `GET` | `/api/trainer/score` | Teaching score shape; value stays null until bands are configured |
-| `GET` | `/api/trainer/payouts` | Current payout period with null total until rules are confirmed |
+| `GET` | `/api/trainer/payouts` | Current payout with base pay, fines, bonus, MVT award and daily trend |
 | `GET` | `/api/trainer/payouts/:period` | Payout for a `YYYY-MM` period |
 | `GET` | `/api/trainer/attention` | Derived planner, quiz, draft, attendance and recording signals |
 | `GET` | `/api/trainer/attendance` | Six-session attendance register with present/absent/late states |
@@ -178,10 +178,12 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Configurable policy
 
-`config/policy.json` intentionally leaves quiz scoring bands, unlock threshold, teaching-score bands and payout bonus/fine rules unset. Known rules are present:
+`config/policy.json` intentionally leaves quiz scoring bands, unlock threshold and teaching-score bands unset. Payout bonus, fine and MVT rules are configured in the payout engine:
 
 - 6 hours / 6 sessions daily cap
-- 48-hour leave notice; `LATE_NOTICE_FINE` below it
+- 48-hour leave notice; a late trainer cancellation costs one session pay
+- 100% monthly attendance pays 2,000 INR, rising by 500 INR per consecutive month
+- MVT ranks trainers by completed sessions and pays 3,000 / 2,000 / 1,000 INR
 - 38-day non-refundable packs
 - 24–48-hour reschedule window
 - no-show without notice marks session used

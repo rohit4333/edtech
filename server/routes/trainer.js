@@ -32,6 +32,15 @@ function validPeriod(value) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
 
+function payoutContext() {
+  return {
+    trainers: db.listUsers(),
+    allSessions: db.listSessionsForUser({ role: 'founder' }),
+    attendance: db.listAttendance(),
+    provenance: config.databaseMode
+  };
+}
+
 function sendPayout(req, res, period) {
   if (!validPeriod(period)) {
     return res.status(400).json({
@@ -40,7 +49,13 @@ function sendPayout(req, res, period) {
     });
   }
   return res.json({
-    payout: serializers.toTrainerPayout(req.user, sessionsFor(req.user), period, policy)
+    payout: serializers.toTrainerPayout(
+      req.user,
+      sessionsFor(req.user),
+      period,
+      policy,
+      payoutContext()
+    )
   });
 }
 

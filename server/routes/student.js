@@ -15,7 +15,10 @@ router.get('/dashboard', function (req, res) {
 });
 
 router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
-  return res.json({ session: serializers.toStudentSession(req.sessionRecord) });
+  /* Explicit boundary before serialization: trainer-only guidance is removed here,
+     then toStudentSession strips it again as a second layer of defence. */
+  const studentSafeSession = serializers.stripTrainerOnlyFields(req.sessionRecord);
+  return res.json({ session: serializers.toStudentSession(studentSafeSession) });
 });
 
 router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req, res) {

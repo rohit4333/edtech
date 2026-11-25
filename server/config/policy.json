@@ -23,8 +23,18 @@
     "rateRange": [300, 400],
     "maxHoursPerDay": 6,
     "maxSessionsPerDay": 6,
-    "bonusRules": null,
-    "fineRules": null
+    "bonusRules": {
+      "perfectAttendanceBonus": 2000,
+      "incrementPerConsecutiveMonth": 500,
+      "currency": "INR"
+    },
+    "fineRules": {
+      "noticeHours": 48,
+      "penalty": "session_pay",
+      "appliesTo": "trainer_cancellation",
+      "currency": "INR"
+    },
+    "mvtAwards": [3000, 2000, 1000]
   },
   "attendance": {
     "maxHoursPerDay": 6,

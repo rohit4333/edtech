@@ -269,17 +269,25 @@
           <div class="quiz-trainer trainer-only">
             <div class="quiz-trainer-head">
               <span class="mono">Trainer view</span>
-              <label class="select-wrap" for="quizSelect">Doubt support
-                <select id="quizSelect">
-                  <option value="off">Off</option>
-                  <option value="draw">Draw on scratchpad</option>
-                </select>
-              </label>
+              <div class="doubt-dropdown">
+                <button class="mini" id="quizDoubtBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="doubtMenu">Doubt sketch <span aria-hidden="true">▾</span></button>
+                <div class="doubt-menu" id="doubtMenu" hidden>
+                  <button type="button" id="doubtDrawBtn">Open Wacom overlay</button>
+                </div>
+              </div>
             </div>
-            <div class="scratch" id="scratchWrap" hidden>
-              <div class="scratch-label"><span class="mono">Blank Wacom area</span><button class="mini" id="scratchShare" type="button">Share sketch</button></div>
-              <canvas id="scratchCanvas" aria-label="Trainer scratchpad for resolving a doubt"></canvas>
-              <button class="mini" id="scratchClear" type="button">Clear</button>
+            <div class="scratch-overlay" id="scratchOverlay" hidden>
+              <div class="scratch" role="dialog" aria-modal="false" aria-labelledby="scratchOverlayTitle">
+                <header class="scratch-label">
+                  <span><span class="mono" id="scratchOverlayTitle">Temporary Wacom overlay</span><b>Quiz stays live</b></span>
+                  <button class="mini" id="scratchClose" type="button" aria-label="Close Wacom overlay">Close</button>
+                </header>
+                <canvas id="scratchCanvas" tabindex="0" aria-label="Trainer Wacom overlay for resolving a doubt during the quiz"></canvas>
+                <footer class="scratch-actions">
+                  <button class="mini" id="scratchClear" type="button">Clear</button>
+                  <button class="mini" id="scratchShare" type="button">Share sketch</button>
+                </footer>
+              </div>
             </div>
             <div class="quiz-controls">
               <button class="btn btn-coral btn-sm" id="quizReveal" type="button">Reveal answer</button>

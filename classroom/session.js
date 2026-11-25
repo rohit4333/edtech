@@ -13,13 +13,18 @@
   var closeSheet = api.closeSheet || function () {};
 
   var params = new URLSearchParams(window.location.search);
-  var studentView = params.get('view') === 'student';
+  var user = Object.assign({}, window.MATHIFY_USER || window.currentUser || api.user || {});
+  var roleParam = params.get('role');
+  if (roleParam) user.role = roleParam;
 
-  if (studentView) {
+  var studentView = params.get('view') === 'student' || user.role === 'student';
+  var isTrainer = user.role === 'trainer' && !studentView;
+
+  if (studentView || !isTrainer) {
     document.body.classList.add('view-student');
-    /* Remove hidden instruction payloads from the student DOM entirely. */
+    /* Remove hidden instruction payloads and trainer controls from the DOM entirely. */
     $$('[data-instruction]').forEach(function (el) { el.removeAttribute('data-instruction'); });
-    $$('.trainer-only').forEach(function (el) { el.setAttribute('hidden', ''); });
+    $$('.trainer-only').forEach(function (el) { el.remove(); });
   }
 
   /* ------------------------------------------------------ trainer notes */
@@ -53,9 +58,7 @@
     if (!items.length) {
       var empty = document.createElement('div');
       empty.className = 'ti-empty';
-      empty.textContent = studentView
-        ? 'Trainer notes are disabled in student view.'
-        : 'No notes on this page. Add guidance in Curriculum.';
+      empty.textContent = 'No notes on this page. Add guidance in Curriculum.';
       trainerInstructions.appendChild(empty);
       return;
     }
@@ -74,7 +77,7 @@
   }
 
   function setNotes(open) {
-    if (!trainerPanel || studentView) return;
+    if (!trainerPanel || !isTrainer) return;
     trainerPanel.hidden = !open;
     document.body.classList.toggle('notes-open', open);
     if (trainerLayerBtn) trainerLayerBtn.setAttribute('aria-pressed', String(open));
@@ -268,8 +271,11 @@
   var quizAnswerState = $('#quizAnswerState');
   var quizPhaseLabel = $('#quizPhaseLabel');
   var quizStageTimer = $('#quizStageTimer');
-  var quizSelect = $('#quizSelect');
-  var scratchWrap = $('#scratchWrap');
+  var quizDoubtBtn = $('#quizDoubtBtn');
+  var doubtMenu = $('#doubtMenu');
+  var doubtDrawBtn = $('#doubtDrawBtn');
+  var scratchOverlay = $('#scratchOverlay');
+  var scratchClose = $('#scratchClose');
   var scratchCanvas = $('#scratchCanvas');
   var scratchShare = $('#scratchShare');
   var scratchClear = $('#scratchClear');
@@ -566,7 +572,10 @@
     setNotes(false);
     closeSheet();
     document.body.classList.add('quiz-live');
-    if (board) board.hidden = true;
+    if (board) {
+      board.hidden = true;
+      if (studentView) board.setAttribute('aria-hidden', 'true');
+    }
     quizStage.hidden = false;
 
     questions = baseQuestions.map(function (question) {
@@ -582,7 +591,7 @@
     quizState.recheckCount = 0;
     renderQuiz();
     startQuizClock();
-    toast('Quiz launched · whiteboard hidden for Ishaan.');
+    toast(studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.');
     var first = $('button', quizOptions);
     if (first) setTimeout(function () { first.focus(); }, 30);
   }
@@ -594,7 +603,11 @@
     document.body.classList.remove('quiz-live');
     document.body.classList.remove('quiz-reteach');
     quizStage.hidden = true;
-    if (board) board.hidden = false;
+    closeScratchOverlay();
+    if (board) {
+      board.hidden = false;
+      board.removeAttribute('aria-hidden');
+    }
     toast('Back to the board · quiz responses saved.');
   }
 
@@ -687,26 +700,59 @@
     scratchCanvas.addEventListener('pointercancel', stopScratch);
   }
 
-  quizSelect && quizSelect.addEventListener('change', function () {
-    var draw = quizSelect.value === 'draw';
-    if (scratchWrap) scratchWrap.hidden = !draw;
-    if (draw) {
-      requestAnimationFrame(fitScratch);
-      toast('Wacom scratchpad open · only you can see it.');
-    } else {
-      toast('Doubt support off.');
+  function quizLive() {
+    return document.body.classList.contains('quiz-live');
+  }
+
+  function setDoubtMenu(open) {
+    if (!doubtMenu) return;
+    doubtMenu.hidden = !open;
+    if (quizDoubtBtn) quizDoubtBtn.setAttribute('aria-expanded', String(open));
+  }
+
+  function openScratchOverlay() {
+    if (!isTrainer) return;
+    if (!quizLive()) {
+      toast('Launch the quiz before opening the Wacom overlay.');
+      return;
     }
+    setDoubtMenu(false);
+    if (scratchOverlay) scratchOverlay.hidden = false;
+    requestAnimationFrame(fitScratch);
+    toast('Wacom overlay open · quiz stays live.');
+  }
+
+  function closeScratchOverlay() {
+    if (scratchOverlay) scratchOverlay.hidden = true;
+    setDoubtMenu(false);
+  }
+
+  quizDoubtBtn && quizDoubtBtn.addEventListener('click', function () {
+    if (!isTrainer) return;
+    setDoubtMenu(doubtMenu && doubtMenu.hidden);
+  });
+  doubtDrawBtn && doubtDrawBtn.addEventListener('click', openScratchOverlay);
+  scratchClose && scratchClose.addEventListener('click', closeScratchOverlay);
+
+  document.addEventListener('click', function (event) {
+    if (!doubtMenu || doubtMenu.hidden) return;
+    if (event.target.closest('.doubt-dropdown')) return;
+    setDoubtMenu(false);
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeScratchOverlay();
   });
 
   scratchShare && scratchShare.addEventListener('click', function () {
-    toast('Scratchpad sketch shared with Ishaan.');
+    toast('Sketch captured for the student.');
   });
   scratchClear && scratchClear.addEventListener('click', function () {
     if (scratchCtx && scratchCanvas) scratchCtx.clearRect(0, 0, scratchCanvas.clientWidth, scratchCanvas.clientHeight);
-    toast('Scratchpad cleared.');
+    toast('Wacom overlay cleared.');
   });
   window.addEventListener('resize', function () {
-    if (scratchWrap && !scratchWrap.hidden) fitScratch();
+    if (scratchOverlay && !scratchOverlay.hidden) fitScratch();
   });
 
   /* ------------------------------------------------ floating camera window */

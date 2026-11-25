@@ -2,6 +2,21 @@
 const db = require('./db');
 const payoutService = require('./services/payoutService');
 
+/* Explicit student boundary: hidden trainer guidance is never serialized. */
+const TRAINER_ONLY_KEYS = ['trainer_instructions', 'trainerInstructions', 'trainerNotes'];
+
+function stripTrainerOnlyFields(value) {
+  if (Array.isArray(value)) return value.map(stripTrainerOnlyFields);
+  if (!value || typeof value !== 'object') return value;
+
+  const safe = {};
+  Object.keys(value).forEach(function (key) {
+    if (TRAINER_ONLY_KEYS.indexOf(key) !== -1) return;
+    safe[key] = stripTrainerOnlyFields(value[key]);
+  });
+  return safe;
+}
+
 function person(userId) {
   const user = db.findUserById(userId);
   if (!user) return null;
@@ -125,7 +140,7 @@ function toTrainerSession(session) {
 }
 
 function toStudentSession(session) {
-  return {
+  return stripTrainerOnlyFields({
     id: session.id,
     code: session.code,
     title: session.title,
@@ -151,7 +166,7 @@ function toStudentSession(session) {
     }),
     quiz: studentQuiz(session),
     board: { version: session.board.version, strokeCount: session.board.strokes.length }
-  };
+  });
 }
 
 function toSessionState(session, user) {
@@ -227,8 +242,8 @@ function toAttendanceRegister(sessions, attendance) {
   };
 }
 
-function toTrainerPayout(user, sessions, period, policy) {
-  return payoutService.buildPayout(user, sessions, period, policy);
+function toTrainerPayout(user, sessions, period, policy, context) {
+  return payoutService.buildPayout(user, sessions, period, policy, context);
 }
 
 function toTrainerScore(user, policy) {
@@ -518,6 +533,7 @@ function toStudentDashboard(user, sessions) {
 
 module.exports = {
   readiness,
+  stripTrainerOnlyFields,
   toTrainerSummary,
   toTrainerSession,
   toStudentSession,
