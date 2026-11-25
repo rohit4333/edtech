@@ -13,7 +13,8 @@
 const { z } = require('zod');
 const generator = require('../quiz/generator');
 const serializers = require('../serializers');
-const cloudflareClient = require('./cloudflareClient');
+const cloudflareAiService = require('./cloudflareAiService');
+const curriculumContext = require('./curriculumContext');
 const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
 const BLOCK_TYPES = ['heading', 'text', 'image', 'sketch_space', 'analogy', 'story'];
 const TIER_SPECS = [
@@ -31,9 +32,11 @@ INPUT
   student_age: {{age}}   language: {{lang}}
   mode: {{mode}}
   school_chapter_context: {{context}}
+  curriculum_context: {{curriculum_injection}}
 
 AUTHORING RULES
-1. Every concept must open with a VISUAL ANALOGY (concrete, physical, Indian-context friendly) and a short STORY NARRATION (3–6 sentences) that carries the math inside it.
+0. Follow the curriculum_context exactly: its country, style, notation, pedagogy and illustration context override any generic default.
+1. Every concept must open with a VISUAL ANALOGY (concrete, physical, aligned to the curriculum_context) and a short STORY NARRATION (3–6 sentences) that carries the math inside it.
 2. Sequence: hook -> analogy -> story -> concept -> worked example -> guided practice -> check.
 3. After each heading/text/image cluster, insert a \`sketch_space\` block. The trainer draws there live with a Wacom, so give it real height and mark it expandable.
 4. For EVERY block write \`trainerInstructions\`: what to say, what to draw, what misconception to watch for, when to pause. This field is trainer-only.
@@ -70,6 +73,7 @@ INPUT
   mastery_pct: {{mastery_pct}}   current_level: {{current_level}}
   previously_asked_questions: {{previously_asked_questions}}
   curriculum_context: {{curriculum_context}}
+   curriculum_style_injection: {{curriculum_injection}}
 
 QUIZ RULES
 1. Generate 3 tiers: level 1 (easiest), level 2 (moderate), level 3 (stretch).
@@ -92,7 +96,10 @@ SCHEMA
 }`;
 
 /* Used after a failed item, once the trainer has explained it on the board. */
-const SYSTEM_PROMPT_PARALLEL = "You are Mathify's AI tutor. The student failed a question about: [failedQuestionConcept]. Generate exactly ONE new parallel question testing the SAME underlying concept, but with different numbers, context, or framing so it is not a repeated question. Return ONLY valid JSON: { 'id': 'string', 'stem': 'string', 'options': [{'id':'a','text':''}, ...], 'correctOptionId': 'string', 'explanation': 'string', 'hint': 'string' }.";
+const SYSTEM_PROMPT_PARALLEL = `You are Mathify's AI tutor, teaching strictly 1-on-1.
+CURRICULUM CONTEXT
+{{curriculum_injection}}
+The student failed a question about: [failedQuestionConcept]. Generate exactly ONE new parallel question testing the SAME underlying concept, but with different numbers, context, or framing so it is not a repeated question. Match the curriculum style, notation and illustration context above. Return ONLY valid JSON: { 'id': 'string', 'stem': 'string', 'options': [{'id':'a','text':''}, ...], 'correctOptionId': 'string', 'explanation': 'string', 'hint': 'string' }.`;
 
 /* ---------- Zod schemas ---------- */
 
@@ -400,8 +407,21 @@ function normalizeContext(context) {
     ? input.learning_objectives
     : [];
 
+  /* Curriculum context comes from the student profile, with explicit context
+     fields taking precedence. Only academic fields reach the prompt. */
+  const studentProfile = isObject(input.student) ? Object.assign({}, input.student) : {};
+  if (!studentProfile.board && !studentProfile.curriculum && input.board) {
+    studentProfile.board = input.board;
+  }
+  if (!studentProfile.grade && input.grade) studentProfile.grade = input.grade;
+  if (!studentProfile.language && input.language) studentProfile.language = input.language;
+  const curriculum = curriculumContext.getCurriculumContext(studentProfile);
+  const curriculumInjection = text(input.curriculum_injection, curriculum.promptInjection);
+
   return {
     board: text(input.board, 'CBSE'),
+    curriculum_injection: curriculumInjection,
+    student: studentProfile,
     grade: input.grade === null || input.grade === undefined ? '' : input.grade,
     topic: text(input.topic, 'general mathematics'),
     student_age: input.student_age === undefined ? (input.age || '') : input.student_age,
@@ -427,7 +447,7 @@ function warnMissingProvider() {
 }
 
 async function requestJSON(systemPrompt, userPrompt, allowFallback) {
-  const generatedText = await cloudflareClient.generateAIResponse(systemPrompt, userPrompt, {
+  const generatedText = await cloudflareAiService.generateAIResponse(systemPrompt, userPrompt, {
     allowFallback: allowFallback,
     jsonOnly: true
   });
@@ -777,7 +797,8 @@ async function generatePlannerAndCurriculum(context) {
     age: settings.student_age,
     lang: settings.language,
     mode: settings.mode,
-    context: settings.school_chapter_context
+    context: settings.school_chapter_context,
+    curriculum_injection: settings.curriculum_injection
   });
 
   const parsed = await requestJSON(
@@ -804,7 +825,8 @@ async function generateQuizTiers(context, plannerOutput) {
     mastery_pct: settings.mastery_pct,
     current_level: settings.current_level,
     previously_asked_questions: settings.previously_asked_questions,
-    curriculum_context: safeCurriculum
+    curriculum_context: safeCurriculum,
+    curriculum_injection: settings.curriculum_injection
   });
 
   const parsed = await requestJSON(
@@ -866,7 +888,15 @@ async function generateParallelQuestion(failedQuestionConcept, difficulty, optio
     throw failure('failedQuestionConcept must be a non-empty string.', 'MISSING_CONCEPT', 400);
   }
 
-  const rendered = SYSTEM_PROMPT_PARALLEL.replace('[failedQuestionConcept]', concept);
+  /* Same curriculum injection as the planner/quiz calls, so a reteach item
+     matches the student's board, notation and illustration context. */
+  const studentProfile = isObject(settings.student) ? Object.assign({}, settings.student) : {};
+  if (!studentProfile.board && settings.board) studentProfile.board = settings.board;
+  const injection = text(settings.curriculum_injection,
+    curriculumContext.getCurriculumContext(studentProfile).promptInjection);
+  const rendered = SYSTEM_PROMPT_PARALLEL
+    .replace('{{curriculum_injection}}', injection)
+    .replace('[failedQuestionConcept]', concept);
   const parsed = await requestJSON(
     rendered,
     'Difficulty: ' + generator.difficultyLabel(difficulty) +
@@ -894,6 +924,7 @@ module.exports = Object.assign({}, generator, {
   SYSTEM_PROMPT_PLANNER: SYSTEM_PROMPT_PLANNER,
   SYSTEM_PROMPT_QUIZ: SYSTEM_PROMPT_QUIZ,
   SYSTEM_PROMPT_PARALLEL: SYSTEM_PROMPT_PARALLEL,
+  curriculumContext: curriculumContext,
   DIFFICULTY_LEVELS: DIFFICULTY_LEVELS,
   plannerSchema: plannerSchema,
   quizSchema: quizSchema,

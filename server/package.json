@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/cloudflareClient.test.js && node tests/curriculumAuthoring.test.js && node tests/studentSerializer.test.js && node tests/privacyBoundary.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js && node tests/scaffoldedUI.test.js"
+    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/cloudflareClient.test.js && node tests/curriculumAuthoring.test.js && node tests/curriculumContext.test.js && node tests/aiCurriculumIntegration.test.js && node tests/studentSerializer.test.js && node tests/privacyBoundary.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js && node tests/scaffoldedUI.test.js"
   },
   "engines": {
     "node": ">=18"

@@ -5,7 +5,8 @@
 
 const templates = require('./templates');
 const policy = require('../config/policy.json');
-const cloudflareClient = require('../services/cloudflareClient');
+const cloudflareAiService = require('../services/cloudflareAiService');
+const curriculumContext = require('../services/curriculumContext');
 
 const DEFAULT_COUNT = 3;
 const MAX_COUNT = 5;
@@ -101,11 +102,14 @@ function parseJsonObject(text) {
   }
 }
 
-function buildMessages(topic, level, count) {
+function buildMessages(topic, level, count, student) {
   const spec = templates.difficultySpec(level);
+  const curriculum = curriculumContext.getCurriculumContext(student || {});
   const system = [
     'You write math checkpoint questions for a 1-on-1 tutor to review before a student sees them.',
     'The student follows their own school curriculum. Do not introduce group-class context.',
+    'Curriculum context (follow its style, notation and illustration context exactly): ' +
+      curriculum.promptInjection.replace(/\n/g, ' '),
     'There are exactly three difficulty levels:',
     'Level 1 = Easiest (Baseline). Direct recognition, one clear step, small friendly numbers.',
     'Level 2 = Moderate, exactly +5% harder than Level 1. Add one reasoning step.',
@@ -186,9 +190,9 @@ function normalizeQuestion(raw, index, level, templateId) {
   };
 }
 
-async function callCloudflare(topic, level, count) {
-  const messages = buildMessages(topic, level, count);
-  const generatedText = await cloudflareClient.generateAIResponse(
+async function callCloudflare(topic, level, count, student) {
+  const messages = buildMessages(topic, level, count, student);
+  const generatedText = await cloudflareAiService.generateAIResponse(
     messages[0].content,
     messages[1].content,
     { jsonOnly: true }
@@ -235,7 +239,7 @@ async function generateAdaptiveQuiz(topic, currentMasteryScore, options) {
   const count = clamp(Number(settings.count) || DEFAULT_COUNT, 1, MAX_COUNT);
   const usedPrompts = Array.isArray(settings.usedPrompts) ? settings.usedPrompts : [];
 
-  if (!cloudflareClient.isConfigured() && settings.allowFallback !== false) {
+  if (!cloudflareAiService.isConfigured() && settings.allowFallback !== false) {
     return buildFallbackQuiz(safeTopic, score, {
       count: count,
       level: level,
@@ -244,7 +248,7 @@ async function generateAdaptiveQuiz(topic, currentMasteryScore, options) {
     });
   }
 
-  const parsed = await callCloudflare(safeTopic, level, count);
+  const parsed = await callCloudflare(safeTopic, level, count, settings.student);
   const validated = validatePayload(parsed, count, usedPrompts);
   return validated.map(function (question, index) {
     return normalizeQuestion(question, index, level, settings.templateId);
@@ -263,7 +267,11 @@ async function generateQuestionForSession(session, options) {
   const sessionMastery = Number(session && session.mastery);
   const score = Number.isFinite(sessionMastery) ? sessionMastery : scoreFromAttempts(session);
   const topic = settings.topic || (session && session.title) || 'mathematics';
-  const questions = await generateAdaptiveQuiz(topic, score, Object.assign({}, settings, { count: 1 }));
+  const student = settings.student || (session && session.student) || null;
+  const questions = await generateAdaptiveQuiz(topic, score, Object.assign({}, settings, {
+    count: 1,
+    student: student
+  }));
   return questions[0];
 }
 

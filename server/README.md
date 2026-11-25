@@ -170,9 +170,18 @@ trailing commas tolerated), and validates the shape with Zod. A deterministic tr
 fallback is used when Workers AI is unavailable. `generateQuizDraft(topic, difficulty)` remains as
 a backward-compatible wrapper for the adaptive quiz generator.
 
-`services/cloudflareClient.js` is the single provider client. It handles bearer auth, timeouts,
-both Workers AI response envelopes and JSON cleanup. `generateParallelQuestion(concept, difficulty)`
-uses the same client to create the required scaffolding check after a trainer explanation.
+`services/cloudflareAiService.js` is the single provider client. It handles bearer auth, timeouts,
+both Workers AI response envelopes and JSON cleanup, and appends the strict JSON-only instruction to
+every system prompt. `services/cloudflareClient.js` remains as a compatibility alias.
+
+`services/curriculumContext.js` maps CBSE, ICSE, IB, IGCSE, Common Core, British National and Ontario
+to country, style, notation and pedagogy, then returns a `promptInjection` from the student profile.
+Only academic fields are read — names, email, phone and social links never enter a prompt.
+`services/aiCurriculumService.js` is the integration layer: it calls `getCurriculumContext(student)`
+first, injects the result into the planner, quiz and parallel-question system prompts, and demands a
+visual analogy, story narration, 220px expandable `sketch_space` blocks and `trainerInstructions`
+for every planner block. `generateParallelQuestion(student, concept, difficulty)` uses the same
+curriculum injection so a reteach item matches the student's learning style.
 
 Student payloads use `serializers.toStudentCurriculum()` and `serializers.toStudentQuizTiers()`.
 Those allowlists strip `trainerInstructions`, `misconception_watch`, sketch trainer prompts, answer

@@ -1,7 +1,7 @@
 /* Mathify parent-support AI service.
    Phase 1 uses a mock Supabase adapter; Phase 2 swaps mockSupabase for @supabase/supabase-js.
    Cloudflare Workers AI never talks to parents directly: the route decides what is safe to send. */
-const cloudflareClient = require('./cloudflareClient');
+const cloudflareAiService = require('./cloudflareAiService');
 
 const HANDOFF_REPLY =
   'Thank you for reaching out. A senior Mathify coordinator has been notified and will personally assist you shortly.';
@@ -186,7 +186,7 @@ async function generateAiResponse(parentPhone, userMessage) {
     const balance = await mockSupabase.getSessionBalance(student.id);
     const context = buildContext(student, scores, attendance, balance);
 
-    const generated = await cloudflareClient.generateAIResponse(
+    const generated = await cloudflareAiService.generateAIResponse(
       SYSTEM_PROMPT,
       'Parent context:\n' + context + '\n\nParent message: "' + message + '"',
       { jsonOnly: false }

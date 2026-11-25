@@ -9,6 +9,7 @@ const payoutService = require('../services/payoutService');
 const quizGenerator = require('../quiz/generator');
 const quizTemplates = require('../quiz/templates');
 const cloudflareService = require('../services/cloudflareService');
+const aiCurriculumService = require('../services/aiCurriculumService');
 const masteryGating = require('../services/masteryGating');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
@@ -490,10 +491,13 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
     quizGenerator.difficultyLabel(quizGenerator.difficultyForMastery(session.mastery));
 
   try {
-    const generated = await cloudflareService.generateParallelQuestion(concept, difficulty, {
-      usedPrompts: usedPrompts,
-      allowFallback: body.allowFallback
-    });
+    const student = db.findUserById(session.studentId);
+    const generated = await aiCurriculumService.generateParallelQuestion(
+      student, concept, difficulty, {
+        usedPrompts: usedPrompts,
+        allowFallback: body.allowFallback
+      }
+    );
     const options = generated.options.map(function (option) { return option.text; });
     const answerIndex = generated.options.findIndex(function (option) {
       return option.id === generated.correctOptionId;
