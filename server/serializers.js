@@ -528,7 +528,13 @@ function toStudentDashboard(user, sessions) {
     });
 
   return {
-    student: { id: user.id, name: user.name, grade: user.grade, batch: user.batch },
+    student: {
+      id: user.id,
+      name: user.name,
+      grade: user.grade,
+      batch: user.batch,
+      sessionsRemaining: user.sessionsRemaining === undefined ? null : user.sessionsRemaining
+    },
     streak: user.streak,
     mastery: user.mastery,
     nextSession: live

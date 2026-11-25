@@ -69,6 +69,69 @@ function upsertAttendance(sessionId, studentId, status) {
   return copy(record);
 }
 
+function saveRecording(recording) {
+  const index = store.recordings.findIndex(function (item) { return item.id === recording.id; });
+  if (index === -1) store.recordings.push(copy(recording));
+  else store.recordings[index] = copy(recording);
+  return copy(store.recordings[index === -1 ? store.recordings.length - 1 : index]);
+}
+
+function findRecording(id) {
+  const found = store.recordings.find(function (item) { return item.id === id; });
+  return found ? copy(found) : null;
+}
+
+function findActiveRecording(sessionId) {
+  const found = store.recordings.find(function (item) {
+    return item.sessionId === sessionId && item.status === 'recording';
+  });
+  return found ? copy(found) : null;
+}
+
+function saveRazorpayOrder(order) {
+  const index = store.razorpayOrders.findIndex(function (item) { return item.id === order.id; });
+  if (index === -1) store.razorpayOrders.push(copy(order));
+  else store.razorpayOrders[index] = copy(order);
+  return copy(order);
+}
+
+function findRazorpayOrder(orderId) {
+  const found = store.razorpayOrders.find(function (item) { return item.id === orderId; });
+  return found ? copy(found) : null;
+}
+
+function findPayment(paymentId) {
+  const found = store.payments.find(function (item) { return item.id === paymentId; });
+  return found ? copy(found) : null;
+}
+
+function recordPayment(payment) {
+  store.payments.push(copy(payment));
+  return copy(payment);
+}
+
+function addSessions(studentId, sessions, payment) {
+  const user = store.users.find(function (item) { return item.id === studentId; });
+  if (!user) return null;
+
+  user.sessionsRemaining = Number(user.sessionsRemaining || 0) + sessions;
+
+  const pack = {
+    id: 'pack_' + Date.now(),
+    studentId: studentId,
+    label: 'Monthly pack · ' + sessions + ' sessions',
+    totalSessions: sessions,
+    remainingSessions: sessions,
+    purchasedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 38 * 24 * 60 * 60 * 1000).toISOString(),
+    refundable: false,
+    paymentRef: payment && payment.id ? payment.id : null
+  };
+  store.packs.push(pack);
+
+  return copy(user);
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -77,5 +140,13 @@ module.exports = {
   updateSession,
   listAttendance,
   listAttendanceForSession,
-  upsertAttendance
+  upsertAttendance,
+  saveRecording,
+  findRecording,
+  findActiveRecording,
+  saveRazorpayOrder,
+  findRazorpayOrder,
+  findPayment,
+  recordPayment,
+  addSessions
 };

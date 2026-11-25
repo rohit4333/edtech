@@ -30,7 +30,8 @@ const users = [
     grade: '7',
     mastery: 72,
     streak: 12,
-    batch: 'Ratios · Chapter 4'
+    batch: 'Ratios · Chapter 4',
+    sessionsRemaining: 9
   })
 ];
 
@@ -234,9 +235,19 @@ const attendance = [
   { id: 'att_001', sessionId: 'ses_math_000', trainerId: 'usr_trainer_001', studentId: 'usr_student_001', status: 'present' }
 ];
 
+/* Payment + recording state. Same shape as the tables in db/schema.sql. */
+const recordings = [];
+const razorpayOrders = [];
+const payments = [];
+const packs = [];
+
 module.exports = {
   users: users,
   sessions: sessions,
   attendance: attendance,
+  recordings: recordings,
+  razorpayOrders: razorpayOrders,
+  payments: payments,
+  packs: packs,
   demoPassword: demoPassword
 };

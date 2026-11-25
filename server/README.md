@@ -116,6 +116,26 @@ Realtime events:
 | `POST` | `/api/webhooks/recording` | Store vendor recording URL and notify |
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
 
+### DeepSeek, Agora, Razorpay
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/agora/token?channelName=…&uid=…` | Publisher RTC token + RTM token, 1-hour expiry |
+| `POST` | `/api/agora/recording/start` | Start Agora Cloud Recording or mock recording |
+| `POST` | `/api/agora/recording/stop` | Stop a started recording by `recordingId` |
+| `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
+| `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
+
+`services/deepseekService.js` exports `generateQuizDraft(topic, difficulty)`. Difficulty accepts
+`easy|medium|hard` or `1|2|3` and is sent to DeepSeek as `Level 1–3`. It returns a parsed
+`{ questions: [...] }` object with `question_text`, `options`, `correct_option_index` and `hint`.
+Drafts stay trainer-only until approved.
+
+Add these env vars in `.env`:
+`DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
+`RAZORPAY_WEBHOOK_SECRET`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`,
+`AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`.
+
 ## Safety rules already enforced
 
 - Sessions are strictly one trainer and one student.
@@ -140,5 +160,6 @@ Realtime events:
 
 1. Swap `db/index.js` to Supabase/PostgreSQL using `schema.sql`.
 2. Replace `realtime/index.js` with Supabase Realtime channels.
-3. Generate real Agora tokens in `realtime/agora.js`.
+3. Replace the mock `realtime/agora.js` seam with the `/api/agora/token` service everywhere.
 4. Wire the existing classroom frontend to `/state`, `/rtc-token` and the realtime channel.
+5. Mirror the mock `recordings`, `razorpay_orders`, `payments` and `packs` stores onto `schema.sql`.

@@ -29,6 +29,7 @@ create table if not exists student_profiles (
   user_id uuid primary key references users(id) on delete cascade,
   mastery smallint not null default 0 check (mastery between 0 and 100),
   streak smallint not null default 0,
+  sessions_remaining smallint not null default 0,
   batch text
 );
 
@@ -42,6 +43,29 @@ create table if not exists packs (
   expires_at timestamptz not null,
   refundable boolean not null default false,
   payment_ref text
+);
+
+create table if not exists razorpay_orders (
+  id text primary key,
+  student_id uuid not null references users(id),
+  pack_id text not null,
+  sessions smallint not null,
+  amount_integer bigint not null,
+  currency text not null,
+  receipt text not null,
+  status text not null default 'created',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists payments (
+  id text primary key,
+  order_id text references razorpay_orders(id),
+  student_id uuid not null references users(id),
+  amount_integer bigint not null,
+  currency text not null,
+  sessions_credited smallint not null,
+  captured_at timestamptz,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists sessions (
@@ -63,6 +87,19 @@ create table if not exists sessions (
 -- Strict 1:1: a student cannot have two live sessions at once.
 create unique index if not exists one_live_student_session
   on sessions (student_id) where status = 'live';
+
+create table if not exists recordings (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid references sessions(id),
+  channel_name text not null,
+  uid text not null,
+  resource_id text,
+  sid text,
+  status text not null default 'recording' check (status in ('recording', 'stopped')),
+  mode text not null default 'agora',
+  started_at timestamptz not null default now(),
+  stopped_at timestamptz
+);
 
 create table if not exists lesson_pages (
   id uuid primary key default gen_random_uuid(),
