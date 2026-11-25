@@ -3,320 +3,177 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mathify — Learning OS</title>
-<meta name="description" content="Mathify learning OS: student desk, trainer console, classroom, LMS, parent app, mastery practice and quiz studio.">
+<title>Mathify — 1-on-1 live math tutoring</title>
+<meta name="description" content="One student. One tutor. At their pace. Live 1-on-1 online math tutoring for Kindergarten to Grade 10, in any timezone.">
 <link rel="stylesheet" href="assets/poppins.css">
 <link rel="stylesheet" href="shared/tokens.css">
-<style>
-  [hidden]{display:none !important}
-  body{min-height:100dvh;display:flex;flex-direction:column}
-
-  .top{
-    display:flex;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
-    padding:20px clamp(20px,4vw,48px);
-    border-bottom:1px solid var(--line);
-    background:rgba(253,250,243,.7);
-  }
-  .brand{font-size:22px;font-weight:500;letter-spacing:-.04em;line-height:1}
-  .brand i{font-style:normal;font-weight:700;color:var(--coral)}
-  .suite{
-    font-family:var(--mono);
-    font-size:9px;
-    letter-spacing:.2em;
-    text-transform:uppercase;
-    color:var(--faint);
-    padding-left:16px;
-    border-left:1px solid var(--line);
-  }
-  .public-link{
-    margin-left:auto;
-    font-family:var(--mono);
-    font-size:9px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    color:var(--ink);
-    border-bottom:1px solid var(--coral);
-    padding-bottom:2px;
-  }
-  .built{
-    margin-left:0;
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    font-family:var(--mono);
-    font-size:9px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    color:var(--muted);
-  }
-  .built::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--teal)}
-
-  main{
-    width:100%;
-    max-width:1180px;
-    margin:0 auto;
-    padding:clamp(36px,6vw,76px) clamp(20px,4vw,48px) 0;
-    flex:1;
-  }
-  .intro{max-width:760px}
-  .intro h1{
-    margin-top:18px;
-    font-size:clamp(34px,5.4vw,62px);
-    font-weight:500;
-    letter-spacing:-.045em;
-    line-height:1.02;
-  }
-  .intro h1 em{font-style:normal;color:var(--coral)}
-  .lede{
-    max-width:56ch;
-    margin-top:16px;
-    font-size:14px;
-    line-height:1.65;
-    color:var(--muted);
-  }
-
-  .grid{
-    display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:14px;
-    margin-top:clamp(32px,5vw,52px);
-  }
-  .card{
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    min-height:212px;
-    padding:20px 21px 18px;
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--r-md);
-    transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
-  }
-  a.card:hover{
-    transform:translateY(-2px);
-    border-color:rgba(14,20,32,.3);
-    box-shadow:var(--shadow-raise);
-  }
-  a.card:hover .arrow{background:var(--coral);color:var(--ink);border-color:var(--coral)}
-  .card.live{background:#FFFDF8}
-  .card .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .card .mono{font-size:8.5px;letter-spacing:.16em;color:var(--faint)}
-  .card.live .mono{color:var(--coral-deep)}
-  .pill{
-    padding:3px 8px;
-    border-radius:var(--r-full);
-    font-family:var(--mono);
-    font-size:7.5px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    white-space:nowrap;
-  }
-  .pill.open{background:var(--teal-soft);color:var(--teal-ink)}
-  .pill.soon{background:var(--cream);color:var(--muted)}
-  .card h2{
-    margin-top:26px;
-    font-size:21px;
-    font-weight:500;
-    letter-spacing:-.025em;
-    line-height:1.2;
-  }
-  .card p{
-    margin-top:7px;
-    font-size:12px;
-    line-height:1.6;
-    color:var(--muted);
-  }
-  .card .foot{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-top:auto;
-    padding-top:18px;
-  }
-  .devices{
-    font-family:var(--mono);
-    font-size:8px;
-    letter-spacing:.09em;
-    text-transform:uppercase;
-    color:var(--faint);
-  }
-  .arrow{
-    display:grid;
-    place-items:center;
-    width:34px;height:34px;
-    flex:none;
-    border:1px solid var(--line);
-    border-radius:50%;
-    color:var(--muted);
-    transition:background .2s ease,color .2s ease,border-color .2s ease;
-  }
-  .arrow svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-  .soon .arrow{border-style:dashed;opacity:.45}
-  .soon h2,.soon p{opacity:.72}
-  .card.wide{
-    grid-column:1/-1;
-    min-height:0;
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    grid-template-areas:"row row" "head foot" "copy foot";
-    align-items:start;
-    column-gap:36px;
-    padding:22px 24px;
-  }
-  .card.wide .row{grid-area:row}
-  .card.wide h2{grid-area:head;margin-top:16px}
-  .card.wide p{grid-area:copy;max-width:74ch}
-  .card.wide .foot{grid-area:foot;align-self:end;margin-top:0;padding-top:0;gap:20px}
-
-  .note{
-    display:flex;
-    align-items:center;
-    gap:9px;
-    flex-wrap:wrap;
-    margin-top:22px;
-    padding:12px 16px;
-    background:var(--cream);
-    border:1px solid rgba(14,20,32,.08);
-    border-radius:var(--r-sm);
-    font-size:11px;
-    color:var(--muted);
-  }
-  .note b{
-    font-family:var(--mono);
-    font-size:8px;
-    font-weight:400;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    color:var(--faint);
-  }
-  .note .dot-sep{width:3px;height:3px;border-radius:50%;background:var(--faint)}
-
-  footer{
-    width:100%;
-    max-width:1180px;
-    margin:0 auto;
-    display:flex;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
-    margin-top:clamp(40px,6vw,68px);
-    padding:18px clamp(20px,4vw,48px) 26px;
-    border-top:1px solid var(--line);
-    font-family:var(--mono);
-    font-size:8.5px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    color:var(--faint);
-  }
-  footer .c{margin-left:auto}
-
-  @media (max-width:980px){
-    .grid{grid-template-columns:1fr 1fr}
-    .card{min-height:200px}
-  }
-  @media (max-width:640px){
-    .top{padding:16px;gap:10px}
-    .suite{padding-left:0;border-left:0;flex-basis:100%;order:3}
-    .built{font-size:8px}
-    main{padding:30px 16px 0}
-    .intro h1{font-size:34px}
-    .lede{font-size:13px}
-    .grid{grid-template-columns:1fr;gap:10px;margin-top:30px}
-    .card{min-height:0;padding:17px}
-    .card h2{margin-top:18px;font-size:19px}
-    .card .foot{padding-top:16px}
-    .card.wide{display:flex;grid-column:auto;padding:17px}
-    .card.wide .foot{margin-top:auto;padding-top:16px}
-    footer{padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
-    footer .c{margin-left:0;width:100%}
-  }
-  @media (prefers-reduced-motion:reduce){
-    .card,.arrow{transition:none}
-    a.card:hover{transform:none}
-  }
-</style>
+<link rel="stylesheet" href="public.css">
 </head>
 <body>
 
-<header class="top">
-  <a class="brand" href="index.html" aria-label="Mathify, learning OS home">Mathify<i>.</i></a>
-  <span class="suite">Learning OS · UI suite</span>
-  <a class="public-link" href="home/index.html">Public site ↗</a>
-  <span class="built">3 of 7 surfaces live</span>
+<header class="site-nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+
+    <input class="nav-toggle" type="checkbox" id="navToggle" aria-label="Open navigation">
+    <label class="nav-burger" for="navToggle" aria-hidden="true"><span></span><span></span></label>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="terms.html">Terms</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="refund.html">Refund</a>
+      <a href="contact.html">Contact</a>
+      <a class="btn btn-sm" href="contact.html">Book Demo
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </nav>
+  </div>
 </header>
 
-<main>
-  <div class="intro">
-    <p class="eyebrow">Product design system</p>
-    <h1>Every side of the classroom, on one desk<em>.</em></h1>
-    <p class="lede">One paper-and-ink language across student, trainer, parent and practice surfaces — each composed for laptop, tablet and phone rather than scaled down. Open a live surface to explore the prototype.</p>
-  </div>
+<main id="paper">
 
-  <section class="grid" aria-label="Mathify surfaces">
-
-    <a class="card live" href="student/index.html">
-      <div class="row"><span class="mono">01 · Student</span><span class="pill open">Live</span></div>
-      <h2>Student desk</h2>
-      <p>Next session, streak and mastery practice, recordings, reports and an AI tutor that stays out of the way.</p>
-      <div class="foot"><span class="devices">Laptop · Tablet · Phone</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
-    </a>
-
-    <a class="card live" href="trainer/index.html">
-      <div class="row"><span class="mono">02 · Trainer</span><span class="pill open">Live</span></div>
-      <h2>Trainer console</h2>
-      <p>Next class and the day’s schedule, a tap-to-mark register, teaching score, roster and a planning copilot.</p>
-      <div class="foot"><span class="devices">Laptop · Tablet · Phone</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
-    </a>
-
-    <a class="card live" href="classroom/index.html">
-      <div class="row"><span class="mono">03 · Classroom</span><span class="pill open">Live</span></div>
-      <h2>Live 1:1 session</h2>
-      <p>Video room, shared whiteboard, hidden trainer notes, expandable sketch space and quiz mode in one focused surface.</p>
-      <div class="foot"><span class="devices">Laptop · Tablet · Phone</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
-    </a>
-
-    <div class="card soon" aria-disabled="true">
-      <div class="row"><span class="mono">04 · Curriculum</span><span class="pill soon">In design</span></div>
-      <h2>LMS</h2>
-      <p>Courses, modules and typed assets — board notes, worksheets, flashcards, quizzes and recordings.</p>
-      <div class="foot"><span class="devices">Planned</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
+  <!-- ================================================= 01 · hero / fear -->
+  <section class="wrap hero" aria-labelledby="hero-title">
+    <div>
+      <p class="mono eyebrow">The fear</p>
+      <h1 id="hero-title">Your child's not slow. <em>Just invisible.</em></h1>
+      <p class="lede">40 minutes. 30 students. One teacher. Some never asked a single question.</p>
+      <div class="hero-actions">
+        <a class="btn" href="contact.html">Book Live Session
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
     </div>
 
-    <div class="card soon" aria-disabled="true">
-      <div class="row"><span class="mono">05 · Parent</span><span class="pill soon">In design</span></div>
-      <h2>Parent app</h2>
-      <p>Weekly progress cards, attendance, teacher notes and the next payment — written for a phone first.</p>
-      <div class="foot"><span class="devices">Planned</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
+    <div class="figure" aria-label="A classroom grid of 30 students with one marked as never asked">
+      <div class="figure-head">
+        <span class="mono">40 minutes. 30 students. One teacher.</span>
+        <span class="mono">NEVER ASKED</span>
+      </div>
+      <div class="seat-grid" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i class="unasked"></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <p class="figure-label mono"><span>NEVER ASKED</span></p>
     </div>
-
-    <div class="card soon" aria-disabled="true">
-      <div class="row"><span class="mono">06 · Practice</span><span class="pill soon">In design</span></div>
-      <h2>Mastery</h2>
-      <p>Daily adaptive practice for kids: short sets, streaks, friendly feedback and visible progress.</p>
-      <div class="foot"><span class="devices">Planned</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
-    </div>
-
-    <div class="card soon wide" aria-disabled="true">
-      <div class="row"><span class="mono">07 · Assessment</span><span class="pill soon">In design</span></div>
-      <h2>Quiz studio</h2>
-      <p>Generate a set, approve the questions, set the window and watch adherence fill the teaching score.</p>
-      <div class="foot"><span class="devices">Planned</span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></svg></span></div>
-    </div>
-
   </section>
 
-  <p class="note"><b>Prototype</b> Static HTML and CSS, no build step <span class="dot-sep"></span> placeholder copy and sample data throughout <span class="dot-sep"></span> Mathify brand, 2026</p>
+  <hr class="rule">
+
+  <!-- ================================================= 02 · the problem -->
+  <section class="wrap section" aria-labelledby="problem-title">
+    <p class="mono eyebrow">Why it happens</p>
+    <h2 class="section-title" id="problem-title">Behind doesn't happen in a day.</h2>
+
+    <ol class="problem-list">
+      <li><span class="mono n">01</span><p>A question too shy to ask.</p></li>
+      <li><span class="mono n">02</span><p>A topic that moved on.</p></li>
+      <li><span class="mono n">03</span><p>A term spent nodding along.</p></li>
+    </ol>
+
+    <p class="problem-foot">It builds quietly. One test makes it visible.</p>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ================================================= 03 · the fix -->
+  <section class="wrap section" aria-labelledby="solution-title">
+    <p class="mono eyebrow">The fix</p>
+    <h2 class="section-title" id="solution-title">One student. One tutor. At their pace.</h2>
+    <p class="mono scope">SCOPE: KINDERGARTEN TO GRADE 10 | WEEKEND SLOTS | GLOBAL TIMEZONES</p>
+
+    <div class="compare">
+      <article class="compare-card">
+        <span class="mono">A CLASSROOM (40 MIN)</span>
+        <div class="classroom-dots" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <b></b>
+        </div>
+      </article>
+
+      <article class="compare-card ours">
+        <span class="mono">OUR SESSION (40-50 MIN)</span>
+        <div class="session-figure" aria-hidden="true">
+          <span class="ring"></span>
+          <span class="student">STUDENT</span>
+          <span class="tutor"></span>
+        </div>
+      </article>
+    </div>
+
+    <p class="mono tagline">1-ON-1 • PERSONALISED • AT THEIR PACE • GLOBAL TIMEZONES</p>
+    <blockquote class="quote">Every session starts with: 'What didn't make sense this week?'</blockquote>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ================================================= 04 · the tutor -->
+  <section class="wrap section" aria-labelledby="tutor-title">
+    <p class="mono eyebrow">The tutor</p>
+    <h2 class="section-title" id="tutor-title">Same person. Every session.</h2>
+
+    <article class="profile-card">
+      <div class="profile-main">
+        <div class="monogram" aria-hidden="true">RV</div>
+        <div>
+          <h3>Rohit Vishwakarma</h3>
+          <ul class="profile-lines">
+            <li class="mono">1-ON-1 MATH • ONLINE</li>
+            <li class="mono">B.TECH &amp; M.TECH • IIIT ALLAHABAD</li>
+            <li class="mono">EX-SDE • FORMERLY AT SAMSUNG</li>
+            <li class="mono">NOW • MATH EXPERT AT BHANZU</li>
+          </ul>
+        </div>
+      </div>
+      <div class="profile-foot mono">VERIFIED BACKGROUND</div>
+    </article>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ================================================= 05 · the demo -->
+  <section class="wrap section" id="demo" aria-labelledby="demo-title">
+    <p class="mono eyebrow">The demo</p>
+    <h2 class="section-title" id="demo-title">What your child and you experience in the demo.</h2>
+    <p class="lede">One tutor. One student. One real problem — worked through together, with you watching.</p>
+
+    <div class="demo">
+      <ol class="steps">
+        <li><span class="mono n">01</span><span>Child solves and explains.</span></li>
+        <li><span class="mono n">02</span><span>You see where understanding breaks and how it's rebuilt.</span></li>
+        <li><span class="mono n">03</span><span>You leave with clarity and a plan.</span></li>
+      </ol>
+
+      <aside class="cta-box">
+        <p class="cta-meta mono">35 MIN | LIVE • 1-ON-1 • ANY TIMEZONE</p>
+        <a class="btn" href="contact.html">Book Live Session
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <p class="cta-foot">A real session – not a sales pitch.</p>
+      </aside>
+    </div>
+  </section>
+
 </main>
 
-<footer>
-  <span>Paper &amp; ink</span>
-  <span>Poppins</span>
-  <span>Laptop · tablet · phone</span>
-  <span class="c">© 2026 Mathify</span>
+<footer class="site-foot">
+  <div class="wrap foot-inner">
+    <a href="apps.html">Learning OS dashboards</a>
+    <a href="index.html">Home</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="refund.html">Refund</a>
+    <a href="contact.html">Contact</a>
+    <span class="c">© 2026 Mathify</span>
+  </div>
 </footer>
 
 </body>

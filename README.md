@@ -6,7 +6,9 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Suite hub linking the live surfaces. |
+| `index.html` | Public landing page — 1-on-1 tutoring, tutor profile and demo. |
+| `apps.html` | Suite hub linking the live dashboards. |
+| `home/index.html` | Redirect to the root public home. |
 | `student/index.html` | Student dashboard — Mastery, sessions, recordings and wallet. |
 | `trainer/index.html` | Trainer console — attendance, timeline, attention queue and live-call panel. |
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
