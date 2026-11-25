@@ -111,6 +111,13 @@
     link.addEventListener('click', function (event) {
       event.preventDefault();
       activate(navLinks, link);
+      var targetId = link.getAttribute('href');
+      if (targetId && targetId.charAt(0) === '#') {
+        var target = document.getElementById(targetId.slice(1));
+        if (target && typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
     });
   });
 

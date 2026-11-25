@@ -327,6 +327,12 @@ body{overflow:hidden}
   position:relative;
   z-index:20;
 }
+.legal{position:relative;flex:none;margin-left:auto}
+.legal summary{list-style:none;cursor:pointer;padding:6px 8px;font:500 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.legal summary::-webkit-details-marker{display:none}
+.legal-links{position:absolute;right:0;bottom:calc(100% + 10px);display:flex;flex-direction:column;gap:4px;min-width:132px;padding:8px;background:var(--paper);border:1px solid var(--line);border-radius:4px;z-index:30}
+.legal-links a{padding:6px 8px;font-size:12px;color:var(--ink);text-decoration:none;border-radius:2px}
+.legal-links a:hover{background:var(--ink);color:var(--paper)}
 .media{display:flex;align-items:center;gap:7px;flex:none}
 .ctl{
   display:grid;

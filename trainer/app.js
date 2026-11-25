@@ -426,6 +426,13 @@
   $$('.nav a[data-nav]').forEach(function (link) {
     link.addEventListener('click', function () {
       setActive('.nav a[data-nav]', link);
+      var targetId = link.getAttribute('href');
+      if (targetId && targetId.charAt(0) === '#') {
+        var target = document.getElementById(targetId.slice(1));
+        if (target && typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
     });
   });
 
