@@ -225,6 +225,24 @@ async function main() {
     assert.strictEqual(allowedNext.status, 200);
     assert.strictEqual(allowedNext.body.session.quiz.currentQuestionId, secondCheck.id);
 
+    /* Browser-safe event stream: the student receives state transitions, never
+       correctness, answer keys, hints or hidden trainer notes. */
+    const sharedEvents = await request('GET', '/api/sessions/ses_math_001/events?since=0&limit=50',
+      undefined, student);
+    assert.strictEqual(sharedEvents.status, 200);
+    assert.strictEqual(sharedEvents.body.events.some(function (event) {
+      return event.event === 'quiz.answer.revealed';
+    }), true);
+    assert.ok(sharedEvents.body.events.every(function (event) {
+      return typeof event.seq === 'number';
+    }));
+    assert.strictEqual(/correct|answerIndex|hint|trainerInstructions|misconception_watch/i
+      .test(sharedEvents.text), false);
+    const anonymousEvents = await request('GET', '/api/sessions/ses_math_001/events');
+    assert.strictEqual(anonymousEvents.status, 401);
+    const unknownEvents = await request('GET', '/api/sessions/ses_unknown/events', undefined, student);
+    assert.strictEqual(unknownEvents.status, 404);
+
     const heartbeat = await request('POST', '/api/sessions/ses_math_002/presence', {
       active: true, learningEvents: 2
     }, trainer);
@@ -261,11 +279,28 @@ async function main() {
     assert.strictEqual(endedAgain.status, 409);
 
     const reteach = await request('POST', '/api/sessions/ses_math_003/end', {
-      currentQuizScore: 62
+      currentQuizScore: 62,
+      recordingUrl: 'https://recordings.mathify.test/ses_math_003',
+      recap: {
+        summary: 'Ratios recap',
+        highlights: ['Bar models'],
+        homework: 'Practice sheet 3',
+        status: 'hacked',
+        score: 100
+      }
     }, founder);
     assert.strictEqual(reteach.status, 200);
     assert.strictEqual(reteach.body.unlockedNext, false);
     assert.strictEqual(reteach.body.reteachRequired, true);
+    assert.strictEqual(reteach.body.recap.summary, 'Ratios recap');
+    assert.strictEqual(reteach.body.recap.recordingUrl,
+      'https://recordings.mathify.test/ses_math_003');
+    assert.strictEqual(reteach.body.recap.score, 62);
+    assert.strictEqual(reteach.body.recap.status, 'ended');
+    const endedSession = db.findSession('ses_math_003');
+    assert.strictEqual(endedSession.status, 'ended');
+    assert.strictEqual(endedSession.recap.homework, 'Practice sheet 3');
+    assert.strictEqual(endedSession.recording.url, 'https://recordings.mathify.test/ses_math_003');
 
     const afterReteach = await request('GET', '/api/sessions/ses_math_003/state', undefined, trainer);
     assert.strictEqual(afterReteach.status, 200);

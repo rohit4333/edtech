@@ -23,10 +23,42 @@
     el.addEventListener('click', function () { toast(el.getAttribute('data-toast')); });
   });
 
+  /* -------------------------------------------------- session context + api */
+  var params = new URLSearchParams(window.location.search);
+  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || null;
+  var classroomApi = window.mathifyClassroomApi || null;
+  var studentName = 'Student';
+
+  function applyStudentName(value) {
+    var next = String(value || '').trim();
+    if (!next) return;
+    studentName = next;
+    $$('[data-student-name]').forEach(function (el) { el.textContent = next; });
+    renderChat();
+  }
+
+  function loadSessionContext() {
+    if (!sessionId || !classroomApi) return Promise.resolve(false);
+    return classroomApi.getSessionState(sessionId).then(function (state) {
+      var name = state && state.participants && state.participants.student &&
+        state.participants.student.name;
+      applyStudentName(name);
+      if (state && state.viewerRole) {
+        window.MATHIFY_USER = window.MATHIFY_USER || { role: state.viewerRole };
+      }
+      return true;
+    }).catch(function (error) {
+      console.warn('[mathify] Session context unavailable:', error.message);
+      toast('Session data unavailable · local preview only.');
+      return false;
+    });
+  }
+
   /* ----------------------------------------------------------------- timers */
   var recTime = $('#recTime');
   var sessionSeconds = 42 * 60 + 18;
   var ended = false;
+  var ending = false;
 
   function clock(seconds) {
     var m = Math.floor(seconds / 60);
@@ -53,9 +85,9 @@
 
   /* ------------------------------------------------------------------- chat */
   var messages = [
-    { who: 'Ishaan', text: 'Can we do one more bar model?', time: '5:09' },
+    { whoKey: 'student', text: 'Can we do one more bar model?', time: '5:09' },
     { who: 'You', text: 'After this one — page 2.', time: '5:09', me: true },
-    { who: 'Ishaan', text: 'Got it — 1 part is 6 cm.', time: '5:10' }
+    { whoKey: 'student', text: 'Got it — 1 part is 6 cm.', time: '5:10' }
   ];
 
   function nowTime() {
@@ -73,7 +105,9 @@
         wrap.className = 'chat-msg' + (m.me ? ' me' : '');
         var who = document.createElement('span');
         who.className = 'cm-who';
-        who.appendChild(document.createTextNode(m.who));
+        who.appendChild(document.createTextNode(
+          m.who || (m.whoKey === 'student' ? studentName : 'You')
+        ));
         var time = document.createElement('time');
         time.textContent = m.time;
         who.appendChild(time);
@@ -105,7 +139,7 @@
       $$('[data-chat-form] input').forEach(function (field) { field.value = ''; });
       clearUnread();
       var status = $('#chatStatus');
-      if (status) status.textContent = 'Message sent to Ishaan.';
+      if (status) status.textContent = 'Message sent to ' + studentName + '.';
       input && input.focus();
     });
     $('input', form) && $('input', form).addEventListener('focus', clearUnread);
@@ -202,8 +236,7 @@
   var recapStatus = $('#recapStatus');
   var recapSaved = $('#recapSaved');
 
-  function endClass() {
-    if (ended) return;
+  function paintEnded(savedText) {
     ended = true;
     document.body.classList.add('is-ended');
     if (liveWord) liveWord.textContent = 'Ended';
@@ -211,13 +244,89 @@
       endBtn.disabled = true;
       endBtn.textContent = 'Ended';
     }
-    if (recapStatus) recapStatus.textContent = 'Session · saved';
-    if (recapSaved) recapSaved.textContent = 'Saved just now';
+    if (recapStatus) recapStatus.textContent = 'Session · ' + (savedText || 'saved');
+    if (recapSaved) recapSaved.textContent = savedText || 'Saved just now';
+  }
+
+  function showRecapSheet() {
     closeSheet();
-    toast('Session ended · recap saved to Ishaan’s profile.');
-    setTimeout(function () {
-      openSheet('sheet-recap', endBtn);
-    }, 160);
+    setTimeout(function () { openSheet('sheet-recap', endBtn); }, 160);
+  }
+
+  function endClass() {
+    if (ended || ending) return;
+    ending = true;
+    if (confirmEnd) {
+      confirmEnd.disabled = true;
+      confirmEnd.textContent = 'Saving…';
+    }
+    if (recapStatus) recapStatus.textContent = 'Saving recap…';
+
+    var payload = {
+      recap: {
+        summary: 'Ratios · Lesson 15 with ' + studentName,
+        highlights: ['Bar models', 'Equivalent ratios'],
+        homework: 'Practice sheet 3'
+      }
+    };
+    /* The server owns the score unless a signed-in host supplies one. */
+    if (typeof window.MATHIFY_QUIZ_SCORE === 'number') {
+      payload.currentQuizScore = window.MATHIFY_QUIZ_SCORE;
+    }
+    var recordingLink = $('#recordingLink');
+    if (recordingLink && /^https?:\/\//i.test(recordingLink.value.trim())) {
+      payload.recordingUrl = recordingLink.value.trim();
+    }
+
+    var task = sessionId && classroomApi
+      ? classroomApi.endSession(sessionId, payload)
+      : Promise.reject({ code: 'NO_SESSION', message: 'No live session id.' });
+
+    task.then(function (data) {
+      ending = false;
+      paintEnded('saved');
+      var recap = data && data.recap;
+      if (recap) {
+        window.MATHIFY_SESSION_RECAP = recap;
+        if (recapStatus && recap.endedAt) {
+          recapStatus.textContent = 'Session · saved ' + new Date(recap.endedAt).toLocaleTimeString();
+        }
+        if (recap.recordingUrl) {
+          var recordingNote = $('#recordingNote');
+          if (recordingNote) {
+            recordingNote.textContent = 'Recording link is ready to share with ' +
+              studentName + '’s parent.';
+          }
+        }
+      }
+      toast('Session ended · recap saved to ' + studentName + '’s profile.');
+      showRecapSheet();
+    }).catch(function (error) {
+      ending = false;
+      if (confirmEnd) {
+        confirmEnd.disabled = false;
+        confirmEnd.textContent = 'End & save recap';
+      }
+      if (error.code === 'SESSION_ALREADY_ENDED') {
+        paintEnded('already ended');
+        toast('This session was already ended.');
+        showRecapSheet();
+        return;
+      }
+      if (error.code === 'PARALLEL_CHECK_REQUIRED') {
+        if (recapStatus) recapStatus.textContent = 'Finish the parallel check first';
+        toast('Finish the parallel check before ending the session.');
+        return;
+      }
+      if (error.code === 'NO_SESSION' || error.name === 'TypeError' || error.status === 404) {
+        paintEnded('preview · not saved');
+        toast('Local preview · no live session, so nothing was saved.');
+        showRecapSheet();
+        return;
+      }
+      if (recapStatus) recapStatus.textContent = 'Could not save · retry';
+      toast('Could not save the session: ' + error.message);
+    });
   }
 
   confirmEnd && confirmEnd.addEventListener('click', endClass);
@@ -225,8 +334,8 @@
   var sendRecap = $('#sendRecap');
   sendRecap && sendRecap.addEventListener('click', function () {
     sendRecap.disabled = true;
-    sendRecap.textContent = 'Sent to parent';
-    toast('Recap sent to Ishaan’s parent.');
+    sendRecap.textContent = 'Recap ready';
+    toast('Recap ready for ' + studentName + '’s parent.');
   });
 
   /* -------------------------------------------------------------- media bar */
@@ -282,7 +391,7 @@
     shareBtn.setAttribute('aria-pressed', String(sharing));
     shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing board' : 'Share board');
     shareBtn.title = sharing ? 'Stop sharing board' : 'Share board';
-    toast(sharing ? 'Board shared with Ishaan.' : 'Board share stopped.');
+    toast(sharing ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
     $$('.call-pip').forEach(function (pip) { pip.classList.toggle('is-sharing', sharing); });
   });
 
@@ -664,11 +773,11 @@
   });
 
   /* -------------------------------------------------------------------- init */
+  loadSessionContext();
   setTool('pen');
   setColor('ink');
   setPage(1);
 
-  var params = new URLSearchParams(window.location.search);
   var startPage = Number(params.get('page'));
   if (startPage >= 1 && startPage <= 3) setPage(startPage);
   var startSheet = params.get('sheet');
@@ -691,7 +800,11 @@
     closeSheet: closeSheet,
     fitCanvas: fitCanvas,
     setPage: setPage,
-    currentPage: function () { return page; }
+    currentPage: function () { return page; },
+    sessionId: sessionId,
+    api: classroomApi,
+    studentName: function () { return studentName; },
+    setStudentName: applyStudentName
   };
 
 })();

@@ -66,7 +66,7 @@
           <span class="live" id="liveTag"><i aria-hidden="true"></i><span id="liveWord">Live</span></span>
           <b>1:1 · Class 6 Mathematics</b>
         </div>
-        <span class="lesson-sub">Ratios · Lesson 15 <span aria-hidden="true">·</span> Ishaan Verma</span>
+        <span class="lesson-sub">Ratios · Lesson 15 <span aria-hidden="true">·</span> <span data-student-name>Student</span></span>
       </div>
     </div>
     <div class="top-r">
@@ -705,14 +705,14 @@
           <div><b class="num">1</b><span>student joined</span></div>
           <div><b class="num">1</b><span>quiz ready</span></div>
         </div>
-        <p class="end-copy">The board and chat are saved to <b>Ishaan’s profile</b>. The parent receives a short recap, and the session lands in the teaching score.</p>
+        <p class="end-copy">The board and chat are saved to <b><span data-student-name>Student</span>’s profile</b>. The parent receives a short recap, and the session lands in the teaching score.</p>
         <div class="end-note">
           <svg class="icon" aria-hidden="true"><use href="#i-recap"/></svg>
           <span>Recap is drafted automatically from the session log.</span>
         </div>
         <div class="rec-link trainer-only">
           <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
-          <div><b>Recording</b><span>Link is ready to share with Ishaan’s parent.</span></div>
+          <div><b>Recording</b><span id="recordingNote">Link is ready to share with <span data-student-name>Student</span>’s parent.</span></div>
           <button class="mini-btn" type="button" data-toast="Recording link copied.">Copy link</button>
         </div>
       </div>
@@ -728,6 +728,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <p class="visually-hidden" id="chatStatus" aria-live="polite"></p>
 
+<script src="api.js"></script>
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>

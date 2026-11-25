@@ -12,6 +12,12 @@
   var toast = api.toast || function () {};
   var closeSheet = api.closeSheet || function () {};
 
+  /* Participant names come from the session state DTO (name-only by design).
+     Never fall back to a hardcoded student identity. */
+  function studentLabel() {
+    return typeof api.studentName === 'function' ? api.studentName() : 'Student';
+  }
+
   var params = new URLSearchParams(window.location.search);
   var user = Object.assign({}, window.MATHIFY_USER || window.currentUser || api.user || {});
   var roleParam = params.get('role');
@@ -563,6 +569,9 @@
     $$('button', quizOptions).forEach(function (option, i) {
       option.disabled = true;
       if (!reveal || !item) return;
+      /* Student-side questions carry no answer index. Correctness is fetched
+         from the server after the trainer reveals it. */
+      if (typeof item.answer !== 'number') return;
       if (i === item.answer) option.classList.add('is-correct');
       else if (i === quizState.chosen) option.classList.add('is-wrong');
     });
@@ -611,7 +620,7 @@
     } else {
       setFeedback(item.recheck ? 'Recheck · choose one answer.' : 'Choose one answer.', '');
     }
-    setAnswerState('Waiting for Ishaan’s answer.');
+    setAnswerState('Waiting for ' + studentLabel() + '’s answer.');
     if (quizReteach) {
       quizReteach.textContent = 'Reteach + new check';
       quizReteach.classList.remove('is-armed');
@@ -662,7 +671,7 @@
     });
 
     setFeedback('Answer saved. Your trainer will reveal feedback.', 'is-waiting');
-    setAnswerState('Ishaan chose ' + 'ABCD'.charAt(chosen) + ' · key ' + 'ABCD'.charAt(item.answer) + '.');
+    setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) + ' · key ' + 'ABCD'.charAt(item.answer) + '.');
     setQuizPhase('awaiting_reveal');
     updateReadiness();
 
@@ -701,11 +710,26 @@
     });
   }
 
-  function revealQuizAnswer() {
-    if (studentView || quizState.phase === 'reteach' || quizState.phase === 'complete') return;
+  function refreshRevealResult(attemptId) {
+    if (!sessionId || !authToken() || !attemptId) return Promise.resolve(null);
+    return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
+      '/quiz/attempts/' + encodeURIComponent(attemptId)).then(function (data) {
+      if (!data.revealed || quizState.attemptId !== attemptId) return null;
+      $$('button', quizOptions).forEach(function (option, index) {
+        if (index === quizState.chosen) option.classList.toggle('is-correct', data.correct === true);
+      });
+      setFeedback(data.correct
+        ? 'Correct — well done.'
+        : 'Not quite — your trainer will go over it.',
+      data.correct ? 'is-correct' : 'is-wrong');
+      setAnswerState(data.correct ? 'Correct.' : 'Review with trainer.');
+      return data;
+    }).catch(function () { return null; });
+  }
+
+  function paintReveal() {
     var item = questions[quizState.index];
     if (!item) return;
-
     quizState.revealed = true;
     lockOptions(true);
     var right = quizState.chosen === item.answer;
@@ -714,11 +738,34 @@
       setAnswerState('Revealed · skipped.');
     } else {
       setFeedback((right ? 'Correct. ' : 'Not quite. ') + item.why, right ? 'is-correct' : 'is-wrong');
-      setAnswerState('Revealed · Ishaan chose ' + 'ABCD'.charAt(quizState.chosen) + '.');
+      setAnswerState('Revealed · ' + studentLabel() + ' chose ' + 'ABCD'.charAt(quizState.chosen) + '.');
     }
     setQuizPhase('revealed');
-    toast('Answer revealed for Ishaan.');
+    toast('Answer revealed for ' + studentLabel() + '.');
     refreshParallelResult();
+  }
+
+  function revealQuizAnswer() {
+    if (studentView || quizState.phase === 'reteach' || quizState.phase === 'complete') return;
+    var item = questions[quizState.index];
+    if (!item) return;
+
+    if (!sessionId || !authToken()) {
+      paintReveal();
+      publishQuizEvent('quiz.answer.revealed', { questionIds: [item.id] });
+      return;
+    }
+
+    var client = api.api || window.mathifyClassroomApi;
+    var task = client && typeof client.revealQuestion === 'function'
+      ? client.revealQuestion(sessionId, item.id)
+      : apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/reveal', {
+        method: 'POST', body: { questionId: item.id }
+      });
+
+    task.then(paintReveal).catch(function (error) {
+      toast('Could not sync the reveal: ' + error.message);
+    });
   }
 
   function skipQuiz() {
@@ -734,13 +781,7 @@
     updateReadiness();
   }
 
-  function reteachQuiz() {
-    if (studentView || quizState.phase === 'complete') return;
-    if (quizState.reteachArmed) {
-      addRecheckQuestion();
-      return;
-    }
-
+  function paintReteach() {
     quizState.reteachArmed = true;
     lockOptions(false);
     setQuizPhase('reteach');
@@ -753,6 +794,32 @@
     toast('Quiz frozen for reteach. Add a fresh check when ready.');
   }
 
+  function reteachQuiz() {
+    if (studentView || quizState.phase === 'complete') return;
+    if (quizState.reteachArmed) {
+      addRecheckQuestion();
+      return;
+    }
+
+    if (!sessionId || !authToken()) {
+      paintReteach();
+      publishQuizEvent('quiz.reteach.started', {
+        questionId: currentQuizItem() ? currentQuizItem().id : null
+      });
+      return;
+    }
+
+    var client = api.api || window.mathifyClassroomApi;
+    var task = client && typeof client.startReteach === 'function'
+      ? client.startReteach(sessionId, 'trainer reteach')
+      : apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/reteach', {
+        method: 'POST', body: { reason: 'trainer reteach' }
+      });
+    task.then(paintReteach).catch(function (error) {
+      toast('Could not sync the reteach: ' + error.message);
+    });
+  }
+
   function installParallelQuestion(next) {
     questions.push(next);
     quizState.index = questions.length - 1;
@@ -763,6 +830,7 @@
   }
 
   function addLocalRecheckQuestion() {
+    toast('AI check unavailable · using the local practice scaffold.');
     var bankItem = recheckBank[quizState.recheckCount % recheckBank.length];
     quizState.recheckCount += 1;
     installParallelQuestion(Object.assign({}, bankItem, {
@@ -1124,13 +1192,90 @@
     studentInkCanvas.addEventListener('pointercancel', stopStudentInk);
   }
 
+  var localQuizChannel = null;
+  var localEventKey = 'mathify.quiz.event';
+
+  /* Same-browser fallback when the realtime bridge or server is unavailable.
+     Payloads never contain an answer key or correctness. */
+  function publishQuizEvent(event, payload) {
+    if (!sessionId) return;
+    var message = { event: event, payload: payload || {}, at: new Date().toISOString() };
+    if (window.BroadcastChannel) {
+      try {
+        var channel = new BroadcastChannel('mathify:session:' + sessionId);
+        channel.postMessage(message);
+        channel.close();
+      } catch (error) { /* private mode */ }
+    }
+    if (window.localStorage) {
+      try { window.localStorage.setItem(localEventKey, JSON.stringify(message)); } catch (error) {}
+    }
+  }
+
+  function applyRevealEvent(event) {
+    if (!quizLive()) return;
+    var ids = (event.payload && event.payload.questionIds) || [];
+    var current = currentQuizItem();
+    if (!current || (ids.length && ids.indexOf(current.id) === -1)) return;
+    if (quizState.revealed) return;
+
+    quizState.revealed = true;
+    lockOptions(true);
+    setQuizPhase('revealed');
+    if (studentView) {
+      setFeedback('Trainer feedback is ready.', 'is-waiting');
+      setAnswerState('Answer revealed by trainer.');
+      refreshRevealResult(quizState.attemptId);
+    }
+  }
+
+  function handleSessionEvent(event) {
+    if (!event || !event.event) return;
+    if (event.event === 'quiz.answer.revealed') applyRevealEvent(event);
+    else if (event.event === 'quiz.reteach.started' && studentView && quizLive()) {
+      setQuizPhase('reteach');
+      setFeedback('Your trainer is going over this once more.', 'is-waiting');
+    } else if ((event.event === 'quiz.question.changed' || event.event === 'quiz.check.added') && studentView) {
+      startQuestionSync();
+    } else if (event.event === 'session.ended') {
+      document.body.classList.add('is-ended');
+      var word = $('#liveWord');
+      var button = $('#endBtn');
+      if (word) word.textContent = 'Ended';
+      if (button) { button.disabled = true; button.textContent = 'Ended'; }
+    }
+  }
+
+  function initLocalQuizEvents() {
+    if (!sessionId) return;
+    if (window.BroadcastChannel) {
+      try {
+        localQuizChannel = new BroadcastChannel('mathify:session:' + sessionId);
+        localQuizChannel.onmessage = function (message) { handleSessionEvent(message.data); };
+      } catch (error) { localQuizChannel = null; }
+    }
+    if (window.localStorage) {
+      window.addEventListener('storage', function (event) {
+        if (event.key !== localEventKey || !event.newValue) return;
+        try { handleSessionEvent(JSON.parse(event.newValue)); } catch (error) {}
+      });
+    }
+  }
+
   function initRealtime() {
+    if (realtimeLink || !sessionId) return;
+    initLocalQuizEvents();
+
     var bridge = window.classroomRealtime;
-    if (!bridge || realtimeLink || !sessionId || !accessToken) return;
+    if (!bridge || typeof bridge.connect !== 'function') {
+      console.warn('[mathify] Realtime bridge unavailable · using local quiz events.');
+      return;
+    }
     realtimeLink = bridge.connect({
       sessionId: sessionId,
       accessToken: accessToken,
       onStroke: drawRemoteStroke,
+      onEvent: handleSessionEvent,
       onStatus: function (status) {
         if (status === 'live' && studentView) toast('Live trainer sketch connected.');
       }

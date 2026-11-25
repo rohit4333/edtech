@@ -21,6 +21,44 @@ router.post('/:sessionId/rtc-token', function (req, res) {
   return res.json({ rtc: agora.issueRtcToken(req.sessionRecord, req.user) });
 });
 
+/* Browser-safe session events. This is the fallback transport when Supabase
+   Realtime is not configured. Payloads are scrubbed again here: correctness,
+   answer keys, hints and trainer notes are never put on a shared channel. */
+const SHARED_EVENTS = [
+  'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
+  'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
+  'quiz.completed', 'session.ended', 'page.changed'
+];
+const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
+
+function safePayload(value, depth) {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(function (item) { return safePayload(item, (depth || 0) + 1); });
+  if ((depth || 0) > 4) return undefined;
+  const clean = {};
+  Object.keys(value).forEach(function (key) {
+    if (FORBIDDEN_KEY.test(key)) return;
+    const safe = safePayload(value[key], (depth || 0) + 1);
+    if (safe !== undefined) clean[key] = safe;
+  });
+  return clean;
+}
+
+router.get('/:sessionId/events', function (req, res) {
+  const since = Number(req.query.since) || 0;
+  const events = realtime.forSession(req.sessionRecord.id, since, req.query.limit)
+    .filter(function (message) { return SHARED_EVENTS.indexOf(message.event) !== -1; })
+    .map(function (message) {
+      return {
+        seq: message.seq,
+        at: message.at,
+        event: message.event,
+        payload: safePayload(message.payload, 0) || {}
+      };
+    });
+  return res.json({ sessionId: req.sessionRecord.id, mode: realtime.mode, events: events });
+});
+
 /* Automated presence. Role always comes from the JWT, never the request body. */
 router.get('/:sessionId/presence', function (req, res) {
   return res.json({ presence: presenceService.stateFor(req.sessionRecord, req.user) });
@@ -49,6 +87,23 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
   }
 
   const body = req.body || {};
+  /* The trainer may attach a recap and recording link. Only small, scalar
+     fields are persisted; status, score and answer data stay server-owned. */
+  const RECAP_KEYS = ['summary', 'highlights', 'homework', 'pagesCompleted', 'durationSeconds'];
+  const safeRecap = {};
+  if (body.recap && typeof body.recap === 'object' && !Array.isArray(body.recap)) {
+    RECAP_KEYS.forEach(function (key) {
+      const value = body.recap[key];
+      if (typeof value === 'string') safeRecap[key] = value.slice(0, 2000);
+      else if (typeof value === 'number' && Number.isFinite(value)) safeRecap[key] = value;
+      else if (Array.isArray(value) && value.every(function (item) { return typeof item === 'string'; })) {
+        safeRecap[key] = value.slice(0, 20).map(function (item) { return item.slice(0, 300); });
+      }
+    });
+  }
+  const recordingUrl = typeof body.recordingUrl === 'string' &&
+    /^https?:\/\//i.test(body.recordingUrl.trim())
+    ? body.recordingUrl.trim().slice(0, 500) : null;
   const scoreOverride = Object.prototype.hasOwnProperty.call(body, 'currentQuizScore')
     ? body.currentQuizScore
     : serializers.readiness(session);
@@ -85,11 +140,14 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     current.unlockedNext = gating.unlockedNext;
     if (gating.reteachRequired) current.currentTopicId = topicId;
     if (gating.unlockedNext) current.nextTopicUnlocked = true;
-    current.recording = current.recording || {
+    current.recording = Object.assign(current.recording || {
       url: 'https://recordings.mathify.local/' + current.id,
       durationSeconds: current.elapsedSeconds,
       readyAt: endedAt
-    };
+    }, recordingUrl ? { url: recordingUrl, readyAt: endedAt } : {});
+    if (Object.keys(safeRecap).length) {
+      current.recap = Object.assign({}, current.recap || {}, safeRecap, { savedAt: endedAt });
+    }
     return current;
   });
 
@@ -122,7 +180,7 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
   });
 
   return res.json({
-    recap: {
+    recap: Object.assign({
       id: updated.id,
       title: updated.title,
       status: updated.status,
@@ -141,7 +199,7 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
       masteryGating: gating,
       presence: presence,
       trainerView: req.user.role === 'trainer' || req.user.role === 'founder'
-    },
+    }, updated.recap || {}),
     presence: presence,
     unlockedNext: gating.unlockedNext,
     reteachRequired: gating.reteachRequired,
