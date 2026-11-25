@@ -1,0 +1,68 @@
+/* ==========================================================================
+   MATHIFY — shared leave-request calendar for trainer and student dashboards.
+   ========================================================================== */
+
+.leave-panel{margin-top:18px;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.leave-panel > .mono{font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep)}
+.leave-calendar{border-top:1px solid var(--line-soft);padding-top:14px}
+.lc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.lc-head h3{margin:4px 0 0;font-size:14px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+.lc-head p{margin:5px 0 0;max-width:52ch;font-size:10.5px;line-height:1.55;color:var(--muted)}
+.lc-balance{
+  flex:none;min-width:132px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;
+  background:rgba(253,250,243,.86)
+}
+.lc-balance .mono{font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep)}
+.lc-balance-num{display:block;margin-top:2px;font-family:var(--mono);font-size:24px;letter-spacing:-.04em;color:var(--ink)}
+.lc-balance-detail{display:block;margin-top:2px;font-size:9px;color:var(--muted)}
+.lc-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.lc-month{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.lc-nav-buttons{display:flex;gap:6px}
+.lc-nav button{
+  width:25px;height:25px;border:1px solid var(--line);border-radius:5px;background:var(--card);
+  color:var(--muted);font-size:12px;line-height:1;cursor:pointer
+}
+.lc-nav button:hover:not(:disabled){border-color:rgba(14,20,32,.36);color:var(--ink)}
+.lc-nav button:disabled{opacity:.38;cursor:not-allowed}
+.lc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:8px}
+.lc-week{font-family:var(--mono);font-size:7px;letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--faint);padding-bottom:3px}
+.lc-day{
+  min-height:34px;padding:0;border:1px solid var(--line-soft);border-radius:5px;background:transparent;
+  font-family:var(--mono);font-size:9px;color:var(--muted);cursor:default
+}
+.lc-day.is-muted{opacity:.32}
+.lc-day.is-eligible{cursor:pointer;border-color:rgba(255,91,46,.42);background:rgba(255,91,46,.07);color:var(--ink)}
+.lc-day.is-eligible:hover{border-color:var(--coral);background:rgba(255,91,46,.14)}
+.lc-day.is-leave{background:rgba(14,20,32,.07);border-color:var(--line);color:var(--muted)}
+.lc-day.is-selected{outline:1px solid var(--coral);outline-offset:1px;color:var(--ink)}
+.lc-action{margin-top:12px;border-top:1px solid var(--line-soft);padding-top:10px}
+.lc-session-list{display:grid;gap:5px;margin:0 0 9px;padding:0;list-style:none}
+.lc-session{
+  display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:1px solid var(--line);
+  border-radius:5px;background:var(--card);text-align:left;cursor:pointer
+}
+.lc-session:hover{border-color:rgba(14,20,32,.34)}
+.lc-session[aria-pressed="true"]{border-color:var(--coral);background:rgba(255,91,46,.08)}
+.lc-session-time{flex:none;font-family:var(--mono);font-size:9px;color:var(--coral-deep)}
+.lc-session-copy{min-width:0}
+.lc-session-copy b{display:block;font-size:10px;font-weight:500;color:var(--ink)}
+.lc-session-copy small{display:block;font-size:8.5px;color:var(--muted)}
+.lc-apply{
+  width:100%;min-height:31px;padding:0 12px;border:1px solid var(--coral);border-radius:5px;
+  background:var(--coral);color:var(--ink);font-size:10px;font-weight:500;cursor:pointer
+}
+.lc-apply:disabled{border-color:var(--line);background:var(--line-soft);color:var(--faint);cursor:not-allowed}
+.lc-note{margin:8px 0 0;font-size:9px;line-height:1.5;color:var(--muted)}
+.lc-error{margin:8px 0 0;font-size:9px;line-height:1.5;color:var(--coral-deep)}
+.lc-empty{margin:10px 0 0;font-size:10px;color:var(--muted)}
+.lc-recent{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+.lc-recent li{display:flex;justify-content:space-between;gap:8px;font-size:9px;color:var(--muted)}
+.lc-recent b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+
+@media (min-width:720px){
+  .leave-calendar{display:grid;grid-template-columns:minmax(0,1fr) 240px;column-gap:22px}
+  .lc-head{grid-column:1/-1}
+  .lc-nav,.lc-grid,.lc-action{grid-column:1}
+  .lc-recent{grid-column:2;grid-row:2/span 3;margin-top:14px}
+  .lc-day{min-height:38px;font-size:10px}
+}

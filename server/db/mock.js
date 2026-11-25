@@ -228,6 +228,40 @@ const sessions = [
       channel: 'mathify-ses_math_000',
       status: 'ended'
     }
+  },
+  {
+    id: 'ses_math_002',
+    code: 'MATH-1602',
+    trainerId: 'usr_trainer_001',
+    studentId: 'usr_student_001',
+    title: 'Ratios · Lesson 16',
+    status: 'scheduled',
+    startsAt: '2026-11-30T12:30:00.000Z',
+    scheduledAt: '2026-11-30T12:30:00.000Z',
+    pages: [],
+    planner: [],
+    quiz: { status: 'ready', phase: 'draft', questions: [], drafts: [], attempts: [], reveals: [] },
+    board: { version: 1, strokes: [] },
+    pack: { id: 'pack_001', label: 'Ratios booster', remaining: 8, expiresAt: '2026-12-31T23:59:59.000Z' },
+    mastery: 72,
+    rtc: { provider: 'agora', channel: 'mathify-ses_math_002', status: 'waiting-for-token' }
+  },
+  {
+    id: 'ses_math_003',
+    code: 'MATH-1603',
+    trainerId: 'usr_trainer_001',
+    studentId: 'usr_student_001',
+    title: 'Ratios · Lesson 17',
+    status: 'scheduled',
+    startsAt: '2026-12-03T12:30:00.000Z',
+    scheduledAt: '2026-12-03T12:30:00.000Z',
+    pages: [],
+    planner: [],
+    quiz: { status: 'ready', phase: 'draft', questions: [], drafts: [], attempts: [], reveals: [] },
+    board: { version: 1, strokes: [] },
+    pack: { id: 'pack_001', label: 'Ratios booster', remaining: 8, expiresAt: '2026-12-31T23:59:59.000Z' },
+    mastery: 72,
+    rtc: { provider: 'agora', channel: 'mathify-ses_math_003', status: 'waiting-for-token' }
   }
 ];
 
@@ -242,6 +276,29 @@ const payments = [];
 const packs = [];
 const whatsappMessages = [];
 const supportEscalations = [];
+const leaveRequests = [];
+const presenceEvents = [];
+const presenceSnapshots = [];
+const trainerSlots = [
+  {
+    id: 'slot_001',
+    trainerId: 'usr_trainer_001',
+    dayOfWeek: 1,
+    startMinuteUtc: 720,
+    endMinuteUtc: 960,
+    label: 'Monday commitment',
+    createdAt: '2026-11-01T00:00:00.000Z'
+  },
+  {
+    id: 'slot_002',
+    trainerId: 'usr_trainer_001',
+    dayOfWeek: 4,
+    startMinuteUtc: 720,
+    endMinuteUtc: 960,
+    label: 'Thursday commitment',
+    createdAt: '2026-11-01T00:00:00.000Z'
+  }
+];
 
 module.exports = {
   users: users,
@@ -253,5 +310,9 @@ module.exports = {
   packs: packs,
   whatsappMessages: whatsappMessages,
   supportEscalations: supportEscalations,
+  leaveRequests: leaveRequests,
+  presenceEvents: presenceEvents,
+  presenceSnapshots: presenceSnapshots,
+  trainerSlots: trainerSlots,
   demoPassword: demoPassword
 };

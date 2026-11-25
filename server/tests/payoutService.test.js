@@ -33,6 +33,7 @@ const fines = payout.cancellationFines(sessions, 350, policy.payout.fineRules);
 assert.strictEqual(fines.length, 1);
 assert.strictEqual(fines[0].amount, 350);
 assert.strictEqual(fines[0].late, true);
+assert.strictEqual(payout.cancellationFines(sessions, 300, policy.payout.fineRules)[0].amount, 300);
 
 const onTime = [{
   id: 'c2',
@@ -55,6 +56,24 @@ const bonus = payout.attendanceBonusFor(
 );
 assert.strictEqual(bonus.eligible, true);
 assert.strictEqual(bonus.bonus, 2000);
+
+const mutualLeaveSession = {
+  id: 'l1',
+  trainerId: 't1',
+  scheduledAt: '2026-11-30T10:00:00.000Z',
+  cancelledAt: '2026-11-27T10:00:00.000Z',
+  cancelledBy: 'trainer',
+  status: 'cancelled'
+};
+const leaveBonus = payout.attendanceBonusFor(
+  { id: 't1', attendanceBonusStreak: 0 },
+  sessions.filter(function (row) { return row.trainerId === 't1'; }).concat([mutualLeaveSession]),
+  attendance,
+  policy.payout.bonusRules,
+  policy
+);
+assert.strictEqual(leaveBonus.eligible, true);
+assert.strictEqual(leaveBonus.expectedCount, 2);
 
 const ranking = payout.mvtRanking(
   [
@@ -102,4 +121,59 @@ assert.strictEqual(result.dailySeries.isIllustrative, false);
 assert.strictEqual(result.dailySeries.source, 'session_records');
 assert.strictEqual(result.knownRules.applied, true);
 
-console.log('payoutService: 21 assertions passed');
+const noShowSession = session('n1', 't4', '2026-11-10T10:00:00.000Z', 'no_show');
+const noShowResult = payout.buildPayout(
+  { id: 't4', name: 'D', role: 'trainer', payPerSession: 350 },
+  [noShowSession],
+  '2026-11',
+  policy,
+  {
+    trainers: [{ id: 't4', name: 'D', role: 'trainer' }],
+    allSessions: [noShowSession],
+    attendance: [],
+    provenance: 'test'
+  }
+);
+assert.strictEqual(payout.isNoShow(noShowSession), true);
+assert.strictEqual(noShowResult.sessionCount, 0);
+assert.strictEqual(noShowResult.noShows.count, 1);
+assert.strictEqual(noShowResult.amount.value, 0);
+
+/* Automated presence gate: an ended session with under 15 trainer minutes is unpaid. */
+const presenceBlocked = Object.assign(
+  session('p1', 't5', '2026-11-11T10:00:00.000Z', 'ended'),
+  { presence: { payoutEligible: false } }
+);
+const presenceResult = payout.buildPayout(
+  { id: 't5', name: 'E', role: 'trainer', payPerSession: 350, attendanceBonusStreak: 0 },
+  [presenceBlocked],
+  '2026-11',
+  policy,
+  {
+    trainers: [{ id: 't5', name: 'E', role: 'trainer' }],
+    allSessions: [presenceBlocked],
+    attendance: [],
+    provenance: 'test'
+  }
+);
+assert.strictEqual(presenceResult.sessionCount, 0);
+assert.strictEqual(presenceResult.amount.value, 0);
+
+/* Unutilised committed-slot hours are added at 30% of the session rate. */
+const slotPayResult = payout.buildPayout(
+  { id: 't6', name: 'F', role: 'trainer', payPerSession: 350, attendanceBonusStreak: 0 },
+  [],
+  '2026-11',
+  policy,
+  {
+    trainers: [{ id: 't6', name: 'F', role: 'trainer' }],
+    allSessions: [],
+    attendance: [],
+    slotPay: 315,
+    provenance: 'test'
+  }
+);
+assert.strictEqual(slotPayResult.amount.breakdown.slotPay, 315);
+assert.strictEqual(slotPayResult.amount.value, 315);
+
+console.log('payoutService: 31 assertions passed');

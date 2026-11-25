@@ -33,51 +33,81 @@
     $$('.trainer-only').forEach(function (el) { el.remove(); });
   }
 
-  /* ------------------------------------------------------ trainer notes */
+  /* ------------------------------------------ trainer-only notes sidebar */
   var trainerPanel = $('#trainerPanel');
   var trainerLayerBtn = $('#trainerLayerBtn');
   var trainerPanelClose = $('#trainerPanelClose');
   var trainerInstructions = $('#trainerInstructions');
+  var trainerSession = null;
+  var notesLoaded = false;
 
-  function titleFor(el) {
-    if (el.classList.contains('p-head')) return 'Opening prompt';
-    if (el.classList.contains('bar-fig')) return 'Bar model';
-    if (el.classList.contains('ratio-wrap')) return 'Ratio table';
-    if (el.classList.contains('dline-fig')) return 'Number line';
-    if (el.classList.contains('workspace')) return 'Sketch zone';
-    if (el.classList.contains('sketch-strip')) return 'Sketch prompt';
-    return 'Trainer note';
+  function currentPageNumber() {
+    var page = api.currentPage && api.currentPage();
+    if (Number.isFinite(Number(page)) && Number(page) > 0) return Number(page);
+    var visible = $('.sheet-page:not([hidden])') || $('.sheet-page');
+    return visible ? Number(visible.getAttribute('data-page') || 1) : 1;
+  }
+
+  function noteText(note) {
+    if (!note || typeof note !== 'object') return '';
+    if (typeof note.body === 'string') return note.body;
+    if (typeof note.text === 'string') return note.text;
+    if (typeof note.instruction === 'string') return note.instruction;
+    return '';
+  }
+
+  function noteTitle(note, index) {
+    if (note && typeof note.title === 'string' && note.title.trim()) return note.title;
+    return 'Trainer note ' + (index + 1);
   }
 
   function renderInstructions() {
-    if (!trainerInstructions) return;
-    var pageEl = $('.sheet-page:not([hidden])') || $('.sheet-page');
-    var pageNo = pageEl ? pageEl.getAttribute('data-page') : '1';
-    var items = pageEl ? $$('[data-instruction]', pageEl) : [];
-    trainerInstructions.innerHTML = '';
+    if (!isTrainer || !trainerInstructions) return;
+
+    var pageNo = currentPageNumber();
+    var pages = trainerSession && Array.isArray(trainerSession.pages) ? trainerSession.pages : [];
+    var page = null;
+
+    for (var i = 0; i < pages.length; i += 1) {
+      if (Number(pages[i].page) === pageNo) { page = pages[i]; break; }
+    }
+    if (!page && pages[pageNo - 1]) page = pages[pageNo - 1];
+
+    var notes = page && Array.isArray(page.trainer_instructions) ? page.trainer_instructions : [];
+    trainerInstructions.textContent = '';
 
     var label = document.createElement('span');
     label.className = 'mono';
-    label.textContent = 'Page ' + pageNo + ' · never shown to the student';
+    label.textContent = 'Page ' + pageNo + ' · trainer only · never shown to the student';
     trainerInstructions.appendChild(label);
 
-    if (!items.length) {
+    if (!notesLoaded) {
+      var loading = document.createElement('div');
+      loading.className = 'ti-empty';
+      loading.textContent = 'Loading Trainer Notes from the planner API…';
+      trainerInstructions.appendChild(loading);
+      return;
+    }
+
+    if (!notes.length) {
       var empty = document.createElement('div');
       empty.className = 'ti-empty';
-      empty.textContent = 'No notes on this page. Add guidance in Curriculum.';
+      empty.textContent = 'No trainer instructions on this page.';
       trainerInstructions.appendChild(empty);
       return;
     }
 
-    items.forEach(function (el) {
+    notes.forEach(function (note, index) {
+      var body = noteText(note);
+      if (!body) return;
       var card = document.createElement('div');
       card.className = 'ti';
-      var b = document.createElement('b');
-      b.textContent = titleFor(el);
-      var p = document.createElement('p');
-      p.textContent = el.getAttribute('data-instruction');
-      card.appendChild(b);
-      card.appendChild(p);
+      var title = document.createElement('b');
+      title.textContent = noteTitle(note, index);
+      var copy = document.createElement('p');
+      copy.textContent = body;
+      card.appendChild(title);
+      card.appendChild(copy);
       trainerInstructions.appendChild(card);
     });
   }
@@ -86,8 +116,51 @@
     if (!trainerPanel || !isTrainer) return;
     trainerPanel.hidden = !open;
     document.body.classList.toggle('notes-open', open);
-    if (trainerLayerBtn) trainerLayerBtn.setAttribute('aria-pressed', String(open));
+    if (trainerLayerBtn) {
+      trainerLayerBtn.setAttribute('aria-pressed', String(open));
+      trainerLayerBtn.setAttribute('aria-expanded', String(open));
+    }
     if (open) renderInstructions();
+  }
+
+  function loadTrainerSession() {
+    if (!isTrainer) return Promise.resolve(false);
+
+    var injected = window.MATHIFY_SESSION_DATA || window.MATHIFY_SESSION || null;
+    if (injected && injected.pages) {
+      trainerSession = injected.session || injected;
+      notesLoaded = true;
+      renderInstructions();
+      return Promise.resolve(true);
+    }
+
+    if (!sessionId) {
+      notesLoaded = true;
+      renderInstructions();
+      return Promise.resolve(false);
+    }
+
+    var token = window.MATHIFY_ACCESS_TOKEN || accessToken || null;
+    var headers = { Accept: 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+
+    return fetch('/api/trainer/sessions/' + encodeURIComponent(sessionId), {
+      headers: headers,
+      credentials: 'same-origin'
+    }).then(function (response) {
+      if (!response.ok) throw new Error('Trainer session request failed: ' + response.status);
+      return response.json();
+    }).then(function (data) {
+      trainerSession = data.session || data;
+      notesLoaded = true;
+      renderInstructions();
+      return true;
+    }).catch(function (error) {
+      notesLoaded = true;
+      renderInstructions();
+      console.warn('[mathify] Trainer Notes unavailable:', error.message);
+      return false;
+    });
   }
 
   trainerLayerBtn && trainerLayerBtn.addEventListener('click', function () {
@@ -279,7 +352,10 @@
   var quizStageTimer = $('#quizStageTimer');
   var quizDoubtBtn = $('#quizDoubtBtn');
   var doubtMenu = $('#doubtMenu');
-  var doubtDrawBtn = $('#doubtDrawBtn');
+  var quizActionHint = $('#quizActionHint');
+  var quizActionSkip = $('#quizActionSkip');
+  var quizActionExplain = $('#quizActionExplain');
+  var studentInkMode = $('#studentInkMode');
   var scratchOverlay = $('#scratchOverlay');
   var scratchClose = $('#scratchClose');
   var scratchCanvas = $('#scratchCanvas');
@@ -387,6 +463,20 @@
     quizAnswerState.textContent = text;
   }
 
+  function showQuizHint() {
+    if (!isAnswerable() || quizState.answered) return;
+    var item = questions[quizState.index];
+    if (!item) return;
+    setFeedback('Hint: ' + item.hint, '');
+  }
+
+  function setTrainerActions() {
+    var answerable = quizLive() && isAnswerable() && !quizState.answered;
+    if (quizActionHint) quizActionHint.disabled = !answerable;
+    if (quizActionSkip) quizActionSkip.disabled = !answerable;
+    if (quizActionExplain) quizActionExplain.disabled = !quizLive();
+  }
+
   function setQuizPhase(phase) {
     quizState.phase = phase;
     document.body.classList.toggle('quiz-reteach', phase === 'reteach');
@@ -398,6 +488,7 @@
     if (quizReveal) quizReveal.disabled = studentView || phase === 'complete';
     if (quizReteach) quizReteach.disabled = studentView || phase === 'complete';
     if (quizNext) quizNext.disabled = studentView || phase === 'complete';
+    setTrainerActions();
   }
 
   function lockOptions(reveal) {
@@ -433,7 +524,7 @@
     if (readinessBar) readinessBar.style.width = pct + '%';
     if (readinessNote) {
       if (!quizState.seen) readinessNote.textContent = 'Answer a question to see readiness.';
-      else readinessNote.textContent = 'Readiness logged · unlock threshold is configurable.';
+      else readinessNote.textContent = 'Unlock at 80% · below 80% stays on this topic for reteach.';
     }
   }
 
@@ -443,6 +534,7 @@
     quizState.answered = false;
     quizState.chosen = null;
     quizState.revealed = false;
+    clearQuizInk(false);
 
     if (quizQuestion) quizQuestion.textContent = item.q;
     setFeedback(item.recheck ? 'Recheck · choose one answer.' : 'Choose one answer.', '');
@@ -580,9 +672,10 @@
     setNotes(false);
     closeSheet();
     initRealtime();
-    remoteLast = {};
-    if (studentInk) studentInk.hidden = true;
     document.body.classList.add('quiz-live');
+    if (studentInk) studentInk.hidden = false;
+    clearQuizInk(true);
+    requestAnimationFrame(fitStudentInk);
     if (board) {
       board.hidden = true;
       if (studentView) board.setAttribute('aria-hidden', 'true');
@@ -613,6 +706,7 @@
     quizState.timer = null;
     document.body.classList.remove('quiz-live');
     document.body.classList.remove('quiz-reteach');
+    setTrainerActions();
     quizStage.hidden = true;
     closeScratchOverlay();
     if (realtimeLink) {
@@ -632,10 +726,7 @@
   quizReveal && quizReveal.addEventListener('click', revealQuizAnswer);
   quizReteach && quizReteach.addEventListener('click', reteachQuiz);
 
-  quizHint && quizHint.addEventListener('click', function () {
-    if (!isAnswerable() || quizState.answered) return;
-    setFeedback('Hint: ' + questions[quizState.index].hint, '');
-  });
+  quizHint && quizHint.addEventListener('click', showQuizHint);
 
   quizSkip && quizSkip.addEventListener('click', skipQuiz);
 
@@ -704,6 +795,15 @@
   var studentInkCtx = studentInkCanvas && studentInkCanvas.getContext('2d');
   var remoteLast = {};
 
+  function clearQuizInk(broadcast) {
+    if (studentInkCtx && studentInkCanvas) {
+      studentInkCtx.clearRect(0, 0, studentInkCanvas.width, studentInkCanvas.height);
+    }
+    remoteLast = {};
+    if (studentInkMode && quizLive()) studentInkMode.textContent = 'Ready for trainer sketch';
+    if (broadcast !== false) sendStroke('clear', null);
+  }
+
   function fitStudentInk() {
     if (!studentInkCanvas || !studentInkCtx) return;
     var rect = studentInkCanvas.getBoundingClientRect();
@@ -753,6 +853,63 @@
     }
     studentInkCtx.restore();
     remoteLast[key] = { x: px, y: py };
+  }
+
+  var localInkDrawing = false;
+  var localInkPointer = null;
+  var localInkLast = null;
+
+  function studentInkPoint(event) {
+    var rect = studentInkCanvas.getBoundingClientRect();
+    return {
+      x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+      y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
+    };
+  }
+
+  if (studentView && studentInkCanvas && studentInkCtx) {
+    studentInkCanvas.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      event.preventDefault();
+      localInkDrawing = true;
+      localInkPointer = event.pointerId;
+      localInkLast = studentInkPoint(event);
+      if (studentInkMode) studentInkMode.textContent = 'Local scratchpad';
+      try { studentInkCanvas.setPointerCapture(event.pointerId); } catch (e) {}
+      studentInkCtx.save();
+      studentInkCtx.fillStyle = '#0E1420';
+      studentInkCtx.beginPath();
+      studentInkCtx.arc(localInkLast.x, localInkLast.y, 1.2, 0, Math.PI * 2);
+      studentInkCtx.fill();
+      studentInkCtx.restore();
+    });
+
+    studentInkCanvas.addEventListener('pointermove', function (event) {
+      if (!localInkDrawing || event.pointerId !== localInkPointer) return;
+      event.preventDefault();
+      var point = studentInkPoint(event);
+      studentInkCtx.save();
+      studentInkCtx.strokeStyle = '#0E1420';
+      studentInkCtx.lineWidth = 1.8;
+      studentInkCtx.lineCap = 'round';
+      studentInkCtx.lineJoin = 'round';
+      studentInkCtx.beginPath();
+      studentInkCtx.moveTo(localInkLast.x, localInkLast.y);
+      studentInkCtx.lineTo(point.x, point.y);
+      studentInkCtx.stroke();
+      studentInkCtx.restore();
+      localInkLast = point;
+    });
+
+    function stopStudentInk(event) {
+      if (event && event.pointerId !== localInkPointer) return;
+      localInkDrawing = false;
+      localInkPointer = null;
+      localInkLast = null;
+      if (event) { try { studentInkCanvas.releasePointerCapture(event.pointerId); } catch (e) {} }
+    }
+    studentInkCanvas.addEventListener('pointerup', stopStudentInk);
+    studentInkCanvas.addEventListener('pointercancel', stopStudentInk);
   }
 
   function initRealtime() {
@@ -827,17 +984,20 @@
   function openScratchOverlay() {
     if (!isTrainer) return;
     if (!quizLive()) {
-      toast('Launch the quiz before opening the Wacom overlay.');
+      toast('Launch the quiz before opening the explanation overlay.');
       return;
     }
     setDoubtMenu(false);
+    clearQuizInk(true);
+    if (studentInkMode) studentInkMode.textContent = 'Trainer explaining · sketch live';
     if (scratchOverlay) scratchOverlay.hidden = false;
     requestAnimationFrame(fitScratch);
-    toast('Wacom overlay open · quiz stays live.');
+    toast('Explain overlay open · quiz stays live.');
   }
 
   function closeScratchOverlay() {
     if (scratchOverlay) scratchOverlay.hidden = true;
+    if (studentInkMode && quizLive()) studentInkMode.textContent = 'Ready for trainer sketch';
     setDoubtMenu(false);
   }
 
@@ -845,7 +1005,22 @@
     if (!isTrainer) return;
     setDoubtMenu(doubtMenu && doubtMenu.hidden);
   });
-  doubtDrawBtn && doubtDrawBtn.addEventListener('click', openScratchOverlay);
+  quizActionHint && quizActionHint.addEventListener('click', function () {
+    if (quizActionHint.disabled) return;
+    setDoubtMenu(false);
+    showQuizHint();
+    toast('Hint shown · answer key stays hidden.');
+  });
+  quizActionSkip && quizActionSkip.addEventListener('click', function () {
+    if (quizActionSkip.disabled) return;
+    setDoubtMenu(false);
+    skipQuiz();
+    toast('Question skipped · quiz stays live.');
+  });
+  quizActionExplain && quizActionExplain.addEventListener('click', function () {
+    if (quizActionExplain.disabled) return;
+    openScratchOverlay();
+  });
   scratchClose && scratchClose.addEventListener('click', closeScratchOverlay);
 
   document.addEventListener('click', function (event) {
@@ -855,7 +1030,9 @@
   });
 
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') closeScratchOverlay();
+    if (event.key !== 'Escape') return;
+    if (scratchOverlay && !scratchOverlay.hidden) closeScratchOverlay();
+    else if (trainerPanel && !trainerPanel.hidden) setNotes(false);
   });
 
   scratchShare && scratchShare.addEventListener('click', function () {
@@ -864,7 +1041,8 @@
   scratchClear && scratchClear.addEventListener('click', function () {
     if (scratchCtx && scratchCanvas) scratchCtx.clearRect(0, 0, scratchCanvas.clientWidth, scratchCanvas.clientHeight);
     sendStroke('clear', null);
-    toast('Wacom overlay cleared.');
+    if (studentInkMode) studentInkMode.textContent = 'Cleared · ready for trainer sketch';
+    toast('Explain overlay cleared.');
   });
   window.addEventListener('resize', function () {
     if (scratchOverlay && !scratchOverlay.hidden) fitScratch();
@@ -988,7 +1166,7 @@
   requestAnimationFrame(clampPip);
 
   /* ------------------------------------------------------------------ init */
-  renderInstructions();
+  loadTrainerSession();
   updateReadiness();
   paintQuizClock();
 
@@ -1022,10 +1200,51 @@
     if (endBtn) { endBtn.disabled = true; endBtn.textContent = 'Ended'; }
   }
 
+  /* --------------------------------------------- automated presence beacon */
+  var presenceInterval = null;
+  var learningEvents = 0;
+  var lastInteraction = Date.now();
+
+  function noteInteraction() {
+    lastInteraction = Date.now();
+    learningEvents += 1;
+  }
+  document.addEventListener('pointerdown', noteInteraction, true);
+  document.addEventListener('keydown', noteInteraction, true);
+
+  function sendPresence(leaving) {
+    if (!sessionId || (!isTrainer && !studentView)) return Promise.resolve(null);
+    var token = window.MATHIFY_ACCESS_TOKEN || accessToken || null;
+    var headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+
+    return fetch('/api/sessions/' + encodeURIComponent(sessionId) + '/presence', {
+      method: 'POST',
+      headers: headers,
+      credentials: 'same-origin',
+      keepalive: true,
+      body: JSON.stringify({
+        active: !leaving && document.visibilityState === 'visible' && Date.now() - lastInteraction < 60000,
+        learningEvents: learningEvents,
+        leaving: Boolean(leaving)
+      })
+    }).then(function (response) {
+      return response.ok ? response.json() : null;
+    }).catch(function () { return null; });
+  }
+
+  if (sessionId && (isTrainer || studentView)) {
+    sendPresence(false);
+    presenceInterval = window.setInterval(function () { sendPresence(false); }, 20000);
+    window.addEventListener('pagehide', function () { sendPresence(true); });
+  }
+
   /* Expose quiz controls for QA and future real-time wiring. */
   api.openQuiz = launchQuiz;
+  api.sendPresence = sendPresence;
   api.closeQuiz = exitQuiz;
   api.renderInstructions = renderInstructions;
+  api.loadTrainerSession = loadTrainerSession;
   api.answerQuiz = function (index) {
     var buttons = $$('button', quizOptions);
     var button = buttons[Number(index || 0)];

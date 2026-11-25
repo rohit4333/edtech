@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="shell.css">
 <link rel="stylesheet" href="sections.css">
 <link rel="stylesheet" href="details.css">
+<link rel="stylesheet" href="../shared/leave-calendar.css">
+<link rel="stylesheet" href="schedule.css">
 <link rel="stylesheet" href="responsive.css">
 <style>
   .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
@@ -315,7 +317,26 @@
             <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
             <span id="payoutTrendNote">Completed sessions · fines, bonus and MVT excluded from daily points.</span>
           </div>
+          <p class="payout-policy" id="payoutPolicyNote">₹300–400 per completed session · 2+ days notice by either side is mutual leave · later trainer cancellation costs one session pay · no-shows unpaid.</p>
         </div>
+      </section>
+
+      <!-- ---------- leave calendar ---------- -->
+      <section class="block leave-block" aria-labelledby="leave-title">
+        <div class="block-head">
+          <span class="mono" id="leave-title">Leave &amp; cover</span>
+          <span class="chip-count">8 credits / month</span>
+        </div>
+        <div id="leaveCalendar" data-role="trainer"></div>
+      </section>
+
+      <!-- ---------- committed schedule calendar ---------- -->
+      <section class="block schedule-block" aria-labelledby="schedule-title">
+        <div class="block-head">
+          <span class="mono" id="schedule-title">Class calendar</span>
+          <span class="chip-count">100% classes · 30% open slot</span>
+        </div>
+        <div id="trainerSchedule"></div>
       </section>
 
       <!-- ---------- needs attention ---------- -->
@@ -595,6 +616,8 @@
 </div>
 
 <script src="api.js" defer></script>
+<script src="../shared/leave-calendar.js" defer></script>
+<script src="schedule.js" defer></script>
 <script src="app.js" defer></script>
 <script type="module" src="agora.js"></script>
 

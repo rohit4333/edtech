@@ -112,11 +112,21 @@ create table if not exists public.sessions (
   status text not null default 'scheduled'
     check (status in ('scheduled', 'live', 'ended', 'cancelled')),
   current_page smallint not null default 1,
+  scheduled_at timestamptz,
   started_at timestamptz,
   ends_at timestamptz,
   elapsed_seconds integer not null default 0,
+  cancelled_at timestamptz,
+  cancelled_by text check (cancelled_by in ('trainer', 'student', 'founder')),
   constraint sessions_distinct_parties check (trainer_id <> student_id)
 );
+
+-- Upgrade path for databases created before scheduling/cancellation existed.
+alter table public.sessions add column if not exists scheduled_at timestamptz;
+alter table public.sessions add column if not exists cancelled_at timestamptz;
+alter table public.sessions add column if not exists cancelled_by text
+  check (cancelled_by in ('trainer', 'student', 'founder'));
+create index if not exists sessions_scheduled_at_idx on public.sessions (scheduled_at);
 
 -- A student (and a trainer) can have at most one live session at a time.
 create unique index if not exists one_live_student_session
@@ -351,35 +361,99 @@ create table if not exists public.attendance (
   student_id uuid not null references public.users(id),
   status text not null,
   marked_at timestamptz not null default now(),
-  constraint attendance_status_only_check check (status in ('present', 'absent', 'late'))
+  constraint attendance_status_only_check check (status in ('present', 'absent', 'late', 'leave', 'unattended'))
 );
 
--- Drop the old four-value check (present/absent/no_show/late) on upgrades.
-do $$
-begin
-  alter table public.attendance drop constraint if exists attendance_status_check;
-  if not exists (
-    select 1 from pg_constraint
-    where conname = 'attendance_status_only_check'
-      and conrelid = 'public.attendance'::regclass
-  ) then
-    alter table public.attendance
-      add constraint attendance_status_only_check
-      check (status in ('present', 'absent', 'late'));
-  end if;
-end $$;
+-- Always replace the old check on upgrades: CREATE TABLE IF NOT EXISTS does not
+-- update an existing constraint definition.
+alter table public.attendance drop constraint if exists attendance_status_check;
+alter table public.attendance drop constraint if exists attendance_status_only_check;
+alter table public.attendance
+  add constraint attendance_status_only_check
+  check (status in ('present', 'absent', 'late', 'leave', 'unattended'));
 
 create table if not exists public.leaves (
   id uuid primary key default gen_random_uuid(),
   trainer_id uuid not null references public.users(id),
+  student_id uuid references public.users(id),
+  session_id uuid references public.sessions(id) on delete set null,
+  requested_by uuid references public.users(id),
+  requested_by_role text,
   starts_on date not null,
   ends_on date not null,
-  notice_hours integer not null,
+  notice_hours numeric(8,2) not null,
+  period text,
+  reason text,
   status text not null default 'requested'
-    check (status in ('requested', 'approved', 'rejected')),
+    check (status in ('requested', 'approved', 'rejected', 'cancelled')),
   fine_code text,
+  student_status text not null default 'leave',
+  pack_penalty boolean not null default false,
+  auto_approved boolean not null default false,
+  decided_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.leaves add column if not exists student_id uuid references public.users(id);
+alter table public.leaves add column if not exists session_id uuid references public.sessions(id) on delete set null;
+alter table public.leaves add column if not exists requested_by uuid references public.users(id);
+alter table public.leaves add column if not exists requested_by_role text;
+alter table public.leaves add column if not exists period text;
+alter table public.leaves add column if not exists reason text;
+alter table public.leaves add column if not exists student_status text not null default 'leave';
+alter table public.leaves add column if not exists pack_penalty boolean not null default false;
+alter table public.leaves add column if not exists auto_approved boolean not null default false;
+alter table public.leaves add column if not exists decided_at timestamptz;
+
+-- Replace the old three-value check on upgrades.
+alter table public.leaves drop constraint if exists leaves_status_check;
+alter table public.leaves
+  add constraint leaves_status_check
+  check (status in ('requested', 'approved', 'rejected', 'cancelled'));
+
+-- A declared slot is committed to one trainer. Classes inside it are paid at
+-- 100%; unutilised hours are paid at 30% of that trainer's session rate.
+create table if not exists public.trainer_slots (
+  id uuid primary key default gen_random_uuid(),
+  trainer_id uuid not null references public.users(id),
+  day_of_week smallint check (day_of_week between 0 and 6),
+  slot_date date,
+  start_minute_utc integer not null check (start_minute_utc between 0 and 1440),
+  end_minute_utc integer not null check (end_minute_utc between 0 and 1440 and end_minute_utc > start_minute_utc),
+  label text,
+  created_at timestamptz not null default now(),
+  constraint trainer_slots_recurrence_check check (day_of_week is not null or slot_date is not null)
+);
+
+-- Append-only presence evidence and the frozen per-session snapshot.
+create table if not exists public.presence_events (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  user_id uuid not null references public.users(id),
+  role text not null check (role in ('trainer', 'student')),
+  kind text not null check (kind in ('heartbeat', 'agora_join', 'agora_leave')),
+  active boolean,
+  learning_events integer not null default 0,
+  cumulative_learning_events integer not null default 0,
+  agora_uid bigint,
+  leaving boolean not null default false,
+  at timestamptz not null default now()
+);
+
+create table if not exists public.presence_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null unique references public.sessions(id) on delete cascade,
+  computed_at timestamptz not null default now(),
+  trainer_present_minutes integer not null default 0,
+  student_present_minutes integer not null default 0,
+  trainer_present boolean not null default false,
+  student_present boolean not null default false,
+  payout_eligible boolean not null default false,
+  snapshot jsonb not null default '{}'::jsonb
+);
+
+create index if not exists presence_events_session_idx on public.presence_events (session_id, at);
+create index if not exists trainer_slots_trainer_idx on public.trainer_slots (trainer_id);
 
 create table if not exists public.payouts (
   id uuid primary key default gen_random_uuid(),
@@ -1107,7 +1181,53 @@ create policy p_leaves_trainer on public.leaves for all to authenticated
   using (trainer_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer')
   with check (trainer_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer');
 
+drop policy if exists p_leaves_student_select on public.leaves;
+create policy p_leaves_student_select on public.leaves for select to authenticated
+  using (student_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'student');
+
+drop policy if exists p_leaves_student_insert on public.leaves;
+create policy p_leaves_student_insert on public.leaves for insert to authenticated
+  with check (
+    requested_by = (select auth.uid()) and
+    student_id = (select auth.uid()) and
+    ((select auth.jwt())->'app_metadata'->>'role') = 'student'
+  );
+
 -- payouts and payout-support tables: trainer sees only their own rows.
+-- trainer slots: owner and founder only
+drop policy if exists p_trainer_slots_owner on public.trainer_slots;
+create policy p_trainer_slots_owner on public.trainer_slots for all to authenticated
+  using (trainer_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer')
+  with check (trainer_id = (select auth.uid()) and ((select auth.jwt())->'app_metadata'->>'role') = 'trainer');
+
+drop policy if exists p_trainer_slots_founder on public.trainer_slots;
+create policy p_trainer_slots_founder on public.trainer_slots for all to authenticated
+  using (((select auth.jwt())->'app_metadata'->>'role') = 'founder')
+  with check (((select auth.jwt())->'app_metadata'->>'role') = 'founder');
+
+-- presence evidence: participants see their own rows, founder sees all
+drop policy if exists p_presence_events_participant on public.presence_events;
+create policy p_presence_events_participant on public.presence_events for select to authenticated
+  using (
+    user_id = (select auth.uid()) or
+    ((select auth.jwt())->'app_metadata'->>'role') = 'founder' or
+    exists (
+      select 1 from public.sessions s
+      where s.id = session_id and s.trainer_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists p_presence_snapshots_participant on public.presence_snapshots;
+create policy p_presence_snapshots_participant on public.presence_snapshots for select to authenticated
+  using (
+    ((select auth.jwt())->'app_metadata'->>'role') = 'founder' or
+    exists (
+      select 1 from public.sessions s
+      where s.id = session_id and
+        (s.trainer_id = (select auth.uid()) or s.student_id = (select auth.uid()))
+    )
+  );
+
 drop policy if exists p_payouts_founder on public.payouts;
 create policy p_payouts_founder on public.payouts for all to authenticated
   using (((select auth.jwt())->'app_metadata'->>'role') = 'founder')
@@ -1206,6 +1326,17 @@ grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant all on all tables in schema public to service_role;
 grant select on public.student_quiz_questions, public.student_quiz_attempts to authenticated;
+
+-- Supabase applies default table grants to anon on new tables. No public page
+-- talks to Postgres directly, so anon gets nothing. Presence evidence is
+-- append-only from the Express service_role; clients may only read it.
+revoke all on all tables in schema public from anon;
+alter default privileges in schema public revoke all on tables from anon;
+revoke all on public.trainer_slots, public.presence_events,
+  public.presence_snapshots from authenticated;
+-- These three tables are read/written only through the Express service_role.
+-- Keeping them out of the authenticated Data/GraphQL API avoids exposing
+-- slot commitments and raw presence evidence to every signed-in account.
 
 -- Answer-key columns are never readable or writable through the Data API by
 -- anon/authenticated clients. Table-wide SELECT would override column grants,

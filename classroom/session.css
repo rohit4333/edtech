@@ -10,6 +10,11 @@
 .view-student .trainer-only{display:none !important}
 .view-student .trainer-only *{display:none !important}
 .view-student .quiz-split{grid-template-columns:minmax(0,1fr)}
+/* During a quiz the student only gets the quiz stage and its scratchpad. */
+body.quiz-live.view-student .board,
+body.quiz-live.view-student .phone-tools,
+body.quiz-live.view-student .foot-tools{display:none !important}
+body.quiz-live.view-student .quiz-stage{border-color:rgba(255,91,46,.34)}
 
 /* ------------------------------------------------------ trainer-only notes */
 .trainer-panel{
@@ -523,13 +528,22 @@
   background:rgba(253,250,243,.92);
   animation:fadeIn .18s ease;
 }
-.student-ink > .mono{
-  display:block;
+.student-ink-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
   margin-bottom:7px;
+}
+.student-ink-head .mono{
   font-size:7px;
   letter-spacing:.14em;
   text-transform:uppercase;
   color:var(--coral-deep);
+}
+.student-ink-head .mono + .mono{
+  text-align:right;
+  color:var(--faint);
 }
 .student-ink canvas{
   display:block;
@@ -541,6 +555,7 @@
   background-image:radial-gradient(rgba(14,20,32,.07) .8px,transparent .8px);
   background-size:18px 18px;
 }
+.view-student .student-ink canvas{touch-action:none;cursor:crosshair}
 
 .quiz-trainer{
   position:relative;
@@ -634,6 +649,8 @@
   cursor:pointer;
 }
 .doubt-menu button:hover{background:rgba(255,91,46,.16)}
+.doubt-menu button:disabled{opacity:.42;cursor:not-allowed}
+.doubt-menu button:disabled:hover{background:transparent}
 
 .scratch-overlay{
   position:absolute;

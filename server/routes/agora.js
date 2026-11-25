@@ -1,8 +1,11 @@
 /* Agora RTC + RTM token route. The App Certificate stays on the server. */
 const express = require('express');
+const crypto = require('crypto');
 const { RtcTokenBuilder, RtmTokenBuilder, RtcRole } = require('agora-token');
+const db = require('../db');
 const auth = require('../middleware/auth');
 const recordingService = require('../services/agoraRecordingService');
+const presenceService = require('../services/presenceService');
 
 const router = express.Router();
 const TOKEN_TTL_SECONDS = 3600;
@@ -99,6 +102,47 @@ router.post('/recording/stop', auth.requireAuth, async function (req, res) {
       message: error.message
     });
   }
+});
+
+/* Verified join/leave events feed the automated presence state machine. */
+router.post('/webhook', function (req, res) {
+  const secret = String(process.env.AGORA_WEBHOOK_SECRET || '').trim();
+  if (!secret) {
+    return res.status(503).json({
+      error: 'WEBHOOK_NOT_CONFIGURED',
+      message: 'Set AGORA_WEBHOOK_SECRET to accept presence events.'
+    });
+  }
+
+  const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
+  const provided = String(req.headers['x-agora-signature'] || '').replace(/^sha256=/i, '');
+  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  const valid = provided.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  if (!valid) {
+    return res.status(401).json({ error: 'INVALID_SIGNATURE', message: 'Webhook signature did not match.' });
+  }
+
+  let payload;
+  try { payload = JSON.parse(raw.toString('utf8')); } catch (error) {
+    return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Webhook body is not valid JSON.' });
+  }
+
+  const channel = String(payload.channelName || payload.channel || '').trim();
+  const session = channel
+    ? db.listSessionsForUser({ role: 'founder' }).find(function (item) {
+      return item.rtc && item.rtc.channel === channel;
+    })
+    : null;
+
+  if (!session) return res.json({ received: true, matched: false });
+
+  const event = presenceService.agoraEvent(session, payload);
+  return res.json({
+    received: true,
+    matched: true,
+    event: event ? { role: event.role, kind: event.kind, at: event.at } : null
+  });
 });
 
 module.exports = router;

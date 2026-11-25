@@ -57,7 +57,7 @@ Send the token as `Authorization: Bearer <token>`.
 | `GET` | `/api/trainer/payouts` | Current payout with base pay, fines, bonus, MVT award and daily trend |
 | `GET` | `/api/trainer/payouts/:period` | Payout for a `YYYY-MM` period |
 | `GET` | `/api/trainer/attention` | Derived planner, quiz, draft, attendance and recording signals |
-| `GET` | `/api/trainer/attendance` | Six-session attendance register with present/absent/late states |
+| `GET` | `/api/trainer/attendance` | Six-session attendance register with present/absent/late/leave/unattended states |
 | `PATCH` | `/api/trainer/attendance/:sessionId` | Set one student's status for a session |
 | `POST` | `/api/trainer/attendance/:sessionId/save` | Save records and return the refreshed register |
 | `GET` | `/api/trainer/sessions` | Sessions owned by the trainer |
@@ -72,6 +72,15 @@ Send the token as `Authorization: Bearer <token>`.
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/drafts/:draftId/approve` | Approve a draft into the live question set |
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/reteach` | Freeze quiz during reteach |
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/new-check` | Add a fresh parallel question from the same objective |
+
+### Leave (trainer, student, founder)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/leaves` | Upcoming sessions with eligibility, leave balance and applied requests |
+| `POST` | `/api/leaves` | Apply for mutual leave on a session or date; auto-approved when 2+ days notice |
+
+The trainer balance is 8 session leaves per calendar month. A student-initiated leave is mutual but does not consume a trainer credit. Applying sets the session to `leave`, records student attendance as `leave`, pays the trainer nothing and deducts no pack session.
 
 ### Student / founder
 
@@ -195,15 +204,17 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Configurable policy
 
-`config/policy.json` intentionally leaves quiz scoring bands, unlock threshold and teaching-score bands unset. Payout bonus, fine and MVT rules are configured in the payout engine:
+`config/policy.json` leaves quiz scoring bands and teaching-score bands unset until the conflicting founder-doc values are confirmed. The 80% mastery unlock threshold and payout rules are configured:
 
-- 6 hours / 6 sessions daily cap
-- 48-hour leave notice; a late trainer cancellation costs one session pay
+- 300–400 INR base pay per completed session
+- 6 hours / 6 sessions daily cap; under 3 hours is flagged for payroll review
+- 2-day (48-hour) notice by either side is mutual leave: no payout, no fine and no pack/attendance penalty
+- A trainer cancellation with less than that notice costs exactly that trainer's session pay and marks the student session `unattended`
+- No-shows earn no payout and mark the student session as used
 - 100% monthly attendance pays 2,000 INR, rising by 500 INR per consecutive month
 - MVT ranks trainers by completed sessions and pays 3,000 / 2,000 / 1,000 INR
 - 38-day non-refundable packs
 - 24–48-hour reschedule window
-- no-show without notice marks session used
 
 ## Next phases
 

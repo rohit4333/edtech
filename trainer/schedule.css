@@ -1,0 +1,52 @@
+/* ==========================================================================
+   MATHIFY — trainer commitment calendar.
+   Paper/ink/coral only. Times are UTC-labelled, scoped to ANY TIMEZONE.
+   ========================================================================== */
+
+.schedule-calendar{border-top:1px solid var(--line-soft);padding-top:14px}
+.sc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sc-head h3{margin:4px 0 0;font-size:14px;font-weight:500;letter-spacing:-.02em;color:var(--ink)}
+.sc-head p{margin:5px 0 0;max-width:56ch;font-size:10.5px;line-height:1.55;color:var(--muted)}
+.sc-head .mono{font-size:7.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-deep)}
+.sc-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.sc-month{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.sc-nav-buttons{display:flex;gap:6px}
+.sc-nav button{width:25px;height:25px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--muted);font-size:12px;line-height:1;cursor:pointer}
+.sc-nav button:hover:not(:disabled){border-color:rgba(14,20,32,.36);color:var(--ink)}
+.sc-nav button:disabled{opacity:.38;cursor:not-allowed}
+.sc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:8px}
+.sc-week{font-family:var(--mono);font-size:7px;letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--faint);padding-bottom:3px}
+.sc-day{min-height:76px;padding:5px;border:1px solid var(--line-soft);border-radius:5px;background:transparent;text-align:left}
+.sc-day.is-muted{opacity:.36}
+.sc-day.is-slot{background:rgba(255,91,46,.06);border-color:rgba(255,91,46,.28)}
+.sc-day.is-today{outline:1px solid var(--ink);outline-offset:1px}
+.sc-day-num{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.sc-day.is-slot .sc-day-num{color:var(--coral-deep)}
+.sc-class{display:block;margin-top:3px;padding:2px 3px;border-left:2px solid var(--coral);background:var(--card);font-size:8px;line-height:1.3;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc-class b{font-family:var(--mono);font-weight:500;color:var(--coral-deep);margin-right:3px}
+.sc-slotline{display:block;margin-top:3px;font-family:var(--mono);font-size:7px;letter-spacing:.04em;color:var(--muted)}
+.sc-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.sc-total{padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:rgba(253,250,243,.86)}
+.sc-total span{display:block;font-family:var(--mono);font-size:7.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sc-total b{display:block;margin-top:3px;font-family:var(--mono);font-size:16px;font-weight:500;letter-spacing:-.03em;color:var(--ink)}
+.sc-total.is-idle b{color:var(--coral-deep)}
+.sc-total small{display:block;margin-top:2px;font-size:8.5px;color:var(--muted)}
+.sc-detail{margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.sc-detail h4{margin:0 0 7px;font-size:11px;font-weight:500;color:var(--ink)}
+.sc-slotlist{display:grid;gap:5px;margin:0 0 9px;padding:0;list-style:none}
+.sc-slotlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:9.5px;color:var(--ink)}
+.sc-slotlist b{font-family:var(--mono);font-weight:500;color:var(--coral-deep)}
+.sc-slotlist button{border:0;background:transparent;color:var(--muted);font-size:12px;cursor:pointer}
+.sc-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:6px;align-items:end}
+.sc-form label{display:grid;gap:3px;font-family:var(--mono);font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sc-form input,.sc-form select{width:100%;min-height:28px;padding:0 7px;border:1px solid var(--line);border-radius:5px;background:var(--card);color:var(--ink);font-family:var(--mono);font-size:10px}
+.sc-form button{min-height:28px;padding:0 10px;border:1px solid var(--coral);border-radius:5px;background:var(--coral);color:var(--ink);font-size:10px;font-weight:500;cursor:pointer}
+.sc-note{margin:8px 0 0;font-size:9px;line-height:1.5;color:var(--muted)}
+.sc-error{margin:8px 0 0;font-size:9px;line-height:1.5;color:var(--coral-deep)}
+.sc-empty{margin:10px 0 0;font-size:10px;color:var(--muted)}
+
+@media (max-width:620px){
+  .sc-day{min-height:64px;padding:3px}
+  .sc-class{font-size:7px}
+  .sc-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

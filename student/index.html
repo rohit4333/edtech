@@ -7,6 +7,7 @@
 <meta name="description" content="Student desk: next class, pending work, recordings and practice.">
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../shared/leave-calendar.css">
 <style>
   /* ======================================================================
      SHELL
@@ -1480,6 +1481,12 @@
         </div>
       </section>
 
+      <!-- ---------- leave calendar ---------- -->
+      <section class="leave-panel" aria-labelledby="student-leave-title">
+        <span class="mono" id="student-leave-title">LEAVE REQUEST</span>
+        <div id="leaveCalendar" data-role="student"></div>
+      </section>
+
       <!-- ---------- app strip ---------- -->
       <aside class="strip" id="appStrip">
         <svg class="qr" viewBox="0 0 21 21" aria-hidden="true">
@@ -1595,6 +1602,8 @@
   }
 </style>
 
+<script src="api.js" defer></script>
+<script src="../shared/leave-calendar.js" defer></script>
 <script src="app.js" defer></script>
 </body>
 </html>

@@ -5,14 +5,18 @@ const supabaseDb = require('../db/supabase');
 const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
+const payoutService = require('../services/payoutService');
+const quizGenerator = require('../quiz/generator');
+const quizTemplates = require('../quiz/templates');
 const policy = require('../config/policy.json');
+const slotService = require('../services/slotService');
 
 const router = express.Router();
 
 router.use(auth.requireAuth);
 router.use(auth.requireRole('trainer', 'founder'));
 
-const ATTENDANCE_STATES = ['present', 'absent', 'late'];
+const ATTENDANCE_STATES = ['present', 'absent', 'late', 'leave', 'unattended'];
 
 function sessionsFor(user) {
   return db.listSessionsForUser(user).filter(function (session) {
@@ -48,19 +52,26 @@ function sendPayout(req, res, period) {
       message: 'Period must use YYYY-MM.'
     });
   }
+  const context = payoutContext();
+  const sessions = sessionsFor(req.user);
+  context.slotPay = slotService.unutilisedPayForPeriod(req.user, sessions, period);
+
   return res.json({
-    payout: serializers.toTrainerPayout(
+    payout: payoutService.buildPayout(
       req.user,
-      sessionsFor(req.user),
+      sessions,
       period,
       policy,
-      payoutContext()
+      context
     )
   });
 }
 
 router.get('/quiz/templates', function (req, res) {
-  return res.json({ templates: require('../quiz/templates').listTemplates() });
+  return res.json({
+    templates: quizTemplates.listTemplates(),
+    difficultyLevels: quizTemplates.listDifficultyLevels()
+  });
 });
 
 router.get('/attention', function (req, res) {
@@ -110,7 +121,7 @@ router.patch('/attendance/:sessionId', auth.loadSession, function (req, res) {
   if (ATTENDANCE_STATES.indexOf(status) === -1) {
     return res.status(400).json({
       error: 'INVALID_STATUS',
-      message: 'Status must be present, absent or late.'
+      message: 'Status must be present, absent, late, leave or unattended.'
     });
   }
   if (!body.studentId || body.studentId !== session.studentId) {
@@ -379,20 +390,125 @@ router.post('/sessions/:sessionId/quiz/reteach', auth.loadSession, function (req
   return res.json({ session: serializers.toTrainerSession(updated) });
 });
 
-router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, function (req, res) {
+/* Generate AI drafts into the review queue. Nothing reaches the student until
+   the existing approve endpoint promotes a draft to an active question. */
+router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async function (req, res) {
   const session = req.sessionRecord;
-  const templates = require('../quiz/templates');
+  const body = req.body || {};
+  const usedPrompts = session.quiz.questions.map(function (question) { return question.prompt; })
+    .concat((session.quiz.drafts || []).map(function (draft) { return draft.prompt; }));
+  const count = Math.min(5, Math.max(1, Number(body.count) || 3));
+
+  try {
+    const generated = await quizGenerator.generateAdaptiveQuiz(
+      body.topic || session.title || 'mathematics',
+      Number.isFinite(Number(body.currentMasteryScore))
+        ? Number(body.currentMasteryScore)
+        : session.mastery,
+      {
+        count: count,
+        templateId: body.templateId || null,
+        usedPrompts: usedPrompts
+      }
+    );
+
+    const drafts = generated.map(function (question, index) {
+      return Object.assign({}, question, {
+        id: 'draft_' + Date.now() + '_' + index + '_' + Math.random().toString(36).slice(2, 7),
+        note: question.source === 'fallback'
+          ? 'Local draft: set DEEPSEEK_API_KEY to generate with DeepSeek.'
+          : 'AI draft awaiting trainer approval.'
+      });
+    });
+
+    session.quiz.drafts = (session.quiz.drafts || []).concat(drafts);
+    const updated = db.updateSession(session.id, function () { return session; });
+
+    realtime.publish(updated.id, 'quiz.draft.generated', {
+      count: drafts.length,
+      difficultyLevel: drafts[0] ? drafts[0].difficultyLevel : null
+    });
+
+    return res.status(201).json({
+      session: serializers.toTrainerSession(updated),
+      drafts: drafts,
+      generationMode: drafts[0] ? drafts[0].source : null
+    });
+  } catch (failure) {
+    return res.status(failure.status || 502).json({
+      error: failure.code || 'QUIZ_GENERATION_FAILED',
+      message: failure.message
+    });
+  }
+});
+
+/* Trainer-triggered reteach follow-up. Generates one active check, but only
+   after the trainer has explicitly left the reteach phase. */
+router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async function (req, res) {
+  const session = req.sessionRecord;
+  const body = req.body || {};
   const usedPrompts = session.quiz.questions.map(function (question) { return question.prompt; });
-  const question = templates.buildQuestion((req.body || {}).templateId, usedPrompts);
 
-  session.quiz.questions.push(question);
-  session.quiz.currentQuestionId = question.id;
-  session.quiz.phase = 'recheck';
+  try {
+    const generated = await quizGenerator.generateQuestionForSession(session, {
+      topic: body.topic || session.title,
+      templateId: body.templateId || null,
+      usedPrompts: usedPrompts
+    });
 
-  const updated = db.updateSession(session.id, function () { return session; });
-  realtime.publish(updated.id, 'quiz.check.added', { currentQuestionId: question.id });
+    const question = Object.assign({}, generated, { id: 'q_' + Date.now(), status: 'active' });
+    delete question.note;
 
-  return res.json({ session: serializers.toTrainerSession(updated) });
+    session.quiz.questions.push(question);
+    session.quiz.currentQuestionId = question.id;
+    session.quiz.phase = 'recheck';
+
+    const updated = db.updateSession(session.id, function () { return session; });
+    realtime.publish(updated.id, 'quiz.check.added', {
+      currentQuestionId: question.id,
+      difficultyLevel: question.difficultyLevel
+    });
+
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (failure) {
+    return res.status(failure.status || 502).json({
+      error: failure.code || 'QUIZ_GENERATION_FAILED',
+      message: failure.message
+    });
+  }
+});
+
+/* ------------------------------------------------ committed slot calendar */
+router.get('/slots', function (req, res) {
+  return res.json({ slots: db.listTrainerSlots(req.user.id), rules: slotService.rules() });
+});
+
+router.post('/slots', function (req, res) {
+  try {
+    return res.status(201).json({ slot: slotService.addSlot(req.user, req.body || {}) });
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.code || 'SLOT_FAILED',
+      message: error.message
+    });
+  }
+});
+
+router.delete('/slots/:slotId', function (req, res) {
+  try {
+    return res.json(slotService.removeSlot(req.user, req.params.slotId));
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.code || 'SLOT_FAILED',
+      message: error.message
+    });
+  }
+});
+
+router.get('/schedule', function (req, res) {
+  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
+    ? String(req.query.month) : currentPeriod();
+  return res.json({ schedule: slotService.monthView(req.user, month, sessionsFor(req.user)) });
 });
 
 module.exports = router;

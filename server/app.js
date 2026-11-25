@@ -14,6 +14,7 @@ const webhookRoutes = require('./routes/webhooks');
 const adminRoutes = require('./routes/admin');
 const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
+const leaveRoutes = require('./routes/leaves');
 
 const app = express();
 const configuredOrigin = config.corsOrigin;
@@ -21,8 +22,9 @@ const configuredOrigin = config.corsOrigin;
 app.use(cors({
   origin: configuredOrigin === '*' ? '*' : configuredOrigin.split(',').map(function (value) { return value.trim(); })
 }));
-/* Razorpay signs the raw body, so this route must be read before express.json(). */
+/* Razorpay and Agora sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/agora/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/api/health', function (req, res) {
@@ -57,6 +59,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/razorpay', razorpayRoutes);
+app.use('/api/leaves', leaveRoutes);
 
 app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), function (req, res) {
   return res.json({ mode: realtime.mode, events: realtime.recent(req.query.limit) });

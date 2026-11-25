@@ -1,6 +1,8 @@
 /* Role-aware response builders. Student serializers never touch trainer_instructions. */
 const db = require('./db');
 const payoutService = require('./services/payoutService');
+const attendancePolicy = require('./services/attendancePolicy');
+const appPolicy = require('./config/policy.json');
 
 /* Explicit student boundary: hidden trainer guidance is never serialized. */
 const TRAINER_ONLY_KEYS = ['trainer_instructions', 'trainerInstructions', 'trainerNotes'];
@@ -197,13 +199,18 @@ function toSessionState(session, user) {
 const ATTENDANCE_STATES = [
   { value: 'present', code: 'p', label: 'Present' },
   { value: 'absent', code: 'a', label: 'Absent' },
-  { value: 'late', code: 'l', label: 'Late' }
+  { value: 'late', code: 'l', label: 'Late' },
+  { value: 'leave', code: 'lv', label: 'Mutual leave' },
+  { value: 'unattended', code: 'u', label: 'Unattended' }
 ];
 
 function toAttendanceRegister(sessions, attendance) {
   const ordered = sessions.slice().sort(function (a, b) {
     return new Date(a.startedAt || 0) - new Date(b.startedAt || 0);
   }).slice(-6);
+
+  const sessionsById = {};
+  ordered.forEach(function (session) { sessionsById[session.id] = session; });
 
   const columns = ordered.map(function (session) {
     const starts = session.startedAt ? new Date(session.startedAt) : null;
@@ -229,7 +236,11 @@ function toAttendanceRegister(sessions, attendance) {
       const row = (attendance || []).find(function (item) {
         return item.sessionId === column.id && item.studentId === studentId;
       });
-      cells[column.id] = row ? row.status : null;
+      cells[column.id] = attendancePolicy.effectiveStudentStatus(
+        sessionsById[column.id],
+        row ? row.status : null,
+        appPolicy
+      );
     });
     return { student: person(studentId), cells: cells };
   });
@@ -422,13 +433,21 @@ function toTrainerDashboard(user, sessions, attendance) {
       status: session.status,
       startsAt: session.startedAt,
       student: person(session.studentId),
-      attendance: record ? record.status : null
+      attendance: attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy)
     };
   });
 
-  const present = (attendance || []).filter(function (row) { return row.status === 'present'; }).length;
-  const attendancePercent = (attendance || []).length
-    ? Math.round((present / attendance.length) * 100)
+  const present = todaySessions.filter(function (session) {
+    const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
+    return attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy) === 'present';
+  }).length;
+  const countedSessions = todaySessions.filter(function (session) {
+    const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
+    const status = attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy);
+    return status !== 'leave';
+  });
+  const attendancePercent = countedSessions.length
+    ? Math.round((present / countedSessions.length) * 100)
     : null;
 
   const attempts = ordered.reduce(function (total, session) {

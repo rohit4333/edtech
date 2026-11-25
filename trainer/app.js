@@ -792,6 +792,11 @@
     var mount = $('#payoutChart');
     if (!mount) return;
 
+    var knownRules = payout && payout.knownRules;
+    setText('#payoutPolicyNote', knownRules && knownRules.mutualLeave && knownRules.fine
+      ? knownRules.mutualLeave + ' ' + knownRules.fine + ' No-shows are unpaid.'
+      : '₹300–400 per completed session · 2+ days notice by either side is mutual leave · later trainer cancellation costs one session pay · no-shows unpaid.');
+
     var series = payout && payout.dailySeries;
     var points = series && Array.isArray(series.points) ? series.points : [];
     var foot = $('.trend-foot');
@@ -971,6 +976,17 @@
 
   var api = window.mathifyTrainerApi;
   if (api) {
+    if (window.mathifyLeaveCalendar) {
+      window.mathifyLeaveCalendar.mount({
+        mount: '#leaveCalendar',
+        role: 'trainer',
+        request: api.request
+      });
+    }
+    if (window.mathifyTrainerSchedule) {
+      window.mathifyTrainerSchedule.mount({ mount: '#trainerSchedule', api: api });
+    }
+
     Promise.all([
       api.getDashboard(),
       api.getScore().catch(function () { return null; }),

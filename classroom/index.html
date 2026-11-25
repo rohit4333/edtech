@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -92,8 +92,8 @@
             <span class="board-sub">Lesson 15</span>
           </div>
           <div class="bh-r">
-            <button class="trainer-toggle trainer-only" id="trainerLayerBtn" type="button" aria-pressed="false" title="Trainer-only instructions">
-              <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span>Trainer notes</span>
+            <button class="trainer-toggle trainer-only" id="trainerLayerBtn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="trainerPanel" title="Trainer-only instructions">
+              <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span>Trainer Notes</span>
             </button>
             <span class="save" id="saveChip" aria-live="polite"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Saved</span></span>
             <div class="pager" role="group" aria-label="Board pages">
@@ -136,13 +136,13 @@
             <div class="pages" id="pages">
 
               <article class="sheet-page" data-page="1" aria-label="Page 1, warm-up: one ratio, two lengths">
-                <header class="p-head" data-instruction="Ask Ishaan to say what one part means before you split the ribbon. If he writes 18 ÷ 3 = 6 straight away, pause him and point at the three coral parts.">
+                <header class="p-head">
                   <span class="p-kicker">Warm-up <span aria-hidden="true">·</span> 6 min</span>
                   <h2>One ratio,<br>two lengths<span class="dot">.</span></h2>
                   <p class="p-problem">A ribbon is cut into two pieces in the ratio <b>3 : 5</b>. The shorter piece is <b>18 cm</b>. How long is the whole ribbon?</p>
                 </header>
                 <div class="p-body">
-                  <figure class="bar-fig" data-instruction="Let him shade the three known parts himself. Coral is the only accent — do not add a second colour here.">
+                  <figure class="bar-fig">
                     <div class="bar-labels">
                       <span class="bl known" style="flex:3"><b>18 cm</b><em>3 parts</em><i aria-hidden="true"></i></span>
                       <span class="bl unknown" style="flex:5"><b>?</b><em>5 parts</em><i aria-hidden="true"></i></span>
@@ -159,7 +159,7 @@
                     <li class="answer"><span class="p-num"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><p><b>8 parts = 48 cm</b><span>Multiply 6 by 8.</span></p></li>
                   </ol>
                 </div>
-                <div class="sketch-strip" data-instruction="If he hesitates, expand this space and draw the eight parts one by one. Do not fill it in for him.">
+                <div class="sketch-strip">
                   <span class="mono">Sketch space <span>· 3 parts</span></span>
                   <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
                   <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
@@ -168,13 +168,13 @@
               </article>
 
               <article class="sheet-page" data-page="2" aria-label="Page 2, build: scale both sides of a ratio" hidden>
-                <header class="p-head" data-instruction="Keep the ratio visible in every column. Ask why multiplying only one row breaks the story.">
+                <header class="p-head">
                   <span class="p-kicker">Build <span aria-hidden="true">·</span> 10 min</span>
                   <h2>Scale both<br>sides<span class="dot">.</span></h2>
                   <p class="p-problem">Every column keeps the same ratio. Fill the two gaps, then show both scales on the double number line.</p>
                 </header>
                 <div class="p-body p-body-2">
-                  <div class="ratio-wrap" data-instruction="The two gaps are ×3 on ribbon A and ×5 on ribbon B. Say the scale factor out loud before revealing either.">
+                  <div class="ratio-wrap">
                     <table class="ratio-table">
                       <caption class="visually-hidden">Ribbon A and Ribbon B lengths for scale factors one, two, three and five.</caption>
                       <thead><tr><th scope="col"><span>Ribbon</span></th><th scope="col">×1</th><th scope="col">×2</th><th scope="col">×3</th><th scope="col">×5</th></tr></thead>
@@ -185,7 +185,7 @@
                     </table>
                     <p class="table-note"><span class="mono">Keep the ratio</span>3 : 5 in every column.</p>
                   </div>
-                  <figure class="dline-fig" data-instruction="Point at 9 on A and 15 on B together. The dashed coral line is the same ribbon measured two ways.">
+                  <figure class="dline-fig">
                     <div class="dline" role="img" aria-label="Double number line. Ribbon A runs from zero to fifteen centimetres; Ribbon B runs from zero to twenty-five centimetres. Nine on A lines up with fifteen on B.">
                       <span class="dconn" aria-hidden="true"></span>
                       <div class="drow"><span class="dname">A</span><div class="dticks"><span>0</span><span>3</span><span>6</span><span class="ask">9?</span><span>12</span><span>15</span></div></div>
@@ -194,7 +194,7 @@
                     <figcaption>Each line is the same ribbon, measured in parts.</figcaption>
                   </figure>
                 </div>
-                <div class="sketch-strip" data-instruction="Expand and let Ishaan draw his own number line. Resist correcting the spacing — ask him to explain the jump instead.">
+                <div class="sketch-strip">
                   <span class="mono">Sketch space <span>· number line</span></span>
                   <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
                   <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
@@ -203,13 +203,13 @@
               </article>
 
               <article class="sheet-page" data-page="3" aria-label="Page 3, your turn: design a bead mix" hidden>
-                <header class="p-head" data-instruction="Give him three quiet minutes before you speak. If he asks for a hint, ask what the whole represents.">
+                <header class="p-head">
                   <span class="p-kicker">Your turn <span aria-hidden="true">·</span> 12 min</span>
                   <h2>Design a<br>bead mix<span class="dot">.</span></h2>
                   <p class="p-problem">The ratio of red to blue beads is <b>4 : 7</b>. There are <b>44 beads</b> in all. How many are blue?</p>
                 </header>
                 <div class="p-body p-body-3">
-                  <div class="workspace" data-instruction="This is the expandable sketch zone. Expand it when he needs room to draw 11 parts. The ink layer follows the expansion.">
+                  <div class="workspace">
                     <span class="ws-label">Bar model workspace</span>
                     <button class="ws-expand" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand sketch</span></button>
                     <span class="ws-mark" aria-hidden="true">44</span>
@@ -237,12 +237,12 @@
           </div>
         </div>
 
-        <aside class="trainer-panel trainer-only" id="trainerPanel" aria-label="Trainer-only instructions" hidden>
+        <aside class="trainer-panel trainer-only" id="trainerPanel" aria-label="Trainer Notes, hidden from the student" hidden>
           <header class="trainer-panel-head">
-            <div><span class="mono">Hidden from student</span><b>Trainer notes</b></div>
-            <button class="sheet-x" id="trainerPanelClose" type="button" aria-label="Close trainer notes"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+            <div><span class="mono">Hidden from student</span><b>Trainer Notes</b></div>
+            <button class="sheet-x" id="trainerPanelClose" type="button" aria-label="Close Trainer Notes"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
           </header>
-          <div class="trainer-panel-body" id="trainerInstructions"></div>
+          <div class="trainer-panel-body" id="trainerInstructions" aria-live="polite"></div>
         </aside>
       </section>
 
@@ -265,18 +265,23 @@
               <button class="mini" id="quizSkip" type="button">Skip</button>
             </div>
             <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer.</p>
-            <div class="student-ink" id="studentInk" hidden>
-              <span class="mono">Trainer sketch · live</span>
-              <canvas id="studentInkCanvas" aria-label="Live trainer sketch shared during the quiz"></canvas>
+            <div class="student-ink" id="studentInk">
+              <div class="student-ink-head">
+                <span class="mono">Scratchpad · blank space</span>
+                <span class="mono" id="studentInkMode">Ready for trainer sketch</span>
+              </div>
+              <canvas id="studentInkCanvas" aria-label="Blank scratchpad and live trainer sketch during the quiz"></canvas>
             </div>
           </div>
           <div class="quiz-trainer trainer-only">
             <div class="quiz-trainer-head">
               <span class="mono">Trainer view</span>
               <div class="doubt-dropdown">
-                <button class="mini" id="quizDoubtBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="doubtMenu">Doubt sketch <span aria-hidden="true">▾</span></button>
+                <button class="mini" id="quizDoubtBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="doubtMenu">Quiz actions <span aria-hidden="true">▾</span></button>
                 <div class="doubt-menu" id="doubtMenu" hidden>
-                  <button type="button" id="doubtDrawBtn">Open Wacom overlay</button>
+                  <button type="button" id="quizActionHint">Show Hint</button>
+                  <button type="button" id="quizActionSkip">Skip Question</button>
+                  <button type="button" id="quizActionExplain">Explain</button>
                 </div>
               </div>
             </div>
@@ -301,7 +306,7 @@
             <div class="readiness">
               <div class="readiness-top"><span class="mono">Readiness</span><b class="num" id="readinessText">0%</b></div>
               <div class="readiness-track"><i id="readinessBar"></i></div>
-              <small>Unlock threshold configurable · feedback revealed by you</small>
+              <small>Unlock at 80% · below 80% stays on this topic for reteach.</small>
             </div>
             <button class="btn btn-coral btn-sm" id="quizNext" type="button">Next question</button>
           </div>

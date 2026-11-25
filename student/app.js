@@ -264,6 +264,16 @@
     }
   });
 
+  /* ---------- leave calendar ---------- */
+  var api = window.mathifyStudentApi;
+  if (api && window.mathifyLeaveCalendar) {
+    window.mathifyLeaveCalendar.mount({
+      mount: '#leaveCalendar',
+      role: 'student',
+      request: api.request
+    });
+  }
+
   /* ---------- boot ---------- */
   applyState(state);
   startCountdown();

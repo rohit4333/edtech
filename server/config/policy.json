@@ -3,11 +3,39 @@
   "note": "Unresolved founder-doc values stay unset. Do not ship a guessed rule as fact.",
   "quiz": {
     "scoringBands": null,
-    "unlockThreshold": null,
+    "unlockThreshold": 80,
+    "difficultyMapping": {
+      "level1": { "label": "easy", "level": 1, "scoreBand": [0, 39] },
+      "level2": { "label": "medium", "level": 2, "scoreBand": [40, 79] },
+      "level3": { "label": "hard", "level": 3, "scoreBand": [80, 100] }
+    },
     "allowedSources": [
       { "source": "docx", "bands": [-40, 5, 25] },
       { "source": "pdf-ocr", "bands": [-40, 15, 35] }
     ]
+  },
+  "trainerSlots": {
+    "committedClassPayPercent": 100,
+    "unutilisedPayPercent": 30,
+    "currency": "INR",
+    "maxHoursPerSlot": 12,
+    "note": "A declared slot is committed to that trainer. Classes inside it are paid at 100%; unutilised hours are paid at 30% of the trainer's session rate."
+  },
+  "presence": {
+    "heartbeatSeconds": 20,
+    "idleSeconds": 45,
+    "learningEventWindowSeconds": 60,
+    "graceMinutes": 10,
+    "trainerMinPresentMinutes": 15,
+    "studentMinPresentMinutes": 15,
+    "learningEventsForPresent": 3,
+    "trainerPayRequiresPresence": true,
+    "sourcePriority": ["agora_webhook", "heartbeat"]
+  },
+  "masteryGating": {
+    "unlockThreshold": 80,
+    "keepSameTopicBelowThreshold": true,
+    "reteachBeforeNewCheck": true
   },
   "teachingScore": {
     "scaleMax": null,
@@ -22,6 +50,7 @@
   "payout": {
     "rateRange": [300, 400],
     "maxHoursPerDay": 6,
+    "minHoursPerDay": 3,
     "maxSessionsPerDay": 6,
     "bonusRules": {
       "perfectAttendanceBonus": 2000,
@@ -29,18 +58,51 @@
       "currency": "INR"
     },
     "fineRules": {
+      "noticeDays": 2,
       "noticeHours": 48,
       "penalty": "session_pay",
       "appliesTo": "trainer_cancellation",
       "currency": "INR"
     },
+    "noShow": {
+      "payout": 0,
+      "currency": "INR",
+      "marksSessionUsed": true
+    },
+    "leaveRules": {
+      "noticeDays": 2,
+      "noticeHours": 48,
+      "mutualForTrainerAndStudent": true,
+      "payout": 0,
+      "fine": 0,
+      "packPenalty": false
+    },
+    "studentAttendance": {
+      "mutualLeaveStatus": "leave",
+      "lateTrainerCancellationStatus": "unattended"
+    },
     "mvtAwards": [3000, 2000, 1000]
   },
   "attendance": {
     "maxHoursPerDay": 6,
+    "minHoursPerDay": 3,
     "maxSessionsPerDay": 6,
     "leaveNoticeHours": 48,
+    "noShowPayout": 0,
+    "mutualLeaveStatus": "leave",
+    "lateTrainerCancellationStudentStatus": "unattended",
+    "allowedStatuses": ["present", "absent", "late", "leave", "unattended"],
     "lateNoticeErrorCode": "LATE_NOTICE_FINE"
+  },
+  "leaveBalances": {
+    "trainer": {
+      "perMonth": 8,
+      "chargeStudentInitiatedLeaves": false
+    },
+    "student": {
+      "showBalance": false,
+      "packPenalty": false
+    }
   },
   "packs": {
     "expiryDays": 38,

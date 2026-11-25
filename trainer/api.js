@@ -113,6 +113,17 @@
     saveAttendance: function (id, records) {
       return request('/trainer/attendance/' + encodeURIComponent(id) + '/save', { method: 'POST', body: { records: records } })
         .then(function (d) { return d; });
+    },
+    getSchedule: function (month) {
+      return request('/trainer/schedule' + (month ? '?month=' + encodeURIComponent(month) : ''))
+        .then(function (d) { return d.schedule; });
+    },
+    getSlots: function () { return request('/trainer/slots').then(function (d) { return d; }); },
+    addSlot: function (body) {
+      return request('/trainer/slots', { method: 'POST', body: body }).then(function (d) { return d.slot; });
+    },
+    deleteSlot: function (id) {
+      return request('/trainer/slots/' + encodeURIComponent(id), { method: 'DELETE' }).then(function (d) { return d; });
     }
   };
 })();

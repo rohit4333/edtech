@@ -165,6 +165,95 @@ function listSupportEscalations(limit) {
   return copy(store.supportEscalations.slice(-size).reverse());
 }
 
+function listLeaveRequests() {
+  return copy(store.leaveRequests);
+}
+
+function listLeaveRequestsForUser(user) {
+  if (!user) return [];
+  return copy(store.leaveRequests.filter(function (request) {
+    if (user.role === 'founder') return true;
+    if (user.role === 'trainer') {
+      return request.trainerId === user.id || request.requestedBy === user.id;
+    }
+    if (user.role === 'student') return request.studentId === user.id || request.requestedBy === user.id;
+    return false;
+  }));
+}
+
+function findLeaveRequestForSession(sessionId) {
+  const found = store.leaveRequests.find(function (request) {
+    return request.sessionId === sessionId && request.status !== 'cancelled';
+  });
+  return found ? copy(found) : null;
+}
+
+function insertLeaveRequest(record) {
+  const stored = Object.assign({
+    id: 'leave_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    status: 'approved',
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.leaveRequests.push(copy(stored));
+  return copy(stored);
+}
+
+function listPresenceEvents(sessionId) {
+  return copy(sessionId
+    ? store.presenceEvents.filter(function (event) { return event.sessionId === sessionId; })
+    : store.presenceEvents);
+}
+
+function insertPresenceEvent(record) {
+  const stored = Object.assign({
+    id: 'presence_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    at: new Date().toISOString()
+  }, copy(record) || {});
+  store.presenceEvents.push(copy(stored));
+  return copy(stored);
+}
+
+function findPresenceSnapshot(sessionId) {
+  const found = store.presenceSnapshots.find(function (snapshot) { return snapshot.sessionId === sessionId; });
+  return found ? copy(found) : null;
+}
+
+function listPresenceSnapshots() {
+  return copy(store.presenceSnapshots);
+}
+
+function savePresenceSnapshot(snapshot) {
+  const record = copy(snapshot);
+  const index = store.presenceSnapshots.findIndex(function (item) { return item.sessionId === record.sessionId; });
+  if (index === -1) store.presenceSnapshots.push(record);
+  else store.presenceSnapshots[index] = record;
+  return copy(record);
+}
+
+function listTrainerSlots(trainerId) {
+  return copy(trainerId
+    ? store.trainerSlots.filter(function (slot) { return slot.trainerId === trainerId; })
+    : store.trainerSlots);
+}
+
+function insertTrainerSlot(record) {
+  const stored = Object.assign({
+    id: 'slot_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.trainerSlots.push(copy(stored));
+  return copy(stored);
+}
+
+function deleteTrainerSlot(trainerId, slotId) {
+  const index = store.trainerSlots.findIndex(function (slot) {
+    return slot.id === slotId && slot.trainerId === trainerId;
+  });
+  if (index === -1) return false;
+  store.trainerSlots.splice(index, 1);
+  return true;
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -187,5 +276,17 @@ module.exports = {
   recordWhatsappMessage,
   recordSupportEscalation,
   updateSupportEscalation,
-  listSupportEscalations
+  listSupportEscalations,
+  listLeaveRequests,
+  listLeaveRequestsForUser,
+  findLeaveRequestForSession,
+  insertLeaveRequest,
+  listPresenceEvents,
+  insertPresenceEvent,
+  findPresenceSnapshot,
+  listPresenceSnapshots,
+  savePresenceSnapshot,
+  listTrainerSlots,
+  insertTrainerSlot,
+  deleteTrainerSlot
 };
