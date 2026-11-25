@@ -5,18 +5,47 @@ const attendancePolicy = require('./services/attendancePolicy');
 const appPolicy = require('./config/policy.json');
 
 /* Explicit student boundary: hidden trainer guidance is never serialized. */
-const TRAINER_ONLY_KEYS = ['trainer_instructions', 'trainerInstructions', 'trainerNotes'];
+const TRAINER_ONLY_KEYS = [
+  'trainer_instructions',
+  'trainerInstructions',
+  'trainerNotes',
+  'misconception_watch',
+  'prompt_for_trainer'
+];
 
-function stripTrainerOnlyFields(value) {
-  if (Array.isArray(value)) return value.map(stripTrainerOnlyFields);
+/* Correctness is server/trainer-only until an explicit reveal or hint grant. */
+const ANSWER_ONLY_KEYS = [
+  'answerKey',
+  'correctOptionId',
+  'answerIndex',
+  'answer_index',
+  'correctAnswer',
+  'correct',
+  'explanation',
+  'distractor_rationale',
+  'why'
+];
+
+function stripByKeys(value, keys, transform) {
+  if (Array.isArray(value)) {
+    return value.map(function (item) { return stripByKeys(item, keys, transform); });
+  }
   if (!value || typeof value !== 'object') return value;
 
   const safe = {};
   Object.keys(value).forEach(function (key) {
-    if (TRAINER_ONLY_KEYS.indexOf(key) !== -1) return;
-    safe[key] = stripTrainerOnlyFields(value[key]);
+    if (keys.indexOf(key) !== -1) return;
+    safe[key] = stripByKeys(value[key], keys, transform);
   });
-  return safe;
+  return transform ? transform(safe) : safe;
+}
+
+function stripTrainerOnlyFields(value) {
+  return stripByKeys(value, TRAINER_ONLY_KEYS);
+}
+
+function stripStudentRestrictedFields(value) {
+  return stripByKeys(stripTrainerOnlyFields(value), ANSWER_ONLY_KEYS);
 }
 
 function person(userId) {
@@ -58,11 +87,20 @@ function trainerQuiz(session) {
   };
 }
 
-function studentQuiz(session) {
+function grantedHint(options, questionId, legacyHint) {
+  const settings = options || {};
+  if (settings.grantedHints && settings.grantedHints[questionId]) {
+    return settings.grantedHints[questionId];
+  }
+  if (settings.includeHints === true && legacyHint) return legacyHint;
+  return null;
+}
+
+function studentQuiz(session, options) {
   const revealed = {};
   (session.quiz.reveals || []).forEach(function (reveal) { revealed[reveal.questionId] = true; });
 
-  return {
+  const payload = {
     status: session.quiz.status,
     phase: session.quiz.phase,
     currentQuestionId: session.quiz.currentQuestionId,
@@ -72,9 +110,10 @@ function studentQuiz(session) {
       const answer = {
         id: question.id,
         prompt: question.prompt,
-        options: question.options.slice(),
-        hint: question.hint
+        options: question.options.slice()
       };
+      const hint = grantedHint(options, question.id, question.hint);
+      if (hint) answer.hint = hint;
       if (revealed[question.id]) {
         answer.answerIndex = question.answerIndex;
         answer.explanation = question.explanation;
@@ -92,6 +131,76 @@ function studentQuiz(session) {
       return result;
     })
   };
+
+  return payload;
+}
+
+/** Student view of the new three-tier curriculum quiz from deepseekService. */
+function toStudentQuizTiers(payload, options) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const tiers = {};
+  Object.keys(payload.quiz || {}).forEach(function (tier) {
+    tiers[tier] = (payload.quiz[tier] || []).map(function (item) {
+      const safe = {
+        id: item.id,
+        stem: item.stem || item.prompt,
+        options: Array.isArray(item.options) ? item.options.map(function (option) {
+          return { id: option.id, text: option.text };
+        }) : [],
+        time_limit_sec: item.time_limit_sec,
+        requires_sketch: Boolean(item.requires_sketch),
+        bloom: item.bloom || null
+      };
+
+      const granted = grantedHint(options, item.id, (item.hints || [])[0] || item.hint);
+      if (granted) safe.hints = [granted];
+      return safe;
+    });
+  });
+
+  return stripStudentRestrictedFields({
+    quiz: tiers,
+    advance_criteria: payload.advance_criteria
+      ? { gate_pct: payload.advance_criteria.gate_pct, repeat_if_below: payload.advance_criteria.repeat_if_below }
+      : null,
+    parent_summary: payload.parent_summary || ''
+  });
+}
+
+/** Student view of a generated planner. Trainer notes and sketch prompts never ship. */
+function toStudentCurriculum(payload, options) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const planner = payload.planner || {};
+  const curriculumMap = stripTrainerOnlyFields(payload.curriculum_map || {});
+  return stripStudentRestrictedFields({
+    topic_id: payload.topic_id || null,
+    curriculum_map: curriculumMap,
+    planner: {
+      version: planner.version || 1,
+      estimated_minutes: planner.estimated_minutes || null,
+      blocks: (planner.blocks || []).map(function (block) {
+        const sketch = block.sketch ? {
+          minHeight: block.sketch.minHeight,
+          expandable: block.sketch.expandable === true
+        } : undefined;
+        const safe = {
+          id: block.id,
+          type: block.type,
+          content: {
+            text: block.content && block.content.text ? block.content.text : '',
+            image_prompt: block.content && block.content.image_prompt ? block.content.image_prompt : '',
+            alt: block.content && block.content.alt ? block.content.alt : '',
+            caption: block.content && block.content.caption ? block.content.caption : ''
+          }
+        };
+        if (sketch) safe.sketch = sketch;
+        return stripTrainerOnlyFields(safe);
+      })
+    },
+    quiz: payload.quiz ? toStudentQuizTiers(payload, options) : undefined
+  });
 }
 
 function toTrainerSummary(session) {
@@ -556,6 +665,9 @@ function toStudentDashboard(user, sessions) {
 module.exports = {
   readiness,
   stripTrainerOnlyFields,
+  stripStudentRestrictedFields,
+  toStudentCurriculum,
+  toStudentQuizTiers,
   toTrainerSummary,
   toTrainerSession,
   toStudentSession,

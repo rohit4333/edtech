@@ -154,10 +154,18 @@ ever sent through the stroke channel.
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
 
-`services/deepseekService.js` exports `generateQuizDraft(topic, difficulty)`. Difficulty accepts
-`easy|medium|hard` or `1|2|3` and is sent to DeepSeek as `Level 1–3`. It returns a parsed
-`{ questions: [...] }` object with `question_text`, `options`, `correct_option_index` and `hint`.
-Drafts stay trainer-only until approved.
+`services/deepseekService.js` generates curriculum in two DeepSeek calls:
+`generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner blocks;
+`generateQuizTiers(context, plannerOutput)` returns `level_1`, `level_2`, `level_3` and
+`advance_criteria`. Each call renders its own system prompt, parses strict JSON (with fences and
+trailing commas tolerated), and validates the shape manually. If `DEEPSEEK_API_KEY` is empty, a
+deterministic trainer-reviewable fallback is used. `generateQuizDraft(topic, difficulty)` remains as
+a backward-compatible wrapper for the adaptive quiz generator.
+
+Student payloads use `serializers.toStudentCurriculum()` and `serializers.toStudentQuizTiers()`.
+Those allowlists strip `trainerInstructions`, `misconception_watch`, sketch trainer prompts, answer
+keys, explanations and withheld hints. A hint only appears when the server passes an explicit
+`grantedHints` map; correctness remains post-reveal only.
 
 `services/whatsappAiService.js` uses the same DeepSeek client. It queries the mock Supabase adapter for
 quiz scores, attendance and session balance, then returns either a parent-safe reply, `ACTION: RESCHEDULE_REQUEST`
