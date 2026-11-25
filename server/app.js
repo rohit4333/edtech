@@ -1,4 +1,4 @@
-require('dotenv').config();
+const config = require('./config');
 
 const express = require('express');
 const cors = require('cors');
@@ -16,7 +16,7 @@ const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
 
 const app = express();
-const configuredOrigin = process.env.CORS_ORIGIN || '*';
+const configuredOrigin = config.corsOrigin;
 
 app.use(cors({
   origin: configuredOrigin === '*' ? '*' : configuredOrigin.split(',').map(function (value) { return value.trim(); })
@@ -30,7 +30,8 @@ app.get('/api/health', function (req, res) {
     ok: true,
     service: 'mathify-server',
     phase: 1,
-    database: process.env.DATABASE_MODE || 'mock',
+    database: config.databaseMode,
+    supabaseConfigured: config.supabaseConfigured,
     realtime: realtime.mode
   });
 });

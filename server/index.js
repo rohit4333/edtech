@@ -1,7 +1,7 @@
-require('dotenv').config();
+const config = require('./config');
 
 const app = require('./app');
-const port = Number(process.env.PORT || 4000);
+const port = config.port;
 
 app.listen(port, function () {
   console.log('Mathify API listening on http://localhost:' + port);
