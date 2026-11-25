@@ -5,6 +5,16 @@ const assert = require('assert');
 const app = require('../app');
 const db = require('../db');
 
+/* Keep the smoke test on deterministic AI output even when .env has Cloudflare. */
+const cloudflareKeys = [
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_MODEL',
+  'CLOUDFLARE_TIMEOUT_MS'
+];
+const originalCloudflare = {};
+cloudflareKeys.forEach(function (key) { originalCloudflare[key] = process.env[key]; });
+
 async function main() {
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () { resolve(instance); });
@@ -30,6 +40,8 @@ async function main() {
   }
 
   try {
+    cloudflareKeys.forEach(function (key) { delete process.env[key]; });
+
     const health = await call('/api/health');
     assert.strictEqual(health.status, 200);
     assert.strictEqual(health.body.ok, true);
@@ -231,6 +243,10 @@ async function main() {
 
     console.log('apiSmoke: 60 assertions passed');
   } finally {
+    cloudflareKeys.forEach(function (key) {
+      if (originalCloudflare[key] === undefined) delete process.env[key];
+      else process.env[key] = originalCloudflare[key];
+    });
     await new Promise(function (resolve) { server.close(resolve); });
   }
 }

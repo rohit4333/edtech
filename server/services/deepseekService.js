@@ -13,6 +13,7 @@
 const { z } = require('zod');
 const generator = require('../quiz/generator');
 const serializers = require('../serializers');
+const aiService = require('./aiService');
 
 const DEFAULT_TIMEOUT_MS = 15000;
 const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
@@ -435,6 +436,20 @@ function endpoint() {
 async function requestJSON(systemPrompt, userPrompt, allowFallback) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
+    /* Cloudflare Workers AI is the free fallback while DeepSeek is unkeyed. */
+    if (aiService.isConfigured()) {
+      const cloudflareText = await aiService.generateAIResponse(systemPrompt, userPrompt, {
+        allowFallback: allowFallback
+      });
+      const cloudflareJSON = safeParseJSON(cloudflareText);
+      if (cloudflareJSON) return cloudflareJSON;
+      if (allowFallback === false) {
+        throw invalid('Cloudflare Workers AI response was not valid JSON.');
+      }
+      warnMissingKey();
+      return null;
+    }
+
     if (allowFallback === false) {
       throw failure('DEEPSEEK_API_KEY is not configured.', 'DEEPSEEK_NOT_CONFIGURED', 503);
     }

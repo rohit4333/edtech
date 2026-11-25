@@ -6,6 +6,14 @@ const policy = require('../config/policy.json');
 const originalKey = process.env.DEEPSEEK_API_KEY;
 const originalBaseUrl = process.env.DEEPSEEK_BASE_URL;
 const originalFetch = global.fetch;
+const cloudflareKeys = [
+  'CLOUDFLARE_ACCOUNT_ID',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_MODEL',
+  'CLOUDFLARE_TIMEOUT_MS'
+];
+const originalCloudflare = {};
+cloudflareKeys.forEach(function (key) { originalCloudflare[key] = process.env[key]; });
 let checks = 0;
 
 function ok(value, label) {
@@ -32,6 +40,8 @@ function envelope(content) {
 async function main() {
   try {
     delete process.env.DEEPSEEK_API_KEY;
+    /* Keep fallback assertions deterministic even when .env has Cloudflare. */
+    cloudflareKeys.forEach(function (key) { delete process.env[key]; });
 
     const context = {
       board: 'CBSE',
@@ -275,12 +285,48 @@ async function main() {
     equal(generatedParallel.source, 'ai', 'remote parallel question is marked as AI output');
     equal(generatedParallel.correctOptionId, 'b', 'remote parallel question keeps correct option');
 
+    /* Cloudflare Workers AI drives the same curriculum contract when DeepSeek
+       has no key. */
+    delete process.env.DEEPSEEK_API_KEY;
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.CLOUDFLARE_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+    let cloudflareUrl = '';
+    let cloudflareAuth = '';
+    let cloudflareCalls = 0;
+    global.fetch = async function (url, options) {
+      cloudflareCalls += 1;
+      cloudflareUrl = url;
+      cloudflareAuth = options.headers.Authorization;
+      return {
+        ok: true,
+        text: async function () {
+          return JSON.stringify({
+            success: true,
+            result: { choices: [{ message: { content: JSON.stringify(remoteParallel) } }] }
+          });
+        }
+      };
+    };
+    const cloudflareParallel = await service.generateParallelQuestion('Equivalent ratios', 1);
+    equal(cloudflareCalls, 1, 'Cloudflare path uses a single API call');
+    ok(cloudflareUrl.indexOf('/ai/run/@cf/meta/llama-3.1-8b-instruct') !== -1,
+      'Cloudflare endpoint uses the configured model');
+    equal(cloudflareAuth, 'Bearer test-token', 'Cloudflare endpoint uses the API token');
+    equal(cloudflareParallel.correctOptionId, 'b',
+      'Cloudflare parallel question keeps the validated correct option');
+    equal(cloudflareParallel.source, 'ai', 'Cloudflare output is marked as AI output');
+
     console.log('curriculumAuthoring: ' + checks + ' assertions passed');
   } finally {
     if (originalKey === undefined) delete process.env.DEEPSEEK_API_KEY;
     else process.env.DEEPSEEK_API_KEY = originalKey;
     if (originalBaseUrl === undefined) delete process.env.DEEPSEEK_BASE_URL;
     else process.env.DEEPSEEK_BASE_URL = originalBaseUrl;
+    cloudflareKeys.forEach(function (key) {
+      if (originalCloudflare[key] === undefined) delete process.env[key];
+      else process.env[key] = originalCloudflare[key];
+    });
     global.fetch = originalFetch;
   }
 }
