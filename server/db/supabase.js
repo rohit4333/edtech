@@ -44,11 +44,23 @@ async function request(path, options) {
     'Content-Type': 'application/json',
     Prefer: settings.prefer || 'return=representation'
   };
-  const response = await fetch(config.supabase.url.replace(/\/$/, '') + path, {
-    method: settings.method || 'GET',
-    headers: headers,
-    body: settings.body ? JSON.stringify(settings.body) : undefined
-  });
+  const method = settings.method || 'GET';
+  let response = null;
+  /* Read-only calls get one retry for transient network blips. Writes are never
+     replayed, so a half-applied mutation cannot be duplicated. */
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      response = await fetch(config.supabase.url.replace(/\/$/, '') + path, {
+        method: method,
+        headers: headers,
+        body: settings.body ? JSON.stringify(settings.body) : undefined
+      });
+      break;
+    } catch (error) {
+      if (method !== 'GET' || attempt >= 1) throw error;
+      await new Promise(function (resolve) { setTimeout(resolve, 150); });
+    }
+  }
 
   const text = await response.text();
   let payload = null;

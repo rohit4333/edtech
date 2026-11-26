@@ -148,7 +148,9 @@ async function callCloudflare(current, systemContent, userContent) {
  * Calls the provider chain and returns raw model text.
  * @param {string} systemPrompt curriculum/persona instructions
  * @param {string} userPrompt the concrete authoring request
- * @param {object} options { allowFallback?: boolean, jsonOnly?: boolean }
+ * @param {object} options { allowFallback?: boolean, jsonOnly?: boolean,
+ *   providerOut?: object } — providerOut receives the stage that actually
+ *   answered, so callers never misreport a fallback as the first provider.
  */
 async function generateAIResponse(systemPrompt, userPrompt, options) {
   const current = settings();
@@ -225,6 +227,10 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
     const attempt = attempts[index];
     try {
       const generated = await attempt.run();
+      if (callOptions.providerOut && typeof callOptions.providerOut === 'object') {
+        callOptions.providerOut.provider = attempt.name;
+        if (attempt.name === 'Cloudflare') callOptions.providerOut.model = current.model;
+      }
       return normalizeGenerated(generated, jsonOnly);
     } catch (error) {
       lastError = error;

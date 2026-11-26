@@ -4,7 +4,7 @@
  * freelm -> Gemini -> Groq -> Cloudflare Workers AI. Only the three approved
  * upstream families can enable live mode; no key is logged or sent to a
  * browser. Mock mode returns a deterministic local reply before any SDK is
- * loaded, so the 44-file test suite never spends a live provider key. */
+ * loaded, so the 45-file test suite never spends a live provider key. */
 
 const config = require('../config');
 
@@ -110,13 +110,14 @@ async function generateFeedback(input) {
   try {
     /* All model calls now share one chain: freelm -> Gemini -> Groq ->
        Cloudflare. Only allowlisted lesson fields cross this boundary. */
+    const providerOut = {};
     const raw = await require('./cloudflareAiService').generateAIResponse(
       systemPrompt(),
       JSON.stringify(clean),
-      { jsonOnly: true, allowFallback: false, maxOutputTokens: 400 }
+      { jsonOnly: true, allowFallback: false, maxOutputTokens: 400, providerOut: providerOut }
     );
     return {
-      provider: 'freelm',
+      provider: providerOut.provider || 'unknown',
       chain: 'freelm->Gemini->Groq->Cloudflare',
       mode: 'live',
       mock: false,
@@ -162,13 +163,14 @@ async function generateTranscriptFeedback(input) {
   }
 
   try {
+    const providerOut = {};
     const raw = await require('./cloudflareAiService').generateAIResponse(
       TUTOR_SYSTEM_PROMPT,
       transcript,
-      { jsonOnly: false, allowFallback: false, maxOutputTokens: 300 }
+      { jsonOnly: false, allowFallback: false, maxOutputTokens: 300, providerOut: providerOut }
     );
     return {
-      provider: 'freelm',
+      provider: providerOut.provider || 'unknown',
       chain: 'freelm->Gemini->Groq->Cloudflare',
       mode: 'live',
       mock: false,

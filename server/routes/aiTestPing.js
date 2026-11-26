@@ -1,4 +1,4 @@
-/* POST /api/ai/test-ping — live-only provider smoke test.
+/* POST /api/ai/test-ping — founder-only, live-only provider smoke test.
  *
  * There is no mock response here. Gemini, Groq and Cloudflare are probed
  * individually through freelm; at least two real providers must answer or the
@@ -6,13 +6,16 @@
  * crosses this boundary. */
 
 const express = require('express');
+const auth = require('../middleware/auth');
 const rateLimit = require('../middleware/rateLimit');
 const freeLm = require('../services/freeLmService');
 
 const router = express.Router();
 const pingThrottle = rateLimit.createLimiter({ name: 'ai-test-ping', windowMs: 60000, max: 10 });
 
-router.post('/', pingThrottle, async function (req, res) {
+/* Founder-only diagnostics: each request makes up to three real provider
+   calls, so it must never be reachable anonymously. */
+router.post('/', pingThrottle, auth.requireAuth, auth.requireRole('founder'), async function (req, res) {
   try {
     const body = req.body || {};
     const result = await freeLm.generateLivePing({ message: body.message });

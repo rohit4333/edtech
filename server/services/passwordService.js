@@ -66,11 +66,11 @@ async function changePassword(userId, input) {
 async function sendResetEmail(recipient, token) {
   if (!emailService.configured()) return { sent: false, reason: 'not_configured' };
 
-  const origin = String(process.env.APP_ORIGIN || process.env.CORS_ORIGIN || '').trim();
-  if (!/^https?:\/\/\S+$/i.test(origin)) {
+  const origin = config.resetOrigin();
+  if (!origin) {
     return { sent: false, reason: 'not_configured' };
   }
-  const link = origin.replace(/\/$/, '') + '/password-reset.html?token=' +
+  const link = origin + '/password-reset.html?token=' +
     encodeURIComponent(token) + '&email=' + encodeURIComponent(recipient);
   const safe = emailService.escapeHtml(link);
   const html = [

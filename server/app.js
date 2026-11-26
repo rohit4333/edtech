@@ -19,6 +19,7 @@ const adminRoutes = require('./routes/admin');
 const agoraRoutes = require('./routes/agora');
 const livekitRoutes = require('./routes/livekit');
 const livekitRecordingRoutes = require('./routes/livekitRecording');
+const recordingAccessRoutes = require('./routes/recordingAccess');
 const feedbackRoutes = require('./routes/generateFeedback');
 const aiPingRoutes = require('./routes/aiTestPing');
 const razorpayRoutes = require('./routes/razorpay');
@@ -36,6 +37,15 @@ const badgeService = require('./services/badgeService');
 const celebrationService = require('./services/celebrationService');
 
 const app = express();
+
+/* Only trust forwarding headers when an operator explicitly configures a
+   known proxy hop count. The rate limiter keys on req.ip, so an untrusted
+   X-Forwarded-For header can never reset a bucket. */
+const trustProxy = String(process.env.TRUST_PROXY || '').trim();
+if (trustProxy && trustProxy !== 'false' && trustProxy !== '0') {
+  const hops = /^\d+$/.test(trustProxy) ? Number(trustProxy) : true;
+  app.set('trust proxy', hops);
+}
 
 /* Public write endpoints get a coarse in-process throttle on top of their
    signature checks. Login throttling lives in routes/auth.js. */
@@ -96,6 +106,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/livekit/recording', livekitRecordingRoutes);
+app.use('/api/recordings', recordingAccessRoutes);
 app.use('/api/livekit', livekitRoutes);
 /* Same handler, shorter path used by the classroom client. */
 app.use('/api/get-token', livekitRoutes);

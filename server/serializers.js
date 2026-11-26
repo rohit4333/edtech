@@ -756,7 +756,10 @@ function toStudentDashboard(user, sessions) {
       return {
         id: session.id,
         title: session.title,
-        url: session.recording.url,
+        /* Private recordings are opened through an authorized signed-link
+           endpoint; no permanent browser URL is published here. */
+        url: null,
+        available: Boolean(session.recording.objectKey && session.recording.status === 'stopped'),
         durationSeconds: session.recording.durationSeconds,
         readyAt: session.recording.readyAt,
         chapters: Array.isArray(session.recording.chapters)

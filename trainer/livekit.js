@@ -375,7 +375,26 @@
     });
   }
 
+  /* Leaving the room must not abandon the server-side Egress. The API is the
+     owner of the recording row, so stop it before local state is discarded. */
+  function stopActiveRecording() {
+    var active = state.recording;
+    if (!active || !active.id) return Promise.resolve(null);
+    state.recording = null;
+    return apiRequest('/livekit/recording/stop', {
+      method: 'POST',
+      body: { recordingId: active.id }
+    }).then(function (data) {
+      setRecordingButtons(false);
+      return data && data.recording;
+    }).catch(function () {
+      setRecordingButtons(false);
+      return null;
+    });
+  }
+
   function cleanup() {
+    if (state.recording) stopActiveRecording();
     var room = state.room;
     if (room) {
       state.listeners.forEach(function (pair) {
@@ -401,9 +420,11 @@
   }
 
   function leave() {
-    cleanup();
-    status('Left the call.');
-    return Promise.resolve(true);
+    return stopActiveRecording().then(function () {
+      cleanup();
+      status('Left the call. The recording is stored privately when processing finishes.');
+      return true;
+    });
   }
 
   /* LiveKit Egress is started server-side from the verified session id. The
@@ -440,13 +461,19 @@
     }).then(function (data) {
       state.recording = null;
       setRecordingButtons(true);
-      status(data && data.recording && data.recording.url
-        ? 'Recording saved.'
-        : 'Recording stopped. The file is still being processed.');
+      status('Recording stopped. It appears in the student desk when processing finishes.');
       return data && data.recording;
     }).catch(function (error) {
       status(error.message || 'Recording could not stop.');
       return null;
+    });
+  }
+
+  /* Best effort on tab close; the server also stops any active recording when
+     the session is ended, so an aborted browser request cannot strand it. */
+  if (window.addEventListener) {
+    window.addEventListener('pagehide', function () {
+      if (state.recording) stopActiveRecording();
     });
   }
 

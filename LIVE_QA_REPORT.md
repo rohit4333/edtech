@@ -4,15 +4,15 @@ Scope: branch `feat/student-rtc-control-perfection`, baseline `6141357`. Evidenc
 
 ## Result
 
-**68/68 live phase checks passed with zero secret values in any HTTP response.** The remaining gaps are credential-gated external integrations; each fails closed with an honest error rather than a fabricated success.
+**68/68 live phase checks passed with zero secret values in any HTTP response.** A follow-up security-hardening pass closed seven audit findings (private recordings, recording lifecycle, quota and rate-limit abuse, reset-link origins, and provider attribution) and was re-verified live. The remaining gaps are credential-gated external integrations; each fails closed with an honest error rather than a fabricated success.
 
 ## Automated regression suite
 
-- `DATABASE_MODE=mock npm test` → `EXIT=0`, 45 suites including `liveReadiness: 90 assertions passed`, `alternateAiProviders: 18 assertions passed`, `livekitEgress: fail-closed assertions passed`, `mcpServer: 55 checks`.
-- Evidence: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-test-final4.log`.
-- Syntax check: 18 changed JavaScript/module files, 0 failures.
+- `DATABASE_MODE=mock npm test` → `EXIT=0`, 46 suites including `liveReadiness: 90+ assertions passed`, `alternateAiProviders: 18 assertions passed`, `livekitEgress: fail-closed assertions passed`, `securityHardening: origin, limiter and private-path assertions passed`, `mcpServer: 55 checks`.
+- Evidence: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-test-final7.log` (earlier passes: `mathify-test-final4.log`, `mathify-test-final6.log`).
+- Syntax check: 16 changed JavaScript/module files after the hardening pass, 0 failures.
 - `git diff --check`: exit 0 (CRLF normalisation warnings only).
-- `npm ci --dry-run --ignore-scripts`: root and server both exit 0. `npm audit --omit=dev --prefix server`: `found 0 vulnerabilities`. Lockfiles contain `freelm` at the root and `livekit-server-sdk`, `freelm`, `resend` in `server/`; `nodemailer` is absent from both.
+- `npm ci --dry-run --ignore-scripts`: root and server both exit 0. `npm audit --omit=dev --prefix server`: `found 0 vulnerabilities`. Lockfiles contain `freelm` at the root and `livekit-server-sdk`, `freelm`, `resend` in `server/`; `nodemailer` is absent from both. Root and root-lock engines now declare `node >=20` to match `freelm`.
 
 ## Live HTTP evidence
 
@@ -25,23 +25,36 @@ Scope: branch `feat/student-rtc-control-perfection`, baseline `6141357`. Evidenc
 | Browser room mismatch | HTTP 403, exact code `ROOM_MISMATCH` |
 | Founder observer gate | Refused without the opt-in; policy reports `founderObserverRequiresOptIn=true` |
 | AI provider chain | `/api/ai/test-ping` HTTP 200, `mode=live`, `requiredSuccesses=2`, `successes=2`; Gemini `PONG`, Groq `PONG`, Cloudflare `EMPTY_RESPONSE`. No provider key appears in the response. |
+| AI ping authorization (hardening pass) | Anonymous HTTP 401, trainer HTTP 403, founder HTTP 200 — the quota-spending probe is founder-only |
+| Provider attribution (hardening pass) | `/api/generate-feedback` HTTP 200 with a real `provider` value; the chain reports the stage that actually answered, not always `freelm` |
 | Trainer chat | HTTP 200, `source=ai`; reply ends with exactly one `Is there anything else I can help you with, or would you like me to connect you with the admin?` |
 | Student chat | HTTP 200, `source=ai`, no final answer or option disclosed |
 | Unsafe student question | HTTP 200 and the exact safety line `I'm just an AI study buddy, but please tell your parents or your Mathify trainer about this right away!` |
 | LiveKit Egress start | HTTP 503, exact code `RECORDING_NOT_CONFIGURED` while storage is absent |
 | Egress stop unknown recording | HTTP 404, exact code `RECORDING_NOT_FOUND` |
 | Student/non-authenticated Egress controls | HTTP 403 `FORBIDDEN` / HTTP 401 `UNAUTHORIZED` |
+| Private recordings (hardening pass) | Student dashboard HTTP 200 with `available` flag and no permanent URL; `permanentUrlPublished=false`; anonymous recording-link HTTP 401; student recording-link HTTP 404 `RECORDING_NOT_READY` |
 | Quiz reveal boundary | Student session payload has no `answerIndex`, `answerKey`, `explanation`, `trainerInstructions` or `misconception_watch` |
 | Self-practice | 10 questions per batch, topic cap 80, ramps 1.00 → 1.15 (+15%), no answer keys; persisted for one student only |
 | Policy contract | Mastery gate 80; Level 1/2/3 bands start 0/40/80; payout ₹300–₹400; committed 100%, unutilised 30%, 12-hour slot cap; 48-hour fine notice; 38-day pack expiry; 24–48-hour reschedule window |
 | Role isolation | Trainer/student dashboards mutually refused; trainer/student refused people admin; RM can use the people desk but is refused founder settings/audit; founder can use people desk |
-| Password reset | Unknown address returns `requested=true`, `delivered=false`, no development token; invalid address HTTP 422 |
+| Password reset | Unknown address returns `requested=true`, `delivered=false`, no development token; invalid address HTTP 422; reset links built from a validated https (or local http) origin, never an allowlist string with commas |
 | Booking request | HTTP 201, stored with `email=false`, `slack=false`; no delivery is claimed |
 | Razorpay order | HTTP 503 because keys are absent; no order is claimed |
 | Signed WhatsApp webhook | Refused (400/401/403) without a valid signature |
 | Static surface | `/`, pricing, terms, privacy, refund and contact pages served with the required nav, footer links, TPFF wording and LinkedIn URL; `server/.env` is not public |
 
-Evidence files: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-live-qa-final.log`, `mathify-chat-live.log`, `mathify-phases-qa-final.log`, `mathify-phases-qa.log.json` (68 checks, zero leaks), `mathify-egress-live.log`, `mathify-ai-ping-final.json`.
+Evidence files: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-live-qa-final3.log`, `mathify-live-qa-final2.log`, `mathify-chat-live4.log`, `mathify-phases-qa-final3.log`, `mathify-phases-qa.log.json` (68 checks, zero leaks), `mathify-egress-live3.log`, `mathify-ai-ping-final.json`. Earlier pass: `mathify-live-qa-final.log`, `mathify-chat-live.log`, `mathify-phases-qa-final.log`, `mathify-egress-live.log`.
+
+## Hardening pass — audit findings closed
+
+1. **Private recordings.** Egress object keys now begin with the session id (`<sessionId>/...`), matching the storage RLS `can_read_recording` contract; the old operator prefix is nested after it. No permanent public URL is stored or serialized. Browsers receive short-lived signed links only through `GET /api/recordings/:sessionId/url`, after session-membership authorization, via `recordingAccessService.js`. Verified live: no permanent URL on the dashboard, 401 anonymous / 404 not-ready on the link route.
+2. **Recording lifecycle.** The trainer stops an active Egress on leave, tab hide and session end; `stopSessionRecording` reconciles rows that LiveKit reports as already stopped/completed so a row cannot stay stuck at `status:recording` and block restarts.
+3. **Crash-safe start.** The recording row is reserved before LiveKit is contacted; a failed start writes `status:failed` and publishes `recording.failed`, so no successful egress is left untracked.
+4. **Quota and rate-limit abuse.** `/api/ai/test-ping` is founder-only (anonymous 401, trainer 403). `rateLimit.js` keys on `req.ip` and never on client-supplied `x-forwarded-for`; Express trusts forwarding headers only when `TRUST_PROXY` is explicitly set to a hop count.
+5. **Reset-link origins.** `config.resetOrigin()` validates a single absolute origin; production accepts only https, local http only for localhost, wildcard and allowlist strings never become links. Added `securityHardening.test.js`.
+6. **Node engine.** Root `package.json` and `package-lock.json` declare `node >=20`, matching `freelm@^0.5.2`.
+7. **Provider attribution.** `cloudflareAiService.js` reports the stage that actually answered through `providerOut`; `freeLmService.js` returns that provider instead of always `freelm`.
 
 ## Supabase service-role SQL evidence
 

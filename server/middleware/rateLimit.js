@@ -11,8 +11,11 @@ function createLimiter(options) {
   const name = String(settings.name || 'limit');
 
   return function limiter(req, res, next) {
-    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    const key = name + '|' + (forwarded || req.ip || req.socket.remoteAddress || 'unknown');
+    /* Never key on a client-supplied forwarding header: it is trivially
+       spoofed. Express resolves req.ip from the socket unless the operator
+       explicitly configures `trust proxy` for a known reverse proxy. */
+    const client = req.ip || req.socket.remoteAddress || 'unknown';
+    const key = name + '|' + client;
     const now = Date.now();
     const entry = buckets.get(key);
     if (!entry || now - entry.startedAt >= windowMs) {

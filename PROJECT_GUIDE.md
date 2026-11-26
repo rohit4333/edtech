@@ -2,7 +2,7 @@
 
 **What this is:** the single reference for what Mathify is, why it is built the way it is, where every piece lives, when each flow runs, and how to run/verify/ship it.
 
-**Status:** `feat/student-rtc-control-perfection` (27 November 2026). Local/mock mode by default; 45 deterministic suites pass. Live 1:1 video uses LiveKit with server-owned Egress recording; transactional email uses Resend; every server-side model call uses one chain: freelm → Gemini → Groq → Cloudflare Workers AI. The chat Worker source follows that chain and builds cleanly; live deploy is gated by the current Cloudflare token's permissions. The older Agora/Workers-AI-only live checks referenced below remain historical evidence in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`; they are not claims about the current provider stack. The private parent ↔ trainer chat is built with regex DLP and founder-only flags in the existing service-only record store. Production boot requires LiveKit and the full AI chain, not Agora or keyless freelm.
+**Status:** `feat/student-rtc-control-perfection` (27 November 2026). Local/mock mode by default; 46 deterministic suites pass. Live 1:1 video uses LiveKit with server-owned Egress recording; transactional email uses Resend; every server-side model call uses one chain: freelm → Gemini → Groq → Cloudflare Workers AI. The chat Worker source follows that chain and builds cleanly; live deploy is gated by the current Cloudflare token's permissions. The older Agora/Workers-AI-only live checks referenced below remain historical evidence in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`; they are not claims about the current provider stack. The private parent ↔ trainer chat is built with regex DLP and founder-only flags in the existing service-only record store. Production boot requires LiveKit and the full AI chain, not Agora or keyless freelm.
 
 **Companion documents:** [`README.md`](README.md) (quick start), [`server/README.md`](server/README.md) (API reference), [`LIVE_QA_REPORT.md`](LIVE_QA_REPORT.md) (current redacted live evidence), [`TEST_REPORT.md`](TEST_REPORT.md) (historical verification evidence), [`server/migrations/README.md`](server/migrations/README.md) (SQL review procedure).
 
@@ -19,7 +19,7 @@
 | Database | In-memory mock by default; completed Supabase service-role adapter for `DATABASE_MODE=supabase`. |
 | Realtime | DB-backed session event outbox + scrubbed cursor polling; Supabase Realtime for canvas strokes. |
 | Payments | Razorpay, 12 sessions / 540 SAR; credit only on verified `payment.captured`. |
-| Tests | 45 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. `npm install livekit-server-sdk freelm resend` adds the three new dependencies; `npm audit --omit=dev --prefix server` reports 0 vulnerabilities. |
+| Tests | 46 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. `npm install livekit-server-sdk freelm resend` adds the three new dependencies; `npm audit --omit=dev --prefix server` reports 0 vulnerabilities. |
 | Migrations | 4 reviewed SQL files (including chat audit logs), dry-run by default; apply needs explicit confirmation. |
 | Live readiness | Live HTTP and Supabase evidence passes 68/68 checks. Credential-gated gaps remain: Egress storage, Resend sender, Razorpay/Twilio keys, and Workers deploy permission. See `LIVE_QA_REPORT.md`. |
 
@@ -123,7 +123,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Services | `server/services/` | LiveKit tokens, freelm feedback, Resend email, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions, founder settings, chat Worker bridge, mastery self-practice, parent chat/DLP; legacy Agora tokens and Cloudflare client remain for compatibility. |
 | Data | `server/db/index.js`, `mock.js`, `supabase.js`, `schema.sql` | Facade, demo store, service-role adapter, canonical schema. |
 | Migrations | `server/migrations/0001…0004`, `server/migrate.js` | Ordered SQL (including chat audit logs), checksum guards, dry-run runner. |
-| Tests | `server/tests/*.test.js` | 45 suites; see `LIVE_QA_REPORT.md` and current `DATABASE_MODE=mock npm test` results. |
+| Tests | `server/tests/*.test.js` | 46 suites; see `LIVE_QA_REPORT.md` and current `DATABASE_MODE=mock npm test` results. |
 | Config | `server/config/policy.json`, `server/.env.example` | Business thresholds and env variable names (no secrets). |
 | DevOps | `.github/workflows/ci.yml`, `Dockerfile`, `docker-compose.yml`, `render.yaml`, `railway.json` | CI, containers, deployment manifests. |
 
@@ -320,7 +320,7 @@ Browser surface
 
 ### 5.11 Testing and delivery
 
-- 45 suites cover services, serializers, privacy, nav/static surfaces, API smoke, LiveKit/freelm readiness, persistence, operations, media/network controls, engagement controls, founder settings, planner designer and parent chat contracts.
+- 46 suites cover services, serializers, privacy, nav/static surfaces, API smoke, LiveKit/freelm readiness, persistence, operations, media/network controls, engagement controls, founder settings, planner designer and parent chat contracts.
 - Plain `node` + `assert` is intentional: no Jest/Vitest dependency, deterministic local runs.
 - CI runs on `.github/workflows/ci.yml`; `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json` cover container/deploy shapes.
 
@@ -365,7 +365,7 @@ Demo logins (password `mathify-demo`): `founder@mathify.app`, `trainer@mathify.a
 
 ```powershell
 $env:DATABASE_MODE = 'mock'
-npm test                 # 45 suites
+npm test                 # 46 suites
 npm run migrate          # dry run, prints checksums
 ```
 
@@ -378,7 +378,7 @@ Useful classroom URLs:
 
 Browser smoke should show: mic/camera on by default, Join disabled until **Check speed** passes for both people, trainer **Access** button present only on the trainer view, student trophies on the student desk, Trainer Desk / Study Buddy panels in the respective dashboards, self-practice batches of 10 with no answer key in the response, the parent/trainer chat unread badge clearing on read, `422 CONTENT_BLOCKED` with no echoed text for contact/social attempts, and zero console errors.
 
-Historical live status (evidence round, not the current provider stack): one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Those ledgers are preserved in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`. Current validation is 45/45 deterministic suites plus real HTTP and service-role SQL checks: signed LiveKit tokens, two-sided network gates, the freelm → Gemini → Groq → Cloudflare chain, guarded chat, role isolation, policy/practice contracts and fail-closed Egress/payment/email paths. See `LIVE_QA_REPORT.md`; Razorpay, Twilio, Resend, Egress storage and Worker deploy permission remain explicitly gated.
+Historical live status (evidence round, not the current provider stack): one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Those ledgers are preserved in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`. Current validation is 46/46 deterministic suites plus real HTTP and service-role SQL checks: signed LiveKit tokens, two-sided network gates, the freelm → Gemini → Groq → Cloudflare chain, guarded chat, role isolation, policy/practice contracts and fail-closed Egress/payment/email paths. See `LIVE_QA_REPORT.md`; Razorpay, Twilio, Resend, Egress storage and Worker deploy permission remain explicitly gated.
 
 v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Historical final validation was 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed in that pass. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
 

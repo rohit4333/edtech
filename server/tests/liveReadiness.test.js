@@ -196,10 +196,15 @@ async function main() {
     const studentLogin = await request('POST', '/api/auth/login', {
       email: 'student@mathify.app', password: 'mathify-demo'
     }, null, { 'x-forwarded-for': '203.0.113.81' });
-    check(trainerLogin.status === 200 && studentLogin.status === 200, 'demo accounts still sign in locally');
+    const founderLogin = await request('POST', '/api/auth/login', {
+      email: 'founder@mathify.app', password: 'mathify-demo'
+    });
+    check(trainerLogin.status === 200 && studentLogin.status === 200 &&
+      founderLogin.status === 200, 'demo accounts still sign in locally');
     const trainer = trainerLogin.body.token;
     const student = studentLogin.body.token;
-    check(Boolean(trainer && student), 'login returns tokens');
+    const founder = founderLogin.body.token;
+    check(Boolean(trainer && student && founder), 'login returns tokens');
 
     /* Demo discovery and production-only webhook behaviour. */
     const wasProduction = config.isProduction;
@@ -216,8 +221,13 @@ async function main() {
     check(whatsappUnsigned.status === 403, 'WhatsApp webhook rejects an unsigned production request');
     config.isProduction = wasProduction;
 
-    /* The provider ping has no mock path: local mode must fail closed. */
-    const aiPingLocal = await request('POST', '/api/ai/test-ping', { message: 'ping' });
+    /* The provider ping has no mock path and is founder-only: local mode must
+       fail closed, and an anonymous or trainer request must never spend quota. */
+    const aiPingAnonymous = await request('POST', '/api/ai/test-ping', { message: 'ping' });
+    check(aiPingAnonymous.status === 401, 'provider ping refuses anonymous callers');
+    const aiPingTrainer = await request('POST', '/api/ai/test-ping', { message: 'ping' }, trainer);
+    check(aiPingTrainer.status === 403, 'provider ping refuses non-founder roles');
+    const aiPingLocal = await request('POST', '/api/ai/test-ping', { message: 'ping' }, founder);
     check(aiPingLocal.status === 503 && aiPingLocal.body.error === 'FREELM_NOT_CONFIGURED',
       'AI provider ping fails closed without a live provider: ' + aiPingLocal.text);
 

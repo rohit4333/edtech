@@ -20,6 +20,14 @@ async function main() {
   try {
     assert.strictEqual(egress.configured(), false, 'egress is not configured without credentials');
 
+    const key = egress.objectKey('ses_math_001', '2026-11-27T10:20:30.000Z');
+    assert.ok(key.indexOf('ses_math_001/') === 0,
+      'the storage RLS path starts with the session id: ' + key);
+    assert.ok(/\.mp4$/.test(key), 'egress output is an mp4 object');
+
+    assert.strictEqual(await egress.stopSessionRecording('ses_math_001'), null,
+      'no active recording means nothing to stop');
+
     let code = '';
     try { await egress.startRecording({ sessionId: 'ses_math_001' }); }
     catch (error) { code = error.code; }

@@ -635,18 +635,21 @@
     });
   }
 
-  /* Recording chapters jump straight to a timestamp. The server supplies the
-     current recording URL and chapter list; static labels stay usable offline. */
-  var recordingLink = null;
+  /* Recording chapters jump straight to a timestamp. Recordings are private:
+     the browser asks for a short-lived signed link through the API instead of
+     storing a permanent public URL. */
+  var recordingSessionId = null;
   var chapterHost = document.getElementById('recChapters');
-  function chapterUrl(seconds) {
-    if (!recordingLink) return null;
-    return recordingLink + (recordingLink.indexOf('?') === -1 ? '?' : '&') +
-      't=' + Math.max(0, Number(seconds) || 0);
-  }
   function openChapter(seconds) {
-    var url = chapterUrl(seconds);
-    if (url) window.location.href = url;
+    if (!recordingSessionId || !api || typeof api.request !== 'function') return;
+    api.request('/recordings/' + encodeURIComponent(recordingSessionId) + '/url')
+      .then(function (data) {
+        var url = data && data.url;
+        if (!url) return;
+        window.location.href = url + (url.indexOf('?') === -1 ? '?' : '&') +
+          't=' + Math.max(0, Number(seconds) || 0);
+      })
+      .catch(function () { /* access is refused without session membership */ });
   }
   document.querySelectorAll('[data-chapter-seconds]').forEach(function (button) {
     button.addEventListener('click', function () {
@@ -711,8 +714,8 @@
       var recordings = data && data.dashboard && data.dashboard.recordings;
       if (!Array.isArray(recordings) || !recordings.length) return;
       var recording = recordings[0];
-      recordingLink = recording.url || recordingLink;
-      if (!recordingLink || !Array.isArray(recording.chapters) || !recording.chapters.length) return;
+      recordingSessionId = recording.available && recording.id ? recording.id : null;
+      if (!recordingSessionId || !Array.isArray(recording.chapters) || !recording.chapters.length) return;
       chapterHost.innerHTML = '';
       recording.chapters.forEach(function (chapter) {
         var button = document.createElement('button');

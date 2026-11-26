@@ -116,10 +116,32 @@ function corsOrigins() {
   return value.split(',').map(function (item) { return item.trim(); }).filter(Boolean);
 }
 
+/* A single absolute origin for links inside emails. CORS_ORIGIN is an
+   allowlist, so its first valid entry is used; an explicit APP_ORIGIN wins.
+   Production only accepts https. Plain http is limited to local development. */
+function resetOrigin() {
+  const candidates = [];
+  const explicit = String(process.env.APP_ORIGIN || '').trim();
+  if (explicit) candidates.push(explicit);
+  corsOrigins().forEach(function (origin) {
+    if (origin !== '*') candidates.push(origin);
+  });
+  for (let index = 0; index < candidates.length; index += 1) {
+    let parsed;
+    try { parsed = new URL(candidates[index]); } catch (error) { continue; }
+    const local = ['localhost', '127.0.0.1', '[::1]'].indexOf(parsed.hostname) !== -1;
+    if (parsed.protocol === 'https:' || (!isProduction && parsed.protocol === 'http:' && local)) {
+      return parsed.origin;
+    }
+  }
+  return '';
+}
+
 module.exports = {
   port: Number(process.env.PORT || 4000),
   corsOrigin: process.env.CORS_ORIGIN || '*',
   corsOrigins,
+  resetOrigin,
   databaseMode: process.env.DATABASE_MODE || 'mock',
   isProduction,
   assertProductionConfig,

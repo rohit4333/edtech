@@ -11,6 +11,7 @@ const notifications = require('../services/notificationService');
 const mediaPermission = require('../services/mediaPermissionService');
 const networkQuality = require('../services/networkQualityService');
 const sessionAccess = require('../services/sessionAccessService');
+const livekitEgress = require('../services/livekitEgressService');
 const badges = require('../services/badgeService');
 const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
@@ -622,6 +623,14 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
       }
       return current;
     });
+
+    /* A tab close or missed click must never strand an active Egress or leave
+       a recording row permanently marked as recording. */
+    try {
+      await livekitEgress.stopSessionRecording(session.id);
+    } catch (error) {
+      console.error('[recording] session-end stop failed:', error.message);
+    }
 
     await db.updateUser(session.studentId, function (student) {
       student.mastery = finalScore;

@@ -13,7 +13,7 @@
     "reminders:once": "node server/jobs/reminders.js --once"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "freelm": "^0.5.2"
