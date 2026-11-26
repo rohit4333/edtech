@@ -111,10 +111,11 @@ async function main() {
     );
     checks += 1;
 
-    /* Cloudflare Workers AI is the only provider in shipped source. */
+    /* Gemini and Groq are confined to the central AI boundary; no other
+       third-party provider may be added to shipped source. */
     const serverRoot = path.join(__dirname, '..');
     const workspaceRoot = path.join(serverRoot, '..');
-    const providerPattern = /deepseek|openai|gpt-/i;
+    const providerPattern = /deepseek|gpt-/i;
     [
       serverRoot,
       path.join(serverRoot, 'services'),
@@ -135,7 +136,7 @@ async function main() {
         .forEach(function (name) {
           const source = fs.readFileSync(path.join(directory, name), 'utf8');
           equal(providerPattern.test(source), false,
-            path.basename(directory) + '/' + name + ' names only Cloudflare as AI provider');
+            path.basename(directory) + '/' + name + ' names no unsupported AI provider');
         });
     });
 

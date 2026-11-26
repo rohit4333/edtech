@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mathify · LiveKit call demo</title>
+  <style>
+    body { font-family: Poppins, Arial, sans-serif; margin: 24px; color: #0E1420; }
+    #video-container { width: min(720px, 100%); aspect-ratio: 16/9; background: #0E1420;
+      border-radius: 8px; overflow: hidden; }
+    #video-container video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    .controls { margin-top: 12px; display: flex; gap: 8px; }
+    button { padding: 10px 16px; border: 1px solid #0E1420; border-radius: 6px;
+      background: #FF5B2E; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #callStatus { margin-top: 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>LiveKit 1:1 call demo</h1>
+  <div id="video-container"></div>
+  <div class="controls">
+    <button id="joinBtn" type="button">Join</button>
+    <button id="leaveBtn" type="button" disabled>Leave</button>
+  </div>
+  <p id="callStatus" role="status" aria-live="polite"></p>
+
+  <!-- LiveKit UMD client SDK. The global is LivekitClient. -->
+  <script src="https://unpkg.com/livekit-client@2.25.0/dist/livekit-client.umd.js"
+    integrity="sha256-Ra51QKs/7e0e50D9yipZByF5gz9hWbwE8TezYf4iTgI="
+    crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      var container = document.getElementById('video-container');
+      var joinBtn = document.getElementById('joinBtn');
+      var leaveBtn = document.getElementById('leaveBtn');
+      var statusNode = document.getElementById('callStatus');
+      var room = null;
+      var attached = [];
+
+      function status(message) { statusNode.textContent = message || ''; }
+
+      function detachAll() {
+        attached.forEach(function (item) {
+          try { item.track.detach(item.element); } catch (error) { /* track closed */ }
+          if (item.element && item.element.parentNode) {
+            item.element.parentNode.removeChild(item.element);
+          }
+        });
+        attached = [];
+        container.innerHTML = '';
+      }
+
+      function attach(track, element) {
+        track.attach(element);
+        attached.push({ track: track, element: element });
+      }
+
+      async function joinClassroom() {
+        if (room) return;
+        joinBtn.disabled = true;
+        status('Getting a LiveKit token…');
+
+        try {
+          /* Hardcoded test data for the standalone demo only. In Mathify's
+             real classroom the room is derived server-side from the session. */
+          const response = await fetch('/api/get-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomName: 'session-123',
+              participantName: 'student-1'
+            })
+          });
+
+          const data = await response.json().catch(function () { return null; });
+          if (!response.ok || !data || !data.token || !data.url) {
+            throw new Error((data && data.message) || 'Could not get a call token.');
+          }
+
+          room = new LivekitClient.Room({ autoSubscribe: true });
+          const events = LivekitClient.RoomEvent;
+
+          room.on(events.TrackSubscribed, function (track) {
+            if (track.kind === 'video') {
+              container.innerHTML = '';
+              attached = attached.filter(function (item) {
+                if (item.element !== container) return true;
+                try { item.track.detach(item.element); } catch (error) { /* closed */ }
+                return false;
+              });
+              attach(track, container);
+            } else if (track.kind === 'audio') {
+              var audio = document.createElement('audio');
+              audio.autoplay = true;
+              audio.playsInline = true;
+              audio.setAttribute('hidden', 'hidden');
+              document.body.appendChild(audio);
+              attach(track, audio);
+            }
+          });
+
+          room.on(events.TrackUnsubscribed, function (track) {
+            attached = attached.filter(function (item) {
+              if (item.track !== track) return true;
+              try { track.detach(item.element); } catch (error) { /* closed */ }
+              if (item.element.parentNode) item.element.parentNode.removeChild(item.element);
+              return false;
+            });
+          });
+
+          room.on(events.Disconnected, function () {
+            detachAll();
+            room = null;
+            joinBtn.disabled = false;
+            leaveBtn.disabled = true;
+            status('Disconnected.');
+          });
+
+          status('Connecting…');
+          await room.connect(data.url, data.token, { autoSubscribe: true });
+          await room.localParticipant.enableCameraAndMicrophone();
+
+          joinBtn.disabled = true;
+          leaveBtn.disabled = false;
+          status('Connected to ' + data.roomName + ' as ' + data.identity + '.');
+        } catch (error) {
+          detachAll();
+          room = null;
+          joinBtn.disabled = false;
+          leaveBtn.disabled = true;
+          status(error.message || 'Could not join the call.');
+        }
+      }
+
+      function leave() {
+        if (!room) return;
+        var leaving = room;
+        room = null;
+        detachAll();
+        Promise.resolve(leaving.disconnect(true)).catch(function () {});
+        joinBtn.disabled = false;
+        leaveBtn.disabled = true;
+        status('Left the call.');
+      }
+
+      joinBtn.addEventListener('click', joinClassroom);
+      leaveBtn.addEventListener('click', leave);
+      window.joinClassroom = joinClassroom;
+    })();
+  </script>
+</body>
+</html>

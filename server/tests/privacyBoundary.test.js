@@ -10,6 +10,8 @@ const serializers = require('../serializers');
 const auth = require('../middleware/auth');
 
 let checks = 0;
+
+async function run() {
 function ok(value, message) {
   assert.strictEqual(Boolean(value), true, message);
   checks += 1;
@@ -29,8 +31,8 @@ const trainerUser = db.findUserById('usr_trainer_001');
 
 const studentSession = serializers.toStudentSession(session);
 const trainerSession = serializers.toTrainerSession(session);
-const studentState = serializers.toSessionState(session, studentUser);
-const trainerState = serializers.toSessionState(session, trainerUser);
+const studentState = await serializers.toSessionState(session, studentUser);
+const trainerState = await serializers.toSessionState(session, trainerUser);
 const todaySession = Object.assign({}, session, { startedAt: new Date().toISOString() });
 const studentDashboard = serializers.toStudentDashboard(studentUser, [todaySession]);
 const trainerDashboard = serializers.toTrainerDashboard(trainerUser, [todaySession], []);
@@ -143,3 +145,9 @@ ok(!/p_student_profiles_trainer_view/.test(schema),
   'trainers cannot read student profile rows directly');
 
 console.log('privacyBoundary: ' + checks + ' assertions passed');
+}
+
+run().catch(function (error) {
+  console.error(error);
+  process.exitCode = 1;
+});

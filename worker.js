@@ -6,8 +6,9 @@
  *   GET  /health           non-secret model configuration
  *
  * The worker verifies the same HMAC token the Express API issues, applies
- * CORS and per-caller rate limits, calls Cloudflare Workers AI only, and writes
- * founder-auditable logs to Supabase through the service-role key. Images are
+ * CORS and per-caller rate limits, calls the live provider chain
+ * (Gemini -> Groq -> Cloudflare Workers AI) and writes founder-auditable logs
+ * to Supabase through the service-role key. Images are
  * decoded in memory for the model and are never logged or echoed back.
  */
 
@@ -148,7 +149,130 @@ function base64ToBytes(base64) {
   return bytes;
 }
 
+const DEFAULT_GEMINI_MODEL = 'gemini-flash-lite-latest';
+const DEFAULT_GROQ_MODEL = 'qwen/qwen3.8-27b';
+
+function providerProblem(message, code, status) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status || 502;
+  return error;
+}
+
+async function postJson(url, headers, body, label) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    throw providerProblem(label + ' returned HTTP ' + response.status + '.',
+      label.toUpperCase() + '_REQUEST_FAILED', 502);
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(await response.text()); } catch (error) { parsed = null; }
+  if (!parsed || typeof parsed !== 'object') {
+    throw providerProblem(label + ' response was not valid JSON.', label.toUpperCase() + '_INVALID_JSON', 502);
+  }
+  if (parsed.error) {
+    throw providerProblem(String(parsed.error.message || label + ' request failed.'),
+      label.toUpperCase() + '_REQUEST_FAILED', 502);
+  }
+  return parsed;
+}
+
+function textMessages(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  return {
+    system: list.filter(function (message) { return message && message.role === 'system'; })
+      .map(function (message) { return String(message.content || ''); }).join('\n'),
+    user: list.filter(function (message) { return message && message.role === 'user'; })
+      .map(function (message) { return String(message.content || ''); }).join('\n')
+  };
+}
+
+async function callGemini(input, env) {
+  const key = String(env.GEMINI_API_KEY || '').trim();
+  if (!key) throw providerProblem('Gemini is not configured.', 'GEMINI_NOT_CONFIGURED', 503);
+
+  const parts = textMessages(input.messages);
+  const content = [];
+  if (input.mode === 'vision') {
+    content.push({ type: 'text', text: String(input.prompt || '') });
+    if (input.image) {
+      content.push({
+        type: 'image',
+        data: String(input.image.data || ''),
+        mime_type: String(input.image.mime || 'image/png')
+      });
+    }
+  } else {
+    content.push({ type: 'text', text: parts.user });
+  }
+  const body = {
+    model: String(env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL).trim() || DEFAULT_GEMINI_MODEL,
+    input: content,
+    generation_config: { max_output_tokens: 320 }
+  };
+  if (parts.system) body.system_instruction = parts.system;
+
+  const parsed = await postJson(
+    'https://generativelanguage.googleapis.com/v1beta/interactions',
+    { 'x-goog-api-key': key }, body, 'Gemini'
+  );
+  const output = ((parsed.steps) || []).map(function (step) {
+    return ((step && step.content) || []).map(function (part) {
+      return part && typeof part.text === 'string' ? part.text : '';
+    }).join('');
+  }).join('').trim();
+  if (!output) throw providerProblem('Gemini returned no text result.', 'GEMINI_EMPTY_RESULT', 502);
+  return output;
+}
+
+async function callGroq(input, env) {
+  const key = String(env.GROQ_API_KEY || '').trim();
+  if (!key) throw providerProblem('Groq is not configured.', 'GROQ_NOT_CONFIGURED', 503);
+  if (input.image) throw providerProblem('Groq does not accept images.', 'GROQ_IMAGE_UNSUPPORTED', 400);
+
+  const parts = textMessages(input.messages);
+  const messages = [];
+  if (parts.system) messages.push({ role: 'system', content: parts.system });
+  messages.push({ role: 'user', content: parts.user });
+  const parsed = await postJson(
+    'https://api.groq.com/openai/v1/chat/completions',
+    { Authorization: 'Bearer ' + key },
+    {
+      model: String(env.GROQ_MODEL || DEFAULT_GROQ_MODEL).trim() || DEFAULT_GROQ_MODEL,
+      messages: messages,
+      temperature: 0.2,
+      max_tokens: 320
+    },
+    'Groq'
+  );
+  const choice = parsed.choices && parsed.choices[0];
+  const output = choice && choice.message && choice.message.content;
+  if (typeof output !== 'string' || !output.trim()) {
+    throw providerProblem('Groq returned no text result.', 'GROQ_EMPTY_RESULT', 502);
+  }
+  return output;
+}
+
 async function runModel(input, env) {
+  if (env.GEMINI_API_KEY) {
+    try {
+      return await callGemini(input, env);
+    } catch (error) {
+      /* Gemini may fall through to Groq (text) or Cloudflare (text/image). */
+    }
+  }
+  if (!input.image && env.GROQ_API_KEY) {
+    try {
+      return await callGroq(input, env);
+    } catch (error) {
+      /* Cloudflare remains the canonical pinned-model fallback. */
+    }
+  }
+
   const providerInput = toProviderInput(input, input.image ? base64ToBytes(input.image.data) : null);
 
   if (env.AI && typeof env.AI.run === 'function') {

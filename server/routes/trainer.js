@@ -40,18 +40,19 @@ router.use(requireTrainerAccess({
 
 const ATTENDANCE_STATES = ['present', 'absent', 'late', 'leave', 'unattended'];
 
-function sessionsFor(user) {
-  return db.listSessionsForUser(user).filter(function (session) {
+async function sessionsFor(user) {
+  const sessions = await db.listSessionsForUser(user);
+  return sessions.filter(function (session) {
     return session.trainerId === user.id || user.role === 'founder';
   });
 }
 
 /* Server-owned celebration trigger. No correctness or trainer text is written
    by the request; the service resolves copy and palette from config. */
-function celebrate(req, trigger) {
+async function celebrate(req, trigger) {
   const session = req.sessionRecord;
-  if (!session) return Promise.resolve(null);
-  const student = db.findUserById(session.studentId);
+  if (!session) return null;
+  const student = await db.findUserById(session.studentId);
   const body = req.body || {};
   const payload = celebrations.evaluateTrigger(trigger, {
     sessionId: session.id,
@@ -77,24 +78,27 @@ function validPeriod(value) {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 }
 
-function payoutContext() {
+async function payoutContext() {
+  const trainers = await db.listUsers();
+  const allSessions = await db.listSessionsForUser({ role: 'founder' });
+  const attendance = await db.listAttendance();
   return {
-    trainers: db.listUsers(),
-    allSessions: db.listSessionsForUser({ role: 'founder' }),
-    attendance: db.listAttendance(),
+    trainers: trainers,
+    allSessions: allSessions,
+    attendance: attendance,
     provenance: config.databaseMode
   };
 }
 
-function sendPayout(req, res, period) {
+async function sendPayout(req, res, period) {
   if (!validPeriod(period)) {
     return res.status(400).json({
       error: 'INVALID_PERIOD',
       message: 'Period must use YYYY-MM.'
     });
   }
-  const context = payoutContext();
-  const sessions = sessionsFor(req.user);
+  const context = await payoutContext();
+  const sessions = await sessionsFor(req.user);
   context.slotPay = slotService.unutilisedPayForPeriod(req.user, sessions, period);
 
   return res.json({
@@ -115,64 +119,83 @@ router.get('/quiz/templates', function (req, res) {
   });
 });
 
-router.get('/attention', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  const ids = sessions.map(function (session) { return session.id; });
-  const attendance = db.listAttendance().filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
-  return res.json({ attention: serializers.toTrainerAttention(sessions, attendance) });
+router.get('/attention', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    const ids = sessions.map(function (session) { return session.id; });
+    const rows = await db.listAttendance();
+    const attendance = rows.filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
+    return res.json({ attention: serializers.toTrainerAttention(sessions, attendance) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Engagement pulse is trainer/founder only. It is computed from role-tagged
    reaction gestures and contains no contact details or celebration content. */
-router.get('/engagement/live/:sessionId', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  const session = sessions.find(function (item) { return item.id === req.params.sessionId; });
-  if (!session) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+router.get('/engagement/live/:sessionId', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    const session = sessions.find(function (item) { return item.id === req.params.sessionId; });
+    if (!session) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    const student = await db.findUserById(session.studentId);
+    return res.json({
+      engagement: Object.assign({
+        sessionId: session.id,
+        studentName: student && student.name ? student.name : 'Student'
+      }, reactions.live(session.id))
+    });
+  } catch (error) {
+    return next(error);
   }
-  const student = db.findUserById(session.studentId);
-  return res.json({
-    engagement: Object.assign({
-      sessionId: session.id,
-      studentName: student && student.name ? student.name : 'Student'
-    }, reactions.live(session.id))
-  });
 });
 
-router.get('/engagement/student/:studentId', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  const owns = sessions.some(function (item) { return item.studentId === req.params.studentId; });
-  if (!owns) {
-    return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Student not found.' });
+router.get('/engagement/student/:studentId', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    const owns = sessions.some(function (item) { return item.studentId === req.params.studentId; });
+    if (!owns) {
+      return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Student not found.' });
+    }
+    const student = await db.findUserById(req.params.studentId);
+    return res.json({
+      engagement: Object.assign({
+        studentId: req.params.studentId,
+        studentName: student && student.name ? student.name : 'Student'
+      }, reactions.student(req.params.studentId, sessions))
+    });
+  } catch (error) {
+    return next(error);
   }
-  const student = db.findUserById(req.params.studentId);
-  return res.json({
-    engagement: Object.assign({
-      studentId: req.params.studentId,
-      studentName: student && student.name ? student.name : 'Student'
-    }, reactions.student(req.params.studentId, sessions))
-  });
 });
 
-router.get('/engagement/cohort', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  return res.json({ cohort: reactions.cohort(sessions, db.listUsers()) });
+router.get('/engagement/cohort', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    const trainers = await db.listUsers();
+    return res.json({ cohort: reactions.cohort(sessions, trainers) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
-router.get('/payouts', function (req, res) {
-  return sendPayout(req, res, currentPeriod());
+router.get('/payouts', function (req, res, next) {
+  return sendPayout(req, res, currentPeriod()).catch(next);
 });
 
-router.get('/payouts/:period', function (req, res) {
-  return sendPayout(req, res, req.params.period);
+router.get('/payouts/:period', function (req, res, next) {
+  return sendPayout(req, res, req.params.period).catch(next);
 });
 
 router.get('/score', function (req, res) {
   return res.json({ score: serializers.toTrainerScore(req.user, policy) });
 });
 
-router.get('/dashboard', function (req, res, next) {
-  Promise.resolve(req.trainerAccess || trainerAccess.evaluate(req.user)).then(function (access) {
+router.get('/dashboard', async function (req, res, next) {
+  try {
+    const access = await Promise.resolve(req.trainerAccess || trainerAccess.evaluate(req.user));
     if (!access.granted) {
       /* Deliberately empty: no next session, student name, planner, batch,
          attendance or payout detail reaches a trainer awaiting founder access. */
@@ -180,17 +203,20 @@ router.get('/dashboard', function (req, res, next) {
       locked.access = access;
       return res.json({ dashboard: locked });
     }
-    const sessions = sessionsFor(req.user);
+    const sessions = await sessionsFor(req.user);
     const attendance = [];
 
-    sessions.forEach(function (session) {
-      db.listAttendanceForSession(session.id).forEach(function (row) { attendance.push(row); });
-    });
+    for (let i = 0; i < sessions.length; i += 1) {
+      const rows = await db.listAttendanceForSession(sessions[i].id);
+      rows.forEach(function (row) { attendance.push(row); });
+    }
 
     const dashboard = serializers.toTrainerDashboard(req.user, sessions, attendance);
     dashboard.access = access;
     return res.json({ dashboard: dashboard });
-  }).catch(next);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.post('/onboarding/documents', function (req, res, next) {
@@ -241,86 +267,102 @@ router.get('/batches', function (req, res, next) {
     .catch(next);
 });
 
-router.get('/attendance', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  const ids = sessions.map(function (session) { return session.id; });
-  const attendance = db.listAttendance().filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
-  return res.json({ register: serializers.toAttendanceRegister(sessions, attendance) });
+router.get('/attendance', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    const ids = sessions.map(function (session) { return session.id; });
+    const rows = await db.listAttendance();
+    const attendance = rows.filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
+    return res.json({ register: serializers.toAttendanceRegister(sessions, attendance) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
-router.patch('/attendance/:sessionId', auth.loadSession, function (req, res) {
-  const body = req.body || {};
-  const session = req.sessionRecord;
-  const status = readStatus(body.status);
+router.patch('/attendance/:sessionId', auth.loadSession, async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const session = req.sessionRecord;
+    const status = readStatus(body.status);
 
-  if (ATTENDANCE_STATES.indexOf(status) === -1) {
-    return res.status(400).json({
-      error: 'INVALID_STATUS',
-      message: 'Status must be present, absent, late, leave or unattended.'
-    });
-  }
-  if (!body.studentId || body.studentId !== session.studentId) {
-    return res.status(400).json({
-      error: 'NOT_SESSION_STUDENT',
-      message: 'This session has a different student.'
-    });
-  }
-
-  const record = db.upsertAttendance(session.id, session.studentId, status);
-  realtime.publish(session.id, 'attendance.changed', {
-    studentId: session.studentId,
-    status: status,
-    at: record.markedAt
-  });
-
-  return res.json({ record: record });
-});
-
-router.post('/attendance/:sessionId/save', auth.loadSession, function (req, res) {
-  const body = req.body || {};
-  const session = req.sessionRecord;
-  const records = Array.isArray(body.records) ? body.records : [{
-    studentId: session.studentId,
-    status: body.status
-  }];
-
-  const saved = [];
-  for (let i = 0; i < records.length; i += 1) {
-    const item = records[i] || {};
-    const status = readStatus(item.status);
-    const studentId = item.studentId || session.studentId;
-
-    if (ATTENDANCE_STATES.indexOf(status) === -1 || studentId !== session.studentId) {
+    if (ATTENDANCE_STATES.indexOf(status) === -1) {
       return res.status(400).json({
-        error: 'INVALID_ATTENDANCE_RECORD',
-        message: 'Each record needs the session student and a present/absent/late status.'
+        error: 'INVALID_STATUS',
+        message: 'Status must be present, absent, late, leave or unattended.'
       });
     }
-    saved.push(db.upsertAttendance(session.id, studentId, status));
+    if (!body.studentId || body.studentId !== session.studentId) {
+      return res.status(400).json({
+        error: 'NOT_SESSION_STUDENT',
+        message: 'This session has a different student.'
+      });
+    }
+
+    const record = await db.upsertAttendance(session.id, session.studentId, status);
+    realtime.publish(session.id, 'attendance.changed', {
+      studentId: session.studentId,
+      status: status,
+      at: record.markedAt
+    });
+
+    return res.json({ record: record });
+  } catch (error) {
+    return next(error);
   }
-
-  const sessions = sessionsFor(req.user);
-  const ids = sessions.map(function (item) { return item.id; });
-  const attendance = db.listAttendance().filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
-  const savedAt = new Date().toISOString();
-
-  realtime.publish(session.id, 'attendance.saved', { savedAt: savedAt, count: saved.length });
-
-  return res.json({
-    ok: true,
-    savedAt: savedAt,
-    saved: saved,
-    register: serializers.toAttendanceRegister(sessions, attendance)
-  });
 });
 
-router.get('/sessions', function (req, res) {
-  const sessions = db.listSessionsForUser(req.user);
-  return res.json({
-    sessions: sessions
-      .filter(function (session) { return session.trainerId === req.user.id || req.user.role === 'founder'; })
-      .map(serializers.toTrainerSummary)
-  });
+router.post('/attendance/:sessionId/save', auth.loadSession, async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const session = req.sessionRecord;
+    const records = Array.isArray(body.records) ? body.records : [{
+      studentId: session.studentId,
+      status: body.status
+    }];
+
+    const saved = [];
+    for (let i = 0; i < records.length; i += 1) {
+      const item = records[i] || {};
+      const status = readStatus(item.status);
+      const studentId = item.studentId || session.studentId;
+
+      if (ATTENDANCE_STATES.indexOf(status) === -1 || studentId !== session.studentId) {
+        return res.status(400).json({
+          error: 'INVALID_ATTENDANCE_RECORD',
+          message: 'Each record needs the session student and a present/absent/late status.'
+        });
+      }
+      saved.push(await db.upsertAttendance(session.id, studentId, status));
+    }
+
+    const sessions = await sessionsFor(req.user);
+    const ids = sessions.map(function (item) { return item.id; });
+    const rows = await db.listAttendance();
+    const attendance = rows.filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
+    const savedAt = new Date().toISOString();
+
+    realtime.publish(session.id, 'attendance.saved', { savedAt: savedAt, count: saved.length });
+
+    return res.json({
+      ok: true,
+      savedAt: savedAt,
+      saved: saved,
+      register: serializers.toAttendanceRegister(sessions, attendance)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/sessions', async function (req, res, next) {
+  try {
+    const sessions = await sessionsFor(req.user);
+    return res.json({
+      sessions: sessions.map(serializers.toTrainerSummary)
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* POST: Create a new session in Supabase. Live mode only. */
@@ -368,236 +410,268 @@ router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
   return res.json({ session: serializers.toTrainerSession(req.sessionRecord) });
 });
 
-router.patch('/sessions/:sessionId/planner', auth.loadSession, function (req, res) {
-  const body = req.body || {};
-  const current = req.sessionRecord;
+router.patch('/sessions/:sessionId/planner', auth.loadSession, async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const current = req.sessionRecord;
 
-  if (Array.isArray(body.items)) {
-    current.planner = body.items.map(function (item, index) {
-      return {
-        id: item && item.id ? String(item.id) : 'plan_' + (index + 1),
-        label: item && item.label ? String(item.label) : 'Untitled step',
-        done: Boolean(item && item.done)
-      };
-    });
-  } else if (body.id && typeof body.done === 'boolean') {
-    current.planner = current.planner.map(function (item) {
-      return item.id === body.id ? Object.assign({}, item, { done: body.done }) : item;
-    });
-  } else {
-    return res.status(400).json({
-      error: 'INVALID_PAYLOAD',
-      message: 'Send { items: [...] } or { id, done }.'
-    });
-  }
-
-  const updated = db.updateSession(current.id, function () { return current; });
-  realtime.publish(current.id, 'planner.updated', { planner: updated.planner });
-  return res.json({ session: serializers.toTrainerSession(updated) });
-});
-
-router.patch('/sessions/:sessionId/page', auth.loadSession, function (req, res) {
-  const page = Number((req.body || {}).page);
-  if (!Number.isInteger(page) || page < 1 || page > req.sessionRecord.pages.length) {
-    return res.status(400).json({ error: 'INVALID_PAGE', message: 'Page must be between 1 and 3.' });
-  }
-
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.currentPage = page;
-    return session;
-  });
-
-  realtime.publish(updated.id, 'page.changed', { page: page });
-  return res.json({ session: serializers.toTrainerSession(updated) });
-});
-
-router.post('/sessions/:sessionId/quiz/launch', auth.loadSession, function (req, res) {
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.quiz.status = 'live';
-    session.quiz.phase = 'answering';
-    session.quiz.startedAt = new Date().toISOString();
-    session.quiz.currentQuestionId = session.quiz.questions[0] ? session.quiz.questions[0].id : null;
-    session.quiz.attempts = [];
-    session.quiz.reveals = [];
-    return session;
-  });
-
-  realtime.publish(updated.id, 'quiz.launched', {
-    questionCount: updated.quiz.questions.length,
-    currentQuestionId: updated.quiz.currentQuestionId
-  });
-  return res.json({ session: serializers.toTrainerSession(updated) });
-});
-
-router.post('/sessions/:sessionId/quiz/reveal', auth.loadSession, function (req, res) {
-  const body = req.body || {};
-  const session = req.sessionRecord;
-  const ids = [];
-  session.quiz.reveals = session.quiz.reveals || [];
-
-  if (body.all === true) {
-    session.quiz.questions.forEach(function (question) { ids.push(question.id); });
-  } else if (body.questionId) {
-    const found = session.quiz.questions.find(function (question) { return question.id === body.questionId; });
-    if (!found) return res.status(404).json({ error: 'QUESTION_NOT_FOUND' });
-    ids.push(found.id);
-  } else {
-    return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Send questionId or all: true.' });
-  }
-
-  const at = new Date().toISOString();
-  ids.forEach(function (id) {
-    const already = session.quiz.reveals.some(function (reveal) { return reveal.questionId === id; });
-    if (!already) {
-      session.quiz.reveals.push({
-        id: 'reveal_' + Date.now() + '_' + id,
-        questionId: id,
-        revealedBy: req.user.id,
-        at: at
+    if (Array.isArray(body.items)) {
+      current.planner = body.items.map(function (item, index) {
+        return {
+          id: item && item.id ? String(item.id) : 'plan_' + (index + 1),
+          label: item && item.label ? String(item.label) : 'Untitled step',
+          done: Boolean(item && item.done)
+        };
+      });
+    } else if (body.id && typeof body.done === 'boolean') {
+      current.planner = current.planner.map(function (item) {
+        return item.id === body.id ? Object.assign({}, item, { done: body.done }) : item;
+      });
+    } else {
+      return res.status(400).json({
+        error: 'INVALID_PAYLOAD',
+        message: 'Send { items: [...] } or { id, done }.'
       });
     }
-  });
 
-  session.quiz.phase = 'revealed';
-  const updated = db.updateSession(session.id, function () { return session; });
-  realtime.publish(updated.id, 'quiz.answer.revealed', { questionIds: ids, at: at });
+    const updated = await db.updateSession(current.id, function () { return current; });
+    realtime.publish(current.id, 'planner.updated', { planner: updated.planner });
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
+});
 
-  /* A perfect-score celebration fires only after the reveal and carries no
-     score, option or explanation in its payload. */
-  const questionCount = (updated.quiz.questions || []).length;
-  const correctCount = (updated.quiz.attempts || []).filter(function (attempt) {
-    return attempt.correct === true;
-  }).length;
-  if (questionCount && correctCount >= questionCount) celebrate(req, 'quiz_perfect_score');
+router.patch('/sessions/:sessionId/page', auth.loadSession, async function (req, res, next) {
+  try {
+    const page = Number((req.body || {}).page);
+    if (!Number.isInteger(page) || page < 1 || page > req.sessionRecord.pages.length) {
+      return res.status(400).json({ error: 'INVALID_PAGE', message: 'Page must be between 1 and 3.' });
+    }
 
-  return res.json({ session: serializers.toTrainerSession(updated) });
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.currentPage = page;
+      return session;
+    });
+
+    realtime.publish(updated.id, 'page.changed', { page: page });
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/sessions/:sessionId/quiz/launch', auth.loadSession, async function (req, res, next) {
+  try {
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.quiz.status = 'live';
+      session.quiz.phase = 'answering';
+      session.quiz.startedAt = new Date().toISOString();
+      session.quiz.currentQuestionId = session.quiz.questions[0] ? session.quiz.questions[0].id : null;
+      session.quiz.attempts = [];
+      session.quiz.reveals = [];
+      return session;
+    });
+
+    realtime.publish(updated.id, 'quiz.launched', {
+      questionCount: updated.quiz.questions.length,
+      currentQuestionId: updated.quiz.currentQuestionId
+    });
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/sessions/:sessionId/quiz/reveal', auth.loadSession, async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const session = req.sessionRecord;
+    const ids = [];
+    session.quiz.reveals = session.quiz.reveals || [];
+
+    if (body.all === true) {
+      session.quiz.questions.forEach(function (question) { ids.push(question.id); });
+    } else if (body.questionId) {
+      const found = session.quiz.questions.find(function (question) { return question.id === body.questionId; });
+      if (!found) return res.status(404).json({ error: 'QUESTION_NOT_FOUND' });
+      ids.push(found.id);
+    } else {
+      return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'Send questionId or all: true.' });
+    }
+
+    const at = new Date().toISOString();
+    ids.forEach(function (id) {
+      const already = session.quiz.reveals.some(function (reveal) { return reveal.questionId === id; });
+      if (!already) {
+        session.quiz.reveals.push({
+          id: 'reveal_' + Date.now() + '_' + id,
+          questionId: id,
+          revealedBy: req.user.id,
+          at: at
+        });
+      }
+    });
+
+    session.quiz.phase = 'revealed';
+    const updated = await db.updateSession(session.id, function () { return session; });
+    realtime.publish(updated.id, 'quiz.answer.revealed', { questionIds: ids, at: at });
+
+    /* A perfect-score celebration fires only after the reveal and carries no
+       score, option or explanation in its payload. */
+    const questionCount = (updated.quiz.questions || []).length;
+    const correctCount = (updated.quiz.attempts || []).filter(function (attempt) {
+      return attempt.correct === true;
+    }).length;
+    if (questionCount && correctCount >= questionCount) await celebrate(req, 'quiz_perfect_score');
+
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* A hint is trainer-only material. It reaches the student only through this
    explicit grant and the student serializer's narrow grantedHints option. */
-router.post('/sessions/:sessionId/quiz/hints', auth.loadSession, function (req, res) {
-  const session = req.sessionRecord;
-  const body = req.body || {};
-  const question = (session.quiz.questions || []).find(function (item) {
-    return item.id === body.questionId;
-  });
-  if (!question) {
-    return res.status(404).json({ error: 'QUESTION_NOT_FOUND', message: 'Unknown question.' });
+router.post('/sessions/:sessionId/quiz/hints', auth.loadSession, async function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    const body = req.body || {};
+    const question = (session.quiz.questions || []).find(function (item) {
+      return item.id === body.questionId;
+    });
+    if (!question) {
+      return res.status(404).json({ error: 'QUESTION_NOT_FOUND', message: 'Unknown question.' });
+    }
+
+    const ordered = Array.isArray(question.hints) && question.hints.filter(Boolean);
+    const requested = Number(body.hintIndex || 1);
+    const index = Number.isInteger(requested) && requested > 0 ? requested - 1 : 0;
+    const hint = ordered && ordered.length
+      ? ordered[Math.min(index, ordered.length - 1)]
+      : question.hint;
+    if (typeof hint !== 'string' || !hint.trim()) {
+      return res.status(404).json({ error: 'HINT_NOT_FOUND', message: 'This question has no trainer hint.' });
+    }
+
+    session.quiz.grantedHints = session.quiz.grantedHints || {};
+    session.quiz.grantedHints[question.id] = {
+      hint: hint.slice(0, 500),
+      index: index + 1,
+      grantedBy: req.user.id,
+      grantedAt: new Date().toISOString()
+    };
+
+    const updated = await db.updateSession(session.id, function () { return session; });
+    /* No hint text on the shared channel: only a nudge to re-read the safe state. */
+    realtime.publish(updated.id, 'quiz.assistance.granted', {
+      questionId: question.id,
+      at: session.quiz.grantedHints[question.id].grantedAt
+    });
+
+    return res.json({
+      session: serializers.toTrainerSession(updated),
+      questionId: question.id,
+      hint: session.quiz.grantedHints[question.id].hint
+    });
+  } catch (error) {
+    return next(error);
   }
-
-  const ordered = Array.isArray(question.hints) && question.hints.filter(Boolean);
-  const requested = Number(body.hintIndex || 1);
-  const index = Number.isInteger(requested) && requested > 0 ? requested - 1 : 0;
-  const hint = ordered && ordered.length
-    ? ordered[Math.min(index, ordered.length - 1)]
-    : question.hint;
-  if (typeof hint !== 'string' || !hint.trim()) {
-    return res.status(404).json({ error: 'HINT_NOT_FOUND', message: 'This question has no trainer hint.' });
-  }
-
-  session.quiz.grantedHints = session.quiz.grantedHints || {};
-  session.quiz.grantedHints[question.id] = {
-    hint: hint.slice(0, 500),
-    index: index + 1,
-    grantedBy: req.user.id,
-    grantedAt: new Date().toISOString()
-  };
-
-  const updated = db.updateSession(session.id, function () { return session; });
-  /* No hint text on the shared channel: only a nudge to re-read the safe state. */
-  realtime.publish(updated.id, 'quiz.assistance.granted', {
-    questionId: question.id,
-    at: session.quiz.grantedHints[question.id].grantedAt
-  });
-
-  return res.json({
-    session: serializers.toTrainerSession(updated),
-    questionId: question.id,
-    hint: session.quiz.grantedHints[question.id].hint
-  });
 });
 
-router.post('/sessions/:sessionId/quiz/next', auth.loadSession, function (req, res) {
-  const session = req.sessionRecord;
-  const body = req.body || {};
-  const pending = masteryGating.pendingParallelCheck(session);
-  if (pending && body.force !== true) {
-    return res.status(409).json({
-      error: 'PARALLEL_CHECK_REQUIRED',
-      message: 'The student must solve this parallel check before moving on.',
-      questionId: pending.id
-    });
-  }
-  if (pending && body.force === true) {
-    session.quiz.overrides = session.quiz.overrides || [];
-    session.quiz.overrides.push({
-      questionId: pending.id,
-      forcedBy: req.user.id,
-      at: new Date().toISOString()
-    });
-  }
-  const questions = session.quiz.questions;
-  const index = questions.findIndex(function (question) { return question.id === session.quiz.currentQuestionId; });
-  const next = questions[index + 1];
+router.post('/sessions/:sessionId/quiz/next', auth.loadSession, async function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    const body = req.body || {};
+    const pending = masteryGating.pendingParallelCheck(session);
+    if (pending && body.force !== true) {
+      return res.status(409).json({
+        error: 'PARALLEL_CHECK_REQUIRED',
+        message: 'The student must solve this parallel check before moving on.',
+        questionId: pending.id
+      });
+    }
+    if (pending && body.force === true) {
+      session.quiz.overrides = session.quiz.overrides || [];
+      session.quiz.overrides.push({
+        questionId: pending.id,
+        forcedBy: req.user.id,
+        at: new Date().toISOString()
+      });
+    }
+    const questions = session.quiz.questions;
+    const index = questions.findIndex(function (question) { return question.id === session.quiz.currentQuestionId; });
+    const next = questions[index + 1];
 
-  if (!next) {
-    session.quiz.phase = 'complete';
-    session.quiz.status = 'ended';
-    const completed = db.updateSession(session.id, function () { return session; });
-    realtime.publish(completed.id, 'quiz.completed', {});
-    return res.json({ session: serializers.toTrainerSession(completed) });
+    if (!next) {
+      session.quiz.phase = 'complete';
+      session.quiz.status = 'ended';
+      const completed = await db.updateSession(session.id, function () { return session; });
+      realtime.publish(completed.id, 'quiz.completed', {});
+      return res.json({ session: serializers.toTrainerSession(completed) });
+    }
+
+    session.quiz.currentQuestionId = next.id;
+    session.quiz.phase = 'answering';
+    const updated = await db.updateSession(session.id, function () { return session; });
+    realtime.publish(updated.id, 'quiz.question.changed', { currentQuestionId: next.id });
+
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
   }
-
-  session.quiz.currentQuestionId = next.id;
-  session.quiz.phase = 'answering';
-  const updated = db.updateSession(session.id, function () { return session; });
-  realtime.publish(updated.id, 'quiz.question.changed', { currentQuestionId: next.id });
-
-  return res.json({ session: serializers.toTrainerSession(updated) });
 });
 
 router.get('/sessions/:sessionId/quiz/drafts', auth.loadSession, function (req, res) {
   return res.json({ drafts: req.sessionRecord.quiz.drafts || [] });
 });
 
-router.post('/sessions/:sessionId/quiz/drafts/:draftId/approve', auth.loadSession, function (req, res) {
-  const session = req.sessionRecord;
-  session.quiz.drafts = session.quiz.drafts || [];
-  const index = session.quiz.drafts.findIndex(function (draft) { return draft.id === req.params.draftId; });
-  if (index === -1) return res.status(404).json({ error: 'DRAFT_NOT_FOUND' });
+router.post('/sessions/:sessionId/quiz/drafts/:draftId/approve', auth.loadSession, async function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    session.quiz.drafts = session.quiz.drafts || [];
+    const index = session.quiz.drafts.findIndex(function (draft) { return draft.id === req.params.draftId; });
+    if (index === -1) return res.status(404).json({ error: 'DRAFT_NOT_FOUND' });
 
-  const draft = session.quiz.drafts[index];
-  const review = moderation.moderateDraft(draft);
-  if (!review.ok) {
-    return res.status(422).json({
-      error: 'DRAFT_REJECTED',
-      message: 'Draft failed content moderation: ' + review.reasons.join('; ')
+    const draft = session.quiz.drafts[index];
+    const review = moderation.moderateDraft(draft);
+    if (!review.ok) {
+      return res.status(422).json({
+        error: 'DRAFT_REJECTED',
+        message: 'Draft failed content moderation: ' + review.reasons.join('; ')
+      });
+    }
+    session.quiz.drafts.splice(index, 1);
+    const approved = Object.assign({}, draft, {
+      id: 'q_' + Date.now(),
+      source: 'ai_draft',
+      status: 'active'
     });
+    delete approved.note;
+    session.quiz.questions.push(approved);
+
+    const updated = await db.updateSession(session.id, function () { return session; });
+    realtime.publish(updated.id, 'quiz.draft.approved', { questionId: approved.id });
+
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
   }
-  session.quiz.drafts.splice(index, 1);
-  const approved = Object.assign({}, draft, {
-    id: 'q_' + Date.now(),
-    source: 'ai_draft',
-    status: 'active'
-  });
-  delete approved.note;
-  session.quiz.questions.push(approved);
-
-  const updated = db.updateSession(session.id, function () { return session; });
-  realtime.publish(updated.id, 'quiz.draft.approved', { questionId: approved.id });
-
-  return res.json({ session: serializers.toTrainerSession(updated) });
 });
 
-router.post('/sessions/:sessionId/quiz/reteach', auth.loadSession, function (req, res) {
-  const session = req.sessionRecord;
-  session.quiz.phase = 'reteach';
-  const updated = db.updateSession(session.id, function () { return session; });
-  realtime.publish(updated.id, 'quiz.reteach.started', {
-    questionId: session.quiz.currentQuestionId,
-    reason: (req.body || {}).reason || null
-  });
-  return res.json({ session: serializers.toTrainerSession(updated) });
+router.post('/sessions/:sessionId/quiz/reteach', auth.loadSession, async function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    session.quiz.phase = 'reteach';
+    const updated = await db.updateSession(session.id, function () { return session; });
+    realtime.publish(updated.id, 'quiz.reteach.started', {
+      questionId: session.quiz.currentQuestionId,
+      reason: (req.body || {}).reason || null
+    });
+    return res.json({ session: serializers.toTrainerSession(updated) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Generate AI drafts into the review queue. Nothing reaches the student until
@@ -636,7 +710,7 @@ router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async functi
     const rejected = candidates.length - drafts.length;
 
     session.quiz.drafts = (session.quiz.drafts || []).concat(drafts);
-    const updated = db.updateSession(session.id, function () { return session; });
+    const updated = await db.updateSession(session.id, function () { return session; });
 
     realtime.publish(updated.id, 'quiz.draft.generated', {
       count: drafts.length,
@@ -687,7 +761,7 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
     quizGenerator.difficultyLabel(quizGenerator.difficultyForMastery(session.mastery));
 
   try {
-    const student = db.findUserById(session.studentId);
+    const student = await db.findUserById(session.studentId);
     const generated = await aiCurriculumService.generateParallelQuestion(
       student, concept, difficulty, {
         usedPrompts: usedPrompts,
@@ -734,7 +808,7 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
     session.quiz.phase = 'recheck';
     session.quiz.status = session.quiz.status === 'live' ? 'live' : session.quiz.status;
 
-    const updated = db.updateSession(session.id, function () { return session; });
+    const updated = await db.updateSession(session.id, function () { return session; });
     /* No answer key or correctness in the shared realtime payload. */
     realtime.publish(updated.id, 'quiz.check.added', {
       currentQuestionId: question.id,
@@ -758,8 +832,13 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
 });
 
 /* ------------------------------------------------ committed slot calendar */
-router.get('/slots', function (req, res) {
-  return res.json({ slots: db.listTrainerSlots(req.user.id), rules: slotService.rules() });
+router.get('/slots', async function (req, res, next) {
+  try {
+    const slots = await db.listTrainerSlots(req.user.id);
+    return res.json({ slots: slots, rules: slotService.rules() });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.post('/slots', function (req, res) {
@@ -784,72 +863,92 @@ router.delete('/slots/:slotId', function (req, res) {
   }
 });
 
-router.get('/schedule/week', function (req, res) {
-  const start = req.query.start || new Date().toISOString().slice(0, 10);
-  return res.json({
-    schedule: slotService.weekView(req.user, start, sessionsFor(req.user), new Date().toISOString())
-  });
+router.get('/schedule/week', async function (req, res, next) {
+  try {
+    const start = req.query.start || new Date().toISOString().slice(0, 10);
+    const sessions = await sessionsFor(req.user);
+    return res.json({
+      schedule: slotService.weekView(req.user, start, sessions, new Date().toISOString())
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
-router.get('/schedule', function (req, res) {
-  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
-    ? String(req.query.month) : currentPeriod();
-  return res.json({ schedule: slotService.monthView(req.user, month, sessionsFor(req.user)) });
+router.get('/schedule', async function (req, res, next) {
+  try {
+    const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
+      ? String(req.query.month) : currentPeriod();
+    const sessions = await sessionsFor(req.user);
+    return res.json({ schedule: slotService.monthView(req.user, month, sessions) });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Persist a student's school curriculum. Academic fields only — the repository
    rejects any key resembling a name, email, phone, social link or address. */
-router.put('/students/:studentId/curriculum', async function (req, res) {
-  const student = db.findUserById(req.params.studentId);
-  if (!student || student.role !== 'student') {
-    return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
-  }
-  const assigned = db.listSessionsForUser(req.user).some(function (session) {
-    return session.studentId === student.id;
-  });
-  if (!assigned && req.user.role !== 'founder') {
-    return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
-  }
-
+router.put('/students/:studentId/curriculum', async function (req, res, next) {
   try {
-    const profile = await curriculumRepository.upsert(student.id, req.body || {}, req.user.id);
-    return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
-  } catch (error) {
-    return res.status(error.status || 400).json({ error: error.code || 'INVALID_CURRICULUM', message: error.message });
-  }
-});
-
-/* Cloudflare-backed planner copilot. Academic context comes from an assigned
-   session only; contact details never enter the prompt. */
-router.post('/copilot/query', async function (req, res) {
-  const body = req.body || {};
-  let studentId = null;
-
-  if (body.sessionId) {
-    const session = db.findSession(body.sessionId);
-    if (!session || !auth.canAccessSession(req.user, session)) {
-      return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not assigned to this session.' });
-    }
-    studentId = session.studentId;
-  } else if (body.studentId) {
-    const student = db.findUserById(body.studentId);
+    const student = await db.findUserById(req.params.studentId);
     if (!student || student.role !== 'student') {
       return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
     }
-    const assigned = db.listSessionsForUser(req.user).some(function (session) {
+    const sessions = await db.listSessionsForUser(req.user);
+    const assigned = sessions.some(function (session) {
       return session.studentId === student.id;
     });
     if (!assigned && req.user.role !== 'founder') {
       return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
     }
-    studentId = student.id;
-  }
 
-  const result = await chatAssistant.reply('trainer', body.question, {
-    studentId: studentId,
-    sessionId: body.sessionId || null
-  });
-  return res.json({ reply: result.reply, source: result.source });
+    try {
+      const profile = await curriculumRepository.upsert(student.id, req.body || {}, req.user.id);
+      return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.code || 'INVALID_CURRICULUM', message: error.message });
+    }
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/* Cloudflare-backed planner copilot. Academic context comes from an assigned
+   session only; contact details never enter the prompt. */
+router.post('/copilot/query', async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    let studentId = null;
+
+    if (body.sessionId) {
+      const session = await db.findSession(body.sessionId);
+      if (!session || !auth.canAccessSession(req.user, session)) {
+        return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not assigned to this session.' });
+      }
+      studentId = session.studentId;
+    } else if (body.studentId) {
+      const student = await db.findUserById(body.studentId);
+      if (!student || student.role !== 'student') {
+        return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
+      }
+      const sessions = await db.listSessionsForUser(req.user);
+      const assigned = sessions.some(function (session) {
+        return session.studentId === student.id;
+      });
+      if (!assigned && req.user.role !== 'founder') {
+        return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
+      }
+      studentId = student.id;
+    }
+
+    const result = await chatAssistant.reply('trainer', body.question, {
+      studentId: studentId,
+      sessionId: body.sessionId || null
+    });
+    return res.json({ reply: result.reply, source: result.source });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 module.exports = router;

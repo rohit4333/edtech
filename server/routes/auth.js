@@ -84,7 +84,7 @@ router.post('/register', function (req, res) {
     });
 });
 
-router.post('/login', function (req, res) {
+router.post('/login', async function (req, res, next) {
   const body = req.body || {};
   const key = clientKey(req);
 
@@ -96,36 +96,42 @@ router.post('/login', function (req, res) {
   }
 
   const requestedRole = LOGIN_ROLES.has(body.role) ? body.role : null;
-  const user = db.findUserByEmail(body.email, requestedRole);
-  const result = password.verifyPassword(body.password, user);
+  try {
+    /* The Supabase adapter reads identities asynchronously. Awaiting here keeps
+       credential verification on the real user record in both database modes. */
+    const user = await db.findUserByEmail(body.email, requestedRole);
+    const result = password.verifyPassword(body.password, user);
 
-  if (!result.ok) {
-    return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Email or password is wrong.' });
-  }
-  if (user.status === 'suspended') {
-    return res.status(401).json({
-      error: 'ACCESS_REVOKED',
-      message: 'This account has been suspended by the founder.'
+    if (!result.ok) {
+      return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Email or password is wrong.' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(401).json({
+        error: 'ACCESS_REVOKED',
+        message: 'This account has been suspended by the founder.'
+      });
+    }
+    if (requestedRole && user.role !== requestedRole && !sharedLoginPair(user.role, requestedRole)) {
+      return res.status(403).json({ error: 'ROLE_DENIED', message: 'Those credentials cannot open this desk.' });
+    }
+
+    loginAttempts.delete(key);
+    if (result.rehash) {
+      const upgraded = password.hashPassword(body.password);
+      await db.updateUser(user.id, function (current) {
+        current.passwordSalt = upgraded.salt;
+        current.passwordHash = upgraded.hash;
+        return current;
+      });
+    }
+
+    return res.json({
+      token: tokenService.sign(user),
+      user: auth.publicUser(user)
     });
+  } catch (error) {
+    return next(error);
   }
-  if (requestedRole && user.role !== requestedRole && !sharedLoginPair(user.role, requestedRole)) {
-    return res.status(403).json({ error: 'ROLE_DENIED', message: 'Those credentials cannot open this desk.' });
-  }
-
-  loginAttempts.delete(key);
-  if (result.rehash) {
-    const upgraded = password.hashPassword(body.password);
-    db.updateUser(user.id, function (current) {
-      current.passwordSalt = upgraded.salt;
-      current.passwordHash = upgraded.hash;
-      return current;
-    });
-  }
-
-  return res.json({
-    token: tokenService.sign(user),
-    user: auth.publicUser(user)
-  });
 });
 
 router.get('/demo', function (req, res) {

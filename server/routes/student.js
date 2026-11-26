@@ -12,9 +12,10 @@ const router = express.Router();
 router.use(auth.requireAuth);
 router.use(auth.requireRole('student', 'founder'));
 
-router.get('/dashboard', function (req, res) {
-  const sessions = db.listSessionsForUser(req.user);
-  return res.json({ dashboard: serializers.toStudentDashboard(req.user, sessions) });
+router.get('/dashboard', function (req, res, next) {
+  Promise.resolve(db.listSessionsForUser(req.user)).then(function (sessions) {
+    return res.json({ dashboard: serializers.toStudentDashboard(req.user, sessions) });
+  }).catch(next);
 });
 
 router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
@@ -67,23 +68,23 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
     at: new Date().toISOString()
   };
 
-  const updated = db.updateSession(session.id, function (current) {
+  return Promise.resolve(db.updateSession(session.id, function (current) {
     current.quiz.attempts.push(attempt);
     current.quiz.phase = 'awaiting_reveal';
     return current;
-  });
+  })).then(function (updated) {
+    /* Never broadcast correctness or the answer key on the shared channel. */
+    realtime.publish(session.id, 'quiz.answer.saved', {
+      questionId: question.id,
+      attemptId: attempt.id,
+      at: attempt.at
+    });
 
-  /* Never broadcast correctness or the answer key on the shared channel. */
-  realtime.publish(session.id, 'quiz.answer.saved', {
-    questionId: question.id,
-    attemptId: attempt.id,
-    at: attempt.at
-  });
-
-  return res.json({
-    attemptId: attempt.id,
-    saved: true,
-    phase: updated.quiz.phase
+    return res.json({
+      attemptId: attempt.id,
+      saved: true,
+      phase: updated.quiz.phase
+    });
   });
 });
 
@@ -147,9 +148,9 @@ router.post('/practice/batch', async function (req, res) {
   }
 });
 
-router.get('/practice/batch/:batchId', function (req, res) {
+router.get('/practice/batch/:batchId', async function (req, res) {
   try {
-    const batch = masteryPractice.findForStudent(req.params.batchId, req.user);
+    const batch = await masteryPractice.findForStudent(req.params.batchId, req.user);
     return res.json({ batch: masteryPractice.safeBatch(batch) });
   } catch (error) {
     return res.status(error.status || 500).json({
@@ -159,10 +160,10 @@ router.get('/practice/batch/:batchId', function (req, res) {
   }
 });
 
-router.post('/practice/batch/:batchId/answer', function (req, res) {
+router.post('/practice/batch/:batchId/answer', async function (req, res) {
   try {
     const body = req.body || {};
-    const result = masteryPractice.answer(req.params.batchId, body.questionId, body.optionIndex, req.user);
+    const result = await masteryPractice.answer(req.params.batchId, body.questionId, body.optionIndex, req.user);
     return res.json({ result: result });
   } catch (error) {
     return res.status(error.status || 500).json({
@@ -184,7 +185,7 @@ router.post('/tutor/query', async function (req, res) {
     return res.status(403).json({ error: 'FORBIDDEN', message: 'You can only ask for your own tutor.' });
   }
   if (body.sessionId) {
-    const session = db.findSession(body.sessionId);
+    const session = await db.findSession(body.sessionId);
     if (!session || !auth.canAccessSession(req.user, session)) {
       return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not part of this session.' });
     }

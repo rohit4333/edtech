@@ -208,7 +208,7 @@ router.post('/webhook', async function (req, res) {
 
     if (!session) return res.json({ received: true, matched: false });
 
-    const event = presenceService.agoraEvent(session, payload);
+    const event = await presenceService.agoraEvent(session, payload);
     return res.json({
       received: true,
       matched: true,

@@ -4,9 +4,14 @@
  * CI runs use the same worker-core.mjs logic through the existing Workers AI
  * REST credential, so the browser flow stays smooth without a deploy. The
  * browser never sees the Worker URL token or any Cloudflare/Supabase secret.
+ *
+ * Live local runner order: Gemini -> Groq -> Cloudflare Workers AI. Groq is
+ * text-only; Gemini may also answer study-buddy image questions. Mock test
+ * mode keeps the original Workers-AI-only runner and deterministic behavior.
  */
 
 const config = require('../config');
+const alternates = require('./aiProviders');
 
 let corePromise = null;
 function core() {
@@ -49,15 +54,19 @@ async function callWorker(path, payload, token) {
   return data;
 }
 
-function localRunner(machine) {
+function problem(message, code, status) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  return error;
+}
+
+function cloudflareRunner(machine) {
   return async function run(input) {
     const accountId = String(process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
     const apiToken = String(process.env.CLOUDFLARE_API_TOKEN || '').trim();
     if (!accountId || !apiToken) {
-      const error = new Error('Cloudflare Workers AI is not configured.');
-      error.code = 'AI_NOT_CONFIGURED';
-      error.status = 503;
-      throw error;
+      throw problem('Cloudflare Workers AI is not configured.', 'AI_NOT_CONFIGURED', 503);
     }
 
     const providerInput = machine.toProviderInput(
@@ -81,27 +90,77 @@ function localRunner(machine) {
     );
     const text = await response.text();
     if (!response.ok) {
-      const error = new Error('Workers AI returned HTTP ' + response.status + '. ' + text.slice(0, 240));
-      error.code = 'AI_REQUEST_FAILED';
-      error.status = 502;
-      throw error;
+      throw problem('Workers AI returned HTTP ' + response.status + '. ' + text.slice(0, 240),
+        'AI_REQUEST_FAILED', 502);
     }
     const envelope = machine.safeParseJSON(text) || {};
     if (envelope.success === false) {
       const detail = envelope.errors && envelope.errors[0] && envelope.errors[0].message;
-      const error = new Error(detail || 'Workers AI request failed.');
-      error.code = 'AI_REQUEST_FAILED';
-      error.status = 502;
-      throw error;
+      throw problem(detail || 'Workers AI request failed.', 'AI_REQUEST_FAILED', 502);
     }
     const generated = machine.extractGenerated(envelope);
     if (generated === undefined) {
-      const error = new Error('Workers AI returned no text result.');
-      error.code = 'AI_EMPTY_RESULT';
-      error.status = 502;
-      throw error;
+      throw problem('Workers AI returned no text result.', 'AI_EMPTY_RESULT', 502);
     }
     return generated;
+  };
+}
+
+function alternateParts(input) {
+  if (!input || input.mode === 'vision') {
+    return { system: '', user: String((input && input.prompt) || ''), image: input && input.image };
+  }
+  const parts = alternates.messagesToParts(input && input.messages);
+  return { system: parts.system, user: parts.user, image: null };
+}
+
+function localRunner(machine) {
+  const cloudflare = cloudflareRunner(machine);
+  return async function run(input) {
+    if (!alternates.enabled()) return cloudflare(input);
+
+    const parts = alternateParts(input);
+    const attempts = [];
+    attempts.push({
+      name: 'Gemini',
+      run: function () {
+        return alternates.callGemini({
+          system: parts.system,
+          user: parts.user,
+          image: parts.image,
+          maxOutputTokens: 320
+        });
+      }
+    });
+    if (!parts.image) {
+      attempts.push({
+        name: 'Groq',
+        run: function () {
+          return alternates.callGroq({
+            system: parts.system,
+            user: parts.user,
+            maxOutputTokens: 320
+          });
+        }
+      });
+    }
+    attempts.push({ name: 'Cloudflare', run: function () { return cloudflare(input); } });
+
+    let lastError = null;
+    for (let index = 0; index < attempts.length; index += 1) {
+      const attempt = attempts[index];
+      try {
+        const generated = await attempt.run();
+        if (index < attempts.length - 1) {
+          console.error('[chat] ' + attempt.name + ' answered this request.');
+        }
+        return generated;
+      } catch (error) {
+        lastError = error;
+        console.error('[chat] ' + attempt.name + ' failed:', error.message);
+      }
+    }
+    throw lastError || problem('No AI provider answered the chat request.', 'AI_ERROR', 502);
   };
 }
 

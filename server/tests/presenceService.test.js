@@ -7,6 +7,7 @@ const student = db.findUserById('usr_student_001');
 const sessionA = db.findSession('ses_math_002');
 const sessionB = db.findSession('ses_math_003');
 
+async function run() {
 /* Role comes from the signed-in user and the session, never from a body field. */
 assert.strictEqual(presenceService.roleForUser(sessionA, trainer), 'trainer');
 assert.strictEqual(presenceService.roleForUser(sessionA, student), 'student');
@@ -35,7 +36,7 @@ db.insertPresenceEvent({
   at: '2026-11-30T12:46:00.000Z'
 });
 
-const paid = presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
+const paid = await presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
 assert.strictEqual(paid.participants.trainer.activeMinutes, 16);
 assert.strictEqual(paid.trainerPresent, true);
 assert.strictEqual(paid.studentPresent, false);
@@ -58,23 +59,23 @@ db.insertPresenceEvent({
   at: '2026-12-03T12:40:00.000Z'
 });
 
-const unpaid = presenceService.compute(sessionB, '2026-12-03T12:40:00.000Z');
+const unpaid = await presenceService.compute(sessionB, '2026-12-03T12:40:00.000Z');
 assert.strictEqual(unpaid.participants.trainer.activeMinutes, 10);
 assert.strictEqual(unpaid.trainerPresent, false);
 assert.strictEqual(unpaid.payoutEligible, false);
 assert.strictEqual(unpaid.payoutBlocked, true);
 
 /* Heartbeats report cumulative learning events; the service stores only deltas. */
-presenceService.heartbeat(trainer, sessionA, {
+await presenceService.heartbeat(trainer, sessionA, {
   active: true,
   learningEvents: 3
 }, '2026-11-30T12:47:00.000Z');
-presenceService.heartbeat(trainer, sessionA, {
+await presenceService.heartbeat(trainer, sessionA, {
   active: true,
   learningEvents: 5
 }, '2026-11-30T12:47:20.000Z');
 
-const beats = db.listPresenceEvents(sessionA.id).slice(-2);
+const beats = (await db.listPresenceEvents(sessionA.id)).slice(-2);
 assert.strictEqual(beats[0].learningEvents, 3);
 assert.strictEqual(beats[1].learningEvents, 2);
 assert.strictEqual(beats[1].cumulativeLearningEvents, 5);
@@ -89,7 +90,7 @@ db.insertPresenceEvent({
   kind: 'agora_join',
   at: '2026-11-30T12:31:00.000Z'
 });
-const withStudent = presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
+const withStudent = await presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
 assert.strictEqual(withStudent.payoutRequirement.studentJoined, true);
 assert.strictEqual(withStudent.payoutRequirement.requiredTrainerMinutes, 50);
 assert.strictEqual(withStudent.payoutEligible, false);
@@ -108,9 +109,15 @@ db.insertPresenceEvent({
   kind: 'agora_leave',
   at: '2026-11-30T13:25:00.000Z'
 });
-const fullClass = presenceService.compute(sessionA, '2026-11-30T13:25:00.000Z');
+const fullClass = await presenceService.compute(sessionA, '2026-11-30T13:25:00.000Z');
 assert.strictEqual(fullClass.trainerActiveSecondsInWindow, 55 * 60);
 assert.strictEqual(fullClass.payoutRequirement.satisfied, true);
 assert.strictEqual(fullClass.payoutEligible, true);
 
 console.log('presenceService: 24 assertions passed');
+}
+
+run().catch(function (error) {
+  console.error(error);
+  process.exitCode = 1;
+});

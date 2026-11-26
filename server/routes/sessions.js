@@ -26,12 +26,12 @@ router.use(auth.requireAuth);
 router.use(requireTrainerAccess());
 router.use(auth.loadSession);
 
-router.get('/:sessionId/state', function (req, res) {
-  const state = serializers.toSessionState(req.sessionRecord, req.user);
+router.get('/:sessionId/state', async function (req, res) {
+  const state = await serializers.toSessionState(req.sessionRecord, req.user);
   return res.json({ state: state });
 });
 
-router.post('/:sessionId/rtc-token', function (req, res) {
+router.post('/:sessionId/rtc-token', async function (req, res) {
   try {
     /* The room opens ten minutes early for the two real participants. Founder
        entry is never implicit: it needs an explicit observer request and is
@@ -51,7 +51,7 @@ router.post('/:sessionId/rtc-token', function (req, res) {
     if (access.observer) {
       observerChanged = sessionAccess.setObserver(req.sessionRecord, req.user,
         new Date().toISOString()).changed;
-      const updated = db.updateSession(req.sessionRecord.id, function (session) {
+      const updated = await db.updateSession(req.sessionRecord.id, function (session) {
         return sessionAccess.setObserver(session, req.user, new Date().toISOString()).session;
       });
       if (updated) liveSession = updated;
@@ -111,10 +111,10 @@ function safePayload(value, depth) {
 /* A celebration is a server-owned recognition event, never a client-written
    message. The client may only offer a preference id, which the service
    validates against the config allowlist. */
-function fireCelebration(req, triggerName) {
+async function fireCelebration(req, triggerName) {
   const session = req.sessionRecord;
   const body = req.body || {};
-  const student = db.findUserById(session.studentId);
+  const student = await db.findUserById(session.studentId);
   const payload = celebrations.evaluateTrigger(triggerName, {
     sessionId: session.id,
     trigger: triggerName,
@@ -290,144 +290,164 @@ router.post('/:sessionId/board/ink', auth.requireRole('trainer', 'founder'), fun
 /* Trainer-owned student media controls. The student can never set this flag;
    revoking it marks audio and camera as forced on before the client locks the
    buttons. */
-router.post('/:sessionId/media-permission', auth.requireRole('trainer', 'founder'), function (req, res) {
-  const allowed = (req.body || {}).studentCanToggleMedia;
-  if (typeof allowed !== 'boolean') {
-    return res.status(400).json({
-      error: 'INVALID_MEDIA_PERMISSION',
-      message: 'studentCanToggleMedia must be true or false.'
+router.post('/:sessionId/media-permission', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const allowed = (req.body || {}).studentCanToggleMedia;
+    if (typeof allowed !== 'boolean') {
+      return res.status(400).json({
+        error: 'INVALID_MEDIA_PERMISSION',
+        message: 'studentCanToggleMedia must be true or false.'
+      });
+    }
+    const permissions = mediaPermission.setPermission(req.sessionRecord.mediaPermissions, allowed);
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.mediaPermissions = permissions;
+      return session;
     });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(permissions))
+      .then(function (event) {
+        return res.json({ ok: true, mediaPermissions: permissions, seq: event.seq });
+      });
+  } catch (error) {
+    return next(error);
   }
-  const next = mediaPermission.setPermission(req.sessionRecord.mediaPermissions, allowed);
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.mediaPermissions = next;
-    return session;
-  });
-  if (!updated) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
-  }
-  return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(next))
-    .then(function (event) {
-      return res.json({ ok: true, mediaPermissions: next, seq: event.seq });
-    });
 });
 
 /* Trainer-only intentional media state. This is separate from Access: a
    trainer can mute the kid or switch their camera off even while controls are
    locked. The browser reports honestly whether the track actually changed. */
-router.post('/:sessionId/media-state', auth.requireRole('trainer', 'founder'), function (req, res) {
-  const body = req.body || {};
-  const hasMic = typeof body.micOn === 'boolean';
-  const hasCamera = typeof body.cameraOn === 'boolean';
-  if (!hasMic && !hasCamera) {
-    return res.status(400).json({
-      error: 'INVALID_MEDIA_STATE',
-      message: 'Send micOn or cameraOn as true or false.'
+router.post('/:sessionId/media-state', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const hasMic = typeof body.micOn === 'boolean';
+    const hasCamera = typeof body.cameraOn === 'boolean';
+    if (!hasMic && !hasCamera) {
+      return res.status(400).json({
+        error: 'INVALID_MEDIA_STATE',
+        message: 'Send micOn or cameraOn as true or false.'
+      });
+    }
+    const permissions = mediaPermission.setRemoteState(req.sessionRecord.mediaPermissions, {
+      micOn: body.micOn,
+      cameraOn: body.cameraOn
     });
-  }
-  const next = mediaPermission.setRemoteState(req.sessionRecord.mediaPermissions, {
-    micOn: body.micOn,
-    cameraOn: body.cameraOn
-  });
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.mediaPermissions = next;
-    return session;
-  });
-  if (!updated) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
-  }
-  return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(next))
-    .then(function (event) {
-      return res.json({ ok: true, mediaPermissions: next, seq: event.seq });
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.mediaPermissions = permissions;
+      return session;
     });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(permissions))
+      .then(function (event) {
+        return res.json({ ok: true, mediaPermissions: permissions, seq: event.seq });
+      });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Trainer-only applause permission. Disabling it only blocks the kid's 👏
    gesture; trainer feedback, celebrations and media controls are unaffected. */
-router.post('/:sessionId/reaction-permission', auth.requireRole('trainer', 'founder'), function (req, res) {
-  const body = req.body || {};
-  const hasReact = typeof body.studentCanReact === 'boolean';
-  const hasApplaud = typeof body.studentCanApplaud === 'boolean';
-  if (!hasReact && !hasApplaud) {
-    return res.status(400).json({
-      error: 'INVALID_REACTION_PERMISSION',
-      message: 'Send studentCanReact or studentCanApplaud as true or false.'
+router.post('/:sessionId/reaction-permission', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    const hasReact = typeof body.studentCanReact === 'boolean';
+    const hasApplaud = typeof body.studentCanApplaud === 'boolean';
+    if (!hasReact && !hasApplaud) {
+      return res.status(400).json({
+        error: 'INVALID_REACTION_PERMISSION',
+        message: 'Send studentCanReact or studentCanApplaud as true or false.'
+      });
+    }
+    const permissions = reactionPermission.setPermission(req.sessionRecord.reactionPermissions, {
+      studentCanReact: body.studentCanReact,
+      studentCanApplaud: body.studentCanApplaud
     });
-  }
-  const next = reactionPermission.setPermission(req.sessionRecord.reactionPermissions, {
-    studentCanReact: body.studentCanReact,
-    studentCanApplaud: body.studentCanApplaud
-  });
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.reactionPermissions = next;
-    return session;
-  });
-  if (!updated) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
-  }
-  return realtime.publish(updated.id, 'reaction.permission.changed', reactionPermission.eventPayload(next))
-    .then(function (event) {
-      return res.json({ ok: true, reactionPermissions: next, seq: event.seq });
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.reactionPermissions = permissions;
+      return session;
     });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    return realtime.publish(updated.id, 'reaction.permission.changed', reactionPermission.eventPayload(permissions))
+      .then(function (event) {
+        return res.json({ ok: true, reactionPermissions: permissions, seq: event.seq });
+      });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Both participants report their own connection result. The role is derived
    from the JWT, so a student cannot submit a passing trainer measurement. */
-router.post('/:sessionId/network-check', function (req, res) {
-  const validation = networkQuality.validateMeasurement(req.body || {});
-  if (!validation.ok) {
-    return res.status(400).json({ error: 'INVALID_NETWORK_CHECK', message: validation.error });
-  }
-  const role = networkQuality.roleFor(req.user);
-  const result = networkQuality.evaluate(validation.value);
-  const updated = db.updateSession(req.sessionRecord.id, function (session) {
-    session.networkChecks = Object.assign({}, session.networkChecks || {});
-    session.networkChecks[role] = result;
-    return session;
-  });
-  if (!updated) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
-  }
-  return realtime.publish(
-    updated.id,
-    'network.check.completed',
-    networkQuality.eventPayload(updated, role, result)
-  ).then(function (event) {
-    return res.json({
-      ok: result.ok,
-      network: networkQuality.stateFor(updated, req.user),
-      seq: event.seq
+router.post('/:sessionId/network-check', async function (req, res, next) {
+  try {
+    const validation = networkQuality.validateMeasurement(req.body || {});
+    if (!validation.ok) {
+      return res.status(400).json({ error: 'INVALID_NETWORK_CHECK', message: validation.error });
+    }
+    const role = networkQuality.roleFor(req.user);
+    const result = networkQuality.evaluate(validation.value);
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.networkChecks = Object.assign({}, session.networkChecks || {});
+      session.networkChecks[role] = result;
+      return session;
     });
-  });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    return realtime.publish(
+      updated.id,
+      'network.check.completed',
+      networkQuality.eventPayload(updated, role, result)
+    ).then(function (event) {
+      return res.json({
+        ok: result.ok,
+        network: networkQuality.stateFor(updated, req.user),
+        seq: event.seq
+      });
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Fixed-catalog reward badges. The trainer picks a badge id; label and points
    come from policy. The student record receives only safe trophy fields. */
-router.post('/:sessionId/badges', auth.requireRole('trainer', 'founder'), function (req, res) {
-  const record = badges.award((req.body || {}).badgeId, req.sessionRecord.id, req.user.id);
-  if (!record) {
-    return res.status(400).json({
-      error: 'UNKNOWN_BADGE',
-      message: 'Choose one of the approved reward badges.'
+router.post('/:sessionId/badges', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const record = badges.award((req.body || {}).badgeId, req.sessionRecord.id, req.user.id);
+    if (!record) {
+      return res.status(400).json({
+        error: 'UNKNOWN_BADGE',
+        message: 'Choose one of the approved reward badges.'
+      });
+    }
+    const trophy = badges.forStudent({ badges: [record] })[0];
+    const updatedSession = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.badges = (Array.isArray(session.badges) ? session.badges : []).concat([record]);
+      return session;
     });
-  }
-  const trophy = badges.forStudent({ badges: [record] })[0];
-  const updatedSession = db.updateSession(req.sessionRecord.id, function (session) {
-    session.badges = (Array.isArray(session.badges) ? session.badges : []).concat([record]);
-    return session;
-  });
-  if (!updatedSession) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
-  }
-  db.updateUser(req.sessionRecord.studentId, function (student) {
-    student.badges = (Array.isArray(student.badges) ? student.badges : []).concat([record]);
-    student.trophyPoints = badges.pointsFor(student);
-    return student;
-  });
-  return realtime.publish(req.sessionRecord.id, 'badge.awarded', badges.eventPayload(record))
-    .then(function (event) {
-      return res.status(201).json({ ok: true, badge: trophy, seq: event.seq });
+    if (!updatedSession) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    await db.updateUser(req.sessionRecord.studentId, function (student) {
+      student.badges = (Array.isArray(student.badges) ? student.badges : []).concat([record]);
+      student.trophyPoints = badges.pointsFor(student);
+      return student;
     });
+    return realtime.publish(req.sessionRecord.id, 'badge.awarded', badges.eventPayload(record))
+      .then(function (event) {
+        return res.status(201).json({ ok: true, badge: trophy, seq: event.seq });
+      });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 /* Trainer kudos uses the shared celebration system. The request cannot write
@@ -447,7 +467,7 @@ router.post('/:sessionId/celebrate', auth.requireRole('trainer', 'founder'), fun
 
 /* Reaction gestures stay on their own layer. The role comes from the JWT, so
    a student cannot send a trainer-only gesture or inject celebration copy. */
-router.post('/:sessionId/reactions', function (req, res) {
+router.post('/:sessionId/reactions', async function (req, res) {
   const emoji = String((req.body || {}).emoji || '');
   const permission = reactionPermission.normalize(req.sessionRecord.reactionPermissions);
   if (req.user.role === 'student' &&
@@ -460,7 +480,10 @@ router.post('/:sessionId/reactions', function (req, res) {
         : 'Your trainer has paused emoji reactions for this session.'
     });
   }
-  const row = reactions.record(req.sessionRecord, req.user, req.body || {});
+  /* Live Supabase inserts are async. Await the stored row before building the
+     event payload, otherwise the broadcast carries an unresolved Promise and
+     every reaction appears as an empty emoji at minute 0. */
+  const row = await reactions.record(req.sessionRecord, req.user, req.body || {});
   if (!row) {
     return res.status(400).json({
       error: 'INVALID_REACTION',
@@ -488,14 +511,14 @@ router.post('/:sessionId/notify-parent', auth.requireRole('trainer', 'founder'),
 });
 
 /* Automated presence. Role always comes from the JWT, never the request body. */
-router.get('/:sessionId/presence', function (req, res) {
-  return res.json({ presence: presenceService.stateFor(req.sessionRecord, req.user) });
+router.get('/:sessionId/presence', async function (req, res) {
+  return res.json({ presence: await presenceService.stateFor(req.sessionRecord, req.user) });
 });
 
-router.post('/:sessionId/presence', function (req, res) {
+router.post('/:sessionId/presence', async function (req, res) {
   try {
-    presenceService.heartbeat(req.user, req.sessionRecord, req.body || {});
-    return res.json({ presence: presenceService.stateFor(req.sessionRecord, req.user) });
+    await presenceService.heartbeat(req.user, req.sessionRecord, req.body || {});
+    return res.json({ presence: await presenceService.stateFor(req.sessionRecord, req.user) });
   } catch (error) {
     return res.status(error.status || 400).json({
       error: error.code || 'PRESENCE_FAILED',
@@ -504,166 +527,170 @@ router.post('/:sessionId/presence', function (req, res) {
   }
 });
 
-router.post('/:sessionId/presence/finalize', auth.requireRole('trainer', 'founder'), function (req, res) {
-  return res.json({ snapshot: presenceService.finalize(req.sessionRecord) });
+router.post('/:sessionId/presence/finalize', auth.requireRole('trainer', 'founder'), async function (req, res) {
+  return res.json({ snapshot: await presenceService.finalize(req.sessionRecord) });
 });
 
-router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function (req, res) {
-  const session = req.sessionRecord;
-  if (session.status === 'ended') {
-    return res.status(409).json({ error: 'SESSION_ALREADY_ENDED', message: 'This session is already ended.' });
-  }
+router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    if (session.status === 'ended') {
+      return res.status(409).json({ error: 'SESSION_ALREADY_ENDED', message: 'This session is already ended.' });
+    }
 
-  const body = req.body || {};
-  /* The trainer may attach a recap and recording link. Only small, scalar
-     fields are persisted; status, score and answer data stay server-owned. */
-  const RECAP_KEYS = ['summary', 'highlights', 'homework', 'pagesCompleted', 'durationSeconds'];
-  const safeRecap = {};
-  if (body.recap && typeof body.recap === 'object' && !Array.isArray(body.recap)) {
-    RECAP_KEYS.forEach(function (key) {
-      const value = body.recap[key];
-      if (typeof value === 'string') safeRecap[key] = value.slice(0, 2000);
-      else if (typeof value === 'number' && Number.isFinite(value)) safeRecap[key] = value;
-      else if (Array.isArray(value) && value.every(function (item) { return typeof item === 'string'; })) {
-        safeRecap[key] = value.slice(0, 20).map(function (item) { return item.slice(0, 300); });
+    const body = req.body || {};
+    /* The trainer may attach a recap and recording link. Only small, scalar
+       fields are persisted; status, score and answer data stay server-owned. */
+    const RECAP_KEYS = ['summary', 'highlights', 'homework', 'pagesCompleted', 'durationSeconds'];
+    const safeRecap = {};
+    if (body.recap && typeof body.recap === 'object' && !Array.isArray(body.recap)) {
+      RECAP_KEYS.forEach(function (key) {
+        const value = body.recap[key];
+        if (typeof value === 'string') safeRecap[key] = value.slice(0, 2000);
+        else if (typeof value === 'number' && Number.isFinite(value)) safeRecap[key] = value;
+        else if (Array.isArray(value) && value.every(function (item) { return typeof item === 'string'; })) {
+          safeRecap[key] = value.slice(0, 20).map(function (item) { return item.slice(0, 300); });
+        }
+      });
+    }
+    const recordingUrl = typeof body.recordingUrl === 'string' &&
+      /^https?:\/\//i.test(body.recordingUrl.trim())
+      ? body.recordingUrl.trim().slice(0, 500) : null;
+    const hasScoreOverride = Object.prototype.hasOwnProperty.call(body, 'currentQuizScore');
+    if (hasScoreOverride) {
+      if (typeof body.currentQuizScore !== 'number' || !Number.isFinite(body.currentQuizScore) ||
+          body.currentQuizScore < 0 || body.currentQuizScore > 100) {
+        return res.status(400).json({
+          error: 'INVALID_SCORE',
+          message: 'currentQuizScore must be a number from 0 to 100.'
+        });
       }
-    });
-  }
-  const recordingUrl = typeof body.recordingUrl === 'string' &&
-    /^https?:\/\//i.test(body.recordingUrl.trim())
-    ? body.recordingUrl.trim().slice(0, 500) : null;
-  const hasScoreOverride = Object.prototype.hasOwnProperty.call(body, 'currentQuizScore');
-  if (hasScoreOverride) {
-    if (typeof body.currentQuizScore !== 'number' || !Number.isFinite(body.currentQuizScore) ||
-        body.currentQuizScore < 0 || body.currentQuizScore > 100) {
-      return res.status(400).json({
-        error: 'INVALID_SCORE',
-        message: 'currentQuizScore must be a number from 0 to 100.'
+      if (config.isProduction && !String(body.overrideReason || '').trim()) {
+        return res.status(400).json({
+          error: 'OVERRIDE_REASON_REQUIRED',
+          message: 'A trainer override requires an audit reason in production.'
+        });
+      }
+    }
+    const scoreOverride = hasScoreOverride ? body.currentQuizScore : serializers.readiness(session);
+    const scoreSource = hasScoreOverride ? 'trainer-override' : 'recorded-attempts';
+    const topicId = session.topicId || session.title || 'general-mathematics';
+    const currentLevel = masteryGating.levelFromSession(session);
+    const pendingCheck = masteryGating.pendingParallelCheck(session);
+    if (pendingCheck && body.force !== true) {
+      return res.status(409).json({
+        error: 'PARALLEL_CHECK_REQUIRED',
+        message: 'Solve the parallel check before ending the session, or force with trainer override.',
+        questionId: pendingCheck.id
       });
     }
-    if (config.isProduction && !String(body.overrideReason || '').trim()) {
-      return res.status(400).json({
-        error: 'OVERRIDE_REASON_REQUIRED',
-        message: 'A trainer override requires an audit reason in production.'
-      });
-    }
-  }
-  const scoreOverride = hasScoreOverride ? body.currentQuizScore : serializers.readiness(session);
-  const scoreSource = hasScoreOverride ? 'trainer-override' : 'recorded-attempts';
-  const topicId = session.topicId || session.title || 'general-mathematics';
-  const currentLevel = masteryGating.levelFromSession(session);
-  const pendingCheck = masteryGating.pendingParallelCheck(session);
-  if (pendingCheck && body.force !== true) {
-    return res.status(409).json({
-      error: 'PARALLEL_CHECK_REQUIRED',
-      message: 'Solve the parallel check before ending the session, or force with trainer override.',
-      questionId: pendingCheck.id
+    const unlockThreshold = masteryGating.configuredThreshold(
+      appPolicy.quiz && appPolicy.quiz.unlockThreshold
+    );
+    const gating = masteryGating.checkMasteryGating(
+      session.studentId,
+      topicId,
+      scoreOverride,
+      unlockThreshold,
+      currentLevel
+    );
+    const finalScore = gating.currentScore;
+
+    const endedAt = new Date().toISOString();
+    const observerWasActive = Boolean(session.founderObserver && session.founderObserver.active);
+    const updated = await db.updateSession(session.id, function (current) {
+      current.status = 'ended';
+      current.founderObserver = sessionAccess.clearObserver(current, endedAt).session.founderObserver;
+      current.endsAt = endedAt;
+      current.quiz.status = current.quiz.status === 'live' ? 'ended' : current.quiz.status;
+      current.masteryGating = gating;
+      current.scoreSource = scoreSource;
+      if (hasScoreOverride) current.overrideReason = String(body.overrideReason || '').slice(0, 500);
+      current.currentLevel = currentLevel;
+      current.reteachRequired = gating.reteachRequired;
+      current.unlockedNext = gating.unlockedNext;
+      if (gating.reteachRequired) current.currentTopicId = topicId;
+      if (gating.unlockedNext) current.nextTopicUnlocked = true;
+      current.recording = Object.assign(current.recording || {
+        url: 'https://recordings.mathify.local/' + current.id,
+        durationSeconds: current.elapsedSeconds,
+        readyAt: endedAt
+      }, recordingUrl ? { url: recordingUrl, readyAt: endedAt } : {});
+      if (Object.keys(safeRecap).length) {
+        current.recap = Object.assign({}, current.recap || {}, safeRecap, { savedAt: endedAt });
+      }
+      return current;
     });
-  }
-  const unlockThreshold = masteryGating.configuredThreshold(
-    appPolicy.quiz && appPolicy.quiz.unlockThreshold
-  );
-  const gating = masteryGating.checkMasteryGating(
-    session.studentId,
-    topicId,
-    scoreOverride,
-    unlockThreshold,
-    currentLevel
-  );
-  const finalScore = gating.currentScore;
 
-  const endedAt = new Date().toISOString();
-  const observerWasActive = Boolean(session.founderObserver && session.founderObserver.active);
-  const updated = db.updateSession(session.id, function (current) {
-    current.status = 'ended';
-    current.founderObserver = sessionAccess.clearObserver(current, endedAt).session.founderObserver;
-    current.endsAt = endedAt;
-    current.quiz.status = current.quiz.status === 'live' ? 'ended' : current.quiz.status;
-    current.masteryGating = gating;
-    current.scoreSource = scoreSource;
-    if (hasScoreOverride) current.overrideReason = String(body.overrideReason || '').slice(0, 500);
-    current.currentLevel = currentLevel;
-    current.reteachRequired = gating.reteachRequired;
-    current.unlockedNext = gating.unlockedNext;
-    if (gating.reteachRequired) current.currentTopicId = topicId;
-    if (gating.unlockedNext) current.nextTopicUnlocked = true;
-    current.recording = Object.assign(current.recording || {
-      url: 'https://recordings.mathify.local/' + current.id,
-      durationSeconds: current.elapsedSeconds,
-      readyAt: endedAt
-    }, recordingUrl ? { url: recordingUrl, readyAt: endedAt } : {});
-    if (Object.keys(safeRecap).length) {
-      current.recap = Object.assign({}, current.recap || {}, safeRecap, { savedAt: endedAt });
-    }
-    return current;
-  });
+    await db.updateUser(session.studentId, function (student) {
+      student.mastery = finalScore;
+      student.masteryByTopic = student.masteryByTopic || {};
+      student.masteryByTopic[topicId] = {
+        score: finalScore,
+        reteachRequired: gating.reteachRequired,
+        unlockedNext: gating.unlockedNext,
+        currentTopicId: gating.reteachRequired ? topicId : (student.currentTopicId || topicId),
+        currentLevel: currentLevel,
+        requiredScore: gating.requiredScore,
+        rule: gating.rule,
+        updatedAt: gating.checkedAt
+      };
+      student.reteachRequired = gating.reteachRequired;
+      student.unlockedNext = gating.unlockedNext;
+      student.currentTopicId = gating.reteachRequired ? topicId : student.currentTopicId;
+      if (gating.unlockedNext) student.nextTopicUnlocked = true;
+      return student;
+    });
 
-  db.updateUser(session.studentId, function (student) {
-    student.mastery = finalScore;
-    student.masteryByTopic = student.masteryByTopic || {};
-    student.masteryByTopic[topicId] = {
-      score: finalScore,
-      reteachRequired: gating.reteachRequired,
-      unlockedNext: gating.unlockedNext,
-      currentTopicId: gating.reteachRequired ? topicId : (student.currentTopicId || topicId),
-      currentLevel: currentLevel,
-      requiredScore: gating.requiredScore,
-      rule: gating.rule,
-      updatedAt: gating.checkedAt
-    };
-    student.reteachRequired = gating.reteachRequired;
-    student.unlockedNext = gating.unlockedNext;
-    student.currentTopicId = gating.reteachRequired ? topicId : student.currentTopicId;
-    if (gating.unlockedNext) student.nextTopicUnlocked = true;
-    return student;
-  });
+    const presence = await presenceService.finalize(updated, endedAt);
 
-  const presence = presenceService.finalize(updated, endedAt);
+    /* One end-of-session celebration only. The priority is milestone → mastery
+       gate → session complete, so a child never sees stacked overlays. */
+    const studentSessions = await db.listSessionsForUser({ id: session.studentId, role: 'student' });
+    const priorEnded = studentSessions.filter(function (item) {
+      return item.status === 'ended' && item.id !== session.id;
+    }).length;
+    const endTrigger = priorEnded === 0
+      ? 'first_session_completed'
+      : (gating.unlockedNext ? 'mastery_gate_crossed' : 'session_complete');
+    await fireCelebration(req, endTrigger);
 
-  /* One end-of-session celebration only. The priority is milestone → mastery
-     gate → session complete, so a child never sees stacked overlays. */
-  const studentSessions = db.listSessionsForUser({ id: session.studentId, role: 'student' });
-  const priorEnded = studentSessions.filter(function (item) {
-    return item.status === 'ended' && item.id !== session.id;
-  }).length;
-  const endTrigger = priorEnded === 0
-    ? 'first_session_completed'
-    : (gating.unlockedNext ? 'mastery_gate_crossed' : 'session_complete');
-  fireCelebration(req, endTrigger);
-
-  realtime.publish(updated.id, 'session.ended', {
-    endedAt: endedAt,
-    unlockedNext: gating.unlockedNext,
-    reteachRequired: gating.reteachRequired
-  });
-
-  return res.json({
-    recap: Object.assign({
-      id: updated.id,
-      title: updated.title,
-      status: updated.status,
+    realtime.publish(updated.id, 'session.ended', {
       endedAt: endedAt,
-      recordingUrl: updated.recording.url,
-      pagesCompleted: updated.currentPage,
-      quizAttempts: updated.quiz.attempts.length,
-      readiness: serializers.readiness(updated),
-      score: finalScore,
+      unlockedNext: gating.unlockedNext,
+      reteachRequired: gating.reteachRequired
+    });
+
+    return res.json({
+      recap: Object.assign({
+        id: updated.id,
+        title: updated.title,
+        status: updated.status,
+        endedAt: endedAt,
+        recordingUrl: updated.recording.url,
+        pagesCompleted: updated.currentPage,
+        quizAttempts: updated.quiz.attempts.length,
+        readiness: serializers.readiness(updated),
+        score: finalScore,
+        unlockedNext: gating.unlockedNext,
+        reteachRequired: gating.reteachRequired,
+        currentScore: gating.currentScore,
+        currentLevel: currentLevel,
+        requiredScore: gating.requiredScore,
+        rule: gating.rule,
+        masteryGating: gating,
+        presence: presence,
+        trainerView: req.user.role === 'trainer' || req.user.role === 'founder'
+      }, updated.recap || {}),
+      presence: presence,
       unlockedNext: gating.unlockedNext,
       reteachRequired: gating.reteachRequired,
       currentScore: gating.currentScore,
-      currentLevel: currentLevel,
-      requiredScore: gating.requiredScore,
-      rule: gating.rule,
-      masteryGating: gating,
-      presence: presence,
-      trainerView: req.user.role === 'trainer' || req.user.role === 'founder'
-    }, updated.recap || {}),
-    presence: presence,
-    unlockedNext: gating.unlockedNext,
-    reteachRequired: gating.reteachRequired,
-    currentScore: gating.currentScore,
-    currentLevel: currentLevel
-  });
+      currentLevel: currentLevel
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 module.exports = router;

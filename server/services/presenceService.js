@@ -70,27 +70,28 @@ function roleForUid(session, uid) {
   return null;
 }
 
-function eventsFor(sessionId, role) {
-  return db.listPresenceEvents(sessionId).filter(function (event) {
+async function eventsFor(sessionId, role) {
+  return (await db.listPresenceEvents(sessionId)).filter(function (event) {
     return !role || event.role === role;
   }).sort(function (a, b) {
     return new Date(a.at) - new Date(b.at);
   });
 }
 
-function lastHeartbeat(sessionId, role) {
-  const heartbeats = eventsFor(sessionId, role).filter(function (event) {
+async function lastHeartbeat(sessionId, role) {
+  const events = await eventsFor(sessionId, role);
+  const heartbeats = events.filter(function (event) {
     return event.kind === 'heartbeat';
   });
   return heartbeats.length ? heartbeats[heartbeats.length - 1] : null;
 }
 
-function heartbeat(user, session, body, now) {
+async function heartbeat(user, session, body, now) {
   const role = roleForUser(session, user);
   if (!role) fail('FORBIDDEN', 'You are not a participant in this session.', 403);
 
   const input = body || {};
-  const previous = lastHeartbeat(session.id, role);
+  const previous = await lastHeartbeat(session.id, role);
   const cumulative = Number(input.learningEvents);
   const previousCumulative = previous ? Number(previous.cumulativeLearningEvents) || 0 : 0;
   const delta = Number.isFinite(cumulative)
@@ -121,7 +122,7 @@ const AGORA_KINDS = {
   'leave': 'leave'
 };
 
-function agoraEvent(session, payload, now) {
+async function agoraEvent(session, payload, now) {
   const input = payload || {};
   const role = roleForUid(session, input.uid);
   const kind = AGORA_KINDS[String(input.event || '').toLowerCase()];
@@ -267,10 +268,10 @@ function participantState(session, role, events, asOf, config) {
   };
 }
 
-function compute(session, now) {
+async function compute(session, now) {
   const config = rules();
   const asOf = now ? new Date(now).getTime() : Date.now();
-  const events = eventsFor(session.id);
+  const events = await eventsFor(session.id);
   const trainer = participantState(session, 'trainer', events, asOf, config);
   const student = participantState(session, 'student', events, asOf, config);
 
@@ -315,9 +316,9 @@ function compute(session, now) {
   };
 }
 
-function stateFor(session, user, now) {
+async function stateFor(session, user, now) {
   const role = roleForUser(session, user);
-  const snapshot = compute(session, now);
+  const snapshot = await compute(session, now);
   return {
     sessionId: session.id,
     viewerRole: role,
@@ -339,11 +340,11 @@ function stateFor(session, user, now) {
   };
 }
 
-function finalize(session, now) {
-  const snapshot = compute(session, now);
-  db.savePresenceSnapshot(snapshot);
+async function finalize(session, now) {
+  const snapshot = await compute(session, now);
+  await db.savePresenceSnapshot(snapshot);
 
-  db.updateSession(session.id, function (current) {
+  await db.updateSession(session.id, function (current) {
     current.presence = {
       trainerPresentMinutes: snapshot.participants.trainer.activeMinutes,
       studentPresentMinutes: snapshot.participants.student.activeMinutes,
@@ -361,9 +362,9 @@ function finalize(session, now) {
     return current;
   });
 
-  const existing = db.listAttendanceForSession(session.id);
+  const existing = await db.listAttendanceForSession(session.id);
   if (!existing.length && session.status !== 'leave' && snapshot.attendance.student) {
-    db.upsertAttendance(session.id, session.studentId, snapshot.attendance.student);
+    await db.upsertAttendance(session.id, session.studentId, snapshot.attendance.student);
   }
 
   return snapshot;

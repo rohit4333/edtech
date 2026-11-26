@@ -99,7 +99,7 @@ async function createBatch(student, requestedTopic, previousBatchId) {
   const topic = topicFor(student, requestedTopic);
   /* A stale batch id from another student must never steer this student's
      difficulty, even though the server-derived progress is authoritative. */
-  if (previousBatchId) findForStudent(previousBatchId, student);
+  if (previousBatchId) await findForStudent(previousBatchId, student);
 
   const progress = await topicProgress(student, topic);
   if (progress.offered >= MAX_TOPIC_QUESTIONS) {
@@ -154,12 +154,12 @@ async function createBatch(student, requestedTopic, previousBatchId) {
     answers: answers,
     attempts: []
   };
-  db.savePracticeBatch(batch);
+  await db.savePracticeBatch(batch);
   return safeBatch(batch);
 }
 
-function findForStudent(batchId, student) {
-  const batch = db.findPracticeBatch(batchId);
+async function findForStudent(batchId, student) {
+  const batch = await db.findPracticeBatch(batchId);
   if (!batch) throw problem('That practice batch was not found.', 'BATCH_NOT_FOUND', 404);
   if (batch.studentId !== student.id && student.role !== 'founder') {
     throw problem('That practice batch belongs to another student.', 'FORBIDDEN', 403);
@@ -167,8 +167,8 @@ function findForStudent(batchId, student) {
   return batch;
 }
 
-function answer(batchId, questionId, optionIndex, student) {
-  const batch = findForStudent(batchId, student);
+async function answer(batchId, questionId, optionIndex, student) {
+  const batch = await findForStudent(batchId, student);
   const question = batch.questions.find(function (item) { return item.id === questionId; });
   const index = Number(optionIndex);
   if (!question || !Number.isInteger(index) || index < 0 || index >= question.options.length) {
@@ -185,7 +185,7 @@ function answer(batchId, questionId, optionIndex, student) {
     correct: batch.answers[questionId] === index,
     at: new Date().toISOString()
   }]);
-  db.updatePracticeBatch(batchId, { attempts: next });
+  await db.updatePracticeBatch(batchId, { attempts: next });
   const complete = next.length >= batch.questions.length;
   const topicTotal = batch.topicTotal || batch.questions.length;
   const topicLimit = batch.topicLimit || MAX_TOPIC_QUESTIONS;

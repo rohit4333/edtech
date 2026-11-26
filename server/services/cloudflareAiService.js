@@ -1,8 +1,9 @@
-/* Mathify Cloudflare Workers AI service.
+/* Mathify AI text service.
  *
- * The single AI provider for curriculum authoring, adaptive quiz drafts,
- * parallel checks and the parent-support assistant. Every completion goes
- * through the Workers AI REST endpoint below.
+ * Provider order: Gemini -> Groq -> Cloudflare Workers AI. Workers AI stays
+ * the pinned canonical model path and is always attempted before a
+ * deterministic fallback. Alternates are only enabled in live Supabase or
+ * production mode, so mock tests keep their existing deterministic behavior.
  *
  * Credentials are read at call time so tests and env rotations do not require
  * a process restart. The caller owns Zod validation; this module guarantees a
@@ -10,6 +11,7 @@
  */
 
 const config = require('../config');
+const alternates = require('./aiProviders');
 
 const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -78,30 +80,17 @@ function warnMissing() {
   console.warn('[ai] Cloudflare credentials missing; using deterministic fallback.');
 }
 
-/**
- * Calls Workers AI and returns the raw model text.
- * @param {string} systemPrompt curriculum/persona instructions
- * @param {string} userPrompt the concrete authoring request
- * @param {object} options { allowFallback?: boolean, jsonOnly?: boolean }
- */
-async function generateAIResponse(systemPrompt, userPrompt, options) {
-  const current = settings();
-  const callOptions = options || {};
-  const allowFallback = callOptions.allowFallback !== false && !config.isProduction;
-  const jsonOnly = callOptions.jsonOnly !== false;
-  const systemContent = String(systemPrompt || '') + (jsonOnly
-    ? '\n\n' + JSON_ONLY_INSTRUCTION
-    : '');
-
-  if (!current.accountId || !current.apiToken) {
-    if (!allowFallback) {
-      throw problem('CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required.',
-        'CLOUDFLARE_NOT_CONFIGURED', 503);
-    }
-    warnMissing();
-    return null;
+function normalizeGenerated(generated, jsonOnly) {
+  if (typeof generated === 'string') {
+    if (!jsonOnly) return generated;
+    const parsed = safeParseJSON(generated);
+    return parsed === null ? generated : JSON.stringify(parsed);
   }
+  if (generated !== null && generated !== undefined) return JSON.stringify(generated);
+  throw problem('AI provider returned no text result.', 'AI_EMPTY_RESULT', 502);
+}
 
+async function callCloudflare(current, systemContent, userContent) {
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, current.timeoutMs);
 
@@ -115,7 +104,7 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
       body: JSON.stringify({
         messages: [
           { role: 'system', content: systemContent },
-          { role: 'user', content: String(userPrompt || '') }
+          { role: 'user', content: userContent }
         ]
       }),
       signal: controller.signal
@@ -139,29 +128,92 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
     }
 
     const generated = extractGenerated(envelope);
-    if (typeof generated === 'string') {
-      if (!jsonOnly) return generated;
-      const parsed = safeParseJSON(generated);
-      return parsed === null ? generated : JSON.stringify(parsed);
+    if (generated === undefined || generated === null) {
+      throw problem('Cloudflare Workers AI response had no text result.',
+        'CLOUDFLARE_EMPTY_RESULT', 502);
     }
-    if (generated !== null && generated !== undefined) return JSON.stringify(generated);
-
-    throw problem('Cloudflare Workers AI response had no text result.',
-      'CLOUDFLARE_EMPTY_RESULT', 502);
+    return generated;
   } catch (error) {
     if (error && error.name === 'AbortError') {
-      if (!allowFallback) {
-        throw problem('Cloudflare Workers AI request timed out.', 'CLOUDFLARE_TIMEOUT', 504);
-      }
-      console.error('[ai] Cloudflare Workers AI timeout; using deterministic fallback.');
-      return null;
+      throw problem('Cloudflare Workers AI request timed out.', 'CLOUDFLARE_TIMEOUT', 504);
     }
-    if (!allowFallback) throw error;
-    console.error('[ai] Cloudflare Workers AI error:', error.message);
-    return null;
+    throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Calls the provider chain and returns raw model text.
+ * @param {string} systemPrompt curriculum/persona instructions
+ * @param {string} userPrompt the concrete authoring request
+ * @param {object} options { allowFallback?: boolean, jsonOnly?: boolean }
+ */
+async function generateAIResponse(systemPrompt, userPrompt, options) {
+  const current = settings();
+  const callOptions = options || {};
+  /* Strict calls no longer skip real providers; they only skip the final
+     deterministic null fallback. */
+  const safeFallback = callOptions.allowFallback !== false && !config.isProduction;
+  const jsonOnly = callOptions.jsonOnly !== false;
+  const systemContent = String(systemPrompt || '') + (jsonOnly
+    ? '\n\n' + JSON_ONLY_INSTRUCTION
+    : '');
+  const userContent = String(userPrompt || '');
+
+  if ((!current.accountId || !current.apiToken) && !alternates.enabled()) {
+    if (!safeFallback) {
+      throw problem('CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required.',
+        'CLOUDFLARE_NOT_CONFIGURED', 503);
+    }
+    warnMissing();
+    return null;
+  }
+
+  const attempts = [];
+  if (alternates.enabled()) {
+    /* Primary order is explicit: Gemini, then Groq, then Workers AI. */
+    if (alternates.geminiConfigured()) {
+      attempts.push({
+        name: 'Gemini',
+        run: function () {
+          return alternates.callGemini({ system: systemContent, user: userContent });
+        }
+      });
+    }
+    if (alternates.groqConfigured()) {
+      attempts.push({
+        name: 'Groq',
+        run: function () {
+          return alternates.callGroq({ system: systemContent, user: userContent });
+        }
+      });
+    }
+  }
+  attempts.push({
+    name: 'Cloudflare',
+    run: function () { return callCloudflare(current, systemContent, userContent); }
+  });
+
+  let lastError = null;
+  for (let index = 0; index < attempts.length; index += 1) {
+    const attempt = attempts[index];
+    try {
+      const generated = await attempt.run();
+      return normalizeGenerated(generated, jsonOnly);
+    } catch (error) {
+      lastError = error;
+      if (attempt.name !== 'Cloudflare') {
+        console.error('[ai] ' + attempt.name + ' failed:', error.message);
+      }
+    }
+  }
+
+  if (safeFallback) {
+    console.error('[ai] All AI providers failed; using deterministic fallback.');
+    return null;
+  }
+  throw lastError || problem('No AI provider returned text.', 'AI_EMPTY_RESULT', 502);
 }
 
 module.exports = {

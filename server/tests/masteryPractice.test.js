@@ -115,7 +115,7 @@ async function main() {
 
   let result;
   for (let index = 0; index < finalBatch.questions.length; index += 1) {
-    result = practice.answer(finalBatch.id, finalBatch.questions[index].id, 0, student);
+    result = await practice.answer(finalBatch.id, finalBatch.questions[index].id, 0, student);
     equal(typeof result.correct, 'boolean', 'each answer returns a private boolean');
   }
   equal(result.answeredCount, practice.BATCH_SIZE, 'all ten answers are recorded');
@@ -125,7 +125,7 @@ async function main() {
   PRIVATE_KEYS.forEach(function (key) {
     equal(result[key], undefined, 'the answer result omits ' + key);
   });
-  const completedBatch = practice.safeBatch(practice.findForStudent(finalBatch.id, student));
+  const completedBatch = practice.safeBatch(await practice.findForStudent(finalBatch.id, student));
   equal(completedBatch.topicComplete, true, 'a re-read final batch is complete once answered');
   equal(completedBatch.answeredCount, practice.BATCH_SIZE, 'the re-read batch reports all ten attempts');
 

@@ -345,11 +345,11 @@ function toStudentSession(session, options) {
   }, 'student');
 }
 
-function toSessionState(session, user) {
+async function toSessionState(session, user) {
   const trainerView = user && (user.role === 'trainer' || user.role === 'founder');
   const media = mediaPermission.normalize(session.mediaPermissions);
   const applause = reactionPermission.normalize(session.reactionPermissions);
-  const presenceSnapshot = presenceService.compute(session);
+  const presenceSnapshot = await presenceService.compute(session);
   /* A live legacy session has no join webhook, so its own startedAt is the
      presence anchor. A scheduled room waits for verified trainer presence. */
   const trainerPresenceAt = session.status === 'live'

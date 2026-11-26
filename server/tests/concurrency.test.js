@@ -155,9 +155,9 @@ async function main() {
       return presence.heartbeat({ id: students[index], role: 'student' }, session, { active: true });
     }));
     for (let index = 0; index < records.length; index += 1) {
-      const events = db.listPresenceEvents(records[index].id);
+      const events = await db.listPresenceEvents(records[index].id);
       equal(events.length, 2, 'room ' + index + ' has only its own two presence events');
-      const snapshot = presence.compute(records[index], new Date().toISOString());
+      const snapshot = await presence.compute(records[index], new Date().toISOString());
       equal(snapshot.sessionId, records[index].id, 'snapshot belongs to the requested room');
       equal(snapshot.participants.trainer.userId, trainers[index], 'trainer identity is isolated');
       equal(snapshot.participants.student.userId, students[index], 'student identity is isolated');

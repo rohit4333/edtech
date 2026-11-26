@@ -165,6 +165,17 @@
         body: body
       }).then(function (data) { return data && data.rtc; });
     },
+    /* LiveKit token. The room is still derived by the server from the verified
+       session; this page only forwards the session id and observer opt-in. */
+    getLiveKitToken: function (sessionId, options) {
+      var settings = options || {};
+      var body = { sessionId: sessionId };
+      if (settings.observer === true) body.observer = true;
+      if (settings.roomName) body.roomName = settings.roomName;
+      if (settings.participantName) body.participantName = settings.participantName;
+      return request('/get-token', { method: 'POST', body: body })
+        .then(function (data) { return data && (data.rtc || data); });
+    },
     /* The real JWT role is decoded from the token; a founder is deliberately
        mapped to the trainer-shaped call surface, so ask the token here. */
     viewerRole: function () {
