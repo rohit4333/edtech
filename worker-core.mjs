@@ -23,7 +23,7 @@ export const UNSAFE_STUDENT_REPLY = "I'm just an AI study buddy, but please tell
 /* Verified from server/config/policy.json. Keep these facts in sync with that
    file; server/tests/chatWorker.test.js checks the values, not just presence. */
 export const TRAINER_FACTS = [
-  'Payout is ₹300–₹400 per 1-on-1 session in INR.',
+  'Payout is ₹300–₹400 per completed 1-on-1 session in INR as a policy band; the exact rate is the one in the trainer contract or offer letter, or the rate stated during onboarding.',
   'A committed trainer slot pays 100% for classes held inside it; unutilised slot hours pay 30% of the trainer session rate.',
   'Perfect attendance bonus is ₹2,000 and grows by ₹500 per consecutive month with no cap; MVT awards are ₹3,000, ₹2,000 and ₹1,000.',
   'A trainer cancellation with less than 48 hours notice forfeits that session pay under the late-notice fine.',

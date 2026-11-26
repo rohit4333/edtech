@@ -108,16 +108,8 @@
 
   var navLinks = Array.prototype.slice.call(document.querySelectorAll('[data-nav]'));
   navLinks.forEach(function (link) {
-    link.addEventListener('click', function (event) {
-      event.preventDefault();
+    link.addEventListener('click', function () {
       activate(navLinks, link);
-      var targetId = link.getAttribute('href');
-      if (targetId && targetId.charAt(0) === '#') {
-        var target = document.getElementById(targetId.slice(1));
-        if (target && typeof target.scrollIntoView === 'function') {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
     });
   });
 
@@ -711,6 +703,9 @@
     api.request('/student/dashboard').then(function (data) {
       renderWallet(data && data.dashboard);
       renderTrophies(data && data.dashboard);
+      var profileName = document.getElementById('profileName');
+      var student = data && data.dashboard && data.dashboard.student;
+      if (profileName && student && student.name) profileName.textContent = student.name;
       var recordings = data && data.dashboard && data.dashboard.recordings;
       if (!Array.isArray(recordings) || !recordings.length) return;
       var recording = recordings[0];
@@ -783,6 +778,10 @@
   }
   bindPopover('notificationsBtn', 'notificationsPanel');
   bindPopover('profileBtn', 'profilePanel');
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn && window.mathifyStudentApi && typeof window.mathifyStudentApi.logout === 'function') {
+    logoutBtn.addEventListener('click', window.mathifyStudentApi.logout);
+  }
 
   if (api) {
     api.ensureAuth().catch(function () {

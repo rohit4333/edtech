@@ -40,10 +40,15 @@ function ref(value) {
 
 function document(value) {
   const source = object(value);
-  const image = ref(source.image || source.imageRef || source.document || source.card);
   const number = text(source.number || source.cardNumber || source.aadhaarNumber || source.panNumber);
-  if (!image && !number) return null;
-  return { number: number, image: image };
+  const result = { number: number };
+  const front = ref(source.front || source.frontImage || source.frontImageRef);
+  const rear = ref(source.rear || source.back || source.rearImage || source.backImage);
+  const image = ref(source.image || source.imageRef || source.document || source.card);
+  if (front) result.front = front;
+  if (rear) result.rear = rear;
+  if (image) result.image = image;
+  return number || front || rear || image ? result : null;
 }
 
 function normalize(input, existing) {
@@ -110,11 +115,11 @@ function validate(record) {
   const missing = [];
   if (!record.fullName) missing.push('identity.fullName');
   if (!record.dateOfBirth) missing.push('identity.dateOfBirth');
-  if (!record.aadhaar || !record.aadhaar.number || !record.aadhaar.image) {
-    missing.push('documents.aadhaar.number + image');
+  if (!record.aadhaar || !record.aadhaar.number || !record.aadhaar.front || !record.aadhaar.rear) {
+    missing.push('documents.aadhaar.number + front image + rear image');
   }
-  if (!record.pan || !record.pan.number || !record.pan.image) {
-    missing.push('documents.pan.number + image');
+  if (!record.pan || !record.pan.number || !record.pan.front || !record.pan.rear) {
+    missing.push('documents.pan.number + front image + rear image');
   }
   if (!record.signature || !record.signature.image) missing.push('documents.signature.image');
   if (missing.length) {
@@ -133,15 +138,17 @@ function mask(value) {
 
 function visibleDocument(value, reveal) {
   if (!value) return null;
-  return {
-    number: reveal ? value.number : mask(value.number),
-    image: value.image || null
-  };
+  const result = { number: reveal ? value.number : mask(value.number) };
+  if (value.image) result.image = value.image;
+  if (value.front) result.front = value.front;
+  if (value.rear) result.rear = value.rear;
+  return result;
 }
 
 function publicView(record, role, options) {
   if (!record) return null;
-  const reveal = Boolean(options && options.reveal) || role === 'trainer';
+  const reveal = Boolean(options && options.reveal) ||
+    role === 'trainer' || role === 'relationship_manager';
   const result = {
     trainerId: record.trainerId,
     status: record.status || 'submitted',
@@ -183,7 +190,8 @@ function publicView(record, role, options) {
   return result;
 }
 
-async function submit(trainerId, input) {
+async function submit(trainerId, input, role) {
+  const actorRole = role === 'relationship_manager' ? 'relationship_manager' : 'trainer';
   const existing = await db.findTrainerOnboarding(trainerId);
   if (existing) {
     const error = new Error('Onboarding KYC is locked after first submission.');
@@ -201,17 +209,17 @@ async function submit(trainerId, input) {
     updatedAt: now
   });
   await db.saveTrainerOnboarding(stored);
-  await db.appendSessionEvent({
-    type: 'trainer.onboarding.submitted',
-    actorRole: 'trainer',
+  await db.appendSessionEvent(trainerId, 'trainer.onboarding.submitted', {
+    actorRole: actorRole,
     targetId: trainerId,
     at: now,
     fields: Object.keys(record)
   });
-  return publicView(stored, 'trainer');
+  return publicView(stored, actorRole);
 }
 
-async function updatePersonal(trainerId, input) {
+async function updatePersonal(trainerId, input, role) {
+  const actorRole = role === 'relationship_manager' ? 'relationship_manager' : 'trainer';
   const existing = await db.findTrainerOnboarding(trainerId);
   if (!existing) {
     const error = new Error('Submit onboarding KYC before editing personal details.');
@@ -226,14 +234,13 @@ async function updatePersonal(trainerId, input) {
     updatedAt: new Date().toISOString()
   });
   await db.saveTrainerOnboarding(stored);
-  await db.appendSessionEvent({
-    type: 'trainer.onboarding.personal.updated',
-    actorRole: 'trainer',
+  await db.appendSessionEvent(trainerId, 'trainer.onboarding.personal.updated', {
+    actorRole: actorRole,
     targetId: trainerId,
     at: stored.updatedAt,
     fields: EDITABLE_FIELDS.slice()
   });
-  return publicView(stored, 'trainer');
+  return publicView(stored, actorRole);
 }
 
 async function correct(trainerId, input, actorId) {
@@ -277,8 +284,7 @@ async function correct(trainerId, input, actorId) {
     reason: text(input && input.reason),
     createdAt: now
   });
-  await db.appendSessionEvent({
-    type: 'trainer.onboarding.corrected',
+  await db.appendSessionEvent(trainerId, 'trainer.onboarding.corrected', {
     actorRole: 'founder',
     actorId: actorId,
     targetId: trainerId,

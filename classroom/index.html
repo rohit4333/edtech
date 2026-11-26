@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="session.css">
 <link rel="stylesheet" href="agora.css">
 <link rel="stylesheet" href="engagement.css">
+<link rel="stylesheet" href="../shared/fullBoard.css">
 </head>
 <body>
 
@@ -78,6 +79,8 @@
         <span class="people-txt"><b>1</b><span>in room</span></span>
       </button>
       <button class="btn btn-ghost btn-sm invite" type="button" data-toast="Pack: 8 sessions left · expires in 21 days.">Pack · 8 left</button>
+      <button class="full-board-toggle trainer-only" id="fullBoardToggle" type="button" aria-expanded="false" aria-controls="fullBoard">Full whiteboard</button>
+      <button class="full-board-toggle student-only" id="fullBoardToggleStudent" type="button" aria-expanded="false" aria-controls="fullBoard">Shared board</button>
       <button class="btn btn-coral btn-sm end" id="endBtn" type="button">End session</button>
     </div>
   </header>
@@ -355,6 +358,38 @@
       </section>
 
     </main>
+
+    <!-- Trainer-only planner stays beside this blank board. The board is the
+         only surface shared with the student, and only after Share is pressed. -->
+    <section class="full-board docked" id="fullBoard" aria-label="Teaching whiteboard" hidden>
+      <header class="full-board-head">
+        <span class="mono">Teaching whiteboard · strictly 1-on-1</span>
+        <div class="full-board-actions">
+          <button type="button" class="trainer-only" id="fullBoardShare" aria-pressed="false">Share with student</button>
+          <button type="button" id="fullBoardFullscreen">Full screen</button>
+          <button type="button" id="fullBoardClose">Close</button>
+        </div>
+      </header>
+      <div class="full-board-tools" role="toolbar" aria-label="Teaching whiteboard tools">
+        <button type="button" class="trainer-only" data-board-tool="pen" aria-pressed="true">Pen</button>
+        <button type="button" class="trainer-only" data-board-tool="marker" aria-pressed="false">Marker</button>
+        <button type="button" class="trainer-only" data-board-tool="eraser" aria-pressed="false">Eraser</button>
+        <span class="board-rule trainer-only" aria-hidden="true"></span>
+        <button type="button" class="trainer-only" data-board-color="ink" aria-label="Ink" aria-pressed="true"></button>
+        <button type="button" class="trainer-only" data-board-color="coral" aria-label="Coral" aria-pressed="false"></button>
+        <button type="button" class="trainer-only" data-board-color="teal" aria-label="Teal" aria-pressed="false"></button>
+        <button type="button" class="trainer-only" data-board-color="amber" aria-label="Amber" aria-pressed="false"></button>
+        <span class="board-rule" aria-hidden="true"></span>
+        <button type="button" class="trainer-only" id="fullBoardPaste" aria-keyshortcuts="Control+V" title="Paste a screenshot (Ctrl+V)">Paste image</button>
+        <input type="file" class="trainer-only" id="fullBoardFile" accept="image/png,image/jpeg,image/webp" hidden>
+        <button type="button" class="trainer-only" id="fullBoardUndo">Undo</button>
+        <button type="button" class="trainer-only" id="fullBoardClear">Clear</button>
+      </div>
+      <div class="full-board-canvas-wrap">
+        <canvas id="fullBoardCanvas" aria-label="Blank teaching whiteboard. Draw with a mouse, stylus or finger."></canvas>
+        <p class="full-board-status" id="fullBoardStatus" role="status" aria-live="polite" hidden></p>
+      </div>
+    </section>
 
     <aside class="side" aria-label="Session panel">
       <section class="side-card room-card">
@@ -869,5 +904,6 @@
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>
+<script src="../shared/fullBoard.js"></script>
 </body>
 </html>

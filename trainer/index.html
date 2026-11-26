@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="parent-chat.css">
 <link rel="stylesheet" href="onboarding.css">
 <link rel="stylesheet" href="../shared/announcements.css">
+<link rel="stylesheet" href="../shared/profilePassword.css">
 <style>
   .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
   .score-link svg,.day-link svg,.block-head svg,.save-note svg,.swipe-hint svg,
@@ -140,19 +141,19 @@
     </div>
 
     <nav class="nav" aria-label="Console">
-      <a href="#main" class="active" data-nav aria-current="page">
+      <a href="/trainer/today" class="active" data-nav aria-current="page">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg><span>Today</span>
       </a>
-      <a href="#schedule-title" data-nav>
+      <a href="/trainer/sessions" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg><span>Sessions</span>
       </a>
-      <a href="#leave-title" data-nav>
+      <a href="/trainer/leave" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clock"/></svg><span>Leave</span>
       </a>
-      <a href="#register" data-nav>
+      <a href="/trainer/students" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg><span>Students</span>
       </a>
-      <a href="#payout-trend-title" data-nav>
+      <a href="/trainer/insights" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg><span>Insights</span>
       </a>
     </nav>
@@ -210,7 +211,25 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
           <span class="badge" aria-hidden="true"></span>
         </button>
-        <button class="avatar avatar-btn" aria-label="AR — open profile">AR</button>
+        <button class="avatar avatar-btn" id="profileBtn" aria-label="AR — open profile" aria-expanded="false">AR</button>
+        <div class="top-popover" id="profilePanel" hidden>
+          <span class="mono" id="profileName">Ananya Rao</span>
+          <p>Trainer desk · 1-on-1 maths</p>
+          <a href="../privacy.html">Privacy &amp; data</a>
+          <button type="button" class="profile-password-toggle" id="changePasswordBtn" aria-expanded="false" aria-controls="changePasswordForm">Change password</button>
+          <form class="profile-password-form" id="changePasswordForm" novalidate hidden>
+            <label for="currentPassword">Current password</label>
+            <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required placeholder="Current password">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+            <label for="confirmPassword">Confirm new password</label>
+            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="Repeat new password">
+            <p class="profile-password-status" id="passwordStatus" role="status" aria-live="polite" hidden></p>
+            <button type="submit">Update password</button>
+            <a href="/password-reset.html">Forgot password?</a>
+          </form>
+          <button type="button" id="logoutBtn">Log out</button>
+        </div>
       </div>
     </header>
 
@@ -341,7 +360,7 @@
             <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
             <span id="payoutTrendNote">Completed sessions · fines, bonus and MVT excluded from daily points.</span>
           </div>
-          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app.</p>
+          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · exact pay per contract/offer letter or as stated during onboarding · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app.</p>
         </div>
       </section>
 
@@ -627,20 +646,23 @@
               <label>Aadhaar card number
                 <input id="kycAadhaarNumber" name="aadhaarNumber" inputmode="numeric" placeholder="12-digit Aadhaar number" required>
               </label>
-              <label>Aadhaar card image
-                <input id="kycAadhaarImage" name="aadhaarImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              <label>Aadhaar card front image
+                <input id="kycAadhaarFrontImage" name="aadhaarFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              </label>
+              <label>Aadhaar card rear image
+                <input id="kycAadhaarRearImage" name="aadhaarRearImage" type="file" accept="image/jpeg,image/png,image/webp" required>
               </label>
               <label>PAN card number
                 <input id="kycPanNumber" name="panNumber" placeholder="10-character PAN" required>
               </label>
-              <label>PAN card image
-                <input id="kycPanImage" name="panImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              <label>PAN card front image
+                <input id="kycPanFrontImage" name="panFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              </label>
+              <label>PAN card rear image
+                <input id="kycPanRearImage" name="panRearImage" type="file" accept="image/jpeg,image/png,image/webp" required>
               </label>
               <label>Signature image
                 <input id="kycSignatureImage" name="signatureImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>Bank proof image <span class="optional">optional</span>
-                <input id="kycBankProofImage" name="bankProofImage" type="file" accept="image/jpeg,image/png,image/webp">
               </label>
               <label>Other document label <span class="optional">optional</span>
                 <input id="kycOtherLabel" name="otherLabel" placeholder="e.g. Address proof">
@@ -698,6 +720,9 @@
               </label>
               <label>Branch
                 <input id="kycBranch" name="branch">
+              </label>
+              <label>Bank proof image <span class="optional">optional</span>
+                <input id="kycBankProofImage" name="bankProofImage" type="file" accept="image/jpeg,image/png,image/webp">
               </label>
             </div>
           </fieldset>
@@ -811,7 +836,7 @@
   </div>
 </div>
 
-<script src="api.js" defer></script>
+<script src="api.js?v=20261126" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="schedule.js" defer></script>
 <script src="app.js" defer></script>
@@ -825,6 +850,8 @@
   };
 </script>
 <script src="../shared/announcements.js" defer></script>
+<script src="../shared/profilePassword.js" defer></script>
+<script src="../shared/sectionRouter.js" defer></script>
 <script type="module" src="agora.js"></script>
 
 </body>

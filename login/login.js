@@ -1,10 +1,10 @@
 /* Mathify credential sign in.
  *
  * The server is the only source of identity: /auth/login returns a signed JWT
- * and a public user with a verified role. This page stores that token in the
- * same per-surface keys the dashboards already read, then sends the browser to
- * the requested desk. A role chosen in the URL is only a destination hint —
- * if the credentials belong to a different role, sign-in is refused. */
+ * and a public user with a verified role. The role query parameter (or the
+ * safe next path) is only a destination hint: it tells the server which desk
+ * the visitor opened. For the shared student/parent credential the server
+ * issues a token for the opened desk; every other role change is refused. */
 (function () {
   'use strict';
 
@@ -30,22 +30,21 @@
       demoEmail: 'founder@mathify.app',
       tokenKeys: ['mathify.classroom.token.founder']
     },
+    relationship_manager: {
+      label: 'Relationship manager desk',
+      destination: 'rm/index.html',
+      demoEmail: 'rm@mathify.app',
+      tokenKeys: ['mathify.classroom.token.relationship_manager', 'mathify.rm.token']
+    },
     parent: {
       label: 'Parent app',
+      demoEmail: 'student@mathify.app',
       destination: 'parent/index.html',
-      demoEmail: 'parent@mathify.app',
       tokenKeys: ['mathify.parent.token']
     }
   };
 
   function $(id) { return document.getElementById(id); }
-
-  function requestedRole() {
-    var value = String(params.get('role') || '').toLowerCase();
-    return ROLES[value] ? value : 'student';
-  }
-
-  var role = requestedRole();
 
   /* Only same-origin dashboard paths are accepted as a post-login destination.
      Protocol-relative URLs, backslashes and colons can never be redirected to. */
@@ -53,12 +52,22 @@
     if (typeof value !== 'string' || !value) return null;
     if (value.indexOf('//') !== -1 || value.indexOf('\\') !== -1 || value.indexOf(':') !== -1) return null;
     var clean = value.replace(/^\/+/, '');
-    if (/^(student|trainer|founder|parent|classroom|lms)\/[\w\-./?=&%]*$/.test(clean)) return clean;
+    if (/^(student|trainer|founder|parent|rm|classroom|lms)\/[\w\-./?=&%]*$/.test(clean)) return clean;
     if (clean === 'apps.html' || clean === 'index.html') return clean;
     return null;
   }
 
   var next = safeNext(params.get('next'));
+
+  function requestedRole() {
+    var fromParam = String(params.get('role') || '').toLowerCase();
+    if (fromParam === 'rm') fromParam = 'relationship_manager';
+    if (ROLES[fromParam]) return fromParam;
+    var prefix = next ? next.split('/')[0] : '';
+    return ROLES[prefix] ? prefix : 'student';
+  }
+
+  var role = requestedRole();
 
   function request(path, options) {
     var settings = options || {};
@@ -95,7 +104,7 @@
     var button = $('loginSubmit');
     if (button) {
       button.disabled = value;
-      button.textContent = value ? 'Signing in…' : 'Sign in to ' + ROLES[role].label;
+      button.textContent = value ? 'Signing in…' : 'Sign in to Mathify';
     }
     var email = $('loginEmail');
     var password = $('loginPassword');
@@ -103,31 +112,20 @@
     if (password) password.disabled = value;
   }
 
-  function storeToken(token) {
-    ROLES[role].tokenKeys.forEach(function (key) {
+  function storeToken(token, targetRole) {
+    var keys = (ROLES[targetRole] || ROLES.student).tokenKeys;
+    keys.forEach(function (key) {
       try { window.localStorage.setItem(key, token); } catch (error) { /* private mode */ }
     });
   }
 
-  function roleName(value) {
-    return ROLES[value] ? ROLES[value].label : 'another';
-  }
-
-  function applyRole(value, updateUrl) {
+  function applyRole(value) {
     if (!ROLES[value]) return;
     role = value;
-    document.querySelectorAll('.role-tab').forEach(function (tab) {
-      tab.setAttribute('aria-pressed', tab.getAttribute('data-role') === value ? 'true' : 'false');
-    });
     var destination = $('loginDestination');
-    if (destination) destination.textContent = ROLES[value].label;
+    if (destination) destination.textContent = 'Destination: ' + ROLES[value].label;
     busy(false);
     status('');
-    if (updateUrl && window.history && window.history.replaceState) {
-      var url = new URL(window.location.href);
-      url.searchParams.set('role', value);
-      window.history.replaceState(null, '', url.pathname + url.search);
-    }
     loadDemoOption();
   }
 
@@ -140,23 +138,21 @@
     status('');
     request('/auth/login', {
       method: 'POST',
-      body: { email: email, password: password }
+      body: { email: email, password: password, role: role }
     }).then(function (data) {
       var user = data && data.user;
       if (!data || !data.token || !user) throw new Error('SIGN_IN_UNAVAILABLE');
-      if (user.role !== role) {
-        status('Those credentials belong to the ' + roleName(user.role) +
-          '. Choose that tab and sign in again.');
-        return;
-      }
-      storeToken(data.token);
-      status('Signed in. Opening your ' + ROLES[role].label.toLowerCase() + '…', 'success');
-      window.location.assign(next || ROLES[role].destination);
+      var targetRole = ROLES[user.role] ? user.role : role;
+      storeToken(data.token, targetRole);
+      status('Signed in. Opening your ' + ROLES[targetRole].label.toLowerCase() + '…', 'success');
+      window.location.assign(next || ROLES[targetRole].destination);
     }).catch(function (error) {
       if (error.status === 429) {
         status('Too many sign-in attempts. Try again in a few minutes.');
       } else if (error.status === 401) {
         status('Email or password is wrong.');
+      } else if (error.status === 403) {
+        status('Those credentials cannot open this desk. Use the app meant for your account.');
       } else {
         status('Sign-in is unavailable right now. Please try again.');
       }
@@ -172,9 +168,7 @@
     if (!button) return;
     button.hidden = true;
     request('/auth/demo').then(function (info) {
-      if (!info || !Array.isArray(info.accounts)) return;
-      var account = info.accounts.find(function (item) { return item && item.role === role; });
-      if (!account) return;
+      if (!info || !Array.isArray(info.accounts) || !info.accounts.length) return;
       demoInfo = info;
       button.hidden = false;
     }).catch(function () { button.hidden = true; });
@@ -191,12 +185,6 @@
       });
     }
 
-    document.querySelectorAll('.role-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        applyRole(tab.getAttribute('data-role'), true);
-      });
-    });
-
     var toggle = $('passwordToggle');
     var password = $('loginPassword');
     if (toggle && password) {
@@ -212,15 +200,15 @@
     if (demo) {
       demo.addEventListener('click', function () {
         var email = $('loginEmail');
-        var password = $('loginPassword');
+        var pass = $('loginPassword');
         if (email) email.value = ROLES[role].demoEmail;
-        if (password) password.value = (demoInfo && demoInfo.password) || '';
-        submit(email ? email.value : '', password ? password.value : '');
+        if (pass) pass.value = (demoInfo && demoInfo.password) || '';
+        submit(email ? email.value : '', pass ? pass.value : '');
       });
     }
 
-    applyRole(role, false);
+    applyRole(role);
   }
 
   init();
-})();
+}());

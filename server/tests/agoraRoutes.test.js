@@ -20,7 +20,8 @@ const saved = {
   findSession: null,
   listSessionsForUser: null,
   requireAuth: null,
-  issueSessionToken: null
+  issueSessionToken: null,
+  trainerAccessEvaluate: null
 };
 
 let checks = 0;
@@ -199,6 +200,22 @@ async function main() {
   };
   auth.requireAuth = function (req, res, next) { return next(); };
 
+  /* This suite isolates channel authorization, not the onboarding desk gate.
+     The fixtures are treated as founder-approved so the real trainer-access
+     middleware does not short-circuit with 403 before channel checks run. */
+  const trainerAccess = require('../services/trainerAccessService');
+  saved.trainerAccessEvaluate = trainerAccess.evaluate;
+  trainerAccess.evaluate = async function (user) {
+    return {
+      granted: true,
+      role: user.role,
+      status: user.status || 'active',
+      kycSubmitted: true,
+      founderGrant: true,
+      reason: 'Trainer desk access is active.'
+    };
+  };
+
   const router = require('../routes/agora');
   const tokenLayer = router.stack.filter(function (layer) {
     return layer.route && layer.route.path === '/token' && layer.route.methods.get;
@@ -360,10 +377,12 @@ function dbRestore() {
     const db = require('../db');
     const auth = require('../middleware/auth');
     const tokenService = require('../services/agoraTokenService');
+    const trainerAccess = require('../services/trainerAccessService');
     if (saved.findSession) db.findSession = saved.findSession;
     if (saved.listSessionsForUser) db.listSessionsForUser = saved.listSessionsForUser;
     if (saved.requireAuth) auth.requireAuth = saved.requireAuth;
     if (saved.issueSessionToken) tokenService.issueSessionToken = saved.issueSessionToken;
+    if (saved.trainerAccessEvaluate) trainerAccess.evaluate = saved.trainerAccessEvaluate;
   } catch (error) {
     console.error('Restore db stubs failed:', error.message);
   }

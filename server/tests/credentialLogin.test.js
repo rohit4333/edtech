@@ -58,6 +58,27 @@ async function main() {
     ok(student.status === 200 && student.body.user.role === 'student',
       'student credentials are accepted in the same endpoint');
 
+    const sharedParent = await request('POST', '/api/auth/login', {
+      email: 'student@mathify.app', password: 'mathify-demo', role: 'parent'
+    });
+    ok(sharedParent.status === 200 && sharedParent.body.user.role === 'parent',
+      'the shared family credential opens the parent desk when that app was opened');
+    const parentMe = await request('GET', '/api/auth/me', undefined, sharedParent.body.token);
+    ok(parentMe.status === 200 && parentMe.body.user.role === 'parent',
+      'the issued parent token is verified as parent on a protected read');
+
+    const sharedStudent = await request('POST', '/api/auth/login', {
+      email: 'parent@mathify.app', password: 'mathify-demo', role: 'student'
+    });
+    ok(sharedStudent.status === 200 && sharedStudent.body.user.role === 'student',
+      'the parent alias also opens the student desk when that app was opened');
+
+    const roleEscalation = await request('POST', '/api/auth/login', {
+      email: 'trainer@mathify.app', password: 'mathify-demo', role: 'founder'
+    });
+    ok(roleEscalation.status === 403 && roleEscalation.body.error === 'ROLE_DENIED',
+      'a role hint cannot turn another account into a different desk');
+
     const denied = await request('GET', '/api/trainer/dashboard', undefined, student.body.token);
     ok(denied.status === 403,
       'opening a trainer URL with a student token does not grant trainer access');

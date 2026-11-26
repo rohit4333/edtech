@@ -22,11 +22,21 @@ const reactions = require('../services/reactionService');
 const batchService = require('../services/batchService');
 const trainerOnboarding = require('../services/trainerOnboardingService');
 const trainerDocuments = require('../services/trainerDocumentService');
+const trainerAccess = require('../services/trainerAccessService');
+const requireTrainerAccess = require('../middleware/trainerAccess');
 
 const router = express.Router();
 
 router.use(auth.requireAuth);
 router.use(auth.requireRole('trainer', 'founder'));
+/* Onboarding and the dashboard shell stay reachable so a pending trainer can
+   complete details and see the founder-approval notice. Every roster, session,
+   batch, payout and engagement payload is gated below. */
+router.use(requireTrainerAccess({
+  open: function (path) {
+    return /^\/onboarding(\/|$)/.test(path) || path === '/dashboard' || path === '/quiz/templates';
+  }
+}));
 
 const ATTENDANCE_STATES = ['present', 'absent', 'late', 'leave', 'unattended'];
 
@@ -161,17 +171,26 @@ router.get('/score', function (req, res) {
   return res.json({ score: serializers.toTrainerScore(req.user, policy) });
 });
 
-router.get('/dashboard', function (req, res) {
-  const sessions = sessionsFor(req.user);
-  const attendance = [];
+router.get('/dashboard', function (req, res, next) {
+  Promise.resolve(req.trainerAccess || trainerAccess.evaluate(req.user)).then(function (access) {
+    if (!access.granted) {
+      /* Deliberately empty: no next session, student name, planner, batch,
+         attendance or payout detail reaches a trainer awaiting founder access. */
+      const locked = serializers.toTrainerDashboard(req.user, [], []);
+      locked.access = access;
+      return res.json({ dashboard: locked });
+    }
+    const sessions = sessionsFor(req.user);
+    const attendance = [];
 
-  sessions.forEach(function (session) {
-    db.listAttendanceForSession(session.id).forEach(function (row) { attendance.push(row); });
-  });
+    sessions.forEach(function (session) {
+      db.listAttendanceForSession(session.id).forEach(function (row) { attendance.push(row); });
+    });
 
-  return res.json({
-    dashboard: serializers.toTrainerDashboard(req.user, sessions, attendance)
-  });
+    const dashboard = serializers.toTrainerDashboard(req.user, sessions, attendance);
+    dashboard.access = access;
+    return res.json({ dashboard: dashboard });
+  }).catch(next);
 });
 
 router.post('/onboarding/documents', function (req, res, next) {

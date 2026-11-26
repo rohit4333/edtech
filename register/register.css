@@ -1,0 +1,32 @@
+/* Registration page additions. The shared Paper & Ink primitives and login
+   card layout come from public.css and login/login.css. */
+
+.register-page .field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 12px/1.4 var(--sans);
+}
+
+.register-status {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--coral-deep);
+}
+.register-status[data-tone="success"] { color: var(--teal-ink); }
+
+.register-success {
+  margin: 16px 0 0;
+  padding: 13px;
+  border: 1px solid rgba(18,150,140,.4);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--teal-ink);
+}
+.register-success a { display: inline-block; margin-top: 6px; border-bottom: 1px solid currentColor; }

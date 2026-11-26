@@ -22,6 +22,7 @@ const leaveRoutes = require('./routes/leaves');
 const contactRoutes = require('./routes/contact');
 const chatRoutes = require('./routes/chat');
 const parentChatRoutes = require('./routes/parentChat');
+const rmRoutes = require('./routes/rm');
 const networkRoutes = require('./routes/network');
 const announcementRoutes = require('./routes/announcements');
 const networkQuality = require('./services/networkQualityService');
@@ -97,6 +98,7 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/parent-chat', parentChatRoutes);
+app.use('/api/rm', rmRoutes);
 
 /* The app-level diagnostic log follows the same browser-safe rules as the
    session event bridge: the same forbidden-key scrub and an allowlist of the
@@ -166,10 +168,44 @@ app.get('/favicon.ico', function (req, res) {
 const webRoot = path.resolve(__dirname, '..');
 const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
-  'privacy.html', 'refund.html', 'contact.html', 'public.css',
+  'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
   'landing.css', 'landing.js', 'login.html'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'register', 'rm', 'shared', 'student', 'trainer']);
+
+/* Each dashboard nav item is a real page URL. These routes serve the matching
+   desk document; the shared section router then shows only that page's UI. */
+const sectionPages = {
+  '/trainer/today': 'trainer/index.html',
+  '/trainer/sessions': 'trainer/index.html',
+  '/trainer/leave': 'trainer/index.html',
+  '/trainer/students': 'trainer/index.html',
+  '/trainer/insights': 'trainer/index.html',
+  '/student/home': 'student/index.html',
+  '/student/recordings': 'student/index.html',
+  '/student/mastery': 'student/index.html',
+  '/student/reports': 'student/index.html',
+  '/student/schedule': 'student/index.html',
+  '/founder/overview': 'founder/index.html',
+  '/founder/policy': 'founder/index.html',
+  '/founder/mastery': 'founder/index.html',
+  '/founder/trainer-policy': 'founder/index.html',
+  '/founder/money': 'founder/index.html',
+  '/founder/announcements': 'founder/index.html',
+  '/founder/trainer-admin': 'founder/index.html',
+  '/founder/student-admin': 'founder/index.html',
+  '/founder/audit': 'founder/index.html',
+  '/rm/dashboard': 'rm/index.html',
+  '/rm/trainers': 'rm/index.html',
+  '/rm/students': 'rm/index.html',
+  '/rm/penalties': 'rm/index.html',
+  '/rm/classes': 'rm/index.html',
+  '/parent/inbox': 'parent/index.html',
+  '/parent/child': 'parent/index.html',
+  '/parent/sessions': 'parent/index.html',
+  '/parent/guidance': 'parent/index.html',
+  '/parent/policies': 'parent/index.html'
+};
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,
@@ -184,6 +220,9 @@ app.use(function (req, res, next) {
     pathname = decodeURIComponent(req.path).replace(/\\/g, '/');
   } catch (error) {
     return next();
+  }
+  if (Object.prototype.hasOwnProperty.call(sectionPages, pathname)) {
+    return res.sendFile(path.join(webRoot, sectionPages[pathname]));
   }
   const segments = pathname.split('/').filter(Boolean);
 

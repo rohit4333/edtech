@@ -5,12 +5,23 @@ const tokenService = require('../auth/token');
 const password = require('../auth/password');
 const auth = require('../middleware/auth');
 const batchService = require('../services/batchService');
+const passwordService = require('../services/passwordService');
+const registrationService = require('../services/registrationService');
 
 const router = express.Router();
 
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_LIMIT = 5;
+const LOGIN_ROLES = new Set(['student', 'trainer', 'founder', 'parent', 'relationship_manager']);
 const loginAttempts = new Map();
+const registrationAttempts = new Map();
+
+/* One family credential may open either the student desk or the parent app.
+   The opened desk is the role hint; no other role cross-over is allowed. */
+function sharedLoginPair(actual, requested) {
+  return (actual === 'student' && requested === 'parent') ||
+    (actual === 'parent' && requested === 'student');
+}
 
 function clientKey(req) {
   const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
@@ -41,6 +52,38 @@ router.get('/batch', function (req, res, next) {
     .catch(next);
 });
 
+/* Public self-registration is throttled separately from sign-in. It can only
+   create student, trainer and relationship-manager accounts; staff access
+   still requires KYC submission and an explicit founder/manager grant. */
+router.post('/register', function (req, res) {
+  const key = clientKey(req);
+  const now = Date.now();
+  const entry = registrationAttempts.get(key);
+  if (entry && now - entry.startedAt < LOGIN_WINDOW_MS && entry.count >= LOGIN_LIMIT) {
+    return res.status(429).json({
+      error: 'TOO_MANY_ATTEMPTS',
+      message: 'Too many registration attempts. Try again in a few minutes.'
+    });
+  }
+  if (!entry || now - entry.startedAt >= LOGIN_WINDOW_MS) {
+    registrationAttempts.set(key, { startedAt: now, count: 1 });
+  } else {
+    entry.count += 1;
+  }
+
+  registrationService.register(req.body || {})
+    .then(function (result) {
+      registrationAttempts.delete(key);
+      return res.status(201).json(result);
+    })
+    .catch(function (error) {
+      return res.status(error.status || 422).json({
+        error: error.code || 'REGISTRATION_FAILED',
+        message: error.message || 'Account could not be created.'
+      });
+    });
+});
+
 router.post('/login', function (req, res) {
   const body = req.body || {};
   const key = clientKey(req);
@@ -52,11 +95,21 @@ router.post('/login', function (req, res) {
     });
   }
 
-  const user = db.findUserByEmail(body.email);
+  const requestedRole = LOGIN_ROLES.has(body.role) ? body.role : null;
+  const user = db.findUserByEmail(body.email, requestedRole);
   const result = password.verifyPassword(body.password, user);
 
   if (!result.ok) {
     return res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Email or password is wrong.' });
+  }
+  if (user.status === 'suspended') {
+    return res.status(401).json({
+      error: 'ACCESS_REVOKED',
+      message: 'This account has been suspended by the founder.'
+    });
+  }
+  if (requestedRole && user.role !== requestedRole && !sharedLoginPair(user.role, requestedRole)) {
+    return res.status(403).json({ error: 'ROLE_DENIED', message: 'Those credentials cannot open this desk.' });
   }
 
   loginAttempts.delete(key);
@@ -84,6 +137,7 @@ router.get('/demo', function (req, res) {
     password: process.env.DEMO_PASSWORD || 'mathify-demo',
     accounts: [
       { role: 'founder' },
+      { role: 'relationship_manager' },
       { role: 'trainer' },
       { role: 'student' },
       /* Parent demo sign-in uses the same password; no contact detail is
@@ -96,5 +150,51 @@ router.get('/demo', function (req, res) {
 router.get('/me', auth.requireAuth, function (req, res) {
   return res.json({ user: auth.publicUser(req.user) });
 });
+
+/* Signed-in password change from the user's own profile section. */
+router.post(
+  '/password/change',
+  auth.requireAuth,
+  function (req, res) {
+    passwordService.changePassword(req.user.id, req.body || {})
+      .then(function (result) { return res.json(result); })
+      .catch(function (error) {
+        return res.status(error.status || 422).json({
+          error: error.code || 'PASSWORD_CHANGE_FAILED',
+          message: error.message
+        });
+      });
+  }
+);
+
+/* Forgot-password path. The request is intentionally role-agnostic: the email
+   is the account identity, and the opened desk still decides the destination. */
+router.post(
+  '/password-reset/request',
+  function (req, res) {
+    passwordService.requestReset(req.body || {})
+      .then(function (result) { return res.json(result); })
+      .catch(function (error) {
+        return res.status(error.status || 422).json({
+          error: error.code || 'RESET_REQUEST_FAILED',
+          message: error.message
+        });
+      });
+  }
+);
+
+router.post(
+  '/password-reset/confirm',
+  function (req, res) {
+    passwordService.confirmReset(req.body || {})
+      .then(function (result) { return res.json(result); })
+      .catch(function (error) {
+        return res.status(error.status || 400).json({
+          error: error.code || 'RESET_FAILED',
+          message: error.message
+        });
+      });
+  }
+);
 
 module.exports = router;

@@ -8,6 +8,7 @@ Thumbs.db
 node_modules/
 coverage/
 dist/
+server/logs/
 
 # Environment files: only .env.example is safe to commit
 .env

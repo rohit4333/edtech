@@ -30,21 +30,29 @@ function iso(daysFromNow, hour) {
   return date.toISOString();
 }
 
-function addUser(id, name, role) {
-  store.users.push({
+function addUser(id, name, role, extra) {
+  store.users.push(Object.assign({
     id: id,
     name: name,
     email: id + '@mathify.test',
     role: role,
     status: 'active',
     createdAt: new Date().toISOString()
-  });
+  }, extra || {}));
 }
 
 async function main() {
   const trainers = [0, 1, 2, 3].map(function (index) { return 'usr_trainer_parallel_' + index; });
   const students = [0, 1, 2, 3].map(function (index) { return 'usr_student_parallel_' + index; });
-  trainers.forEach(function (id, index) { addUser(id, 'Parallel Trainer ' + index, 'trainer'); });
+  /* Batch allotment is founder-only work, so every parallel trainer fixture is
+     already KYC-reviewed and granted before the race begins. */
+  trainers.forEach(function (id, index) {
+    addUser(id, 'Parallel Trainer ' + index, 'trainer', {
+      accessGrantedAt: new Date().toISOString(),
+      accessGrantedByRole: 'founder'
+    });
+    store.trainerOnboarding.push({ trainerId: id, status: 'submitted', createdAt: new Date().toISOString() });
+  });
   students.forEach(function (id, index) { addUser(id, 'Parallel Student ' + index, 'student'); });
 
   const originalInsert = db.insertSession;

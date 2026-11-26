@@ -16,6 +16,7 @@
   <div class="wrap nav-inner">
     <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
     <nav class="login-nav" aria-label="Sign in navigation">
+      <a href="register.html">Create account</a>
       <a href="apps.html">All dashboards</a>
       <a href="contact.html">Need help?</a>
     </nav>
@@ -28,24 +29,18 @@
     <section class="login-intro">
       <p class="mono eyebrow">Secure access · strictly 1-on-1</p>
       <h1>One desk. Your credentials<em>.</em></h1>
-      <p class="lede">Choose the desk you belong to and sign in. The server verifies your account and decides what you can see — the page you opened never grants access on its own.</p>
+      <p class="lede">Enter your email and password. The desk you opened and the server-verified account decide where you land — no desk picker needed.</p>
       <ul class="login-points">
         <li><span class="mono n">01</span><span>Students open their own desk, practice and recordings.</span></li>
         <li><span class="mono n">02</span><span>Trainers open the console, register and teaching tools.</span></li>
-        <li><span class="mono n">03</span><span>Founders and parents get only the views meant for them.</span></li>
+        <li><span class="mono n">03</span><span>Parents and students may share one sign-in; the app you opened decides which view appears.</span></li>
       </ul>
       <p class="login-note">A classroom link is not a login. Trainer and student join the same live room from ten minutes before class; a founder joins only by an explicit, visible observer opt-in.</p>
     </section>
 
     <section class="form-card login-card" aria-labelledby="loginTitle">
       <h2 class="login-title" id="loginTitle">Sign in to Mathify</h2>
-      <div class="role-switch" role="group" aria-label="Choose your account type">
-        <button type="button" class="role-tab" data-role="student" aria-pressed="true">Student</button>
-        <button type="button" class="role-tab" data-role="trainer" aria-pressed="false">Trainer</button>
-        <button type="button" class="role-tab" data-role="founder" aria-pressed="false">Founder</button>
-        <button type="button" class="role-tab" data-role="parent" aria-pressed="false">Parent</button>
-      </div>
-      <p class="mono login-destination">Destination: <span id="loginDestination">Student desk</span></p>
+      <p class="mono login-destination" id="loginDestination">Destination: the desk you opened</p>
 
       <form id="loginForm" novalidate>
         <p class="field">
@@ -61,8 +56,9 @@
         <button class="btn" type="submit" id="loginSubmit">Sign in</button>
       </form>
 
+      <a class="login-forgot" href="/password-reset.html">Forgot password? Regenerate with your email</a>
       <button class="btn-ghost demo-btn" type="button" id="demoLogin" hidden>Use the demo account</button>
-      <p class="login-foot">Your role comes from your signed-in account, never from the URL. Contact details are never shown to another trainer or student.</p>
+      <p class="login-foot">Your role comes from your signed-in account and the app you opened, never from a tab you pick. Contact details are never shown to another trainer or student.</p>
     </section>
 
   </div>

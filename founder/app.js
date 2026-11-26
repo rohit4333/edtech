@@ -157,6 +157,15 @@
     try { window.localStorage.setItem(TOKEN_KEY, value); } catch (error) { /* private mode */ }
   }
 
+  function clearTokens() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (error) { /* private mode */ }
+  }
+
+  function logout() {
+    clearTokens();
+    window.location.replace(LOGIN_PAGE);
+  }
+
   function request(path, options) {
     var settings = options || {};
     var headers = { Accept: 'application/json' };
@@ -181,7 +190,7 @@
   }
 
   function requireLogin() {
-    try { window.localStorage.removeItem(TOKEN_KEY); } catch (error) { /* private mode */ }
+    clearTokens();
     var next = window.location.pathname + window.location.search;
     var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
     if (window.location.replace) window.location.replace(target);
@@ -373,6 +382,25 @@
   if (saveButton) saveButton.addEventListener('click', save);
   var resetButton = $('resetSettingsBtn');
   if (resetButton) resetButton.addEventListener('click', reset);
+
+  var profileBtn = $('profileBtn');
+  var profilePanel = $('profilePanel');
+  var logoutBtn = $('logoutBtn');
+  if (profileBtn && profilePanel) {
+    profileBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = profilePanel.hidden;
+      profilePanel.hidden = !open;
+      profileBtn.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (!profilePanel.hidden && !profilePanel.contains(event.target) && event.target !== profileBtn) {
+        profilePanel.hidden = true;
+        profileBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  }
 
   load();
 }());

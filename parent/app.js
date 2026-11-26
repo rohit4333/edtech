@@ -21,6 +21,7 @@
 
   var IDS = [
     'trainerHeading', 'threadSub', 'childName', 'peerName', 'peerMeta', 'topThread',
+    'profileBtn', 'profilePanel', 'profileName', 'logoutBtn',
     'unreadBadge', 'threadStatus', 'messageList', 'emptyState', 'composer',
     'composerInput', 'charCount', 'sendBtn', 'noticeRow', 'notice', 'retryBtn', 'demoLogin'
   ];
@@ -78,6 +79,16 @@
     try { window.localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
   }
 
+  function clearTokens() {
+    memoryToken = null;
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+  }
+
+  function logout() {
+    clearTokens();
+    window.location.replace(LOGIN_PAGE);
+  }
+
   function login(email, password) {
     return rawRequest('/auth/login', {
       method: 'POST',
@@ -91,8 +102,7 @@
 
   /* The private inbox needs a verified parent token. No silent demo login. */
   function requireLogin() {
-    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
-    memoryToken = null;
+    clearTokens();
     var next = window.location.pathname + window.location.search;
     var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
     if (window.location.replace) window.location.replace(target);
@@ -257,6 +267,7 @@
     if (el.peerMeta) el.peerMeta.textContent = thread.studentName + ' · 1-on-1 trainer';
     if (el.childName) el.childName.textContent = thread.studentName;
     if (el.topThread) el.topThread.textContent = thread.studentName + ' \u2194 ' + thread.trainerName;
+    if (el.profileName) el.profileName.textContent = thread.parentName || 'Parent';
     if (el.threadSub) el.threadSub.textContent = thread.studentName + ' \u00b7 ' + thread.trainerName + ' \u00b7 1-on-1 maths';
   }
 
@@ -457,10 +468,28 @@
       encodeURIComponent(window.location.pathname + window.location.search));
   }
 
+  function bindProfile() {
+    if (!el.profileBtn || !el.profilePanel) return;
+    el.profileBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = el.profilePanel.hidden;
+      el.profilePanel.hidden = !open;
+      el.profileBtn.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (!el.profilePanel.hidden && !el.profilePanel.contains(event.target) && event.target !== el.profileBtn) {
+        el.profilePanel.hidden = true;
+        el.profileBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    if (el.logoutBtn) el.logoutBtn.addEventListener('click', logout);
+  }
+
   function bind() {
     if (el.composer) el.composer.addEventListener('submit', send);
     if (el.retryBtn) el.retryBtn.addEventListener('click', function () { hideNotice(); load(); });
     if (el.demoLogin) el.demoLogin.addEventListener('click', demoLogin);
+    bindProfile();
     if (el.composerInput) {
       el.composerInput.addEventListener('input', updateCount);
       el.composerInput.addEventListener('keydown', function (event) {

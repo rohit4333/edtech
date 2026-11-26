@@ -19,9 +19,11 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const service = require('../services/parentChatService');
+const requireTrainerAccess = require('../middleware/trainerAccess');
 
 const router = express.Router();
 router.use(auth.requireAuth);
+router.use(requireTrainerAccess());
 
 const PARTICIPANTS = auth.requireRole('parent', 'trainer');
 const AUDITORS = auth.requireRole('parent', 'trainer', 'founder');

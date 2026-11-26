@@ -21,15 +21,32 @@ function copy(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
-function findUserByEmail(email) {
+function findUserByEmail(email, roleHint) {
   const normalized = String(email || '').trim().toLowerCase();
-  const found = store.users.find(function (user) { return user.email.toLowerCase() === normalized; });
-  return found ? copy(found) : null;
+  const aliases = store.users.filter(function (user) {
+    const names = Array.isArray(user.loginAliases) ? user.loginAliases : [];
+    return names.some(function (alias) { return String(alias).toLowerCase() === normalized; });
+  });
+  const exact = store.users.find(function (user) { return user.email.toLowerCase() === normalized; });
+  if (exact && (!roleHint || exact.role === roleHint)) return copy(exact);
+  if (roleHint) {
+    const preferred = aliases.find(function (user) { return user.role === roleHint; });
+    if (preferred) return copy(preferred);
+  }
+  return exact ? copy(exact) : (aliases[0] ? copy(aliases[0]) : null);
 }
 
 function findUserById(id) {
   const found = store.users.find(function (user) { return user.id === id; });
   return found ? copy(found) : null;
+}
+
+function insertUser(user) {
+  const stored = copy(user);
+  const index = store.users.findIndex(function (row) { return row.id === stored.id; });
+  if (index === -1) store.users.push(stored);
+  else store.users[index] = stored;
+  return copy(stored);
 }
 
 function listUsers() {
@@ -290,6 +307,46 @@ function updateSupportEscalation(id, patch) {
 function listSupportEscalations(limit) {
   const size = Math.max(1, Math.min(200, Number(limit || 50)));
   return copy(store.supportEscalations.slice(-size).reverse());
+}
+
+function findFounderPenalty(id) {
+  const found = (store.founderPenaltyDecisions || []).find(function (item) { return item.id === id; });
+  return found ? copy(found) : null;
+}
+
+function saveFounderPenalty(record) {
+  const key = String(record.id || '');
+  const list = store.founderPenaltyDecisions || (store.founderPenaltyDecisions = []);
+  const index = list.findIndex(function (item) { return item.id === key; });
+  const stored = copy(record);
+  if (index === -1) list.push(stored);
+  else list[index] = stored;
+  return copy(stored);
+}
+
+function listFounderPenalties(trainerId) {
+  const rows = Array.isArray(store.founderPenaltyDecisions) ? store.founderPenaltyDecisions : [];
+  const filtered = trainerId
+    ? rows.filter(function (item) { return item.trainerId === trainerId; })
+    : rows;
+  return copy(filtered.slice().reverse());
+}
+
+function findPasswordReset(tokenHash) {
+  const found = (store.passwordResets || []).find(function (row) {
+    return row.tokenHash === tokenHash;
+  });
+  return found ? copy(found) : null;
+}
+
+function savePasswordReset(record) {
+  const key = String(record.tokenHash || '');
+  const list = store.passwordResets || (store.passwordResets = []);
+  const index = list.findIndex(function (row) { return row.tokenHash === key; });
+  const stored = copy(record);
+  if (index === -1) list.push(stored);
+  else list[index] = stored;
+  return copy(stored);
 }
 
 function listLeaveRequests() {
@@ -681,6 +738,7 @@ const mockApi = {
   recordContactRequest,
   findUserByEmail,
   findUserById,
+  insertUser,
   listUsers,
   listSessionsForUser,
   listAllSessions,
@@ -711,6 +769,11 @@ const mockApi = {
   recordSupportEscalation,
   updateSupportEscalation,
   listSupportEscalations,
+  findFounderPenalty,
+  saveFounderPenalty,
+  listFounderPenalties,
+  findPasswordReset,
+  savePasswordReset,
   insertReaction,
   listReactions,
   listLeaveRequests,

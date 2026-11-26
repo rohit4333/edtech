@@ -217,11 +217,22 @@ function sameId(left, right) {
 
 /* -------------------------------------------------------------------- users */
 
-async function findUserByEmail(email) {
+async function findUserByEmail(email, roleHint) {
   const normalized = String(email || '').trim().toLowerCase();
   const users = await listRecords('users');
-  const found = users.find(function (user) { return String(user.email || '').toLowerCase() === normalized; });
-  return found ? copy(found) : null;
+  const aliases = users.filter(function (user) {
+    const names = Array.isArray(user.loginAliases) ? user.loginAliases : [];
+    return names.some(function (alias) { return String(alias).toLowerCase() === normalized; });
+  });
+  const exact = users.find(function (user) {
+    return String(user.email || '').toLowerCase() === normalized;
+  });
+  if (exact && (!roleHint || exact.role === roleHint)) return copy(exact);
+  if (roleHint) {
+    const preferred = aliases.find(function (user) { return user.role === roleHint; });
+    if (preferred) return copy(preferred);
+  }
+  return exact ? copy(exact) : (aliases[0] ? copy(aliases[0]) : null);
 }
 
 function findUserById(userId) {
@@ -230,6 +241,10 @@ function findUserById(userId) {
 
 function listUsers() {
   return listRecords('users');
+}
+
+function insertUser(user) {
+  return putRecord('users', String(user.id || ''), user);
 }
 
 async function updateUser(userId, updater) {
@@ -574,6 +589,30 @@ async function listSupportEscalations(limit) {
   return rows.slice(-size).reverse();
 }
 
+function findFounderPenalty(id) {
+  return getRecord('founder_penalty_decisions', String(id || ''));
+}
+
+function saveFounderPenalty(record) {
+  return putRecord('founder_penalty_decisions', String(record.id || ''), record);
+}
+
+async function listFounderPenalties(trainerId) {
+  const rows = await listRecords('founder_penalty_decisions');
+  const filtered = trainerId
+    ? rows.filter(function (item) { return item.trainerId === trainerId; })
+    : rows;
+  return filtered.slice().reverse();
+}
+
+function findPasswordReset(tokenHash) {
+  return getRecord('password_resets', String(tokenHash || ''));
+}
+
+function savePasswordReset(record) {
+  return putRecord('password_resets', String(record.tokenHash || ''), record);
+}
+
 /* -------------------------------------------------------------------- leaves */
 
 function listLeaveRequests() {
@@ -810,6 +849,7 @@ module.exports = {
   findUserByEmail,
   findUserById,
   listUsers,
+  insertUser,
   listSessionsForUser,
   listAllSessions,
   findSession,
@@ -837,6 +877,11 @@ module.exports = {
   recordSupportEscalation,
   updateSupportEscalation,
   listSupportEscalations,
+  findFounderPenalty,
+  saveFounderPenalty,
+  listFounderPenalties,
+  findPasswordReset,
+  savePasswordReset,
   listLeaveRequests,
   listLeaveRequestsForUser,
   findLeaveRequestForSession,

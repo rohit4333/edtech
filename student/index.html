@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="../shared/leave-calendar.css">
 <link rel="stylesheet" href="../shared/announcements.css">
+<link rel="stylesheet" href="../shared/profilePassword.css">
+<link rel="stylesheet" href="../shared/whiteboard.css">
 <style>
   /* ======================================================================
      SHELL
@@ -1296,19 +1298,19 @@
     </div>
 
     <nav class="nav" aria-label="Study">
-      <a href="#main" class="active" data-nav aria-current="page">
+      <a href="/student/home" class="active" data-nav aria-current="page">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-home"/></svg><span>Home</span>
       </a>
-      <a href="#recordings" data-nav>
+      <a href="/student/recordings" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg><span>Recordings</span>
       </a>
-      <a href="#mastery-practice" data-nav>
+      <a href="/student/mastery" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mastery"/></svg><span>Mastery</span>
       </a>
-      <a href="#overview" data-nav>
+      <a href="/student/reports" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-report"/></svg><span>Reports</span>
       </a>
-      <a href="#schedule" data-nav>
+      <a href="/student/schedule" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-calendar"/></svg><span>Schedule</span>
       </a>
     </nav>
@@ -1371,9 +1373,22 @@
           <p>Next 1-on-1 session: Thursday, 4:30 PM.</p>
         </div>
         <div class="top-popover" id="profilePanel" hidden>
-          <span class="mono">Ishaan Verma</span>
+          <span class="mono" id="profileName">Ishaan Verma</span>
           <p>Class 7 · Mathematics</p>
           <a href="../privacy.html">Privacy &amp; data</a>
+          <button type="button" class="profile-password-toggle" id="changePasswordBtn" aria-expanded="false" aria-controls="changePasswordForm">Change password</button>
+          <form class="profile-password-form" id="changePasswordForm" novalidate hidden>
+            <label for="currentPassword">Current password</label>
+            <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required placeholder="Current password">
+            <label for="newPassword">New password</label>
+            <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+            <label for="confirmPassword">Confirm new password</label>
+            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="Repeat new password">
+            <p class="profile-password-status" id="passwordStatus" role="status" aria-live="polite" hidden></p>
+            <button type="submit">Update password</button>
+            <a href="/password-reset.html">Forgot password?</a>
+          </form>
+          <button type="button" id="logoutBtn">Log out</button>
         </div>
       </div>
     </header>
@@ -1766,6 +1781,13 @@
   }
   .top-popover p{margin:8px 0 0;color:var(--muted)}
   .top-popover a{display:inline-block;margin-top:10px;border-bottom:1px solid var(--coral)}
+  .top-popover button{
+    display:block;width:100%;margin-top:12px;padding:8px 10px;
+    border:1px solid var(--line);border-radius:var(--r-xs);
+    background:transparent;color:var(--ink);font:500 11px/1.4 var(--mono);
+    text-align:left;cursor:pointer
+  }
+  .top-popover button:hover{border-color:var(--coral-deep);color:var(--coral-deep)}
   .study-notice{
     position:fixed;left:18px;bottom:76px;z-index:90;max-width:min(420px,calc(100vw - 36px));
     padding:12px 14px;border:1px solid var(--ink);border-radius:var(--r-sm);
@@ -1775,7 +1797,7 @@
   .study-search-hit{outline:2px solid var(--coral);outline-offset:3px}
 </style>
 
-<script src="api.js" defer></script>
+<script src="api.js?v=20261126" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="app.js" defer></script>
 <script>
@@ -1786,5 +1808,7 @@
   };
 </script>
 <script src="../shared/announcements.js" defer></script>
+<script src="../shared/profilePassword.js" defer></script>
+<script src="../shared/sectionRouter.js" defer></script>
 </body>
 </html>

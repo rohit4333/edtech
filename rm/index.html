@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Relationship manager</title>
+<meta name="description" content="Founder-authorised relationship manager desk: help trainers, students and parents with the founder's operating view, with grant-only access control.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../founder/founder.css">
+<link rel="stylesheet" href="../trainer/shell.css">
+<link rel="stylesheet" href="rm.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+  <span class="crumb mono">Relationship manager · support desk</span>
+  <div class="top-actions">
+    <a class="top-link" href="../apps.html">All surfaces ↗</a>
+    <button class="avatar avatar-btn" id="profileBtn" aria-label="RM — open profile" aria-expanded="false">RM</button>
+    <div class="top-popover" id="profilePanel" hidden>
+      <span class="mono" id="profileName">Relationship manager</span>
+      <p>Support desk · founder authorised</p>
+      <a href="../privacy.html">Privacy &amp; data</a>
+      <button type="button" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail" aria-label="Manager sections">
+    <p class="rail-title mono">Manager desk</p>
+    <nav class="nav" aria-label="Relationship manager">
+      <a class="active" href="/rm/dashboard" data-nav aria-current="page">Dashboard</a>
+      <a href="/rm/trainers" data-nav>Trainers</a>
+      <a href="/rm/students" data-nav>Students</a>
+      <a href="/rm/penalties" data-nav>Penalties</a>
+      <a href="/rm/classes" data-nav>Classes</a>
+    </nav>
+    <div class="rail-note">
+      <span class="mono">Manager boundary</span>
+      <p>Grant access, add and revoke penalties, and issue a generated temporary password to a granted trainer. Only the founder revokes a desk, chooses or replaces a credential or edits founder-set pay.</p>
+    </div>
+    <a class="rail-back" href="../apps.html">Back to surfaces</a>
+  </aside>
+
+  <main class="page" id="main">
+    <section class="intro" id="dashboard" aria-labelledby="rmTitle">
+      <p class="eyebrow">Relationship manager · founder authorised</p>
+      <h1 id="rmTitle">Help every learner and trainer<em>.</em></h1>
+      <p class="lede">You share the founder's operating view to support trainers, students and parents. You may grant access, manage penalties and issue a generated temporary password to an approved trainer; the founder alone revokes access, chooses or replaces credentials and edits founder-set pay.</p>
+      <p class="status" id="rmDashboardStatus" role="status" aria-live="polite">Loading your desk…</p>
+      <div class="stat-grid" id="rmStats" aria-live="polite"></div>
+
+      <details class="block onboarding-block" id="onboarding-panel">
+        <summary class="block-head">
+          <span class="mono">Your KYC &amp; onboarding</span>
+          <span class="chip-count" id="onboardingState">Not submitted</span>
+        </summary>
+        <form class="onboarding-form" id="onboardingForm" novalidate>
+          <fieldset class="kyc-lock">
+            <legend>KYC identity &amp; documents <span>locked after first submission</span></legend>
+            <div class="onboarding-grid">
+              <label>Full name as on document<input id="kycFullName" name="fullName" autocomplete="name" required></label>
+              <label>Date of birth<input id="kycDob" name="dateOfBirth" type="date" required></label>
+              <label>Aadhaar card number<input id="kycAadhaarNumber" name="aadhaarNumber" inputmode="numeric" placeholder="12-digit Aadhaar number" required></label>
+              <label>Aadhaar card front image<input id="kycAadhaarFrontImage" name="aadhaarFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label>Aadhaar card rear image<input id="kycAadhaarRearImage" name="aadhaarRearImage" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label>PAN card number<input id="kycPanNumber" name="panNumber" placeholder="10-character PAN" required></label>
+              <label>PAN card front image<input id="kycPanFrontImage" name="panFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label>PAN card rear image<input id="kycPanRearImage" name="panRearImage" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label>Signature image<input id="kycSignatureImage" name="signatureImage" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label>Other document label <span class="optional">optional</span><input id="kycOtherLabel" name="otherLabel" placeholder="e.g. Address proof"></label>
+              <label>Other document number <span class="optional">optional</span><input id="kycOtherNumber" name="otherNumber"></label>
+              <label>Other document image <span class="optional">optional</span><input id="kycOtherImage" name="otherImage" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Personal details <span>you can edit these</span></legend>
+            <div class="onboarding-grid">
+              <label>Contact number<input id="kycContact" name="contactNumber" inputmode="tel" autocomplete="tel"></label>
+              <label>Alternate contact number<input id="kycAlternateContact" name="alternateContactNumber" inputmode="tel"></label>
+              <label>Email ID<input id="kycEmail" name="emailId" type="email" autocomplete="email"></label>
+              <label>Father's name<input id="kycFather" name="fatherName"></label>
+              <label>Mother's name<input id="kycMother" name="motherName"></label>
+              <label>Spouse name<input id="kycSpouse" name="spouseName"></label>
+              <label class="wide">Address<textarea id="kycAddress" name="address" rows="2"></textarea></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Bank details <span>you can edit these</span></legend>
+            <div class="onboarding-grid">
+              <label>Account holder name<input id="kycAccountHolder" name="accountHolderName"></label>
+              <label>Account number<input id="kycAccountNumber" name="accountNumber" inputmode="numeric"></label>
+              <label>IFSC code<input id="kycIfsc" name="ifscCode"></label>
+              <label>Bank name<input id="kycBankName" name="bankName"></label>
+              <label>Branch<input id="kycBranch" name="branch"></label>
+              <label>Bank proof image <span class="optional">optional</span><input id="kycBankProofImage" name="bankProofImage" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            </div>
+          </fieldset>
+          <div class="onboarding-actions">
+            <button class="btn btn-coral" id="onboardingSubmit" type="submit">Submit KYC</button>
+            <p class="onboarding-status" id="onboardingStatus" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <section class="setting-card admin-section" id="rm-trainers" aria-labelledby="rmTrainerTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">02 · Trainers</span>
+          <h2 id="rmTrainerTitle">Support and grant trainer access</h2>
+          <p>View every trainer record, grant a KYC-verified desk with a first password, and assign enrolled batches. Base pay stays locked to the founder's decision.</p>
+        </div>
+        <span class="tag">Grant only</span>
+      </div>
+      <p class="status" id="rmTrainerStatus" role="status" aria-live="polite">Loading trainers…</p>
+      <div class="admin-grid">
+        <div class="admin-panel">
+          <h3>Choose a trainer</h3>
+          <label>Trainer<select id="rmTrainerSelect"><option value="">Loading…</option></select></label>
+          <div class="admin-summary" id="rmTrainerSummary">No trainer selected.</div>
+          <div class="admin-action-row">
+            <button class="btn btn-coral" type="button" id="rmGrantTrainer">Verify &amp; grant access</button>
+          </div>
+          <div class="admin-action-row">
+            <button class="btn btn-ghost" type="button" id="rmIssueTrainerPassword">Issue temporary password</button>
+          </div>
+          <p class="admin-hint">Trainer only. For a KYC-verified, granted trainer the server generates firstname@mathify123; you cannot choose the value. It is shown once in the handover box.</p>
+          <label>Enrolled batch<select id="rmBatchSelect"><option value="">Loading batches…</option></select></label>
+          <label>First session<input id="rmBatchStart" type="datetime-local"></label>
+          <div class="admin-action-row">
+            <button class="btn btn-ghost" type="button" id="rmAssignBatch" disabled>Assign batch to trainer</button>
+          </div>
+        </div>
+        <div class="admin-panel">
+          <h3>First login handover</h3>
+          <p class="admin-hint">Grant or a temporary-password issue returns the password once. Copy it with the email and hand it to the trainer. You cannot choose, replace or revoke a credential later.</p>
+          <div class="handover-row"><code id="rmHandoverEmail"></code><button class="btn btn-ghost btn-sm" type="button" id="rmCopyEmail">Copy email</button></div>
+          <div class="handover-row"><code id="rmHandoverPassword"></code><button class="btn btn-ghost btn-sm" type="button" id="rmCopyPassword">Copy password</button></div>
+        </div>
+      </div>
+      <div class="admin-grid">
+        <form class="admin-panel" id="rmRateForm" novalidate>
+          <h3>Set onboarding base rate</h3>
+          <label>₹ per completed session<input id="rmBaseRate" type="number" min="1" step="0.01" required></label>
+          <button class="btn btn-ghost" type="submit">Set rate once</button>
+          <p class="admin-hint">Allowed only while this trainer is pending and the founder has not set a rate. After grant or a founder decision, this field is locked permanently for managers.</p>
+        </form>
+        <form class="admin-panel" id="rmPenaltyForm" novalidate>
+          <h3>Record a penalty</h3>
+          <label>Amount (₹)<input id="rmPenaltyAmount" type="number" min="1" step="0.01" required></label>
+          <label>Reason<input id="rmPenaltyReason" maxlength="500" required placeholder="Short audit reason"></label>
+          <button class="btn btn-coral" type="submit">Record penalty</button>
+        </form>
+        <div class="admin-panel">
+          <h3>Trainer record</h3>
+          <div id="rmTrainerDetail">Choose a trainer to load sessions, batches, KYC and pay.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="setting-card admin-section" id="rm-students" aria-labelledby="rmStudentTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">03 · Students</span>
+          <h2 id="rmStudentTitle">Support students and families</h2>
+          <p>Read every student's enrollment, practice batches and sessions and grant access where it is pending. The parent desk uses the same family credential.</p>
+        </div>
+        <span class="tag">Grant only</span>
+      </div>
+      <p class="status" id="rmStudentStatus" role="status" aria-live="polite">Loading students…</p>
+      <div class="admin-grid">
+        <div class="admin-panel">
+          <h3>Choose a student</h3>
+          <label>Student<select id="rmStudentSelect"><option value="">Loading…</option></select></label>
+          <div class="admin-summary" id="rmStudentSummary">No student selected.</div>
+          <button class="btn btn-coral" type="button" id="rmGrantStudent">Grant access</button>
+        </div>
+        <div class="admin-panel">
+          <h3>Student record</h3>
+          <div id="rmStudentDetail">Choose a student to load all operational records.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="setting-card admin-section" id="rm-penalties" aria-labelledby="rmPenaltyTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">04 · Penalties</span>
+          <h2 id="rmPenaltyTitle">Review and revoke penalties</h2>
+          <p>A manager may record a penalty and revoke one. Every decision stays in the audit trail with its author and revocation time.</p>
+        </div>
+        <span class="tag">Manager power</span>
+      </div>
+      <div class="admin-panel">
+        <div id="rmPenaltyList">Loading penalties…</div>
+      </div>
+    </section>
+
+    <section class="setting-card admin-section" id="rm-classes" aria-labelledby="rmClassTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">05 · Classes</span>
+          <h2 id="rmClassTitle">Every class by student enrollment</h2>
+          <p>Founder-equivalent visibility of the enrolled batches, without teaching rights. Contact details never appear in a trainer payload.</p>
+        </div>
+        <span class="tag">Read only</span>
+      </div>
+      <div class="admin-panel">
+        <table class="admin-table">
+          <thead><tr><th>Batch</th><th>Student</th><th>Trainer</th><th>Status</th></tr></thead>
+          <tbody id="rmClassOverview"><tr><td colspan="4">Loading enrollment batches…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <a href="../pricing.html">Pricing</a>
+      <a href="../terms.html">Terms</a>
+      <a href="../privacy.html">Privacy</a>
+      <a href="../refund.html">Refund</a>
+      <a href="../contact.html">Contact</a>
+    </footer>
+  </main>
+</div>
+
+<script src="../shared/sectionRouter.js"></script>
+<script src="onboardingAdapter.js"></script>
+<script src="../trainer/onboarding.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Create an account</title>
+<meta name="description" content="Register for a Mathify student desk, trainer console or relationship-manager desk. Founders approve staff access after KYC.">
+<link rel="stylesheet" href="assets/poppins.css">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="public.css">
+<link rel="stylesheet" href="login/login.css">
+<link rel="stylesheet" href="register/register.css">
+</head>
+<body class="login-page">
+
+<header class="site-nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+    <nav class="login-nav" aria-label="Registration navigation">
+      <a href="login.html">Sign in</a>
+      <a href="apps.html">All dashboards</a>
+      <a href="contact.html">Need help?</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap login-main">
+  <div class="login-grid">
+
+    <section class="login-intro">
+      <p class="mono eyebrow">Account access · strictly 1-on-1</p>
+      <h1>Start with your desk<em>.</em></h1>
+      <p class="lede">Create a student, trainer or relationship-manager account. Your role always comes from the signed-in account, never from a tab you pick.</p>
+      <ul class="login-points">
+        <li><span class="mono n">01</span><span>Students get their own desk, practice and recordings.</span></li>
+        <li><span class="mono n">02</span><span>Trainers submit KYC; the founder grants the console after review.</span></li>
+        <li><span class="mono n">03</span><span>Relationship managers submit the same KYC and are authorised by the founder.</span></li>
+      </ul>
+      <p class="login-note">A founder account is never created here. Managers can grant access and help trainers, students and parents, but only the founder can revoke access, replace credentials or edit a founder-set base rate.</p>
+    </section>
+
+    <section class="form-card login-card" aria-labelledby="registerTitle">
+      <h2 class="login-title" id="registerTitle">Create your Mathify account</h2>
+      <p class="mono login-destination" id="registerDestination">Staff accounts need founder approval after KYC</p>
+
+      <form id="registerForm" novalidate>
+        <p class="field">
+          <label for="registerRole">Account type</label>
+          <select id="registerRole" name="role" required>
+            <option value="student">Student</option>
+            <option value="trainer">Trainer</option>
+            <option value="relationship_manager">Relationship manager</option>
+          </select>
+        </p>
+        <p class="field" id="gradeField" hidden>
+          <label for="registerGrade">Grade <span class="optional">optional</span></label>
+          <input id="registerGrade" name="grade" maxlength="40" placeholder="7">
+        </p>
+        <p class="field">
+          <label for="registerName">Full name</label>
+          <input id="registerName" name="name" autocomplete="name" maxlength="80" required placeholder="Your name">
+        </p>
+        <p class="field">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" name="email" type="email" autocomplete="username" spellcheck="false" required placeholder="you@example.com">
+        </p>
+        <p class="field password-field">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" name="password" type="password" autocomplete="new-password" minlength="8" required>
+          <button type="button" class="password-toggle" id="registerToggle" aria-label="Show password">Show</button>
+        </p>
+        <p class="register-status" id="registerStatus" role="alert" aria-live="polite" hidden></p>
+        <button class="btn" type="submit" id="registerSubmit">Create account</button>
+      </form>
+
+      <p class="register-success" id="registerSuccess" hidden>
+        <span id="registerSuccessText"></span>
+        <a id="registerNext" href="/login.html?role=student">Open sign in</a>
+      </p>
+      <p class="login-foot">Already registered? <a href="/login.html">Sign in</a>. Forgot a password? <a href="/password-reset.html">Regenerate it with your email</a>.</p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-inner">
+    <a href="apps.html">All dashboards</a>
+    <a href="index.html">Home</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="refund.html">Refund</a>
+    <a href="contact.html">Contact</a>
+    <span class="c">© 2026 Mathify</span>
+  </div>
+</footer>
+
+<script src="register/register.js" defer></script>
+</body>
+</html>

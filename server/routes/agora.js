@@ -8,6 +8,7 @@ const tokenService = require('../services/agoraTokenService');
 const recordingService = require('../services/agoraRecordingService');
 const presenceService = require('../services/presenceService');
 const sessionAccess = require('../services/sessionAccessService');
+const requireTrainerAccess = require('../middleware/trainerAccess');
 
 const router = express.Router();
 
@@ -114,7 +115,7 @@ function requireCallOwner(req, res, next) {
   return next();
 }
 
-router.get('/token', auth.requireAuth, sessionFromRequest, function (req, res) {
+router.get('/token', auth.requireAuth, requireTrainerAccess(), sessionFromRequest, function (req, res) {
   try {
     return res.json(tokenService.issueSessionToken(req.sessionRecord, req.user));
   } catch (error) {
@@ -125,7 +126,7 @@ router.get('/token', auth.requireAuth, sessionFromRequest, function (req, res) {
   }
 });
 
-router.post('/recording/start', auth.requireAuth, requireCallOwner, sessionFromRequest, async function (req, res) {
+router.post('/recording/start', auth.requireAuth, requireTrainerAccess(), requireCallOwner, sessionFromRequest, async function (req, res) {
   try {
     const issued = tokenService.issueSessionToken(req.sessionRecord, req.user);
     const recording = await recordingService.startRecording({
@@ -146,7 +147,7 @@ router.post('/recording/start', auth.requireAuth, requireCallOwner, sessionFromR
   }
 });
 
-router.post('/recording/stop', auth.requireAuth, requireCallOwner, sessionFromRequest, async function (req, res) {
+router.post('/recording/stop', auth.requireAuth, requireTrainerAccess(), requireCallOwner, sessionFromRequest, async function (req, res) {
   try {
     const recordingId = String((req.body || {}).recordingId || '').trim();
     const existing = recordingId ? await db.findRecording(recordingId) : null;

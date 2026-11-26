@@ -1,5 +1,6 @@
 const db = require('../db');
 const token = require('../auth/token');
+const trainerAccess = require('../services/trainerAccessService');
 
 /* Identity returned to the browser. Contact details are never part of it. */
 const PUBLIC_USER_KEYS = ['id', 'name', 'role'];
@@ -47,8 +48,42 @@ async function requireAuth(req, res, next) {
     /* Mock reads are synchronous; the live Supabase adapter is async. Awaiting
        both keeps identity loading identical in every database mode. */
     const user = await db.findUserById(payload.sub);
-    if (!user || user.status !== 'active') {
+    const pendingStaff = user && user.status === 'pending' &&
+      (user.role === 'trainer' || user.role === 'relationship_manager');
+    if (!user || (user.status !== 'active' && !pendingStaff)) {
       return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Account is not active.' });
+    }
+
+    /* A trainer whose KYC is not founder-approved may sign in only to finish
+       onboarding, read the locked dashboard notice and change a handover
+       password. Every roster, batch, session and classroom endpoint is refused
+       here before any handler can load data. */
+    if (user.role === 'trainer' && user.status === 'pending') {
+      const requestPath = String(req.originalUrl || req.path || '').split('?')[0];
+      const setupOnly = /^\/api\/auth\/me$/.test(requestPath) ||
+        /^\/api\/auth\/password\/change$/.test(requestPath) ||
+        /^\/api\/trainer\/onboarding(?:\/|$)/.test(requestPath) ||
+        requestPath === '/api/trainer/dashboard' ||
+        requestPath === '/api/trainer/quiz/templates';
+      if (!setupOnly) {
+        const access = await trainerAccess.evaluate(user);
+        return res.status(403).json(trainerAccess.lockedResponse(access));
+      }
+    }
+
+    /* A relationship manager follows the same founder-authorised onboarding
+       path. Until the founder grants access, only KYC setup, the locked desk
+       notice and the handover password change are reachable. */
+    if (user.role === 'relationship_manager' && user.status === 'pending') {
+      const requestPath = String(req.originalUrl || req.path || '').split('?')[0];
+      const setupOnly = requestPath === '/api/auth/me' ||
+        requestPath === '/api/auth/password/change' ||
+        /^\/api\/rm\/onboarding(?:\/|$)/.test(requestPath) ||
+        requestPath === '/api/rm/dashboard';
+      if (!setupOnly) {
+        const access = await trainerAccess.evaluate(user);
+        return res.status(403).json(trainerAccess.lockedResponse(access));
+      }
     }
 
     req.user = sessionUser(user);

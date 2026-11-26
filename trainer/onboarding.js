@@ -24,8 +24,9 @@
 
   function setLocked(record) {
     var locked = isLocked(record);
-    ['kycFullName', 'kycDob', 'kycAadhaarNumber', 'kycAadhaarImage',
-      'kycPanNumber', 'kycPanImage', 'kycSignatureImage', 'kycBankProofImage',
+    ['kycFullName', 'kycDob', 'kycAadhaarNumber', 'kycAadhaarFrontImage',
+      'kycAadhaarRearImage', 'kycPanNumber', 'kycPanFrontImage',
+      'kycPanRearImage', 'kycSignatureImage', 'kycBankProofImage',
       'kycOtherLabel', 'kycOtherNumber', 'kycOtherImage'].forEach(function (id) {
       var node = el(id);
       if (node) node.disabled = locked;
@@ -99,12 +100,6 @@
     });
   }
 
-  function documentData(numberId, imageId, kind, existing) {
-    return upload(kind, el(imageId)).then(function (uploaded) {
-      return { number: value(numberId), image: uploaded || (existing && existing.image) || null };
-    });
-  }
-
   function personalBody() {
     return {
       personal: {
@@ -135,8 +130,10 @@
     var request = isLocked(state)
       ? api.updatePersonal(personalBody())
       : Promise.all([
-        upload('aadhaar', el('kycAadhaarImage')),
-        upload('pan', el('kycPanImage')),
+        upload('aadhaar', el('kycAadhaarFrontImage')),
+        upload('aadhaar', el('kycAadhaarRearImage')),
+        upload('pan', el('kycPanFrontImage')),
+        upload('pan', el('kycPanRearImage')),
         upload('signature', el('kycSignatureImage')),
         upload('bankProof', el('kycBankProofImage')),
         upload('other', el('kycOtherImage'))
@@ -147,16 +144,24 @@
           dateOfBirth: value('kycDob')
         };
         body.documents = {
-          aadhaar: { number: value('kycAadhaarNumber'), image: files[0] },
-          pan: { number: value('kycPanNumber'), image: files[1] },
-          signature: { image: files[2] },
-          bankProof: { image: files[3] }
+          aadhaar: {
+            number: value('kycAadhaarNumber'),
+            front: files[0],
+            rear: files[1]
+          },
+          pan: {
+            number: value('kycPanNumber'),
+            front: files[2],
+            rear: files[3]
+          },
+          signature: { image: files[4] },
+          bankProof: { image: files[5] }
         };
-        if (files[4] || value('kycOtherLabel') || value('kycOtherNumber')) {
+        if (files[6] || value('kycOtherLabel') || value('kycOtherNumber')) {
           body.documents.additionalDocuments = [{
             label: value('kycOtherLabel') || 'Additional document',
             number: value('kycOtherNumber'),
-            image: files[4]
+            image: files[6]
           }];
         }
         return api.submitOnboarding(body);

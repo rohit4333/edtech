@@ -454,7 +454,7 @@
   }
 
   $$('.nav a[data-nav]').forEach(function (link) {
-    link.addEventListener('click', function () { activateView(link, true); });
+    link.addEventListener('click', function () { activateView(link, false); });
   });
 
   window.addEventListener('hashchange', function () {
@@ -916,7 +916,7 @@
       ? knownRules.mutualLeave + ' ' + knownRules.fine
       : 'A 48-hour notice is required from either side; later trainer cancellation costs one session pay.';
     setText('#payoutPolicyNote', detail +
-      ' Pay is ₹300–₹400 per completed 1-on-1 session. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.');
+      ' Pay is ₹300–₹400 per completed 1-on-1 session; your exact rate is the one in your contract or offer letter, or the rate stated during onboarding. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.');
 
     var series = payout && payout.dailySeries;
     var points = series && Array.isArray(series.points) ? series.points : [];
@@ -1142,6 +1142,7 @@
     var taken = dashboard.summary.sessionsTaken || 0;
     var remaining = dashboard.summary.sessionsRemaining || 0;
     setText('#greetingName', (dashboard.trainer && dashboard.trainer.name || 'Ananya').split(' ')[0]);
+    setText('#profileName', (dashboard.trainer && dashboard.trainer.name) || 'Trainer');
     setText('#subSessions', plural(total, 'session') + ' today · ' + taken + ' taken · ' + remaining + ' left');
     setText('#subStudents', plural(dashboard.summary.studentsNext, 'student') + ' next');
     var attentionWord = dashboard.summary.needsAttention === 1 ? 'item needs' : 'items need';
@@ -1162,6 +1163,29 @@
   }
 
   var api = window.mathifyTrainerApi;
+
+  (function bindProfile() {
+    var profileBtn = $('#profileBtn');
+    var profilePanel = $('#profilePanel');
+    if (!profileBtn || !profilePanel) return;
+    profileBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = profilePanel.hidden;
+      profilePanel.hidden = !open;
+      profileBtn.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (!profilePanel.hidden && !profilePanel.contains(event.target) && event.target !== profileBtn) {
+        profilePanel.hidden = true;
+        profileBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    var logoutBtn = $('#logoutBtn');
+    if (logoutBtn && api && typeof api.logout === 'function') {
+      logoutBtn.addEventListener('click', api.logout);
+    }
+  }());
+
   if (api) {
     if (window.mathifyLeaveCalendar) {
       window.mathifyLeaveCalendar.mount({

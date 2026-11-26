@@ -6,6 +6,7 @@
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.student.token';
   var ROLE = 'student';
+  var CLASSROOM_TOKEN_KEY = 'mathify.classroom.token.' + ROLE;
   var LOGIN_PAGE = '/login.html?role=' + ROLE;
   var memoryToken = null;
 
@@ -17,6 +18,19 @@
   function writeToken(value) {
     memoryToken = value;
     try { window.localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
+  }
+
+  function clearTokens() {
+    memoryToken = null;
+    try {
+      window.localStorage.removeItem(TOKEN_KEY);
+      window.localStorage.removeItem(CLASSROOM_TOKEN_KEY);
+    } catch (e) { /* private mode */ }
+  }
+
+  function logout() {
+    clearTokens();
+    window.location.replace(LOGIN_PAGE);
   }
 
   function rawRequest(path, options, tokenValue) {
@@ -69,8 +83,7 @@
   /* No silent demo hand-off. A missing or rejected token sends the browser to
      credential sign-in, carrying the current desk as a safe return path. */
   function requireLogin() {
-    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
-    memoryToken = null;
+    clearTokens();
     var next = window.location.pathname + window.location.search;
     var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
     if (window.location.replace) window.location.replace(target);
@@ -88,6 +101,7 @@
     base: BASE,
     request: request,
     ensureAuth: ensureAuth,
+    logout: logout,
     getDashboard: function () { return request('/student/dashboard').then(function (d) { return d.dashboard; }); },
     askTutor: function (question, sessionId) {
       return request('/student/tutor/query', {

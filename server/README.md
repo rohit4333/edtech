@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`main` plus `feat/student-rtc-control-permission`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, Cloudflare Workers AI chat assistants, server-held mastery self-practice and a private parent ↔ trainer human chat with DLP founder flags. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration, Supabase call, payment or SMS is claimed; see the live evidence in `TEST_REPORT.md`.
+This codebase state (`main` plus `feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, Cloudflare Workers AI chat assistants, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration, Supabase call, payment or SMS is claimed; see `TEST_REPORT.md` and the 2026-11-26 local evidence in `E2E_TEST_LOG.md` §11.
 
 ## Run
 
@@ -30,7 +30,9 @@ Demo accounts (password `mathify-demo`, or `DEMO_PASSWORD` from `.env`):
 | Student | student@mathify.app |
 | Parent (linked to `usr_student_001`) | parent@mathify.app |
 
-`GET /api/auth/demo` returns the same list.
+`GET /api/auth/demo` returns the same list. Founder and RM demo accounts are `founder@mathify.app` and `rm@mathify.app` with the same demo password.
+
+`PATCH /api/admin/people/:id/password` is the scoped credential-recovery endpoint. `{ "generated": true }` issues the existing `firstname@mathify123` value and is allowed to a relationship manager only for a trainer whose KYC is on file and whose access was granted; any supplied `password` returns `403 RM_PASSWORD_CHOICE_DENIED`, other target roles return `403`, and an ungranted trainer returns `422 KYC_OR_GRANT_REQUIRED`. The founder keeps chosen-password and any-role override. Both roles are audited (`password.temp_issued` / `password.granted`) without writing the password value. [ev: local HTTP contract check, 2026-11-26]
 
 ## Auth
 
@@ -242,7 +244,7 @@ Slack/email alerts through `services/notificationService.js`. Twilio signature v
 
 `worker-core.mjs` is pure logic (no fetch or platform globals) shared by the deployed Worker and the local Express bridge. `worker.js` verifies the Express-issued HMAC token, applies allowlisted CORS and a per-minute rate limit, then calls Workers AI through the `[ai]` binding with a Cloudflare REST fallback. `wrangler.toml` declares the models; deploy secrets with `wrangler secret put` (`AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`). No Cloudflare or Supabase secret is exposed to the browser.
 
-`routes/chat.js` → `services/chatWorkerService.js` forwards only the JWT role, actor id, sanitized question and, for Study Buddy, the image. `CHAT_WORKER_URL` is optional: when set, Express calls the deployed Worker; otherwise the same core runs locally through the Cloudflare REST endpoint. Trainer Desk uses `@cf/meta/llama-3.1-8b-instruct` and verified facts (₹300–₹400 per 1-on-1 session, 48-hour notice, fines and bonuses, severe complaints to `founder@mathify.app`). Study Buddy uses the same text model for text and `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` for images; it gives Socratic hints and visual analogies only, never a final answer.
+`routes/chat.js` → `services/chatWorkerService.js` forwards only the JWT role, actor id, sanitized question and, for Study Buddy, the image. `CHAT_WORKER_URL` is optional: when set, Express calls the deployed Worker; otherwise the same core runs locally through the Cloudflare REST endpoint. Trainer Desk uses `@cf/meta/llama-3.1-8b-instruct` and verified facts (₹300–₹400 per completed 1-on-1 session, exact pay per contract/offer letter or onboarding, 48-hour notice, fines and bonuses, severe complaints to `founder@mathify.app`). Study Buddy uses the same text model for text and `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` for images; it gives Socratic hints and visual analogies only, never a final answer.
 
 Reply guards reject contact data, social links, trainer-only material and student final-answer phrasing. Image bytes are decoded in memory only and never logged or stored. Audit rows go to `trainer_support_logs` / `student_doubt_logs` through the service-role key only.
 

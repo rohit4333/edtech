@@ -1,0 +1,9 @@
+/* Relationship-manager desk additions. The founder shell and trainer
+   onboarding styles are shared; this file only labels the approval boundary. */
+
+.locked-note{
+  margin-top:14px;padding:13px;border:1px solid var(--coral);
+  border-radius:var(--r-sm);background:var(--cream);
+  font-size:12px;line-height:1.6;color:var(--coral-deep)
+}
+.locked-note strong{display:block;margin-bottom:4px;color:var(--ink)}

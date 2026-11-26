@@ -16,10 +16,14 @@ const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
 const reactionPermission = require('../services/reactionPermissionService');
 const appPolicy = require('../config/policy.json');
+const requireTrainerAccess = require('../middleware/trainerAccess');
 
 const router = express.Router();
 
 router.use(auth.requireAuth);
+/* A trainer awaiting founder approval cannot open session state, chat, board
+   ink, media controls or any other classroom surface. */
+router.use(requireTrainerAccess());
 router.use(auth.loadSession);
 
 router.get('/:sessionId/state', function (req, res) {
@@ -85,7 +89,7 @@ const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
-  'chat.sent', 'board.shared', 'rtc.media.control.changed', 'network.check.completed',
+  'chat.sent', 'board.shared', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
   'founder.observer.changed'
 ];
@@ -168,12 +172,118 @@ router.post('/:sessionId/chat', function (req, res) {
   });
 });
 
-/* Board sharing is a state notification only. Ink data stays on the trusted
-   canvas/realtime path; this event carries no drawing content. */
+/* Board sharing is a state notification only. Ink travels over this separate,
+   trainer-only endpoint so the state event itself never carries drawing data. */
 router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), function (req, res) {
   const shared = (req.body || {}).shared !== false;
   return realtime.publish(req.sessionRecord.id, 'board.shared', { shared: shared }).then(function (event) {
     return res.json({ ok: true, shared: shared, seq: event.seq });
+  });
+});
+
+/* Full-board ink is session-scoped and trainer-owned. Coordinates are
+   normalised 0–1, colours and tools are allowlisted, and payload sizes are
+   bounded. No text, answer key or trainer note is accepted here. */
+const BOARD_TOOLS = new Set(['pen', 'marker', 'eraser']);
+const BOARD_COLORS = new Set(['ink', 'coral', 'teal', 'amber']);
+
+function cleanInkStroke(value) {
+  if (!value || typeof value !== 'object') return null;
+  const points = Array.isArray(value.points) ? value.points.slice(0, 2000).map(function (point) {
+    if (!Array.isArray(point) || point.length < 2) return null;
+    const x = Number(point[0]);
+    const y = Number(point[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+  }).filter(Boolean) : [];
+  if (!points.length) return null;
+  return {
+    tool: BOARD_TOOLS.has(value.tool) ? value.tool : 'pen',
+    color: BOARD_COLORS.has(value.color) ? value.color : 'ink',
+    points: points
+  };
+}
+
+/* A trainer may paste a screenshot from the private planner. Only raster data
+   URLs are accepted, sizes are bounded, and no free-form text is carried. */
+const IMAGE_CAP = 1500000;
+
+function normalised(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(1, Math.max(0, parsed)) : fallback;
+}
+
+function cleanImage(value) {
+  if (!value || typeof value !== 'object') return null;
+  const data = typeof value.data === 'string' ? value.data : '';
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=\s]+$/.test(data) ||
+      data.length > IMAGE_CAP) {
+    return null;
+  }
+  return {
+    id: String(value.id || 'img_' + Date.now()).slice(0, 80),
+    data: data,
+    x: normalised(value.x, 0.2),
+    y: normalised(value.y, 0.2),
+    w: normalised(value.w, 0.6),
+    h: normalised(value.h, 0.6)
+  };
+}
+
+function cleanSnapshotItem(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (value.kind === 'image' || value.type === 'image') {
+    const image = cleanImage(value.image || value);
+    return image ? { kind: 'image', image: image } : null;
+  }
+  const ink = cleanInkStroke(value.ink || value);
+  return ink ? { kind: 'stroke', ink: ink } : null;
+}
+
+router.post('/:sessionId/board/ink', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const body = req.body || {};
+  const type = String(body.type || '');
+  const page = Math.min(3, Math.max(1, Number(body.page) || 1));
+  let payload = null;
+
+  if (type === 'stroke') {
+    const ink = cleanInkStroke(body.ink);
+    if (!ink) {
+      return res.status(422).json({ error: 'INVALID_INK', message: 'A drawable stroke is required.' });
+    }
+    payload = { type: 'stroke', ink: ink, page: page };
+  } else if (type === 'snapshot') {
+    const items = Array.isArray(body.items)
+      ? body.items.slice(0, 300).map(cleanSnapshotItem).filter(Boolean)
+      : (Array.isArray(body.strokes)
+        ? body.strokes.slice(0, 300).map(cleanInkStroke).filter(Boolean)
+          .map(function (ink) { return { kind: 'stroke', ink: ink }; })
+        : []);
+    payload = {
+      type: 'snapshot',
+      items: items,
+      /* Legacy readers only understand the strokes field. */
+      strokes: items.filter(function (item) { return item.kind === 'stroke'; })
+        .map(function (item) { return item.ink; }),
+      page: page
+    };
+  } else if (type === 'image') {
+    const image = cleanImage(body.image);
+    if (!image) {
+      return res.status(422).json({
+        error: 'INVALID_IMAGE',
+        message: 'Use a PNG, JPEG or WEBP image under 1.5 MB.'
+      });
+    }
+    payload = { type: 'image', image: image, page: page };
+  } else if (type === 'clear') {
+    payload = { type: 'clear', page: page };
+  } else {
+    return res.status(422).json({ error: 'INVALID_INK_TYPE', message: 'Unknown board action.' });
+  }
+
+  return realtime.publish(req.sessionRecord.id, 'board.ink', payload).then(function (event) {
+    return res.json({ ok: true, seq: event.seq });
   });
 });
 

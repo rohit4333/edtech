@@ -139,7 +139,7 @@
 }
 .brand-m{display:none;font-size:19px;font-weight:500;letter-spacing:-.04em;line-height:1}
 .brand-m i{font-style:normal;color:var(--coral-deep);font-weight:700}
-.topbar .right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.topbar .right{position:relative;display:flex;align-items:center;gap:8px;margin-left:auto}
 
 .batch-wrap{position:relative;flex:0 1 264px;min-width:0}
 .batch{
@@ -270,6 +270,21 @@
   transition:transform .18s ease;
 }
 .avatar-btn:hover{transform:translateY(-1px)}
+.top-popover{
+  position:absolute;top:46px;right:0;z-index:80;width:250px;padding:14px;
+  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);
+  font-size:12px;line-height:1.5;box-shadow:0 12px 28px rgba(14,20,32,.1)
+}
+.top-popover[hidden]{display:none}
+.top-popover p{margin:8px 0 0;color:var(--muted)}
+.top-popover a{display:inline-block;margin-top:10px;border-bottom:1px solid var(--coral)}
+.top-popover button{
+  display:block;width:100%;margin-top:12px;padding:8px 10px;
+  border:1px solid var(--line);border-radius:var(--r-xs);
+  background:transparent;color:var(--ink);font:500 11px/1.4 var(--mono);
+  text-align:left;cursor:pointer
+}
+.top-popover button:hover{border-color:var(--coral-deep);color:var(--coral-deep)}
 
 /* ---------- page ---------- */
 .page{

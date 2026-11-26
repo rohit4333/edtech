@@ -21,13 +21,30 @@ const users = [
   user('usr_founder_001', 'Rohit Vishwakarma', 'founder@mathify.app', 'founder', {
     title: 'Founder, Mathify'
   }),
+  user('usr_rm_001', 'Meera Nair', 'rm@mathify.app', 'relationship_manager', {
+    title: 'Relationship manager',
+    monthlySalary: 35000,
+    /* Seeded demo account: founder validation and access grant are complete. */
+    accessGrantedAt: '2026-01-14T09:00:00.000Z',
+    accessGrantedBy: 'usr_founder_001',
+    accessGrantedByRole: 'founder'
+  }),
   user('usr_trainer_001', 'Ananya Rao', 'trainer@mathify.app', 'trainer', {
     title: 'Math trainer',
     payPerSession: 350,
     maxHoursPerDay: 6,
-    maxSessionsPerDay: 6
+    maxSessionsPerDay: 6,
+    /* Seeded demo account: KYC and founder approval are already complete. */
+    accessGrantedAt: '2026-01-13T09:00:00.000Z',
+    accessGrantedBy: 'usr_founder_001',
+    accessGrantedByRole: 'founder',
+    /* Founder-set and locked: a manager has nothing left to configure here. */
+    rateLockedAt: '2026-01-13T09:00:00.000Z',
+    rateSetBy: 'usr_founder_001',
+    rateSetByRole: 'founder'
   }),
   user('usr_student_001', 'Ishaan Verma', 'student@mathify.app', 'student', {
+    loginAliases: ['parent@mathify.app'],
     grade: '7',
     mastery: 72,
     streak: 12,
@@ -58,6 +75,7 @@ const users = [
   /* Demo parent for the 1-on-1 parent↔trainer thread. Only a child link is
      stored: no phone, social or other contact field exists on this account. */
   user('usr_parent_001', 'Priya Verma', 'parent@mathify.app', 'parent', {
+    loginAliases: ['student@mathify.app'],
     childId: 'usr_student_001'
   })
 ];
@@ -340,7 +358,43 @@ const studentCurriculum = [
    service-only record collections in migration 0006. No private document
    bytes are stored here — only object references and audit metadata. */
 const batches = [];
-const trainerOnboarding = [];
+const trainerOnboarding = [{
+  trainerId: 'usr_trainer_001',
+  status: 'submitted',
+  fullName: 'Ananya Rao',
+  dateOfBirth: '1994-06-12',
+  personal: {
+    contactNumber: '9876543210',
+    alternateContactNumber: '9876543211',
+    emailId: 'trainer@mathify.app',
+    address: 'Bengaluru',
+    fatherName: 'Rao Father',
+    motherName: 'Rao Mother',
+    spouseName: ''
+  },
+  bank: {
+    accountHolderName: 'Ananya Rao',
+    accountNumber: '1234567890',
+    ifscCode: 'HDFC0001234',
+    bankName: 'HDFC',
+    branch: 'Indiranagar'
+  },
+  aadhaar: {
+    number: '123456789012',
+    front: { id: 'demo_aadhaar_front', ref: 'onboarding/demo/aadhaar-front.png', fileName: 'aadhaar-front.png', mimeType: 'image/png' },
+    rear: { id: 'demo_aadhaar_rear', ref: 'onboarding/demo/aadhaar-rear.png', fileName: 'aadhaar-rear.png', mimeType: 'image/png' }
+  },
+  pan: {
+    number: 'ABCDE1234F',
+    front: { id: 'demo_pan_front', ref: 'onboarding/demo/pan-front.png', fileName: 'pan-front.png', mimeType: 'image/png' },
+    rear: { id: 'demo_pan_rear', ref: 'onboarding/demo/pan-rear.png', fileName: 'pan-rear.png', mimeType: 'image/png' }
+  },
+  signature: { image: { id: 'demo_signature', ref: 'onboarding/demo/signature.png', mimeType: 'image/png' } },
+  bankProof: { image: { id: 'demo_bank_proof', ref: 'onboarding/demo/bank-proof.png', mimeType: 'image/png' } },
+  additionalDocuments: [],
+  createdAt: '2026-01-12T09:00:00.000Z',
+  updatedAt: '2026-01-12T09:00:00.000Z'
+}];
 const trainerOnboardingCorrections = [];
 const trainerDocuments = [];
 const announcements = [];
@@ -394,6 +448,8 @@ module.exports = {
   announcements: announcements,
   announcementReads: announcementReads,
   practiceBatches: [],
+  founderPenaltyDecisions: [],
+  passwordResets: [],
   demoPassword: demoPassword
 
 };

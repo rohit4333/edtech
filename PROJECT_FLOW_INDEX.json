@@ -1,22 +1,23 @@
 {
-    "document":  "PROJECT_FLOW_FILE.md complete v4.0.0",
+    "document":  "PROJECT_FLOW_FILE.md complete v4.0.1",
     "generated":  "2026-11-26",
     "baselineCommit":  "3b9d597",
     "finalCommit":  "UNKNOWN_AT_AUTHORING_TIME",
-    "branch":  "feat/student-rtc-control-permission",
+    "branch":  "feat/student-rtc-control-perfection",
+    "priorPushedHead":  "6172801aae3db0d27de55beb54feeef6f22790b6",
     "counts":  {
-                   "trackedFiles":  215,
-                   "statusPorcelainAllLines":  19,
-                   "modifiedTrackedPaths":  18,
-                   "untrackedPaths":  1,
-                   "testFiles":  36,
-                   "scriptEntries":  36,
+                   "trackedFiles":  216,
+                   "statusPorcelainAllLines":  75,
+                   "modifiedTrackedPaths":  47,
+                   "untrackedPaths":  28,
+                   "testFiles":  42,
+                   "scriptEntries":  42,
                    "migrationFiles":  8,
-                   "routerDefinitions":  114,
+                   "routerDefinitions":  136,
                    "appHttpDefinitions":  4,
-                   "appGetPostUseLines":  32,
-                   "appUseLines":  28,
-                   "currentHttpDefinitions":  118,
+                   "appGetPostUseLines":  33,
+                   "appUseLines":  29,
+                   "currentHttpDefinitions":  140,
                    "priorRouterDefinitions":  95,
                    "priorHttpDefinitions":  99
                },
@@ -25,7 +26,8 @@
                           "[ev: git diff --stat, 2026-11-26]",
                           "[ev: node.exe -e scripts-entry audit, 2026-11-26]",
                           "[ev: npm.cmd test --prefix server, 2026-11-26]",
-                          "[ev: node.exe C:/Users/rohit/AppData/Local/Temp/opencode/tpff-routes.js; Select-String -Path server\\app.js -Pattern \u0027app\\.(get|post|put|patch|delete)\\(\u0027, 2026-11-26]"
+                          "[ev: node.exe C:/Users/rohit/AppData/Local/Temp/opencode/tpff-routes.js; Select-String -Path server\\app.js -Pattern \u0027app\\.(get|post|put|patch|delete)\\(\u0027, 2026-11-26]",
+                           "[ev: node.exe --check sweep over 50 modified/untracked .js/.mjs paths; npm.cmd test --prefix server (TEST_EXITCODE=0, 42 suites); node.exe C:/Users/rohit/AppData/Local/Temp/opencode/live-check.js (LIVE_HTTP_CHECK_PASS, checks=44), 2026-11-26]"
                       ],
     "v4Audit":  {
                     "mode":  "PATCH",
@@ -68,6 +70,24 @@
                                     "[src: TPFF_BLOCKERS.md:9-40]"
                                 ]
                 },
+    "v401Snapshot":  {
+                     "mode":  "PATCH",
+                     "branch":  "feat/student-rtc-control-perfection",
+                     "priorPushedHead":  "6172801aae3db0d27de55beb54feeef6f22790b6",
+                     "finalCommit":  "UNKNOWN_AT_AUTHORING_TIME",
+                     "suites":  "42/42, TEST_EXITCODE=0",
+                     "syntax":  "SYNTAX_FILES=50, SYNTAX_FAILURES=0",
+                     "localHttpContract":  "LIVE_HTTP_CHECK_PASS, checks=44",
+                     "scopedRmCredentialPower":  "Generated trainer-only temporary password after KYC plus grant; chosen value, other roles and ungranted accounts refused; password.temp_issued audited with acting RM",
+                     "notVerified":  "Interactive browser clicks, live Supabase mutations, live Workers AI, live Agora join/publish, migration apply",
+                     "sources":  [
+                                     "[src: E2E_TEST_LOG.md:111-127]",
+                                     "[src: PROJECT_FLOW_FILE.md:65,1067,1102-1108]",
+                                     "[src: server/services/founderAdminService.js:305-370]",
+                                     "[src: server/routes/admin.js:340-365]",
+                                     "[src: server/tests/relationshipManager.test.js:1]"
+                                 ]
+                 },
     "sections":  {
                      "10":  {
                                 "heading":  "KNOWN UNKNOWNS REGISTER",
@@ -104,9 +124,9 @@
                                                   "ev":  37
                                               },
                                 "tagCount":  332,
-                                "testInventoryRows":  36,
+                                "testInventoryRows":  42,
                                 "fileInventoryRows":  216,
-                                "untrackedFileRows":  1
+                                "untrackedFileRows":  28
                             }
                  },
     "unknowns":  [

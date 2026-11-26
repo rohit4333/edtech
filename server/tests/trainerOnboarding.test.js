@@ -52,7 +52,15 @@ async function main() {
   const storedFile = await documents.read('trainer-onboarding-unit', image.id);
   ok(storedFile.buffer.length > 0, 'private document bytes remain retrievable server-side');
 
-  const trainerId = 'usr_trainer_001';
+  const trainerId = 'usr_trainer_kyc_test';
+  await db.insertUser({
+    id: trainerId,
+    name: 'Ananya Rao',
+    email: 'kyc.trainer@mathify.test',
+    role: 'trainer',
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  });
   const input = {
     identity: { fullName: 'Ananya Rao', dateOfBirth: '1994-06-12' },
     personal: {
@@ -72,8 +80,8 @@ async function main() {
       branch: 'Indiranagar'
     },
     documents: {
-      aadhaar: { number: '123456789012', image: image },
-      pan: { number: 'ABCDE1234F', image: image },
+      aadhaar: { number: '123456789012', front: image, rear: image },
+      pan: { number: 'ABCDE1234F', front: image, rear: image },
       signature: { image: image },
       bankProof: { image: image },
       additionalDocuments: [{ label: 'Address proof', number: 'ADR-991', image: image }]
@@ -83,7 +91,11 @@ async function main() {
   const created = await onboarding.submit(trainerId, input);
   equal(created.status, 'submitted', 'KYC submission is recorded');
   equal(created.documents.aadhaar.number, '123456789012', 'trainer sees their full Aadhaar number');
+  ok(created.documents.aadhaar.front && created.documents.aadhaar.rear,
+    'Aadhaar keeps both front and rear image references');
   equal(created.documents.pan.number, 'ABCDE1234F', 'trainer sees their full PAN number');
+  ok(created.documents.pan.front && created.documents.pan.rear,
+    'PAN keeps both front and rear image references');
   equal(created.masked, false, 'trainer view is not masked');
   await rejects(onboarding.submit(trainerId, input), 'KYC_LOCKED');
 
@@ -111,6 +123,7 @@ async function main() {
   equal(history[0].fields[0], 'fullName', 'audit records which locked field changed');
 
   const studentId = 'usr_student_001';
+  const rosterTrainerId = 'usr_trainer_001';
   const batch = await batches.ensureForStudent(studentId);
   ok(/^TB-[0-9A-F]{6}$/.test(batch.code), 'enrollment creates a shareable batch ID');
   const start = iso(1, 11);
@@ -126,16 +139,16 @@ async function main() {
   };
   let allotted;
   try {
-    allotted = await batches.allot(batch.id, trainerId, [{ startsAt: start, title: 'Batch ratios' }]);
+    allotted = await batches.allot(batch.id, rosterTrainerId, [{ startsAt: start, title: 'Batch ratios' }]);
   } finally {
     db.insertSession = originalInsertSession;
   }
-  equal(allotted.trainerId, trainerId, 'allotment assigns exactly one trainer');
-  const sessions = db.listSessionsForUser({ id: trainerId, role: 'trainer' });
+  equal(allotted.trainerId, rosterTrainerId, 'allotment assigns exactly one trainer');
+  const sessions = db.listSessionsForUser({ id: rosterTrainerId, role: 'trainer' });
   const booked = sessions.find(function (session) { return session.batchId === batch.id; });
   ok(Boolean(booked), 'allotment books the trainer calendar');
   equal(booked.studentId, studentId, 'booked session keeps the 1-on-1 student link');
-  const trainerBatch = (await batches.forTrainer(trainerId))[0];
+  const trainerBatch = (await batches.forTrainer(rosterTrainerId))[0];
   equal(trainerBatch.studentName, 'Ishaan Verma', 'trainer roster shows the student name');
   equal(trainerBatch.code, batch.code, 'trainer roster shows the batch ID');
   equal(trainerBatch.studentId, undefined, 'trainer roster payload withholds the student id');

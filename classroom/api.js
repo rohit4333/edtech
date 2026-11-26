@@ -211,6 +211,14 @@
         body: { shared: shared !== false }
       });
     },
+    /* Full-screen board ink. Only the verified trainer or founder may write;
+       the student receives the same scrubbed event stream as any participant. */
+    pushBoardInk: function (sessionId, payload) {
+      return request(sessionPath(sessionId) + '/board/ink', {
+        method: 'POST',
+        body: payload || {}
+      });
+    },
     awardBadge: function (sessionId, badgeId) {
       return request(sessionPath(sessionId) + '/badges', {
         method: 'POST',

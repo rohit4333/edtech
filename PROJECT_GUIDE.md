@@ -200,7 +200,7 @@ signed-in dashboard → Express /api/chat/{trainer-support,student-doubt}
   → founder-auditable metadata row (service role, no image bytes)
 ```
 
-- Trainer Desk is limited to trainer/founder and answers payout (₹300–₹400 per session), 48-hour notice, fines and bonuses; severe complaints go to `founder@mathify.app`.
+- Trainer Desk is limited to trainer/founder and answers payout (₹300–₹400 per completed 1-on-1 session; exact pay is per the trainer contract/offer letter or as stated during onboarding), 48-hour notice, fines and bonuses; severe complaints go to `founder@mathify.app`.
 - Study Buddy is limited to student/founder and accepts text plus one PNG/JPG/WEBP/GIF image up to 1 MB; it offers Socratic hints and visual analogies, never a final answer.
 - Images exist only in memory while the model call runs. No name, contact detail, session id, answer key, hint or trainer note enters a prompt.
 
@@ -375,7 +375,9 @@ Browser smoke should show: mic/camera on by default, Join disabled until **Check
 
 Live status: one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Live image chat is gated until the user accepts the Meta model agreement; no Supabase call, Razorpay payment, Twilio SMS, Agora webhook proof, live migration or deployed-Worker browser chat is claimed. Evidence is in `TEST_REPORT.md`.
 
-v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Final local validation is 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
+v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Historical final validation was 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed in that pass. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
+
+v4.0.1 status [U+2026-11-26]: branch `feat/student-rtc-control-perfection` adds founder/RM people administration, manager audit, public registration, password change/reset, the founder-managed RM lock, the teaching board and a scoped RM credential recovery (generated trainer-only temporary password after KYC plus grant). Local validation is 42/42 suites, a 50-file syntax sweep with zero failures, a 44-check HTTP contract run and a clean diff check apart from CRLF warnings. No browser click-through, live provider, migration apply or live Supabase mutation is claimed. [ev: `npm.cmd test --prefix server`; `node.exe live-check.js`, 2026-11-26]
 
 ### Production checklist
 
@@ -404,7 +406,7 @@ v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-0
 | Chat audit tables | `0004_ai_chat_logs.sql` reviewed but not applied; founder-only `app_metadata` RLS, no anon/authenticated grants. No live Supabase write. |
 | Mastery self-practice | Service-only answer keys and local batch contracts; live Supabase persistence not exercised because credentials were absent. |
 | Founder-managed trainer access/pay/allotment | **Approved roadmap.** Founder will grant trainer access, fix each trainer's pay rate and own class allotment. Today founder settings are runtime drafts with read-only money fields, and trainer slots are trainer-managed. |
-| Student self-registration, payment and self-set credentials | **Approved roadmap.** Students will register, pay and choose their own login ID and password. Today demo identities are server-seeded; Razorpay pack crediting exists but self-registration and student-chosen credentials are not built. |
+| Paid self-registration | **Approved roadmap.** Free account creation now accepts student/trainer/RM with a chosen password; a student is `active` immediately and staff stay `pending` until KYC plus founder/RM grant. Payment and pack purchase are not built; Razorpay pack crediting exists only for authenticated orders. A relationship manager may issue a generated temporary password to an already granted trainer but cannot choose or replace credentials. [ev: local HTTP contract check, 2026-11-26] |
 | Parent ↔ trainer chat with notifications | **Built.** Private 1-on-1 human thread for the linked parent and assigned trainer, with per-recipient unread counts, mark-read, regex DLP and founder-only masked flags. No new SQL migration; records stay in service-only `mathify_records`. |
 
 A stale external review claimed the project lacks a schema, tests, CI, realtime wiring and uses DeepSeek. None of that matches the current code; it appears to describe an older Phase-1 snapshot. Do not use it as a to-do list.

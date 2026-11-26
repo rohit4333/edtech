@@ -23,23 +23,23 @@
     </div>
 
     <nav class="nav" aria-label="Parent space">
-      <a href="#inbox" class="active" data-nav aria-current="page">
+      <a href="/parent/inbox" class="active" data-nav aria-current="page">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m4.5 6.5 7.5 6 7.5-6"/></svg>
         <span>Inbox</span>
       </a>
-      <a href="#child" data-nav>
+      <a href="/parent/child" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19c.7-3 2.9-4.6 6.5-4.6s5.8 1.6 6.5 4.6"/></svg>
         <span>My child</span>
       </a>
-      <a href="#sessions" data-nav>
+      <a href="/parent/sessions" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/></svg>
         <span>1-on-1 sessions</span>
       </a>
-      <a href="#guidance" data-nav>
+      <a href="/parent/guidance" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5 20 19H4z"/><path d="M12 9.3v4.2M12 16.6v.1"/></svg>
         <span>Chat rules</span>
       </a>
-      <a href="#policies" data-nav>
+      <a href="/parent/policies" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8.2h7M8.5 12h7M8.5 15.8h4"/></svg>
         <span>Policies</span>
       </a>
@@ -71,7 +71,13 @@
       <span class="top-title mono">Private inbox · 1-on-1</span>
       <div class="right">
         <span class="top-thread" id="topThread">Ishaan Verma <span aria-hidden="true">↔</span> Ananya Rao</span>
-        <span class="avatar avatar-btn" aria-hidden="true">PV</span>
+        <button class="avatar avatar-btn" id="profileBtn" aria-label="PV — open profile" aria-expanded="false">PV</button>
+        <div class="top-popover" id="profilePanel" hidden>
+          <span class="mono" id="profileName">Parent</span>
+          <p>Private 1-on-1 thread</p>
+          <a href="../privacy.html">Privacy &amp; data</a>
+          <button type="button" id="logoutBtn">Log out</button>
+        </div>
       </div>
     </header>
 
@@ -148,5 +154,6 @@
 </div>
 
 <script src="app.js" defer></script>
+<script src="../shared/sectionRouter.js" defer></script>
 </body>
 </html>

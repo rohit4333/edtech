@@ -94,6 +94,10 @@ async function main() {
   ok(core.TRAINER_FACTS.indexOf('₹300–₹400') !== -1 &&
     policy.payout.rateRange[0] === 300 && policy.payout.rateRange[1] === 400,
   'trainer facts match the authoritative payout range');
+  ok(core.TRAINER_FACTS.indexOf('contract') !== -1 &&
+    core.TRAINER_FACTS.indexOf('offer letter') !== -1 &&
+    core.TRAINER_FACTS.indexOf('onboarding') !== -1,
+  'trainer facts defer exact pay to the contract, offer letter or onboarding');
   ok(core.TRAINER_FACTS.indexOf('48 hours') !== -1 &&
     policy.payout.fineRules.noticeHours === 48 && policy.attendance.leaveNoticeHours === 48,
   'trainer facts match the 48-hour notice rule');

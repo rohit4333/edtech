@@ -8,6 +8,7 @@
    or student from being booked into two sessions at the same time. */
 const crypto = require('crypto');
 const db = require('../db');
+const trainerAccess = require('./trainerAccessService');
 
 const DEFAULT_DURATION_MINUTES = 50;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
@@ -127,53 +128,61 @@ function allot(batchRef, trainerId, slots) {
         if (!trainer || trainer.role !== 'trainer') {
           throw fail('BATCH_TRAINER_NOT_FOUND', 'Trainer not found.', 404);
         }
-        const list = Array.isArray(slots) ? slots : [];
-        if (!list.length) {
-          throw fail('BATCH_SLOT_REQUIRED', 'At least one scheduled slot is required to allot a batch.', 422);
-        }
+        /* Only a founder-approved trainer may receive an enrolled class. This
+           keeps batch names, student identities and session slots hidden until
+           KYC review and the founder's access grant are complete. */
+        return Promise.resolve(trainerAccess.evaluate(trainer)).then(function (access) {
+          if (!access.granted) {
+            throw fail('TRAINER_ACCESS_PENDING', access.reason, 403);
+          }
+          const list = Array.isArray(slots) ? slots : [];
+          if (!list.length) {
+            throw fail('BATCH_SLOT_REQUIRED', 'At least one scheduled slot is required to allot a batch.', 422);
+          }
 
-        return openIntervals(trainerId, batch.studentId).then(function (booked) {
-          /* Validate every slot before writing any of them. A conflict in the
-             last slot must never leave earlier sessions half-booked. */
-          const candidates = list.map(function (slot) {
-            const startsAt = text(slot.startsAt || slot.startedAt || slot.scheduledAt);
-            const start = Date.parse(startsAt);
-            if (!startsAt || !Number.isFinite(start)) {
-              throw fail('BATCH_SLOT_INVALID', 'Each slot needs a valid startsAt timestamp.', 422);
+          return openIntervals(trainerId, batch.studentId).then(function (booked) {
+            /* Validate every slot before writing any of them. A conflict in the
+               last slot must never leave earlier sessions half-booked. */
+            const candidates = list.map(function (slot) {
+              const startsAt = text(slot.startsAt || slot.startedAt || slot.scheduledAt);
+              const start = Date.parse(startsAt);
+              if (!startsAt || !Number.isFinite(start)) {
+                throw fail('BATCH_SLOT_INVALID', 'Each slot needs a valid startsAt timestamp.', 422);
+              }
+              const minutes = Number(slot.durationMinutes);
+              const durationMinutes = Number.isFinite(minutes) && minutes > 0
+                ? minutes : DEFAULT_DURATION_MINUTES;
+              return {
+                startsAt: startsAt,
+                title: text(slot.title) || 'Batch ' + batch.code + ' · 1-on-1 maths',
+                durationMinutes: durationMinutes,
+                key: batch.id + '|' + startsAt,
+                start: start,
+                end: start + durationMinutes * 60000
+              };
+            });
+
+            const repeated = candidates.find(function (candidate) {
+              return booked.some(function (row) { return row.key === candidate.key; });
+            });
+            if (repeated) {
+              /* A retried founder request returns the original booking instead of
+                 creating a second identical session. */
+              return finish(batch, trainer, trainerId, [], booked, false);
             }
-            const minutes = Number(slot.durationMinutes);
-            const durationMinutes = Number.isFinite(minutes) && minutes > 0
-              ? minutes : DEFAULT_DURATION_MINUTES;
-            return {
-              startsAt: startsAt,
-              title: text(slot.title) || 'Batch ' + batch.code + ' · 1-on-1 maths',
-              durationMinutes: durationMinutes,
-              key: batch.id + '|' + startsAt,
-              start: start,
-              end: start + durationMinutes * 60000
-            };
-          });
 
-          const repeated = candidates.find(function (candidate) {
-            return booked.some(function (row) { return row.key === candidate.key; });
+            const conflict = candidates.find(function (candidate) {
+              return booked.some(function (row) { return overlaps(row, candidate); });
+            });
+            if (conflict) {
+              throw fail(
+                'BATCH_SLOT_CONFLICT',
+                'The trainer or student already has a session at ' + conflict.startsAt + '.',
+                409
+              );
+            }
+            return finish(batch, trainer, trainerId, candidates, booked, true);
           });
-          if (repeated) {
-            /* A retried founder request returns the original booking instead of
-               creating a second identical session. */
-            return finish(batch, trainer, trainerId, [], booked, false);
-          }
-
-          const conflict = candidates.find(function (candidate) {
-            return booked.some(function (row) { return overlaps(row, candidate); });
-          });
-          if (conflict) {
-            throw fail(
-              'BATCH_SLOT_CONFLICT',
-              'The trainer or student already has a session at ' + conflict.startsAt + '.',
-              409
-            );
-          }
-          return finish(batch, trainer, trainerId, candidates, booked, true);
         });
       });
     });

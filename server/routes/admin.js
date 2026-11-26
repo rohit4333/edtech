@@ -6,13 +6,61 @@ const batchService = require('../services/batchService');
 const trainerOnboarding = require('../services/trainerOnboardingService');
 const trainerDocuments = require('../services/trainerDocumentService');
 const announcementService = require('../services/announcementService');
+const founderAdmin = require('../services/founderAdminService');
+const adminAudit = require('../services/adminAuditService');
 
 const router = express.Router();
+
+/* A relationship manager shares the founder's operating view. Owner-only
+   controls (settings, base rate, salary, credential choice and access
+   revocation) are enforced here; the single scoped exception is a generated
+   temporary password for an already granted trainer. */
+const adminRole = auth.requireRole('founder', 'relationship_manager');
+const founderRole = auth.requireRole('founder');
+
+function adminError(res, error) {
+  return res.status(error.status || 422).json({
+    error: error.code || 'ADMIN_ACTION_FAILED',
+    message: error.message || 'Admin action could not be completed.'
+  });
+}
+
+/* One line per action, written before the response. The founder dashboard
+   reads this file so every manager decision is reflected back with an actor. */
+function audit(req, action, targetType, targetId, targetName, detail) {
+  try {
+    adminAudit.record({
+      actorRole: req.user.role,
+      actorId: req.user.id,
+      actorName: req.user.name,
+      action: action,
+      targetType: targetType,
+      targetId: targetId,
+      targetName: targetName,
+      detail: detail
+    });
+  } catch (error) {
+    console.error('Admin audit write failed:', error.message);
+  }
+}
+
+router.get(
+  '/audit',
+  auth.requireAuth,
+  founderRole,
+  function (req, res) {
+    res.set('Cache-Control', 'no-store');
+    return res.json(adminAudit.list({
+      role: req.query.role || null,
+      limit: req.query.limit || 100
+    }));
+  }
+);
 
 router.get(
   '/support-escalations',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res) {
     return res.json({
       escalations: db.listSupportEscalations(req.query.limit || 50)
@@ -26,7 +74,7 @@ router.get(
 router.get(
   '/settings',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  founderRole,
   function (req, res) {
     return res.json(founderSettings.view());
   }
@@ -35,7 +83,7 @@ router.get(
 router.patch(
   '/settings',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  founderRole,
   function (req, res) {
     const body = req.body || {};
     try {
@@ -53,7 +101,7 @@ router.patch(
 router.delete(
   '/settings',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  founderRole,
   function (req, res) {
     return res.json(founderSettings.reset());
   }
@@ -64,11 +112,17 @@ router.delete(
 router.post(
   '/batches/:batchId/allot',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     const body = req.body || {};
     batchService.allot(req.params.batchId, body.trainerId, body.slots)
-      .then(function (batch) { return res.json({ batch: batch }); })
+      .then(function (batch) {
+        audit(req, 'batch.allotted', 'batch', batch && batch.id, batch && batch.title, {
+          batchId: req.params.batchId,
+          trainerId: body.trainerId
+        });
+        return res.json({ batch: batch });
+      })
       .catch(next);
   }
 );
@@ -76,7 +130,7 @@ router.post(
 router.get(
   '/batches',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     Promise.resolve(db.listBatches())
       .then(function (batches) {
@@ -91,7 +145,7 @@ router.get(
 router.get(
   '/trainer-onboarding',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     Promise.resolve(db.listTrainerOnboarding())
       .then(function (rows) {
@@ -109,7 +163,7 @@ router.get(
 router.patch(
   '/trainer-onboarding/:trainerId/locked',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     trainerOnboarding.correct(req.params.trainerId, req.body, req.user.id)
       .then(function (result) { return res.json(result); })
@@ -120,7 +174,7 @@ router.patch(
 router.get(
   '/trainer-onboarding/corrections',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     trainerOnboarding.history(null, { reveal: req.query.reveal === 'true' })
       .then(function (rows) { return res.json({ corrections: rows }); })
@@ -131,7 +185,7 @@ router.get(
 router.get(
   '/trainer-onboarding/:trainerId/documents/:documentId',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     trainerDocuments.read(req.params.trainerId, req.params.documentId)
       .then(function (file) {
@@ -147,7 +201,7 @@ router.get(
 router.get(
   '/announcements/recipients',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     Promise.resolve(db.listUsers()).then(function (users) {
       return res.json({
@@ -164,7 +218,7 @@ router.get(
 router.get(
   '/announcements',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res, next) {
     announcementService.founderList()
       .then(function (announcements) { return res.json({ announcements: announcements }); })
@@ -175,7 +229,7 @@ router.get(
 router.post(
   '/announcements',
   auth.requireAuth,
-  auth.requireRole('founder'),
+  adminRole,
   function (req, res) {
     announcementService.create(req.user.id, req.body || {})
       .then(function (announcement) { return res.json({ announcement: announcement }); })
@@ -185,6 +239,194 @@ router.post(
           message: error.message || 'Announcement could not be sent.'
         });
       });
+  }
+);
+
+/* ---------------------------------------------------- people administration
+   One route family serves the trainer, relationship-manager and student desks.
+   Both the founder and founder-authorised relationship managers may use it;
+   owner-only controls are refused before the service is reached. */
+router.get(
+  '/people/:role',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.list(req.params.role))
+      .then(function (people) { return res.json({ people: people }); })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.get(
+  '/people/:id/penalties',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.listPenalties(req.params.id))
+      .then(function (penalties) { return res.json({ penalties: penalties }); })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.get(
+  '/people/:role/:id',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.detail(req.params.role, req.params.id, req.user.role))
+      .then(function (person) { return res.json(person); })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.post(
+  '/people',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.create(req.body && req.body.role, req.body, req.user.role))
+      .then(function (result) {
+        audit(req, 'account.created', result.person.role, result.person.id, result.person.name, {
+          role: result.person.role,
+          temporaryPasswordIssued: Boolean(result.temporaryPassword)
+        });
+        return res.json(result);
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.patch(
+  '/people/:id/access',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    const status = String((req.body && req.body.status) || '').toLowerCase();
+    if (status === 'suspended' && req.user.role === 'relationship_manager') {
+      return adminError(res, {
+        code: 'RM_REVOKE_DENIED',
+        message: 'A relationship manager can grant access but cannot revoke it.',
+        status: 403
+      });
+    }
+    Promise.resolve(founderAdmin.setAccess(req.params.id, req.body && req.body.status, req.user.id, req.user.role))
+      .then(function (person) {
+        audit(req, status === 'suspended' ? 'access.revoked' : 'access.granted',
+          person.role, person.id, person.name, { status: status });
+        return res.json({ person: person });
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+/* Founder validation step: approve submitted KYC, open the desk and issue the
+   first password in one action. The UI shows the value once with a copy button. */
+router.post(
+  '/people/:id/grant',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.grantAccess(req.params.id, req.user.id, req.user.role))
+      .then(function (result) {
+        audit(req, 'access.granted_after_kyc', result.person.role, result.person.id, result.person.name, {
+          role: result.person.role,
+          generatedPasswordIssued: true
+        });
+        return res.json(result);
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+/* Credential choice, replacement and founder-set pay are owner-only. A manager
+   may only ask for the generated temporary trainer password; the service
+   refuses a chosen value, another target role or an ungranted account. Both
+   outcomes are written to the founder-visible audit with the acting role. */
+router.patch(
+  '/people/:id/password',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    const isManager = req.user.role === 'relationship_manager';
+    Promise.resolve(founderAdmin.setPassword(req.params.id, req.body, req.user.id, req.user.role))
+      .then(function (result) {
+        const generated = Boolean(result.temporaryPassword);
+        audit(req, isManager ? 'password.temp_issued' : 'password.granted',
+          result.person.role, result.person.id, result.person.name, {
+            role: result.person.role,
+            generated: generated,
+            temporaryPasswordIssued: generated
+          });
+        return res.json(result);
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.patch(
+  '/people/:id/base-rate',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.setBaseRate(req.params.id, req.body && req.body.rate, req.user.id, req.user.role))
+      .then(function (person) {
+        audit(req, 'base_rate.set', 'trainer', person.id, person.name, {
+          rate: person.payPerSession,
+          locked: Boolean(person.rateLockedAt)
+        });
+        return res.json({ person: person });
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.patch(
+  '/people/:id/monthly-salary',
+  auth.requireAuth,
+  founderRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.setMonthlySalary(req.params.id, req.body && req.body.amount, req.user.role))
+      .then(function (person) {
+        audit(req, 'salary.set', person.role, person.id, person.name, {
+          amount: person.monthlySalary
+        });
+        return res.json({ person: person });
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.post(
+  '/people/:id/penalties',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.addPenalty(req.params.id, req.body, req.user.id, req.user.role))
+      .then(function (penalty) {
+        audit(req, 'penalty.added', 'trainer', penalty.trainerId, penalty.trainerName, {
+          amount: penalty.amount,
+          reason: penalty.reason
+        });
+        return res.json({ penalty: penalty });
+      })
+      .catch(function (error) { return adminError(res, error); });
+  }
+);
+
+router.patch(
+  '/penalties/:penaltyId/revoke',
+  auth.requireAuth,
+  adminRole,
+  function (req, res) {
+    Promise.resolve(founderAdmin.revokePenalty(req.params.penaltyId, req.user.id, req.user.role))
+      .then(function (penalty) {
+        audit(req, 'penalty.revoked', 'trainer', penalty.trainerId, penalty.trainerName, {
+          trainerId: penalty.trainerId,
+          reason: penalty.reason
+        });
+        return res.json({ penalty: penalty });
+      })
+      .catch(function (error) { return adminError(res, error); });
   }
 );
 
