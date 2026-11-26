@@ -1,5 +1,15 @@
-/* Phase 1 data access. Only this file knows the store is in memory. */
+/* Data access facade. Mock mode keeps the in-memory store; live mode delegates
+   every operation to the Supabase adapter without changing any route. */
+const config = require('../config');
 const store = require('./mock');
+
+const sessionEvents = [];
+let liveAdapter = null;
+function live() {
+  if (config.databaseMode !== 'supabase') return null;
+  if (!liveAdapter) liveAdapter = require('./supabase');
+  return liveAdapter;
+}
 
 function copy(value) {
   return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -268,12 +278,48 @@ function recordContactRequest(request) {
   return copy(request);
 }
 
-module.exports = {
+/* Additional operations used by scheduling, reminders and the event outbox. */
+function listAllSessions() {
+  return copy(store.sessions);
+}
+
+function appendSessionEvent(sessionId, event, payload) {
+  const message = {
+    seq: sessionEvents.length + 1,
+    at: new Date().toISOString(),
+    channel: 'mathify:session:' + sessionId,
+    event: String(event),
+    payload: copy(payload) || {}
+  };
+  sessionEvents.push(message);
+  if (sessionEvents.length > 500) sessionEvents.shift();
+  return message;
+}
+
+function recentSessionEvents(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit || 20)));
+  return copy(sessionEvents.slice(-size));
+}
+
+function listSessionEvents(sessionId, since, limit) {
+  const cursor = Number(since) || 0;
+  const size = Math.max(1, Math.min(200, Number(limit) || 50));
+  return copy(sessionEvents.filter(function (message) {
+    return message.channel === 'mathify:session:' + sessionId && message.seq > cursor;
+  }).slice(-size));
+}
+
+function seedDemo() {
+  return { users: store.users.length, sessions: store.sessions.length, mode: 'mock' };
+}
+
+const mockApi = {
   recordContactRequest,
   findUserByEmail,
   findUserById,
   listUsers,
   listSessionsForUser,
+  listAllSessions,
   findSession,
   updateSession,
   updateUser,
@@ -304,5 +350,32 @@ module.exports = {
   savePresenceSnapshot,
   listTrainerSlots,
   insertTrainerSlot,
-  deleteTrainerSlot
+  deleteTrainerSlot,
+  appendSessionEvent,
+  recentSessionEvents,
+  listSessionEvents,
+  seedDemo
 };
+
+/* Every call goes through this facade so a route never knows which store is
+   active. Live mode must implement the operation; it never silently falls
+   back to mock data, which could leak demo identities into production. */
+const api = {};
+Object.keys(mockApi).forEach(function (name) {
+  api[name] = function () {
+    const active = live();
+    const implementation = active && typeof active[name] === 'function' ? active[name] : mockApi[name];
+    return implementation.apply(null, arguments);
+  };
+});
+api.insertSession = function () {
+  const adapter = live();
+  if (adapter && typeof adapter.insertSession === 'function') {
+    return adapter.insertSession.apply(null, arguments);
+  }
+  const error = new Error('Session creation requires DATABASE_MODE=supabase.');
+  error.code = 'DATABASE_MODE_NOT_LIVE';
+  throw error;
+};
+
+module.exports = api;

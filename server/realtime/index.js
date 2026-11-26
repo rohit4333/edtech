@@ -1,43 +1,35 @@
-/* Phase 2 will replace publish() with Supabase Realtime channel sends.
-   Phase 1 keeps a local log so routes can be tested without external services.
-   Every message carries a monotonic seq so browsers can resume without missing
-   or replaying events. */
-const mode = process.env.REALTIME_MODE || 'mock';
-const log = [];
-let sequence = 0;
+/* Session event transport.
+ *
+ * In mock mode events live in a bounded local outbox. In live mode the same
+ * API writes to the Supabase-backed event table from 0003_live_persistence.sql,
+ * so events survive restarts and every API instance reads the same stream.
+ * The browser bridge polls the scrubbed /api/sessions/:id/events endpoint and
+ * never receives answer keys, hints or trainer-only fields.
+ */
+const db = require('../db');
+
+const mode = process.env.DATABASE_MODE === 'supabase' ? 'supabase' : 'mock';
 
 function channelName(sessionId) {
   return 'mathify:session:' + sessionId;
 }
 
 function publish(sessionId, event, payload) {
-  sequence += 1;
-  const message = {
-    seq: sequence,
-    at: new Date().toISOString(),
-    channel: channelName(sessionId),
-    event,
-    payload: payload || {}
-  };
-  log.push(message);
-  if (log.length > 200) log.shift();
-  console.log('[realtime:' + mode + ']', message.channel, message.event);
-  return Promise.resolve(message);
+  return Promise.resolve(db.appendSessionEvent(sessionId, event, payload || {}))
+    .then(function (message) {
+      console.log('[realtime:' + mode + ']', message.channel, message.event);
+      return message;
+    });
 }
 
 function recent(limit) {
-  return log.slice(-Math.max(1, Number(limit || 20)));
+  return db.recentSessionEvents(limit);
 }
 
 /* Session-scoped view used by the browser bridge. `since` is an exclusive
    cursor; callers persist the last seq they handled. */
 function forSession(sessionId, since, limit) {
-  const channel = channelName(sessionId);
-  const cursor = Number(since) || 0;
-  const max = Math.max(1, Math.min(Number(limit) || 50, 200));
-  return log.filter(function (message) {
-    return message.channel === channel && message.seq > cursor;
-  }).slice(-max);
+  return db.listSessionEvents(sessionId, since, limit);
 }
 
 module.exports = { mode, channelName, publish, recent, forSession };

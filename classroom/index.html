@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="panels.css">
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="session.css">
+<link rel="stylesheet" href="agora.css">
 </head>
 <body>
 
@@ -315,26 +316,33 @@
         </div>
       </section>
 
-      <!-- ======================================= floating camera picture -->
+      <!-- ==================== floating camera picture (live 1:1 call surface) -->
       <section class="call-pip" id="callPip" aria-label="Floating video call, two people">
         <header class="pip-head" id="pipHead" title="Drag to move the video window">
           <span class="pip-grip" aria-hidden="true">⋮⋮</span>
           <span class="pip-title">Video · 2</span>
-          <span class="pip-live"><i aria-hidden="true"></i>Live</span>
+          <span class="pip-live" id="pipLive" data-state="off"><i aria-hidden="true"></i><span id="pipLiveWord">Off</span></span>
           <button class="pip-collapse" id="pipCollapse" type="button" aria-expanded="true" aria-label="Collapse video window" title="Collapse">−</button>
         </header>
         <div class="pip-body">
           <div class="dock-tile dock-trainer cam-on" title="You · Ananya Rao">
             <span class="dock-initials" aria-hidden="true">AR</span>
+            <div class="pip-video" data-agora-video="local" aria-hidden="true"></div>
             <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b>You</b>
           </div>
           <div class="dock-tile dock-student" title="Ishaan Verma">
             <span class="dock-initials" aria-hidden="true">IV</span>
+            <div class="pip-video" data-agora-video="remote" aria-hidden="true"></div>
             <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
-            <b>Ishaan</b>
+            <b data-agora-peer-label>Ishaan</b>
           </div>
         </div>
+        <div class="pip-call-bar" role="group" aria-label="Live call controls">
+          <button class="pip-call-btn is-primary" id="agoraJoinBtn" type="button">Join</button>
+          <button class="pip-call-btn" id="agoraLeaveBtn" type="button" disabled>Leave</button>
+        </div>
+        <p class="pip-call-status" id="agoraCallStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
         <button class="pip-resize" id="pipResize" type="button" aria-label="Resize video window" title="Drag to resize"></button>
       </section>
 
@@ -739,6 +747,7 @@
 <p class="visually-hidden" id="chatStatus" aria-live="polite"></p>
 
 <script src="api.js"></script>
+<script src="agora.js"></script>
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>

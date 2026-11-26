@@ -5,6 +5,8 @@ const cors = require('cors');
 const path = require('path');
 const auth = require('./middleware/auth');
 const realtime = require('./realtime');
+const logger = require('./services/logger');
+const rateLimit = require('./middleware/rateLimit');
 
 const authRoutes = require('./routes/auth');
 const trainerRoutes = require('./routes/trainer');
@@ -19,6 +21,16 @@ const leaveRoutes = require('./routes/leaves');
 const contactRoutes = require('./routes/contact');
 
 const app = express();
+
+/* Public write endpoints get a coarse in-process throttle on top of their
+   signature checks. Login throttling lives in routes/auth.js. */
+const webhookThrottle = rateLimit.createLimiter({ name: 'webhook', windowMs: 60000, max: 120 });
+const contactThrottle = rateLimit.createLimiter({ name: 'contact', windowMs: 60000, max: 20 });
+app.use('/api/razorpay/webhook', webhookThrottle);
+app.use('/api/agora/webhook', webhookThrottle);
+app.use('/api/webhooks/recording', webhookThrottle);
+app.use('/api/contact', contactThrottle);
+
 app.use(cors({
   origin: config.corsOrigins()
 }));
@@ -112,7 +124,17 @@ app.use(function (req, res) {
 });
 
 app.use(function (error, req, res, next) {
-  console.error(error);
+  logger.error('http', {
+    event: 'unhandled_error',
+    method: req.method,
+    path: req.path,
+    message: error && error.message ? error.message : 'unknown'
+  });
+  logger.alert('Unhandled Mathify API error', {
+    method: req.method,
+    path: req.path,
+    message: error && error.message ? error.message : 'unknown'
+  }).catch(function () { /* alert delivery is best effort */ });
   return res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Something went wrong.' });
 });
 

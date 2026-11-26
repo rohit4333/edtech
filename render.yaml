@@ -1,0 +1,58 @@
+# Render Blueprint for the Mathify API.
+# Set secrets in the Render dashboard, never in the repo.
+services:
+  - type: web
+    name: mathify-api
+    runtime: node
+    buildCommand: "npm install --prefix server"
+    startCommand: "npm start"
+    plan: free
+    envVars:
+      - key: PORT
+        value: "4000"
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: DATABASE_MODE
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_MODEL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: AGORA_APP_ID
+        sync: false
+      - key: AGORA_APP_CERTIFICATE
+        sync: false
+      - key: AGORA_WEBHOOK_SECRET
+        sync: false
+      - key: RECORDING_WEBHOOK_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: OBSERVABILITY_WEBHOOK_URL
+        sync: false
+      - key: REMINDERS_ENABLED
+        value: "false"
+      - key: REMINDER_CHECK_MS
+        value: "300000"
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WEBHOOK_URL
+        sync: false

@@ -354,6 +354,44 @@
     });
   });
 
+  /* Recording chapters jump straight to a timestamp. The server supplies the
+     current recording URL and chapter list; static labels stay usable offline. */
+  var recordingLink = null;
+  var chapterHost = document.getElementById('recChapters');
+  function chapterUrl(seconds) {
+    var base = recordingLink || 'https://recordings.mathify.local/ses_math_000';
+    return base + (base.indexOf('?') === -1 ? '?' : '&') + 't=' + Math.max(0, Number(seconds) || 0);
+  }
+  function openChapter(seconds) {
+    window.location.href = chapterUrl(seconds);
+  }
+  document.querySelectorAll('[data-chapter-seconds]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      openChapter(button.getAttribute('data-chapter-seconds'));
+    });
+  });
+  if (api && chapterHost && typeof api.request === 'function') {
+    api.request('/student/dashboard').then(function (data) {
+      var recordings = data && data.dashboard && data.dashboard.recordings;
+      if (!Array.isArray(recordings) || !recordings.length) return;
+      var recording = recordings[0];
+      recordingLink = recording.url || recordingLink;
+      if (!Array.isArray(recording.chapters) || !recording.chapters.length) return;
+      chapterHost.innerHTML = '';
+      recording.chapters.forEach(function (chapter) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rec-link';
+        button.setAttribute('data-chapter-seconds', String(chapter.seconds || 0));
+        var minutes = Math.floor((chapter.seconds || 0) / 60);
+        var remainder = String((chapter.seconds || 0) % 60).padStart(2, '0');
+        button.textContent = chapter.label + ' · ' + minutes + ':' + remainder;
+        button.addEventListener('click', function () { openChapter(chapter.seconds); });
+        chapterHost.appendChild(button);
+      });
+    }).catch(function () { /* offline preview keeps the static chapters */ });
+  }
+
   /* ---------- search, notifications, profile ---------- */
   var searchInput = document.getElementById('searchInput');
   var searchHits = [];

@@ -296,6 +296,9 @@
     }
     if (recapStatus) recapStatus.textContent = 'Session · ' + (savedText || 'saved');
     if (recapSaved) recapSaved.textContent = savedText || 'Saved just now';
+    /* A 1:1 call does not stay open after the session is closed. */
+    var endedCall = window.mathifyClassroomAgora;
+    if (endedCall && typeof endedCall.leave === 'function') endedCall.leave();
   }
 
   function showRecapSheet() {
@@ -399,6 +402,8 @@
     if (use) use.setAttribute('href', id);
   }
 
+  function callModule() { return window.mathifyClassroomAgora; }
+
   var micOn = true;
   micBtn && micBtn.addEventListener('click', function () {
     micOn = !micOn;
@@ -416,6 +421,8 @@
       dockMic.classList.toggle('is-muted', !micOn);
       setIcon(dockMic, micOn ? '#i-mic' : '#i-mic-off');
     });
+    var micCall = callModule();
+    if (micCall && typeof micCall.setMicEnabled === 'function') micCall.setMicEnabled(micOn);
     toast(micOn ? 'Microphone on.' : 'Microphone muted.');
   });
 
@@ -431,6 +438,8 @@
     $$('.dock-trainer').forEach(function (dockTile) {
       dockTile.classList.toggle('cam-on', camOn);
     });
+    var camCall = callModule();
+    if (camCall && typeof camCall.setCameraEnabled === 'function') camCall.setCameraEnabled(camOn);
     toast(camOn ? 'Camera on.' : 'Camera off.');
   });
 
@@ -824,6 +833,19 @@
 
   /* -------------------------------------------------------------------- init */
   loadSessionContext();
+
+  /* Live 1:1 call. The existing floating PiP is the call surface; the SDK is
+     loaded only on Join, and channel/uid/token always come from the server. */
+  var classroomCall = window.mathifyClassroomAgora;
+  if (classroomCall && typeof classroomCall.init === 'function') {
+    classroomCall.init({
+      sessionId: sessionId,
+      statusNode: $('#agoraCallStatus'),
+      micEnabled: micOn,
+      cameraEnabled: camOn
+    });
+  }
+
   setTool('pen');
   setColor('ink');
   setPage(1);
@@ -961,6 +983,7 @@
     currentPage: function () { return page; },
     sessionId: sessionId,
     api: classroomApi,
+    agora: window.mathifyClassroomAgora,
     studentName: function () { return studentName; },
     setStudentName: applyStudentName
   };

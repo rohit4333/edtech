@@ -211,10 +211,71 @@ async function notifyParentRecap(info) {
   };
 }
 
+async function sendSessionReminder(info) {
+  const data = info || {};
+  const recipient = data.recipient || {};
+  const session = data.session || {};
+  const when = clean(data.when || 'upcoming', 20);
+  const lines = [
+    '*MATHIFY SESSION REMINDER · ' + when.toUpperCase() + '*',
+    '*Student:* ' + clean(recipient.name || 'Student', 120),
+    '*Session:* ' + clean(session.id || '—', 80),
+    '*Title:* ' + clean(session.title || '1-on-1 maths session', 160),
+    '*Starts:* ' + clean(session.startsAt || session.scheduledAt || 'See dashboard', 80),
+    '*Contact:* ' + clean(recipient.email || recipient.phone || 'On file', 160)
+  ].join('\n');
+
+  const slack = (async function () {
+    if (!process.env.SLACK_WEBHOOK_URL) return { sent: false, reason: 'not_configured' };
+    try {
+      const response = await fetch(process.env.SLACK_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: lines })
+      });
+      if (!response.ok) throw new Error('Slack returned HTTP ' + response.status);
+      return { sent: true };
+    } catch (error) {
+      console.error('Slack reminder failed:', error.message);
+      return { sent: false, reason: error.message };
+    }
+  })();
+
+  const email = (async function () {
+    if (!recipient.email || !process.env.NODEMAILER_EMAIL || !process.env.NODEMAILER_PASSWORD) {
+      return { sent: false, reason: 'not_configured' };
+    }
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        service: process.env.NODEMAILER_SERVICE || 'gmail',
+        auth: { user: process.env.NODEMAILER_EMAIL, pass: process.env.NODEMAILER_PASSWORD }
+      });
+      await transporter.sendMail({
+        from: '"Mathify Sessions" <' + process.env.NODEMAILER_EMAIL + '>',
+        to: clean(recipient.email, 160),
+        subject: 'Mathify session reminder · ' + when,
+        text: lines.replace(/\*/g, '')
+      });
+      return { sent: true };
+    } catch (error) {
+      console.error('Email reminder failed:', error.message);
+      return { sent: false, reason: error.message };
+    }
+  })();
+
+  const results = await Promise.allSettled([slack, email]);
+  return {
+    slack: results[0].status === 'fulfilled' ? results[0].value : { sent: false, reason: 'failed' },
+    email: results[1].status === 'fulfilled' ? results[1].value : { sent: false, reason: 'failed' }
+  };
+}
+
 module.exports = {
   sendSlackAlert,
   sendEmailAlert,
   notifyHumanHandoff,
   notifyContactRequest,
-  notifyParentRecap
+  notifyParentRecap,
+  sendSessionReminder
 };

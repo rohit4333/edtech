@@ -8,6 +8,7 @@ const realtime = require('../realtime');
 const payoutService = require('../services/payoutService');
 const quizGenerator = require('../quiz/generator');
 const quizTemplates = require('../quiz/templates');
+const moderation = require('../quiz/moderation');
 const cloudflareService = require('../services/cloudflareService');
 const aiCurriculumService = require('../services/aiCurriculumService');
 const masteryGating = require('../services/masteryGating');
@@ -430,7 +431,15 @@ router.post('/sessions/:sessionId/quiz/drafts/:draftId/approve', auth.loadSessio
   const index = session.quiz.drafts.findIndex(function (draft) { return draft.id === req.params.draftId; });
   if (index === -1) return res.status(404).json({ error: 'DRAFT_NOT_FOUND' });
 
-  const draft = session.quiz.drafts.splice(index, 1)[0];
+  const draft = session.quiz.drafts[index];
+  const review = moderation.moderateDraft(draft);
+  if (!review.ok) {
+    return res.status(422).json({
+      error: 'DRAFT_REJECTED',
+      message: 'Draft failed content moderation: ' + review.reasons.join('; ')
+    });
+  }
+  session.quiz.drafts.splice(index, 1);
   const approved = Object.assign({}, draft, {
     id: 'q_' + Date.now(),
     source: 'ai_draft',
@@ -478,7 +487,7 @@ router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async functi
       }
     );
 
-    const drafts = generated.map(function (question, index) {
+    const candidates = generated.map(function (question, index) {
       return Object.assign({}, question, {
         id: 'draft_' + Date.now() + '_' + index + '_' + Math.random().toString(36).slice(2, 7),
         note: question.source === 'fallback'
@@ -486,18 +495,24 @@ router.post('/sessions/:sessionId/quiz/generate', auth.loadSession, async functi
           : 'AI draft awaiting trainer approval.'
       });
     });
+    const drafts = candidates.filter(function (draft) {
+      return moderation.moderateDraft(draft).ok;
+    });
+    const rejected = candidates.length - drafts.length;
 
     session.quiz.drafts = (session.quiz.drafts || []).concat(drafts);
     const updated = db.updateSession(session.id, function () { return session; });
 
     realtime.publish(updated.id, 'quiz.draft.generated', {
       count: drafts.length,
+      rejected: rejected,
       difficultyLevel: drafts[0] ? drafts[0].difficultyLevel : null
     });
 
     return res.status(201).json({
       session: serializers.toTrainerSession(updated),
       drafts: drafts,
+      rejected: rejected,
       generationMode: drafts[0] ? drafts[0].source : null
     });
   } catch (failure) {

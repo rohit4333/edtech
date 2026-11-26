@@ -222,7 +222,12 @@ const sessions = [
     recording: {
       url: 'https://recordings.mathify.local/ses_math_000',
       durationSeconds: 2880,
-      readyAt: '2026-11-22T17:22:00.000Z'
+      readyAt: '2026-11-22T17:22:00.000Z',
+      chapters: [
+        { label: 'Warm-up', seconds: 0 },
+        { label: 'Bar model walkthrough', seconds: 420 },
+        { label: 'Quiz review', seconds: 930 }
+      ]
     },
     rtc: {
       provider: 'agora',

@@ -1,0 +1,31 @@
+# Local containers for reviewing the Mathify API.
+# The API currently defaults to in-memory mock mode (DATABASE_MODE=mock), so it
+# boots without Postgres or Redis. Switching to DATABASE_MODE=supabase requires
+# Supabase REST credentials (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and
+# SUPABASE_SECRET_KEY) in server/.env; the plain Postgres service below is for
+# schema/review only and does not replace those credentials.
+services:
+  api:
+    build: .
+    ports:
+      - "4000:4000"
+    env_file:
+      - server/.env
+    environment:
+      NODE_ENV: development
+      PORT: "4000"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mathify
+      POSTGRES_USER: mathify
+      POSTGRES_PASSWORD: mathify_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  postgres_data:

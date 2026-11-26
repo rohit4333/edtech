@@ -7,7 +7,9 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "test": "npm --prefix server test",
-    "migrate": "npm --prefix server run migrate"
+    "migrate": "npm --prefix server run migrate",
+    "seed": "npm --prefix server run seed",
+    "reminders": "node server/jobs/reminders.js"
   },
   "engines": {
     "node": ">=18"

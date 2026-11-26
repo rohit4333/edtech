@@ -1,8 +1,8 @@
-# Mathify server — Phase 1
+# Mathify server
 
-Role-based API behind the trainer dashboard, student dashboard and live 1:1 session.
+Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-Phase 1 delivers **auth + RBAC + session APIs** against an in-memory mock store. The data shape matches `db/schema.sql`, so the swap to Supabase/PostgreSQL is mechanical. No real Agora token, Realtime channel or recording webhook is active yet; their seams are included.
+This codebase state (`feat/mathify-phase-3-curriculum`, being merged to `main`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter and a DB-backed session event outbox. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration has been applied.
 
 ## Run
 
@@ -12,6 +12,8 @@ npm install
 copy .env.example .env
 npm start
 ```
+
+From the repository root the same actions are `npm start`, `npm run dev`, `npm test` and `npm run migrate`.
 
 Health check:
 
@@ -95,7 +97,9 @@ The trainer balance is 8 session leaves per calendar month. A student-initiated 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/sessions/:sessionId/state` | Role-aware live state and permissions |
-| `POST` | `/api/sessions/:sessionId/rtc-token` | Agora-shaped demo token |
+| `GET` | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads |
+| `POST` | `/api/sessions/:sessionId/chat` | Participant-only chat; sender identity from the JWT |
+| `POST` | `/api/sessions/:sessionId/rtc-token` | Real server-signed Agora RTC/RTM token; channel, uid and peer derived server-side |
 | `POST` | `/api/sessions/:sessionId/end` | Trainer-only end + recap + recording link |
 
 ### Quizzer state flow
@@ -116,6 +120,8 @@ draft → answering → awaiting_reveal → revealed → answering → … → c
 Realtime events:
 
 `quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`.
+
+In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` wires `/state`, `/events` and a live Agora call panel whose channel, uid and token always come from the server.
 
 #### Quiz Wacom overlay over Supabase Realtime
 
@@ -141,6 +147,12 @@ cross-role identity builder, and `public.session_participant_names` is the only
 browser-readable Supabase view for session partners. Face, voice, names, role and
 whiteboard/Wacom activity are the only shared signals.
 
+### Public
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/contact` | Validated, rate-limited booking request; stored and forwarded to configured Slack/email channels, never `mailto:` |
+
 ### Policy / webhooks
 
 | Method | Path | Purpose |
@@ -156,11 +168,13 @@ whiteboard/Wacom activity are the only shared signals.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/agora/token?channelName=…&uid=…` | Publisher RTC token + RTM token, 1-hour expiry |
+| `GET` | `/api/agora/token?sessionId=…` | Real server-signed RTC + RTM tokens, 1-hour expiry; browser-supplied channel/uid/role are ignored |
 | `POST` | `/api/agora/recording/start` | Start Agora Cloud Recording or mock recording |
 | `POST` | `/api/agora/recording/stop` | Stop a started recording by `recordingId` |
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
+
+`services/agoraTokenService.js` owns channel, uid and peer identity and fails closed with `AGORA_NOT_CONFIGURED` until `AGORA_APP_ID` and `AGORA_APP_CERTIFICATE` are set.
 
 `services/cloudflareService.js` generates curriculum in two Workers AI calls:
 `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner blocks;
@@ -246,10 +260,17 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 - 38-day non-refundable packs
 - 24–48-hour reschedule window
 
-## Next phases
+## Testing
 
-1. Swap `db/index.js` to Supabase/PostgreSQL using `schema.sql`.
-2. Replace `realtime/index.js` with Supabase Realtime channels.
-3. Replace the mock `realtime/agora.js` seam with the `/api/agora/token` service everywhere.
-4. Wire the existing classroom frontend to `/state`, `/rtc-token` and the realtime channel.
-5. Mirror the mock `recordings`, `razorpay_orders`, `payments`, `packs`, `whatsapp_messages` and `support_escalations` stores onto `schema.sql`.
+Twenty-two Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js` and `apiSmoke.test.js`.
+
+## Migrations
+
+`db/schema.sql` is the source of truth. `migrations/0001_baseline.sql`, `0002_student_curriculum.sql` and `0003_live_persistence.sql` are reviewed with `npm run migrate` (dry run, SHA-256 checksums, no DB contact). Applying requires both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`; see `migrations/README.md`. No live migration has been applied.
+
+## Remaining work
+
+1. Finish the partial LMS surface and mirror the remaining mock stores onto normalized relations.
+2. Add founder-editable policy/mastery/trainer-policy settings screens and planner designer v1.
+3. Rotate exposed credentials and make one live Cloudflare Workers AI call before launch.
+4. OCR PDF pages 5–17 before quoting them verbatim.

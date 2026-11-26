@@ -1,0 +1,68 @@
+/* ==========================================================================
+   MATHIFY — classroom live 1:1 call
+   Mounts Agora video into the existing floating PiP. Paper & ink tokens only;
+   no new panel, no gradients, no heavy elevation.
+   ========================================================================== */
+
+.call-pip .pip-video{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  overflow:hidden;
+  background:var(--ink);
+  pointer-events:none;
+}
+.call-pip .pip-video video{
+  display:block;
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover;
+}
+.call-pip .dock-tile.has-video .dock-initials{display:none}
+.call-pip .dock-tile b,
+.call-pip .dock-tile .dock-mic{z-index:2}
+
+.call-pip .pip-call-bar{
+  flex:none;
+  display:flex;
+  gap:4px;
+  padding:5px 6px 3px;
+  border-top:1px solid rgba(253,250,243,.1);
+}
+.call-pip .pip-call-btn{
+  flex:1;
+  min-width:0;
+  padding:4px 6px;
+  border:1px solid rgba(253,250,243,.2);
+  border-radius:var(--r-xs);
+  background:transparent;
+  color:rgba(253,250,243,.72);
+  font:500 8px/1.2 var(--sans);
+  letter-spacing:.02em;
+  cursor:pointer;
+}
+.call-pip .pip-call-btn:hover:not(:disabled){
+  border-color:rgba(253,250,243,.5);
+  color:var(--paper);
+}
+.call-pip .pip-call-btn:disabled{opacity:.4;cursor:default}
+.call-pip .pip-call-btn.is-primary{border-color:var(--coral);color:#FFB49E}
+
+.call-pip .pip-call-status{
+  flex:none;
+  min-height:0;
+  padding:0 7px 6px;
+  overflow:hidden;
+  color:rgba(253,250,243,.55);
+  font:400 8px/1.35 var(--sans);
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.call-pip.is-collapsed .pip-call-status{display:none}
+
+.call-pip .pip-live[data-state="off"]{color:rgba(253,250,243,.45)}
+.call-pip .pip-live[data-state="off"] i{
+  background:rgba(253,250,243,.4);
+  animation:none;
+}
+.call-pip .pip-live[data-state="pending"]{color:#FFD9C8}

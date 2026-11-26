@@ -689,7 +689,15 @@ function toStudentDashboard(user, sessions) {
         title: session.title,
         url: session.recording.url,
         durationSeconds: session.recording.durationSeconds,
-        readyAt: session.recording.readyAt
+        readyAt: session.recording.readyAt,
+        chapters: Array.isArray(session.recording.chapters)
+          ? session.recording.chapters.map(function (chapter) {
+            return {
+              label: String(chapter.label || 'Chapter').slice(0, 120),
+              seconds: Math.max(0, Number(chapter.seconds) || 0)
+            };
+          })
+          : []
       };
     });
 

@@ -150,6 +150,12 @@
       return request(sessionPath(sessionId) + '/events?since=' + encodeURIComponent(since || 0))
         .then(function (data) { return data.events || []; });
     },
+    /* Live 1:1 call identity. No body is sent: channel, uid and role are
+       derived by the server from the verified session, never by this page. */
+    getRtcToken: function (sessionId) {
+      return request(sessionPath(sessionId) + '/rtc-token', { method: 'POST' })
+        .then(function (data) { return data && data.rtc; });
+    },
     sendChat: function (sessionId, text) {
       return request(sessionPath(sessionId) + '/chat', {
         method: 'POST',

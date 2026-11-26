@@ -2,11 +2,15 @@
 
 Ordered, human-reviewable SQL. These files are **not** managed by the Supabase
 CLI (it is not installed in this workspace); `server/migrate.js` is the runner.
+They are part of the `feat/mathify-phase-3-curriculum` live-readiness work being
+merged to `main`; the older Phase 1 snapshot has neither this runner nor the SQL
+plan.
 
 | File | Purpose |
 | --- | --- |
 | `0001_baseline.sql` | Full baseline schema, copied from `server/db/schema.sql`. RLS, safe student views, column-level answer-key lockdown and explicit grants. Safe to re-run. |
 | `0002_student_curriculum.sql` | Adds `public.student_curriculum` — academic fields only (board, grade, language, school chapter). RLS from `app_metadata`, column-level Data API grant, no contact or identity columns. |
+| `0003_live_persistence.sql` | Adds service-only `public.mathify_records` and the `public.mathify_session_events` outbox used by the live adapter. No anon/authenticated write access; participant reads are scoped by session and role checks use `app_metadata`. |
 
 ## Review before applying
 
@@ -15,6 +19,8 @@ cd server
 npm run migrate                 # dry run: ordered list + SHA-256 checksums, no DB contact
 npm run migrate -- --apply      # blocked unless both guards are present
 ```
+
+From the repository root, `npm run migrate` forwards here.
 
 Apply requires **both**:
 
@@ -30,6 +36,11 @@ process.
 to the Data API automatically, so the academic columns are explicitly granted to
 `authenticated` and everything else is revoked. All role checks read
 `auth.jwt()->'app_metadata'->>'role'`; `user_metadata` is never trusted.
+
+`server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
+check the transaction wrapper, checksum drift guards, service-only grants and
+outbox shape. They are part of 22 Node suites run with plain `node` + `assert`
+(no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`.
 
 **No live migration has been applied.** Review the SQL above before setting the
 confirmation variable.

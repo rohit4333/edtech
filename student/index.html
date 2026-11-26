@@ -686,6 +686,8 @@
   }
   .rec-link svg{width:11px;height:11px}
   .rec-link:hover{color:var(--coral);border-color:var(--coral)}
+  .rec-chapters{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .rec-chapters .rec-link{background:none;border:0;border-bottom:1px solid var(--ink);padding:0 0 1px;cursor:pointer;font-family:inherit}
   .rec-none{display:none}
   [data-state="empty"] .rec-real{display:none}
   [data-state="empty"] .rec-none{display:block}
@@ -1443,6 +1445,11 @@
               <p class="meta">Module 4 · Lesson 12 · with Ananya Rao</p>
               <span class="prog"><span class="line"><i></i></span><span>62%</span></span>
               <span class="rec-link">Resume at 12:04 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></span>
+              <span class="rec-chapters" id="recChapters">
+                <button type="button" class="rec-link" data-chapter-seconds="0">Warm-up</button>
+                <button type="button" class="rec-link" data-chapter-seconds="420">Bar model walkthrough</button>
+                <button type="button" class="rec-link" data-chapter-seconds="930">Jump to Quiz Review at 15:30</button>
+              </span>
             </span>
             <span class="rec-none">
               <span class="mono">Continue watching</span>
