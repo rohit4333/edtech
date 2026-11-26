@@ -4,6 +4,8 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 > **Branch note:** the live-readiness work is on `main`; this branch, `feat/student-rtc-control-permission`, adds trainer-controlled student media access, a two-sided connection gate and reward trophies. The commands below assume this codebase state, not the older Phase 1 snapshot.
 
+> **Full project guide:** [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) explains what, why, how, where and when for every part of Mathify.
+
 ## Surfaces
 
 | Path | What it is |
