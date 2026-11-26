@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`main` plus `feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, Cloudflare Workers AI chat assistants, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration, Supabase call, payment or SMS is claimed; see `TEST_REPORT.md` and the 2026-11-26 local evidence in `E2E_TEST_LOG.md` §11.
+This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit**, new structured feedback uses **freelm**, and transactional email uses **Resend**; the earlier Agora and Cloudflare Workers AI routes remain for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 44 suites pass in deterministic mock mode; live provider calls are not claimed. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
 ## Run
 
@@ -113,7 +113,9 @@ Text is scanned by `services/parentChatDlp.js` before any write or delivery. Ema
 | `GET` | `/api/sessions/:sessionId/state` | Role-aware live state and permissions |
 | `GET` | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads |
 | `POST` | `/api/sessions/:sessionId/chat` | Participant-only chat; sender identity from the JWT |
-| `POST` | `/api/sessions/:sessionId/rtc-token` | Real server-signed Agora RTC/RTM token; channel, uid and peer derived server-side; blocked with `NETWORK_BELOW_MINIMUM` until both people pass the connection check |
+| `POST` | `/api/sessions/:sessionId/rtc-token` | Legacy server-signed Agora RTC/RTM token; retained for compatibility/tests |
+| `POST` | `/api/livekit/token` | Canonical LiveKit token: reads `roomName`/`participantName` from `req.body`, verifies them against the session, and returns JWT + WebSocket URL |
+| `POST` | `/api/get-token` | Alias of `/api/livekit/token`, used by the classroom/trainer adapters |
 | `POST` | `/api/sessions/:sessionId/media-permission` | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking |
 | `POST` | `/api/sessions/:sessionId/network-check` | Verified participant reports their own speed; role comes from the JWT, never the body |
 | `POST` | `/api/sessions/:sessionId/badges` | Trainer/founder only: award a fixed-catalog badge; label and points come from policy |
@@ -150,7 +152,7 @@ Realtime events:
 
 Student Control is the single trainer surface for `/media-permission`, `/media-state`, `/reaction-permission`, badge awards, board sharing, quiz controls and session end. Celebrations are server-owned through `/celebrate`; clients may only send a trigger id and allowlisted preference ids. A server quiz launch also opens the student quiz view so celebrations stay suppressed in both tabs.
 
-In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` wires `/state`, `/events` and a live Agora call panel whose channel, uid and token always come from the server.
+In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` and `trainer/` wire `/state`, `/events` and a LiveKit call panel whose room, identity and token always come from the server.
 
 #### Quiz Wacom overlay over Supabase Realtime
 
@@ -196,19 +198,22 @@ whiteboard/Wacom activity are the only shared signals.
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
 | `GET` | `/api/public/config` | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
 
-### Cloudflare Workers AI, Agora, Razorpay
+### LiveKit, freelm, Resend, Razorpay
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/agora/token?sessionId=…` | Real server-signed RTC + RTM tokens, 1-hour expiry; browser-supplied channel/uid/role are ignored |
-| `POST` | `/api/agora/recording/start` | Start Agora Cloud Recording or mock recording |
-| `POST` | `/api/agora/recording/stop` | Stop a started recording by `recordingId` |
+| `POST` | `/api/livekit/token`, `/api/get-token` | LiveKit JWT + WebSocket URL; server-owned room/identity, subscribe-only observer grants; `NETWORK_BELOW_MINIMUM` until both sides pass |
+| `POST` | `/api/generate-feedback` | Structured feedback via `freelm` (`system`/`user` array); mock mode returns deterministically |
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
 
-`services/agoraTokenService.js` owns channel, uid and peer identity and fails closed with `AGORA_NOT_CONFIGURED` until `AGORA_APP_ID` and `AGORA_APP_CERTIFICATE` are set.
+`services/livekitTokenService.js` lazily loads `livekit-server-sdk`, derives the room as `mathify-<sessionId>` and the identity from the JWT role/id, converts `https://` to `wss://`, and awaits `toJwt()`. A browser-supplied `roomName` may only confirm the derived room; any other value returns `403 ROOM_MISMATCH`. `ALLOW_DIRECT_ROOM_TOKENS=true` enables a dev-only literal-room path and is disabled in production/Supabase mode. Optional `LIVEKIT_AGENT_NAME` dispatch is trainer-initiated, deduplicated with `listDispatch`, and never runs in mock mode or for observers.
 
-`services/cloudflareService.js` generates curriculum in two Workers AI calls:
+`services/freeLmService.js` calls `freelm.FreeLLM.fromEnv({ timeout: FREELM_TIMEOUT_SECONDS })` (seconds) with `FREELM_MODEL` (default `chat:fast`), sanitizes transcript PII, and returns `{ text, provider, mode }`. Mock mode returns before any provider client is created. `services/emailService.js` wraps Resend `emails.send()` and exposes `sendSessionEmail(studentEmail, sessionLink)`.
+
+Legacy routes `GET /api/agora/token`, `POST /api/agora/recording/start|stop` and `/api/agora/webhook` are retained for compatibility/tests. LiveKit recording needs LiveKit Egress; the trainer adapter currently fails closed with an honest status.
+
+Legacy curriculum path — `services/cloudflareService.js` generates curriculum in two Workers AI calls:
 `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner blocks;
 `generateQuizTiers(context, plannerOutput)` returns `level_1`, `level_2`, `level_3` and
 `advance_criteria`. Each call renders its own system prompt, parses strict JSON (with fences and
@@ -216,7 +221,7 @@ trailing commas tolerated), and validates the shape with Zod. A deterministic tr
 fallback is used when Workers AI is unavailable. `generateQuizDraft(topic, difficulty)` remains as
 a backward-compatible wrapper for the adaptive quiz generator.
 
-`services/cloudflareAiService.js` is the single provider client. It handles bearer auth, timeouts,
+Legacy provider client — `services/cloudflareAiService.js` handles bearer auth, timeouts,
 both Workers AI response envelopes and JSON cleanup, and appends the strict JSON-only instruction to
 every system prompt. `services/cloudflareClient.js` remains as a compatibility alias.
 
@@ -234,13 +239,13 @@ Those allowlists strip `trainerInstructions`, `misconception_watch`, sketch trai
 keys, explanations and withheld hints. A hint only appears when the server passes an explicit
 `grantedHints` map; correctness remains post-reveal only.
 
-`services/whatsappAiService.js` uses the same Workers AI client. It queries the mock Supabase adapter for
+Legacy WhatsApp path — `services/whatsappAiService.js` uses the same Workers AI client. It queries the mock Supabase adapter for
 quiz scores, attendance and session balance, then returns either a parent-safe reply, `ACTION: RESCHEDULE_REQUEST`
 or `HUMAN_HANDOFF_REQUIRED`. The webhook logs handoffs, publishes a `support.handoff_required` event and fires
 Slack/email alerts through `services/notificationService.js`. Twilio signature verification activates when both
 `TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are set.
 
-### AI chat Worker
+### AI chat Worker (legacy)
 
 `worker-core.mjs` is pure logic (no fetch or platform globals) shared by the deployed Worker and the local Express bridge. `worker.js` verifies the Express-issued HMAC token, applies allowlisted CORS and a per-minute rate limit, then calls Workers AI through the `[ai]` binding with a Cloudflare REST fallback. `wrangler.toml` declares the models; deploy secrets with `wrangler secret put` (`AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`). No Cloudflare or Supabase secret is exposed to the browser.
 
@@ -248,22 +253,30 @@ Slack/email alerts through `services/notificationService.js`. Twilio signature v
 
 Reply guards reject contact data, social links, trainer-only material and student final-answer phrasing. Image bytes are decoded in memory only and never logged or stored. Audit rows go to `trainer_support_logs` / `student_doubt_logs` through the service-role key only.
 
-**Live status:** text call PASS (HTTP `200`, about `453 ms`); requested 34b vision FAIL (HTTP `400 No route for that URI`, not available on this account); fallback vision BLOCKED (HTTP `403 Model Agreement`). **Live image chat is gated until the user explicitly accepts the one-time Meta model agreement.** No deployed-Worker browser end-to-end chat success is claimed. Model slugs stay literal in REST paths, LLaVA `No route` now triggers the fallback, and JSON parsing extracts the first balanced object from chatty output.
+**Historical legacy-provider status:** text call PASS (HTTP `200`, about `453 ms`); requested 34b vision FAIL (HTTP `400 No route for that URI`, not available on this account); fallback vision BLOCKED (HTTP `403 Model Agreement`). Legacy live image chat was gated until the one-time Meta model agreement was accepted. No deployed-Worker browser end-to-end chat success is claimed. Model slugs stay literal in REST paths, LLaVA `No route` triggers the fallback, and JSON parsing extracts the first balanced object from chatty output.
 
 ### Mastery self-practice
 
 `services/masteryPracticeService.js` builds batches of exactly 10 questions, ramps difficulty 15% per batch (inside the requested 10–20% range) and caps a topic at 80 questions (8 batches); after that the student gets an encouraging rest message. There is no cross-topic cap. Answer keys stay in service-only `practice_batches` records; the browser receives prompts, options and a private correctness boolean only — no hint, explanation or trainer-only field. Batch ids are checked against the signed-in student.
 
-Add these env vars in `.env`:
-`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_MODEL`, `CLOUDFLARE_TIMEOUT_MS`,
-`CLOUDFLARE_VISION_MODEL`, `CLOUDFLARE_VISION_FALLBACK_MODEL`, `CHAT_WORKER_URL` (optional deployed Worker base URL),
-`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
-`RAZORPAY_WEBHOOK_SECRET`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`,
-`AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`,
+Add these env vars in `.env` (`.env.example` lists every supported name):
+
+Required in production: `AUTH_SECRET`, `CORS_ORIGIN`, `DATABASE_MODE=supabase`,
 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server-only),
-`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
-`TWILIO_WHATSAPP_NUMBER`, `TWILIO_WEBHOOK_URL`, `WHATSAPP_DEMO_PARENT_PHONE`,
-`SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`, `NODEMAILER_EMAIL`, `NODEMAILER_PASSWORD`.
+`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
+at least one freelm provider key (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`,
+`NVIDIA_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `ZAI_API_KEY`, `COHERE_API_KEY`,
+`KILO_API_KEY`) or `FREELM_KEYLESS=1`, plus `FREELM_MODEL`, `FREELM_TIMEOUT_SECONDS`,
+`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `TWILIO_AUTH_TOKEN`,
+`TWILIO_WEBHOOK_URL`.
+
+Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape hatch),
+`RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,
+`TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`,
+`NODEMAILER_EMAIL`, `NODEMAILER_PASSWORD`.
+
+Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`,
+`CLOUDFLARE_*`. They are retained only for the compatibility routes and local tests.
 
 ### Live session creation
 
@@ -314,7 +327,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Twenty-seven Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`. Its live evidence table records the only external calls made: one Workers AI text call and one local Agora token generation. No Supabase, payment, SMS or migration call occurred during the recorded chat checks.
+Forty-four Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. `TEST_REPORT.md` at the repository root has the historical full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`; its live evidence table records the old provider round (one Workers AI text call and one local Agora token generation), not current LiveKit/freelm/Resend validation. No live provider calls are claimed for the current stack.
 
 ## Migrations
 
@@ -324,5 +337,5 @@ Twenty-seven Node suites run with plain `node` + `assert` via `npm test` (from t
 
 1. Finish the partial LMS surface (publish and pack import) and mirror the remaining mock stores onto normalized relations.
 2. Decide whether founder settings drafts should become a reviewed persistence source; planner exports remain local authoring output until then.
-3. Rotate exposed credentials and verify production env validation; Workers AI text is verified, but the one-time Meta model agreement must be accepted explicitly before live image chat works. No Supabase call, payment, SMS or live migration was made in the recorded checks.
+3. Rotate exposed credentials, including LiveKit, and verify production env validation; historical Workers AI text evidence is documentary. Live LiveKit signing, freelm calls, Resend delivery, Supabase writes, payments, SMS and migration apply still need explicit live verification.
 4. OCR PDF pages 5–17 before quoting them verbatim.

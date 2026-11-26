@@ -2,7 +2,7 @@
 
 **What this is:** the single reference for what Mathify is, why it is built the way it is, where every piece lives, when each flow runs, and how to run/verify/ship it.
 
-**Status:** `feat/student-rtc-control-permission` working tree based on `9838d0a` (26 November 2026). Local/mock mode by default; no live database migration and no live paid transaction have been performed. Live checks recorded: Workers AI text PASS, Agora local token generation PASS, requested vision model unavailable and fallback blocked by the Meta model agreement, Supabase/Razorpay/Twilio/migration SKIPPED. The private parent ↔ trainer chat is now built with regex DLP and founder-only flags; it reuses the existing service-only record store and adds no SQL migration. See `TEST_REPORT.md`.
+**Status:** `feat/student-rtc-control-perfection` (27 November 2026). Local/mock mode by default; 44 deterministic suites pass. Live 1:1 video uses LiveKit, structured feedback uses freelm, and transactional email uses Resend. The older Agora/Workers AI live checks referenced below remain historical evidence in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`; they are not claims about the current provider stack. The private parent ↔ trainer chat is built with regex DLP and founder-only flags in the existing service-only record store. Production boot now requires LiveKit and freelm credentials, not Agora or Cloudflare.
 
 **Companion documents:** [`README.md`](README.md) (quick start), [`server/README.md`](server/README.md) (API reference), [`TEST_REPORT.md`](TEST_REPORT.md) (verification evidence), [`server/migrations/README.md`](server/migrations/README.md) (SQL review procedure).
 
@@ -14,12 +14,12 @@
 | --- | --- |
 | Product | Private **1-on-1** live maths tutoring. No group classes. |
 | Stack | Vanilla HTML/CSS/JS surfaces + Node/Express API. No framework or build step. |
-| AI | **Unified Cloudflare Workers AI stack.** `@cf/meta/llama-3.1-8b-instruct` handles every text task (curriculum/quiz drafts, Trainer Desk, Study Buddy, WhatsApp intent and progress replies); `@cf/llava-hf/llava-v1.6b-34b` handles vision. DeepSeek/OpenAI mentions in the newer brief are legacy and are not used. |
-| Video | Agora RTC/RTM, server-signed tokens. One channel, two publishers. |
+| AI | Structured feedback uses **freelm** (`FreeLLM.fromEnv()`, `chat:fast`) behind `/api/generate-feedback`. The legacy Cloudflare Workers AI stack (`@cf/meta/llama-3.1-8b-instruct` text, `@cf/llava-hf/llava-v1.6b-34b` vision) still serves curriculum/quiz drafts and the two dashboard chats. DeepSeek/OpenAI mentions remain historical and unused. |
+| Video | **LiveKit** rooms with server-signed JWTs. One room, one trainer publisher + one student publisher; founder observers are subscribe-only. Legacy Agora routes are retained for compatibility/tests only. |
 | Database | In-memory mock by default; completed Supabase service-role adapter for `DATABASE_MODE=supabase`. |
 | Realtime | DB-backed session event outbox + scrubbed cursor polling; Supabase Realtime for canvas strokes. |
 | Payments | Razorpay, 12 sessions / 540 SAR; credit only on verified `payment.captured`. |
-| Tests | 27 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. `npm audit --omit=dev` reports 0 vulnerabilities. |
+| Tests | 44 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. `npm install livekit-server-sdk freelm resend` adds the three new dependencies; `npm audit` reported 0 vulnerabilities. |
 | Migrations | 4 reviewed SQL files (including chat audit logs), dry-run by default; apply needs explicit confirmation. |
 | Live readiness | Code-complete; blocked on credential rotation and migration approval. |
 
@@ -63,10 +63,10 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - JWT auth with strict founder/trainer/student roles; production fails closed on weak config.
 - Session state, planner/page updates, attendance, presence heartbeat, chat, board sharing.
 - Quizzer state machine with AI drafts, trainer approval, server-held answer keys and reveal gating.
-- Server-signed Agora RTC + RTM tokens, cloud recording seam, webhook handling.
+- Server-signed LiveKit tokens with server-owned room/identity and subscribe-only founder observers; legacy Agora webhook/recording routes remain for compatibility.
 - Razorpay order creation, signature-verified webhook, idempotent pack crediting.
-- Cloudflare Workers AI generation with moderation and trainer-only field rejection.
-- Trainer Desk support chat and Study Buddy doubt chat on one Cloudflare Worker with a shared, platform-free core.
+- freelm structured feedback with a structured `system`/`user` message array and PII sanitization; legacy Cloudflare Workers AI generation with moderation and trainer-only field rejection.
+- Trainer Desk support chat and Study Buddy doubt chat on one Cloudflare Worker with a shared, platform-free core; Resend `sendSessionEmail()` for classroom invitations.
 - Mastery self-practice with server-held answer keys and a per-topic question cap.
 - Trainer-owned student media permission with force-on-before-lock.
 - Two-sided connection precondition before any class can start.
@@ -74,7 +74,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - Student Control: one trainer-only surface for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz, progress and end.
 - Server-owned brand-safe celebrations and role-scoped reactions with separate visual layers, sound opt-in and reduced-motion fallback.
 - Private parent ↔ trainer human chat for a linked child, with per-recipient unread counts, mark-read, regex DLP and founder-only flags.
-- 36 automated suites, CI, Docker, Render/Railway manifests, five-minute reminder and Needs Attention cron, private recordings Storage, structured logging, rate limiting.
+- 44 automated suites, CI, Docker, Render/Railway manifests, five-minute reminder and Needs Attention cron, private recordings Storage, structured logging, rate limiting.
 
 ---
 
@@ -94,7 +94,8 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Reactions are not celebrations | Emoji are small, immediate signals; celebrations are bounded recognition moments. Separate layers prevent visual and audio overlap. |
 | Review-first migrations | A live Supabase schema change is destructive; it never runs without human review and two explicit confirmations. |
 | Mock-first runtime | Local development needs zero credentials and deterministic data. Production must fail closed rather than silently fall back to demo identities. |
-| Unified Workers AI | One provider handles every text task, including WhatsApp intent/progress replies and quiz generation, and vision; DeepSeek/OpenAI mentions in the newer brief are legacy. This keeps moderation, pinned models and model behavior predictable. |
+| freelm for new feedback, legacy Workers AI for existing generation | New structured feedback goes through a single `freelm` boundary with sanitized input and a deterministic mock path; existing curriculum/quiz/chat prompts stay on the pinned Cloudflare models. DeepSeek/OpenAI mentions in the newer brief remain legacy. This keeps moderation and pinned model behavior predictable without a second feedback provider. |
+| LiveKit for the 1:1 room | Agora is replaced for live joins. Room name and participant identity are re-derived from the verified session on every token request; a browser-supplied `roomName` may only confirm it, never choose it. Observer grants are subscribe-only. |
 | Two scoped chat bots | Trainer support is an internal policy desk with a professional tone; student help must coach with hints and analogies, never replace the trainer's reveal with a final answer. |
 | Shared Worker core | The same sanitizers, model prompts and reply guards must run in the deployed Worker and in local development; Express only bridges identity and owns no prompt text. |
 | Server-held practice keys | Practice is self-paced, but an answer key or trainer-only field in the browser would break the reveal boundary and the 1-on-1 privacy promise. |
@@ -113,16 +114,16 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Student desk | `student/index.html`, `student/app.js`, `student/api.js` | Dashboard rendering, trophy list, recording chapters. |
 | Parent chat | `parent/` | Private parent ↔ trainer thread with unread notifications and DLP-safe send feedback. |
 | Trainer console | `trainer/` | Attendance, timeline, payouts, session actions, parent chat unread badge. |
-| Classroom | `classroom/index.html`, `app.js`, `session.js`, `agora.js`, `api.js`, `networkCheck.js`, `engagement.js`, `engagement.css`, `realtime.js`, `room.css`, `panels.css` | Live room, quiz/board state, call controls, connection preflight, Student Control, celebrations/reactions, safe event bridge. |
+| Classroom | `classroom/index.html`, `app.js`, `session.js`, `livekit.js`, `agora.js`, `livekit-demo.html`, `api.js`, `networkCheck.js`, `engagement.js`, `engagement.css`, `realtime.js`, `room.css`, `panels.css` | Live room, quiz/board state, call controls, connection preflight, Student Control, celebrations/reactions, safe event bridge. `livekit.js` is the current call adapter; `agora.js` is legacy. |
 | LMS | `lms/` | Partial course library with local planner designer and schema/privacy validation. |
 | Founder workspace | `founder/index.html`, `founder/app.js`, `founder/founder.css` | Runtime policy/mastery/trainer-policy drafts; money widgets are read-only. |
 | App entry | `server/index.js`, `server/app.js`, `server/config.js` | Boot, production guard, routes, reviewed static allowlist. |
 | Auth | `server/auth/`, `server/middleware/auth.js` | Passwords, JWT, `sessionUser`/`publicUser` key allowlists, RBAC, session access. |
-| Routes | `server/routes/` | Auth, trainer, student, sessions, policy, webhooks, admin (founder settings), agora, razorpay, leaves, contact, network, chat bridge, student practice, parent ↔ trainer chat. |
-| Services | `server/services/` | Agora tokens, Cloudflare client, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions, founder settings, chat Worker bridge, mastery self-practice, parent chat/DLP. |
+| Routes | `server/routes/` | Auth, trainer, student, sessions, policy, webhooks, admin (founder settings), LiveKit tokens, feedback, Razorpay, legacy Agora, leaves, contact, network, chat bridge, student practice, parent ↔ trainer chat. |
+| Services | `server/services/` | LiveKit tokens, freelm feedback, Resend email, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions, founder settings, chat Worker bridge, mastery self-practice, parent chat/DLP; legacy Agora tokens and Cloudflare client remain for compatibility. |
 | Data | `server/db/index.js`, `mock.js`, `supabase.js`, `schema.sql` | Facade, demo store, service-role adapter, canonical schema. |
 | Migrations | `server/migrations/0001…0004`, `server/migrate.js` | Ordered SQL (including chat audit logs), checksum guards, dry-run runner. |
-| Tests | `server/tests/*.test.js` | 27 suites; see `TEST_REPORT.md`. |
+| Tests | `server/tests/*.test.js` | 44 suites; see `TEST_REPORT.md` and current `DATABASE_MODE=mock npm test` results. |
 | Config | `server/config/policy.json`, `server/.env.example` | Business thresholds and env variable names (no secrets). |
 | DevOps | `.github/workflows/ci.yml`, `Dockerfile`, `docker-compose.yml`, `render.yaml`, `railway.json` | CI, containers, deployment manifests. |
 
@@ -258,7 +259,7 @@ Browser surface
 - JWT identifies the user; every request re-reads the user from the DB, so a disabled account is rejected immediately.
 - `publicUser()` exposes only `id`, `name`, `role`; `sessionUser()` adds server-side business fields.
 - Supabase RLS reads `auth.jwt()->'app_metadata'->>'role'` — **never `user_metadata`**. Every application table has RLS; safe views use `SECURITY INVOKER`.
-- Production guard requires `AUTH_SECRET ≥ 32`, explicit `CORS_ORIGIN`, `DATABASE_MODE=supabase`, and Supabase/Cloudflare/Razorpay/Agora/Twilio secrets. No wildcard CORS, no demo fallback.
+- Production guard requires `AUTH_SECRET ≥ 32`, explicit `CORS_ORIGIN`, `DATABASE_MODE=supabase`, Supabase credentials, `LIVEKIT_URL`/`LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`, and at least one freelm provider key (or `FREELM_KEYLESS=1`). Razorpay/Twilio remain required as separate integrations. Agora and Cloudflare values are no longer required. No wildcard CORS, no demo fallback.
 
 ### 5.3 Data layer
 
@@ -275,16 +276,18 @@ Browser surface
 
 ### 5.5 Live call
 
-- Agora tokens are signed server-side from the session record; browser-provided channel, uid, peer UID and role are ignored.
-- Both participants are publishers — a revoked student is **not** downgraded to subscriber, because mic/camera must stay on.
-- `agora.js` keeps local track state, exposes `forceMediaOn()`, `setMediaControlsLocked()`, `reaffirmMedia()` and `setNetworkReady()`, and never claims a track was enabled when `setEnabled` failed.
+- LiveKit JWTs are signed server-side from the verified session; browser-provided `roomName`/`participantName` may only confirm or label the join, never choose the room or identity.
+- Both real participants publish (`canPublish: true`); a founder observer gets a subscribe-only grant. A revoked student keeps publish capability while the client-side media controls are locked, because tracks must be forced on before the buttons are disabled.
+- `classroom/livekit.js` and `trainer/livekit.js` keep local track state, publish with `enableCameraAndMicrophone()`, attach subscribed tracks to the existing video containers, and detach/remove them on `TrackUnsubscribed` and `Disconnected`.
 - `NETWORK_BELOW_MINIMUM` maps to a friendly in-app message.
+- AI tutor dispatch is optional and trainer-initiated only; it is deduplicated through `listDispatch`, never runs in mock mode or for observers, and carries no PII or answer keys. Recording is not migrated — the trainer adapter fails closed with an honest status until LiveKit Egress is added.
 - Works on laptop/PC, Android/iPad tablet and Android/iOS phone; a mobile tab suspension is corrected by reaffirmation, not treated as an intentional mute.
 
 ### 5.6 AI
 
-- Cloudflare Workers AI with `CLOUDFLARE_MODEL=@cf/meta/llama-3.1-8b-instruct`.
-- Prompts end with exactly: `CRITICAL: Return ONLY valid JSON. No markdown, no explanations.`
+- Structured feedback calls `freelm.FreeLLM.fromEnv({ timeout: FREELM_TIMEOUT_SECONDS })` (seconds) with `model: FREELM_MODEL` (default `chat:fast`), an OpenAI-style `system`/`user` array and `response_format: { type: 'json_object' }` where used; mock mode returns before any provider call.
+- The legacy curriculum/chat path uses Cloudflare Workers AI with `CLOUDFLARE_MODEL=@cf/meta/llama-3.1-8b-instruct`.
+- Legacy generation prompts end with exactly: `CRITICAL: Return ONLY valid JSON. No markdown, no explanations.`
 - Drafts pass a moderation gate that rejects personal details, social links and trainer-only fields before trainer approval. Missing credentials produce a deterministic fallback in local mode; live calls wait for rotated credentials.
 - `worker-core.mjs` is pure logic (no fetch or platform globals); `worker.js` verifies the Express-issued HMAC token, applies CORS/rate limits and calls the `[ai]` binding with a Cloudflare REST fallback. `CHAT_WORKER_URL` makes Express call the deployed Worker; without it the same core runs locally through the REST endpoint. No secret is sent to the browser.
 - Chat text uses `@cf/meta/llama-3.1-8b-instruct`. Vision uses `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` when Cloudflare reports the model unavailable; Cloudflare's public catalogue documents the Llava 1.5 and Llama 3.2 vision entries rather than the requested 34b one.
@@ -316,7 +319,7 @@ Browser surface
 
 ### 5.11 Testing and delivery
 
-- 27 suites cover services, serializers, privacy, nav/static surfaces, API smoke, live readiness, persistence, operations, RTC controls, engagement controls, founder settings, planner designer and parent chat contracts.
+- 44 suites cover services, serializers, privacy, nav/static surfaces, API smoke, LiveKit/freelm readiness, persistence, operations, media/network controls, engagement controls, founder settings, planner designer and parent chat contracts.
 - Plain `node` + `assert` is intentional: no Jest/Vitest dependency, deterministic local runs.
 - CI runs on `.github/workflows/ci.yml`; `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json` cover container/deploy shapes.
 
@@ -360,7 +363,8 @@ Demo logins (password `mathify-demo`): `founder@mathify.app`, `trainer@mathify.a
 ### Verify
 
 ```powershell
-npm test                 # 27 suites
+$env:DATABASE_MODE = 'mock'
+npm test                 # 44 suites
 npm run migrate          # dry run, prints checksums
 ```
 
@@ -373,7 +377,7 @@ Useful classroom URLs:
 
 Browser smoke should show: mic/camera on by default, Join disabled until **Check speed** passes for both people, trainer **Access** button present only on the trainer view, student trophies on the student desk, Trainer Desk / Study Buddy panels in the respective dashboards, self-practice batches of 10 with no answer key in the response, the parent/trainer chat unread badge clearing on read, `422 CONTENT_BLOCKED` with no echoed text for contact/social attempts, and zero console errors.
 
-Live status: one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Live image chat is gated until the user accepts the Meta model agreement; no Supabase call, Razorpay payment, Twilio SMS, Agora webhook proof, live migration or deployed-Worker browser chat is claimed. Evidence is in `TEST_REPORT.md`.
+Historical live status (evidence round, not the current provider stack): one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Live image chat was gated by the Meta model agreement; no Supabase call, Razorpay payment, Twilio SMS, Agora webhook proof, live migration or deployed-Worker browser chat was claimed. Current validation is 44/44 deterministic suites plus mock-mode LiveKit/freelm endpoint smoke checks; live LiveKit signing, agent dispatch and freelm calls remain open. Evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
 v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Historical final validation was 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed in that pass. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
 
@@ -381,11 +385,11 @@ v4.0.1 status [U+2026-11-26]: branch `feat/student-rtc-control-perfection` adds 
 
 ### Production checklist
 
-1. Rotate the exposed Cloudflare API token, `SUPABASE_SECRET_KEY` and Agora Primary Certificate.
+1. Rotate every credential ever pasted or exposed: the LiveKit API key/secret, `SUPABASE_SECRET_KEY`, and the historical Cloudflare/Agora values. New production boots need only LiveKit, freelm, Supabase, Razorpay and Twilio.
 2. Fill `server/.env` from `server/.env.example`; never commit secrets.
 3. Review all seven SQL files (`0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql`, `0004_ai_chat_logs.sql`, `0006_trainer_onboarding_batches.sql`, `0007_student_hint_lockdown.sql`, `0008_payment_idempotency.sql`), then apply only with founder approval, `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`. No live apply occurred in the v3.1.0 evidence pass.
-4. Set `NODE_ENV=production`, `DATABASE_MODE=supabase`, explicit `CORS_ORIGIN`, `AUTH_SECRET ≥ 32` and every secret named in `assertProductionConfig()`.
-5. Deploy `worker.js` with `wrangler secret put` for `AUTH_SECRET`, `SUPABASE_URL` and `SUPABASE_SECRET_KEY`; set `CHAT_WORKER_URL` on Express only if the deployed Worker is intended to serve chat. Workers AI text is verified; accept the Meta model agreement explicitly if image chat is needed, then run a signed webhook test.
+4. Set `NODE_ENV=production`, `DATABASE_MODE=supabase`, explicit `CORS_ORIGIN`, `AUTH_SECRET ≥ 32`, `LIVEKIT_URL`/`LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`, and at least one freelm provider key (or `FREELM_KEYLESS=1`). `assertProductionConfig()` no longer requires Agora or Cloudflare values.
+5. Deploy the legacy `worker.js` with `wrangler secret put` for `AUTH_SECRET`, `SUPABASE_URL` and `SUPABASE_SECRET_KEY` only if the legacy chat Worker remains in use; set `CHAT_WORKER_URL` on Express accordingly. Historical Workers AI text evidence is documentary, not a current-provider check; accept the Meta model agreement explicitly if legacy image chat is needed, then run a signed webhook test.
 6. Confirm both participants can pass the connection gate and that Join opens only then.
 
 ---
@@ -395,14 +399,16 @@ v4.0.1 status [U+2026-11-26]: branch `feat/student-rtc-control-perfection` adds 
 | Item | Status |
 | --- | --- |
 | Live migration | Not applied; requires explicit approval. |
-| Credential rotation | Still required before launch; one Workers AI text call is verified, live image chat is gated by the Meta agreement. |
+| Credential rotation | Still required before launch, now including the LiveKit credential. Production needs LiveKit + freelm + Supabase + Razorpay + Twilio; historical Workers AI text evidence remains documentary. |
 | PDF pages 5–17 | Not OCR'd; verbatim policy numbers (e.g. “Score 60”, “8% unlock”) cannot be confirmed yet. Current policy values are the documented source of truth. |
 | Alerting (Sentry/Pino sinks) | Structured logging exists; external alerting is future work. |
 | Distributed rate limiting | In-process limiter is fine for one instance; shared store needed for multi-replica. |
 | Founder-editable settings screens | Live as reviewed runtime drafts. Money fields are read-only; file-backed deployment policy still needs explicit approval. |
 | Planner designer v1 | Live as local authoring/export. Publish and pack import remain disabled. |
-| Agora Join in browser smoke | Not clicked: it would request real camera/mic. Token and gate contracts are covered by tests. |
-| Cloudflare Workers AI chat | Text call PASS (HTTP `200`); requested vision unavailable (`400 No route`), fallback blocked (`403 Model Agreement`) until the user accepts Meta's one-time agreement. No full browser live-chat success claimed; see `TEST_REPORT.md`. |
+| LiveKit Join in browser smoke | Not clicked: it would request real camera/mic. Token, room-ownership, observer-grant and gate contracts are covered by tests. |
+| LiveKit live verification | Mock-mode token and endpoint smoke checks pass; real token signing, WebSocket join and optional agent dispatch need real credentials in gitignored `server/.env`. |
+| freelm live verification | Mock-mode feedback is deterministic; a real `FreeLLM` chat call needs a provider key and is not claimed here. |
+| Cloudflare Workers AI chat (legacy) | Historical text call PASS (HTTP `200`); requested vision unavailable (`400 No route`), fallback blocked (`403 Model Agreement`). No full browser live-chat success claimed; see `TEST_REPORT.md`. |
 | Chat audit tables | `0004_ai_chat_logs.sql` reviewed but not applied; founder-only `app_metadata` RLS, no anon/authenticated grants. No live Supabase write. |
 | Mastery self-practice | Service-only answer keys and local batch contracts; live Supabase persistence not exercised because credentials were absent. |
 | Founder-managed trainer access/pay/allotment | **Approved roadmap.** Founder will grant trainer access, fix each trainer's pay rate and own class allotment. Today founder settings are runtime drafts with read-only money fields, and trainer slots are trainer-managed. |
@@ -421,7 +427,9 @@ A stale external review claimed the project lacks a schema, tests, CI, realtime 
 | `a3e7905` | Live-readiness hardening; removed UI dead ends. |
 | `b2bf372` | Completed live adapter, realtime outbox and live-readiness DX. |
 | `044f9e4` | Trainer-owned student media controls, two-sided connection gate and reward trophies. |
-| Working tree | Cloudflare Workers AI chat assistants with shared Worker core and founder audit logs; server-held mastery self-practice batches; private parent ↔ trainer chat with regex DLP and founder-only flags in `mathify_records`. |
+| `f11c6b6` / `194409a` | LiveKit replaces Agora for live joins; `freelm` replaces Cloudflare Workers AI for new structured feedback; Resend added for transactional email; dependencies and lockfile updated. |
+| `b43ba33` | Production guard migrated to require LiveKit + freelm instead of Agora + Cloudflare; regression suite updated to lock the new contract. |
+| Working tree | LiveKit classroom/trainer adapters and standalone demo page; server-held mastery self-practice batches; private parent ↔ trainer chat with regex DLP and founder-only flags in `mathify_records`. |
 
 ---
 
@@ -432,7 +440,7 @@ A stale external review claimed the project lacks a schema, tests, CI, realtime 
 | PiP | Picture-in-picture floating call panel in the classroom. |
 | Outbox | Durable event rows read through the safe `/events` cursor endpoint. |
 | Safe payload | Event body after key scrubbing; never carries correctness or trainer notes. |
-| Publisher | Agora role that sends audio/video; both people stay publishers. |
+| Publisher | LiveKit grant with `canPublish: true`; both real participants stay publishers while founder observers are subscribe-only. |
 | Reaffirm | Re-apply the user's chosen media state after a transition or suspension. |
 | Fresh check | A passing connection result younger than 15 minutes. |
 | Trophy | Student-safe view of a trainer-issued badge. |
