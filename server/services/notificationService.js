@@ -271,11 +271,61 @@ async function sendSessionReminder(info) {
   };
 }
 
+async function sendAttentionDigest(info) {
+  const data = info || {};
+  const recipient = data.recipient || {};
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (!recipient.email || !process.env.NODEMAILER_EMAIL || !process.env.NODEMAILER_PASSWORD) {
+    return { email: { sent: false, reason: 'not_configured' } };
+  }
+
+  const day = clean(data.date || new Date().toISOString().slice(0, 10), 20);
+  const scope = clean(data.scope || recipient.name || data.trainerName || 'Trainer', 120);
+  const lines = [
+    '*MATHIFY NEEDS ATTENTION · ' + day.toUpperCase() + '*',
+    '*Scope:* ' + scope,
+    '*Open items:* ' + items.length,
+    ''
+  ];
+
+  items.forEach(function (item, index) {
+    lines.push((index + 1) + '. [' + clean((item && item.kind) || 'update', 24).toUpperCase() + '] ' +
+      clean((item && item.title) || 'Review item', 200));
+    if (item && item.meta) lines.push('   ' + clean(item.meta, 200));
+  });
+
+  const email = (async function () {
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        service: process.env.NODEMAILER_SERVICE || 'gmail',
+        auth: { user: process.env.NODEMAILER_EMAIL, pass: process.env.NODEMAILER_PASSWORD }
+      });
+      await transporter.sendMail({
+        from: '"Mathify Sessions" <' + process.env.NODEMAILER_EMAIL + '>',
+        to: clean(recipient.email, 160),
+        subject: 'Mathify needs attention · ' + items.length + ' open item' + (items.length === 1 ? '' : 's'),
+        text: lines.join('\n').replace(/\*/g, '')
+      });
+      return { sent: true };
+    } catch (error) {
+      console.error('Email attention digest failed:', error.message);
+      return { sent: false, reason: error.message };
+    }
+  })();
+
+  const results = await Promise.allSettled([email]);
+  return {
+    email: results[0].status === 'fulfilled' ? results[0].value : { sent: false, reason: 'failed' }
+  };
+}
+
 module.exports = {
   sendSlackAlert,
   sendEmailAlert,
   notifyHumanHandoff,
   notifyContactRequest,
   notifyParentRecap,
-  sendSessionReminder
+  sendSessionReminder,
+  sendAttentionDigest
 };

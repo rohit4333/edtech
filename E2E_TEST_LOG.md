@@ -80,3 +80,22 @@ Command evidence, all local (no provider, migration apply, commit or push): [ev:
 | Founder/AI/nav exact strings | PASS | v3.1 validator reported `EXACT_STRINGS_MISSING=0`, `CITATION_PATH_FAILURES=0`; v4.0 re-run recorded in `PROJECT_FLOW_FILE.md` §14 |
 
 Unresolved external blockers and non-provider gaps are unchanged and remain recorded in `TPFF_BLOCKERS.md`. Live payment, SMS, media, deployed Worker, Supabase apply and live RLS state remain `UNKNOWN`/`BLOCKED_EXTERNAL`; this audit does not claim otherwise. VERIFIED.
+
+## 7. Reminder cron and recordings Storage follow-up
+
+Scope chosen by the founder: both the existing 24 h/1 h student reminders and a Needs Attention email digest. The `--once` path is now the cron entry point; it derives each trainer's queue plus one aggregate founder digest, writes service-only `reminder_claim` keys, and releases a claim when delivery is unconfigured or fails. The API process still has its timer switched off in the deploy manifest. [ev: founder scope decision and `server/jobs/reminders.js` review, 2026-11-26] VERIFIED.
+
+The private `recordings` bucket and its `storage.objects` SELECT policy were applied to the linked Supabase project through the Supabase MCP after review. Because browser Data API roles have no grant on `public.sessions`, the policy calls a `SECURITY DEFINER` boolean helper; only `authenticated` can execute it, and it returns true only for that session's student/trainer or an `app_metadata` founder. Live verification returned `public=false`, one `{authenticated}` SELECT policy, and a security-definer function with app_metadata role checking. No anon policy or browser table grant was created. [ev: Supabase MCP `apply_migration`, `pg_policies`, `pg_proc` and `storage.buckets` queries, 2026-11-26] VERIFIED.
+
+| Check | Result | Exact output / condition |
+|---|---|---|
+| `npm.cmd test --prefix server` | PASS | `EXITCODE=0`, 36/36 chained suites after the new digest/claim/storage assertions |
+| `node --check` sweep | PASS | `SYNTAX_FILES=135`, `SYNTAX_FAILURES=0` |
+| `node server/migrate.js --dry-run` | PASS | `EXITCODE=0`; eight reviewed SQL files through `0009_recordings_storage.sql`; no runner-based apply |
+| `npm.cmd run reminders:once --prefix server` | PASS | `EXITCODE=0`; with email unconfigured the job logs `attention_digest_unconfigured` and `founder_attention_digest_unconfigured`, then reports `attentionDigestsSent=0`; no false send claim |
+| YAML parse | PASS | `YAML_PARSE=OK`, `CRON=*/5 * * * *`, `JOBS=reminders,verify` |
+| `git diff --check` | PASS | `EXITCODE=0`; CRLF normalization warnings only |
+| TPFF validator | PASS | `VALIDATION=PASS`, `EXACT_STRINGS_MISSING=0`, `CITATION_PATH_FAILURES=0`, 216 file rows and 60 env rows |
+| `npm audit --prefix server --omit=dev --audit-level=high` | PASS | `found 0 vulnerabilities` |
+
+No live email delivery is claimed: the cron needs repository secrets (`SUPABASE_*`, `NODEMAILER_*`, `ADMIN_EMAIL`, optionally `SLACK_WEBHOOK_URL`) configured on the default branch. No object upload was performed, and the session-id path contract is enforced by policy but not yet exercised by a browser upload. VERIFIED.

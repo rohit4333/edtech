@@ -123,6 +123,27 @@ async function insertRecordOnce(collection, key, value) {
   }
 }
 
+async function deleteRecord(collection, key) {
+  await request('/rest/v1/mathify_records?collection=eq.' + encode(collection) +
+    '&key=eq.' + encode(key), { method: 'DELETE', prefer: 'return=minimal' });
+  return true;
+}
+
+/* Reminder cron claims live in the service-only records table so a fresh CI
+   runner never resends a 24h/1h reminder or daily attention digest. Releasing a
+   claim lets a later run retry after a transient delivery failure. */
+function claimReminder(key, payload) {
+  const safeKey = String(key || '');
+  return insertRecordOnce('reminder_claim', safeKey, Object.assign({
+    key: safeKey,
+    claimedAt: new Date().toISOString()
+  }, payload || {}));
+}
+
+function releaseReminderClaim(key) {
+  return deleteRecord('reminder_claim', String(key || ''));
+}
+
 /* Enrollment batches and locked trainer onboarding are service-only records.
    The Data API never receives their identity or document fields. */
 function listBatches() { return listRecords('batch'); }
@@ -861,5 +882,7 @@ module.exports = {
   listParentChatFlags,
   insertParentChatFlag,
   findParentChatRead,
-  saveParentChatRead
+  saveParentChatRead,
+  claimReminder,
+  releaseReminderClaim
 };

@@ -9,7 +9,8 @@
     "test": "npm --prefix server test",
     "migrate": "npm --prefix server run migrate",
     "seed": "npm --prefix server run seed",
-    "reminders": "node server/jobs/reminders.js"
+    "reminders": "node server/jobs/reminders.js",
+    "reminders:once": "node server/jobs/reminders.js --once"
   },
   "engines": {
     "node": ">=18"

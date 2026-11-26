@@ -74,7 +74,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - Student Control: one trainer-only surface for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz, progress and end.
 - Server-owned brand-safe celebrations and role-scoped reactions with separate visual layers, sound opt-in and reduced-motion fallback.
 - Private parent ↔ trainer human chat for a linked child, with per-recipient unread counts, mark-read, regex DLP and founder-only flags.
-- 36 automated suites, CI, Docker, Render/Railway manifests, opt-in reminders, structured logging, rate limiting.
+- 36 automated suites, CI, Docker, Render/Railway manifests, five-minute reminder and Needs Attention cron, private recordings Storage, structured logging, rate limiting.
 
 ---
 

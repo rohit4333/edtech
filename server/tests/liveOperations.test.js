@@ -83,6 +83,53 @@ async function main() {
     else process.env[key] = saved[key];
   });
 
+  /* Cron entry point and attention digest are wired, with durable claims. */
+  check(typeof reminders.runOnce === 'function', 'reminder cron exposes a one-shot runner');
+  check(typeof reminders.checkAttentionQueue === 'function', 'reminder cron derives the attention queue');
+  check(typeof notifications.sendAttentionDigest === 'function', 'attention digest email helper is exported');
+  const digest = await notifications.sendAttentionDigest({
+    recipient: { name: 'Trainer', email: 'trainer@example.com' },
+    items: [{ kind: 'planning', title: '1 planner step still open', meta: 'Ratios' }],
+    date: '2026-11-26'
+  });
+  check(digest.email.sent === false && digest.email.reason === 'not_configured',
+    'attention digest reports unconfigured email honestly');
+
+  const attentionDay = new Date().toISOString().slice(0, 10);
+  const originalDigest = notifications.sendAttentionDigest;
+  const digestTargets = [];
+  notifications.sendAttentionDigest = async function (info) {
+    digestTargets.push(info);
+    return { email: { sent: true } };
+  };
+  let digestCount = 0;
+  try {
+    digestCount = await reminders.checkAttentionQueue();
+  } finally {
+    notifications.sendAttentionDigest = originalDigest;
+  }
+  check(digestCount === digestTargets.length && digestTargets.length > 0,
+    'attention digest counts each attempted recipient once');
+  check(digestTargets.some(function (target) { return target.scope === 'All trainers'; }),
+    'founder receives one aggregate Needs Attention digest');
+  check(digestTargets.some(function (target) {
+    return target.recipient && target.recipient.role !== 'founder';
+  }), 'each trainer receives their own Needs Attention digest');
+  for (const user of db.listUsers().filter(function (user) { return user.role === 'trainer' && user.email; })) {
+    await db.releaseReminderClaim(String(user.id) + ':attention:' + attentionDay);
+  }
+  await db.releaseReminderClaim('founder:attention:' + attentionDay);
+
+  const claimKey = 'test:reminder:' + Date.now();
+  const firstClaim = await db.claimReminder(claimKey, { kind: 'test' });
+  const secondClaim = await db.claimReminder(claimKey, { kind: 'test' });
+  check(firstClaim.claimed === true && secondClaim.claimed === false,
+    'reminder claims are one-shot across fresh cron runs');
+  check(await db.releaseReminderClaim(claimKey) === true, 'failed claims can be released for retry');
+  check((await db.claimReminder(claimKey, { kind: 'test' })).claimed === true,
+    'a released reminder claim can be retried');
+  await db.releaseReminderClaim(claimKey);
+
   /* Recording chapters reach the student dashboard serializer. */
   const sessions = db.listSessionsForUser({ id: 'usr_student_001', role: 'student' });
   const dashboard = serializers.toStudentDashboard({ id: 'usr_student_001', name: 'Ishaan' }, sessions);

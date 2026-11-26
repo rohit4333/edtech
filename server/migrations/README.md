@@ -15,6 +15,7 @@ plan.
 | `0006_trainer_onboarding_batches.sql` | Service-only collections for enrollment batches, locked trainer KYC onboarding and append-only founder corrections. No anon/authenticated Data API grants. |
 | `0007_student_hint_lockdown.sql` | Revokes the drifted Data API grant on `quiz_questions.hint` and recreates `student_quiz_questions` without `hint`. Hints stay trainer-owned until an explicit trainer grant releases them; role checks use `app_metadata`. |
 | `0008_payment_idempotency.sql` | Adds service-only Razorpay payment/order-credit relations and unique payment/order-credit indexes for exactly-once crediting; no anon/authenticated Data API grants. |
+| `0009_recordings_storage.sql` | Creates the private `recordings` Storage bucket, a security-definer boolean helper and one `SELECT` policy on `storage.objects`. Objects are named `<session-uuid>/<filename>`; only that session's student, trainer or an `app_metadata` founder can read. No anon policy or table grants; writes stay service-role-only. |
 
 ## Review before applying
 
@@ -44,9 +45,13 @@ to the Data API automatically, so the academic columns are explicitly granted to
 `server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
 check the transaction wrapper, checksum drift guards, service-only grants and
 outbox shape. They are part of 36 Node suites run with plain `node` + `assert`
-(no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`. All seven
-SQL files, including `0007` and `0008`, are review-only in this workspace: no
-live apply occurred and no Supabase call was made during the recorded checks.
+(no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`. The first
+seven SQL files, including `0007` and `0008`, are review-only in this workspace:
+no runner-based live apply occurred during the recorded checks. `0009` is the
+exception: after review it was applied and then hardened on the linked Supabase
+project on 2026-11-26 through the Supabase MCP as three named migrations,
+`0009_recordings_bucket`, `0009_recordings_storage_policy` and
+`0009_recordings_storage_security_definer`.
 
 v4.0.0 dry-run context [U+2026-11-26]: `node server/migrate.js --dry-run` returned
 `EXITCODE=0` and listed the same seven ordered files (`0001`, `0002`, `0003`,

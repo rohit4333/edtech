@@ -5,13 +5,13 @@
     "finalCommit":  "UNKNOWN_AT_AUTHORING_TIME",
     "branch":  "feat/student-rtc-control-permission",
     "counts":  {
-                   "trackedFiles":  206,
-                   "statusPorcelainAllLines":  41,
-                   "modifiedTrackedPaths":  32,
-                   "untrackedPaths":  9,
+                   "trackedFiles":  215,
+                   "statusPorcelainAllLines":  19,
+                   "modifiedTrackedPaths":  18,
+                   "untrackedPaths":  1,
                    "testFiles":  36,
                    "scriptEntries":  36,
-                   "migrationFiles":  7,
+                   "migrationFiles":  8,
                    "routerDefinitions":  114,
                    "appHttpDefinitions":  4,
                    "appGetPostUseLines":  32,
@@ -61,7 +61,7 @@
                                             "syntax":  "SYNTAX_FILES=136, SYNTAX_FAILURES=0",
                                             "migrationDryRun":  "EXITCODE=0; 0001, 0002, 0003, 0004, 0006, 0007, 0008",
                                             "diffCheck":  "EXITCODE=0; CRLF warnings only",
-                                            "preCommitInventory":  "41/32/9 (41 porcelain paths: 32 modified tracked + 9 untracked)"
+                                            "preCommitInventory":  "19/18/1 (19 porcelain paths: 18 modified tracked + 1 untracked); v4.0.0 baseline 41/32/9 preserved in TPFF"
                                         },
                     "sources":  [
                                     "[src: E2E_TEST_LOG.md:14-29,38-82]",
@@ -105,8 +105,8 @@
                                               },
                                 "tagCount":  332,
                                 "testInventoryRows":  36,
-                                "fileInventoryRows":  215,
-                                "untrackedFileRows":  9
+                                "fileInventoryRows":  216,
+                                "untrackedFileRows":  1
                             }
                  },
     "unknowns":  [
@@ -2816,6 +2816,15 @@
                         "name":  "REMINDER_CHECK_MS",
                         "source":  [
                                        "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "REMINDER_RUN_ONCE",
+                        "source":  [
+                                       "[src: server/jobs/reminders.js:8-9]",
+                                       "[src: server/.env.example:82-86]"
                                    ],
                         "tag":  "VERIFIED"
                     },

@@ -391,6 +391,23 @@ function listAllSessions() {
   return copy(store.sessions);
 }
 
+function claimReminder(key, payload) {
+  const safeKey = String(key || '');
+  if (store.reminderClaims.has(safeKey)) {
+    return { claimed: false, data: copy(store.reminderClaims.get(safeKey)) };
+  }
+  const record = copy(Object.assign({
+    key: safeKey,
+    claimedAt: new Date().toISOString()
+  }, payload || {}));
+  store.reminderClaims.set(safeKey, record);
+  return { claimed: true, data: copy(record) };
+}
+
+function releaseReminderClaim(key) {
+  return store.reminderClaims.delete(String(key || ''));
+}
+
 function appendSessionEvent(sessionId, event, payload) {
   sessionEventSeq += 1;
   const channel = 'mathify:session:' + sessionId;
@@ -667,6 +684,8 @@ const mockApi = {
   listUsers,
   listSessionsForUser,
   listAllSessions,
+  claimReminder,
+  releaseReminderClaim,
   findSession,
   updateSession,
   updateUser,

@@ -310,6 +310,9 @@ const whatsappMessages = [];
 const supportEscalations = [];
 const leaveRequests = [];
 const contactRequests = [];
+/* Cron delivery claims stay in-memory in mock mode; live mode uses the
+   service-only reminder_claim records from db/supabase.js. */
+const reminderClaims = new Map();
 const presenceEvents = [];
 const presenceSnapshots = [];
 /* Engagement gestures stay separate from celebrations. Only code, role,
@@ -375,6 +378,7 @@ module.exports = {
   supportEscalations: supportEscalations,
   leaveRequests: leaveRequests,
   contactRequests: contactRequests,
+  reminderClaims: reminderClaims,
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
   reactions: reactions,

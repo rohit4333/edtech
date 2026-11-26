@@ -24,9 +24,9 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 ## Current state
 
-- 27 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js`, `parentChat.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
-- `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `migrate`, `seed` and `reminders`.
-- `server/db/schema.sql` plus ordered `0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql` and `0004_ai_chat_logs.sql`, checked by a dry-run/checksum runner. No live migration has been applied.
+- 36 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js`, `parentChat.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
+- `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `migrate`, `seed`, `reminders` and `reminders:once`. The CI schedule runs `reminders:once` every five minutes; the web process keeps its timer disabled.
+- `server/db/schema.sql` plus eight ordered reviewed SQL migrations through `0009_recordings_storage.sql`, checked by a dry-run/checksum runner. No runner-based live migration has been applied; the private `recordings` bucket and its hardened session-reader policy were applied separately through the linked Supabase MCP after review.
 - Default runtime is the in-memory mock store. `DATABASE_MODE=supabase` selects the completed service-role adapter in `server/db/supabase.js`; production never silently falls back to demo identities.
 - AI is Cloudflare Workers AI only (no DeepSeek/OpenAI). Curriculum drafts pass a trainer-only/personal-data moderation gate before review; the two dashboard chats run through a Cloudflare Worker using a shared prompt core. No browser code receives Cloudflare or Supabase secrets. Agora RTC/RTM tokens are real and server-signed; the contact booking API stores validated requests and notifies configured channels.
 - Trainer Desk answers payout (₹300–₹400 per 1-on-1 session), the 48-hour notice rule, fines and bonuses, and routes severe complaints to `founder@mathify.app`. Study Buddy gives Socratic hints and visual analogies only, never a final answer; it accepts PNG/JPG/WEBP/GIF images up to 1 MB.
@@ -54,7 +54,7 @@ cd server
 npm run migrate
 ```
 
-`npm run migrate` is a dry run and contacts no database; the ordered plan now includes `0004_ai_chat_logs.sql`. Applying is blocked until both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply` are set deliberately; see `server/migrations/README.md`. No live migration has been applied.
+`npm run migrate` is a dry run and contacts no database; the ordered plan now includes `0009_recordings_storage.sql`. Applying is blocked until both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply` are set deliberately; see `server/migrations/README.md`. No runner-based live migration has been applied.
 
 ## Realtime and live mode
 

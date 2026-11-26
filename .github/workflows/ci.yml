@@ -3,9 +3,21 @@ name: Mathify CI
 on:
   push:
   pull_request:
+  schedule:
+    # GitHub Actions schedules run on the default branch and may be delayed a few minutes.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mathify-ci-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   verify:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,3 +44,42 @@ jobs:
 
       - name: Review migration plan (dry run)
         run: npm run migrate
+
+  reminders:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: mathify-reminder-cron
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: server
+    env:
+      DATABASE_MODE: supabase
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      REMINDERS_ENABLED: 'true'
+      REMINDER_CHECK_MS: '300000'
+      NODEMAILER_SERVICE: ${{ secrets.NODEMAILER_SERVICE || 'gmail' }}
+      NODEMAILER_EMAIL: ${{ secrets.NODEMAILER_EMAIL }}
+      NODEMAILER_PASSWORD: ${{ secrets.NODEMAILER_PASSWORD }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci --omit=dev
+
+      - name: Run reminder + Needs Attention cron once
+        run: npm run reminders:once

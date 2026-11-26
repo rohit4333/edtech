@@ -81,7 +81,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 7, 'seven reviewed migrations are discovered');
+  check(migrations.length === 8, 'eight reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -123,6 +123,31 @@ async function main() {
     aiLogs.sql.indexOf('revoke all on public.trainer_support_logs from anon, authenticated') !== -1 &&
     aiLogs.sql.indexOf('revoke all on public.student_doubt_logs from anon, authenticated') !== -1,
   'audit tables enable RLS and stay out of browser Data API roles');
+  const storage = migrations.find(function (migration) {
+    return migration.name === '0009_recordings_storage.sql';
+  });
+  check(Boolean(storage), 'private recordings storage migration is present');
+  check(storage && storage.sql.indexOf("('recordings', 'recordings', false)") !== -1 &&
+    storage.sql.indexOf("bucket_id = 'recordings'") !== -1,
+  'recordings bucket is private and the policy is bucket-scoped');
+  const storagePolicyStart = storage ? storage.sql.indexOf('create policy p_recordings_session_read') : -1;
+  const storagePolicy = storagePolicyStart === -1 ? '' : storage.sql.slice(storagePolicyStart);
+  check(storage && storage.sql.indexOf("to authenticated") !== -1 &&
+    storagePolicy.indexOf('to anon') === -1 &&
+    storage.sql.indexOf("auth.jwt()->'app_metadata'->>'role'") !== -1 &&
+    storage.sql.indexOf('user_metadata') === -1,
+  'only authenticated session participants and app_metadata founders can read recordings');
+  check(storage && storage.sql.indexOf('security definer') !== -1 &&
+    storage.sql.indexOf('revoke all on function public.can_read_recording(text) from public, anon') !== -1 &&
+    storage.sql.indexOf('grant execute on function public.can_read_recording(text) to authenticated') !== -1,
+  'session lookup is a security-definer boolean helper with no Data API table grant');
+  check(storagePolicy.indexOf('public.can_read_recording(objects.name)') !== -1 &&
+    storagePolicy.indexOf('public.sessions') === -1,
+  'the storage policy calls the helper instead of exposing sessions to authenticated');
+  check(storage && storage.sql.indexOf('s.student_id = auth.uid()') !== -1 &&
+    storage.sql.indexOf('s.trainer_id = auth.uid()') !== -1 &&
+    storage.sql.indexOf("split_part(object_name, '/', 1)") !== -1,
+  'recording object paths are scoped to their session id');
   const facade = fs.readFileSync(path.join(__dirname, '..', 'db', 'index.js'), 'utf8');
   check(facade.indexOf('LIVE_ADAPTER_METHOD_MISSING') !== -1 &&
     /typeof implementation !== 'function'/.test(facade),
@@ -148,6 +173,9 @@ async function main() {
   check(adapter.indexOf('function claimWhatsappMessage') !== -1 &&
     adapter.indexOf("insertRecordOnce('whatsapp_messages'") !== -1,
   'WhatsApp dedupe is an atomic live claim');
+  check(adapter.indexOf("insertRecordOnce('reminder_claim'") !== -1 &&
+    adapter.indexOf('function releaseReminderClaim') !== -1,
+  'cron reminders use atomic, releasable live claims');
 
   const webhookRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'webhooks.js'), 'utf8');
   check(/router\.post\('\/recording', async function/.test(webhookRoute) &&
@@ -177,10 +205,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 7,
-    'all seven migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 7,
-    'all seven migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 8,
+    'all eight migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 8,
+    'all eight migrations carry checksum drift guards');
   const kycMigration = migrations.find(function (migration) {
     return migration.name === '0006_trainer_onboarding_batches.sql';
   });
