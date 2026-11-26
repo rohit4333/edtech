@@ -46,7 +46,7 @@ function verifyTwilioSignature(req) {
   return received.length === calculated.length && crypto.timingSafeEqual(received, calculated);
 }
 
-router.post('/recording', function (req, res) {
+router.post('/recording', async function (req, res) {
   const configuredSecret = String(process.env.RECORDING_WEBHOOK_SECRET || '').trim();
   if (!configuredSecret) {
     if (config.isProduction) {
@@ -65,21 +65,27 @@ router.post('/recording', function (req, res) {
     return res.status(400).json({ error: 'INVALID_PAYLOAD', message: 'sessionId and url are required.' });
   }
 
-  const updated = db.updateSession(body.sessionId, function (session) {
-    session.recording = {
-      url: String(body.url),
-      durationSeconds: Number(body.durationSeconds || session.elapsedSeconds || 0),
-      readyAt: new Date().toISOString()
-    };
-    return session;
-  });
+  /* The live adapter returns a Promise here; awaiting both the write and the
+     publish keeps the response from dereferencing a pending record. */
+  try {
+    const updated = await db.updateSession(body.sessionId, function (session) {
+      session.recording = {
+        url: String(body.url),
+        durationSeconds: Number(body.durationSeconds || session.elapsedSeconds || 0),
+        readyAt: new Date().toISOString()
+      };
+      return session;
+    });
 
-  if (!updated) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND' });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND' });
+    }
+
+    await realtime.publish(updated.id, 'recording.ready', { url: updated.recording.url });
+    return res.json({ ok: true, sessionId: updated.id });
+  } catch (error) {
+    return res.status(503).json({ error: 'RECORDING_WEBHOOK_FAILED', message: error.message });
   }
-
-  realtime.publish(updated.id, 'recording.ready', { url: updated.recording.url });
-  return res.json({ ok: true, sessionId: updated.id });
 });
 
 router.post('/whatsapp', express.urlencoded({ extended: false }), async function (req, res) {
@@ -98,25 +104,26 @@ router.post('/whatsapp', express.urlencoded({ extended: false }), async function
     ));
   }
 
-  if (messageSid && db.findWhatsappMessage(messageSid)) {
-    return res.type('text/xml').send('<Response/>');
-  }
-
-  if (messageSid) {
-    db.recordWhatsappMessage({
-      id: messageSid,
-      from: String(from),
-      body: String(messageBody),
-      receivedAt: new Date().toISOString()
-    });
-  }
-
   try {
+    /* Atomic claim replaces find-then-record. Concurrent identical SIDs race on
+       the primary key in live mode, so only one delivery reaches AI generation. */
+    if (messageSid) {
+      const claim = await db.claimWhatsappMessage({
+        id: messageSid,
+        from: String(from),
+        body: String(messageBody),
+        receivedAt: new Date().toISOString()
+      });
+      if (!claim || !claim.claimed) {
+        return res.type('text/xml').send('<Response/>');
+      }
+    }
+
     const outcome = await whatsappAi.generateAiResponse(from, messageBody);
 
     if (outcome.handoff && outcome.handoff.required) {
-      const escalation = db.recordSupportEscalation({
-        id: 'sup_' + Date.now(),
+      const escalation = await db.recordSupportEscalation({
+        id: 'sup_' + crypto.randomUUID(),
         from: String(from),
         studentId: outcome.student ? outcome.student.id : null,
         studentName: outcome.student ? outcome.student.name : null,
@@ -132,15 +139,23 @@ router.post('/whatsapp', express.urlencoded({ extended: false }), async function
         studentName: escalation.studentName
       });
 
+      /* Founder still gets email/Slack. The bot then stops for this phone so a
+         follow-up cannot create a second escalation while a human is handling it. */
       const notificationResult = await notifications.notifyHumanHandoff({
         phone: from,
         message: messageBody,
         summary: escalation.summary,
         studentName: escalation.studentName
       });
-      db.updateSupportEscalation(escalation.id, { notifications: notificationResult });
+      const pauseState = whatsappAi.pauseBotForParent(from);
+      await db.updateSupportEscalation(escalation.id, {
+        notifications: notificationResult,
+        botPaused: pauseState.paused,
+        pausedAt: pauseState.pausedAt
+      });
 
-      console.warn('[whatsapp] human handoff required:', escalation.id, escalation.summary);
+      console.warn('[whatsapp] human handoff required:', escalation.id, escalation.summary,
+        'botPaused=' + String(pauseState.paused));
     }
 
     return res.type('text/xml').send(twiml(outcome.reply));

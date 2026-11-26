@@ -21,6 +21,16 @@ function client() {
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 }
 
+/* Deterministic within a short retry window so a browser retry can reuse the
+   order we already saved instead of creating another one. The pack value is
+   always server-owned; receipts are never read from a client payload. */
+function monthlyPackReceipt(studentId, now) {
+  const stamp = Number(now) || Date.now();
+  const bucket = Math.floor(stamp / (10 * 60 * 1000)).toString(36);
+  return 'mathify_' + String(studentId || '').replace(/[^a-zA-Z0-9]/g, '').slice(-12) +
+    '_monthly12_' + bucket;
+}
+
 async function createMonthlyPackOrder(input) {
   const studentId = String((input && input.studentId) || '').trim();
   if (!studentId) {
@@ -29,8 +39,7 @@ async function createMonthlyPackOrder(input) {
     throw error;
   }
 
-  const receipt = 'mathify_' + studentId.replace(/[^a-zA-Z0-9]/g, '').slice(-12) +
-    '_' + Date.now().toString().slice(-8);
+  const receipt = String((input && input.receipt) || '').trim() || monthlyPackReceipt(studentId);
 
   const order = await client().orders.create({
     amount: MONTHLY_PACK.amount,
@@ -89,6 +98,7 @@ function capturedPayment(event) {
 
 module.exports = {
   MONTHLY_PACK,
+  monthlyPackReceipt,
   createMonthlyPackOrder,
   verifyWebhookSignature,
   capturedPayment

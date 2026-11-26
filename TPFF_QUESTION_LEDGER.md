@@ -1,4 +1,4 @@
-# TPFF QUESTION LEDGER — v3.0.0
+# TPFF QUESTION LEDGER — v4.0.0
 
 ## Q0. HEADER
 
@@ -54,3 +54,30 @@ No carried-forward question is marked answered. Each row preserves the exact com
 
 - VERIFIED — 0 supplied new questions were invented; 26 carried-forward questions are preserved with exact closing commands/artifacts and owners. `[src: KNOWN_UNKNOWNS.md]`; `[ev: question ledger generation, 2026-11-26]`
 - VERIFIED — Every carried-forward question remains open because no live credential, provider dashboard, OCR text, PR authentication or deployment proof was added in this update. `[src: PROJECT_FLOW_FILE.md:§10]`; `[ev: dry-run and browser-only verification, 2026-11-26]`
+
+## Q4. v3.1.0 DECISIONS APPLIED
+
+No new `Q1. …` questions were supplied for v3.1.0; no `NEW-Q-*` row was added. The 26 carried rows above remain open. The decisions below reconcile the v3.1.0 evidence snapshot without changing row counts [ev: user-specified v3.1.0 reconciliation scope, 2026-11-26]. VERIFIED.
+
+| ID | Decision | Status | Evidence | Tag | Owner |
+|---|---|---|---|---|---|
+| DEC-001 | Update mode is PATCH and v3.1.0 is append-only against evidence HEAD `3b9d597`; v3.0.0 rows remain intact | APPLIED | `[ev: git rev-parse HEAD; TPFF_UPDATE_REPORT.md §U9, 2026-11-26]` | VERIFIED | Docs/Archivist |
+| DEC-002 | Use only Cloudflare Workers AI with `@cf/meta/llama-3.1-8b-instruct`, `@cf/llava-hf/llava-v1.6b-34b` and the exact JSON-only suffix; DeepSeek/OpenAI mentions are historical and unused | APPLIED | `[src: worker-core.mjs:9-12]`; `[src: HOWEVER_LOG.md:31]` | VERIFIED | AI/Worker owner |
+| DEC-003 | Trainer replies carry the exact closing line once; Study Buddy image queries give only hint step 1 and unsafe replies use the exact escalation sentence | APPLIED | `[src: worker-core.mjs:20-21]`; `[src: worker-core.mjs:57]`; `[src: worker-core.mjs:344]` | VERIFIED | AI/Worker owner |
+| DEC-004 | Founder MCP exposes exactly three read-only tools, requires `MCP_FOUNDER_TOKEN` and returns `readOnly: true`, `executed: false`; proposals are dry-run and approval-gated | APPLIED | `[src: server/mcp-server.js:28-54]`; `[src: server/mcp-server.js:96]`; `[src: server/mcp-server.js:150-152]` | VERIFIED | Founder/Platform owner |
+| DEC-005 | WhatsApp parent support is completed with pseudonymous context, progress draft, payment-link proposal, reschedule answer, handoff pause/resume and preserved founder notice | APPLIED | `[src: server/services/whatsappAiService.js:24-35,266-311,444-503]`; `[src: server/routes/webhooks.js:85-155]` | VERIFIED | Parent-assistant owner |
+| DEC-006 | Razorpay credits exactly once with `ALREADY_CREDITED` replay response and the `540 SAR / 12 sessions` pack unchanged; Agora duplicate channel returns `AMBIGUOUS_CHANNEL`; no live provider success is claimed | APPLIED | `[src: server/routes/razorpay.js:86-158]`; `[src: server/routes/agora.js:33-71]`; `[src: pricing.html:49-66]` | VERIFIED | Payments/RTC owner |
+| DEC-007 | Seven SQL files remain review-only and no migration was applied; apply requires reviewed SQL, `DATABASE_URL`, `MATHIFY_MIGRATE_CONFIRM=apply` and explicit founder approval | APPLIED | `[ev: npm.cmd run migrate --silent --prefix server, 2026-11-26]`; `[src: server/migrations/README.md:28-36]` | VERIFIED | Platform/DB operator |
+
+## Q5. v4.0.0 DECISIONS APPLIED
+
+No new `Q1. …` questions and no new `NEW-Q-*` rows were supplied for v4.0.0; the carried count remains 26 and the new-question count remains 1. The decisions below fold in the 10-role audit without changing any open question or adding an H row [ev: user-supplied v4.0.0 reconciliation scope, 2026-11-26]. VERIFIED.
+
+| ID | Decision | Status | Evidence | Tag | Owner |
+|---|---|---|---|---|---|
+| DEC-100 | v4.0.0 is an append-only PATCH against evidence baseline `3b9d597`; the v4.0.0 final commit hash is `UNKNOWN_AT_AUTHORING_TIME` and must not be invented | APPLIED | `[src: E2E_TEST_LOG.md:5]`; `[ev: TPFF_UPDATE_REPORT.md §U10, 2026-11-26]` | VERIFIED | Docs/Archivist |
+| DEC-101 | The 10-role audit outcomes are recorded from `E2E_TEST_LOG.md`; defects A-01…A-09 are all FIXED, and A-09 was already fixed by v3.1.0 and is not re-applied | APPLIED | `[src: E2E_TEST_LOG.md:14-29,38-64]`; `[src: TPFF_BLOCKERS.md:18-32]` | VERIFIED | Bug Fixer / Docs |
+| DEC-102 | B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged; no live provider success, migration apply, commit or push is claimed | APPLIED | `[src: TPFF_BLOCKERS.md:9-40]`; `[src: E2E_TEST_LOG.md:70-82]` | VERIFIED | Platform/DB operator |
+| DEC-103 | Final local validation supersedes earlier suite counts: 36/36 suites with `agoraRoutes: 60`, `sessionPolicy: 37`, `rtcControls: 46`, `livePersistence: 54`, `chatWorker: 110` and `mcpServer: 55`; syntax sweep 136 files / 0 failures | APPLIED | `[src: E2E_TEST_LOG.md:70-79]` | VERIFIED | Tester / QA |
+| DEC-104 | Final pre-commit inventory is 41/32/9 (41 porcelain paths: 32 modified tracked + 9 untracked); the two audit docs are included, and all 9 untracked paths become tracked after the v4.0.0 documentation commit | APPLIED | `[src: E2E_TEST_LOG.md:46,70-82]`; `[ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26]` | VERIFIED | Repo maintainer |
+| DEC-105 | `.env.example` assignment lines remain 45 and §13.a env rows remain 59; both counts are simultaneously true and stated distinctly | APPLIED | `[src: E2E_TEST_LOG.md:46]`; `[src: PROJECT_FLOW_FILE.md:§13.a]`; `[ev: env-name audit, 2026-11-26]` | VERIFIED | Docs/Archivist |

@@ -41,8 +41,11 @@ async function main() {
   check(events.length >= 2, 'published events land in the shared outbox');
   check(events[events.length - 1].event === 'board.shared', 'events keep their publish order');
   check(events[0].seq < events[1].seq, 'event sequence is monotonic');
-  check(realtime.forSession(sessionId, events[0].seq, 20).length === 1,
-    'session cursor resumes after the last handled event');
+  /* Bridge reads are awaitable: the live adapter resolves asynchronously. */
+  const resumed = await realtime.forSession(sessionId, events[0].seq, 20);
+  check(resumed.length === 1, 'session cursor resumes after the last handled event');
+  const listed = await db.listSessionEvents(sessionId, 0, 20);
+  check(listed.length >= 2, 'listSessionEvents is awaitable through the facade');
   check(realtime.recent(5).length >= 2, 'trainer log reads the same outbox');
 
   /* Supabase adapter fails closed without credentials and covers every facade
@@ -71,10 +74,14 @@ async function main() {
   });
   check(missing.length === 0, 'supabase adapter implements every facade operation' +
     (missing.length ? ': ' + missing.join(', ') : ''));
+  ['addSessions', 'uncreditOrderIfCredited', 'claimWhatsappMessage'].forEach(function (name) {
+    check(typeof db[name] === 'function' && typeof supabase[name] === 'function',
+      name + ' exists in both the facade and the live adapter');
+  });
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 5, 'five reviewed migrations are discovered');
+  check(migrations.length === 7, 'seven reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -131,6 +138,37 @@ async function main() {
     agoraRoute.indexOf('ambiguous: true') !== -1,
     'duplicated Agora channels fail closed instead of misattributing presence');
 
+  check(adapter.indexOf("insertRecordOnce('packs'") !== -1 &&
+    adapter.indexOf('data->>sessionsRemaining=eq.') !== -1 &&
+    adapter.indexOf('SESSION_CREDIT_RETRIES') !== -1,
+  'live pack credits claim atomically and retry the optimistic balance CAS');
+  check(adapter.indexOf('async function uncreditOrderIfCredited') !== -1 &&
+    adapter.indexOf('data->>status=eq.credited') !== -1,
+  'order compensation is a conditional live PATCH');
+  check(adapter.indexOf('function claimWhatsappMessage') !== -1 &&
+    adapter.indexOf("insertRecordOnce('whatsapp_messages'") !== -1,
+  'WhatsApp dedupe is an atomic live claim');
+
+  const webhookRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'webhooks.js'), 'utf8');
+  check(/router\.post\('\/recording', async function/.test(webhookRoute) &&
+    webhookRoute.indexOf('await db.updateSession(') !== -1 &&
+    webhookRoute.indexOf('await realtime.publish(') !== -1,
+  'recording webhook awaits the live session write and publish');
+  check(webhookRoute.indexOf('await db.claimWhatsappMessage(') !== -1 &&
+    webhookRoute.indexOf("'sup_' + crypto.randomUUID()") !== -1,
+  'WhatsApp webhook claims dedupe atomically and uses unique escalation ids');
+
+  const sessionsRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'sessions.js'), 'utf8');
+  check(/router\.get\('\/:sessionId\/events', async function[\s\S]{0,400}await realtime\.forSession\(/
+    .test(sessionsRoute),
+  'session event bridge awaits the asynchronous live outbox');
+  const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+  check(/app\.get\('\/api\/realtime\/log'[\s\S]{0,300}async function/.test(appSource) &&
+    appSource.indexOf('await Promise.all([') !== -1 &&
+    appSource.indexOf('REALTIME_CHANNEL_PREFIX') !== -1 &&
+    appSource.indexOf('EVENT_FORBIDDEN_KEY') !== -1,
+  'app-level realtime log resolves live reads, filters by session and scrubs payloads');
+
   check(live.sql.indexOf('$mathify$') === -1,
     'migration does not collide with the runner dollar tag');
   check(live.sql.indexOf('$$') === -1,
@@ -139,10 +177,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 5,
-    'all five migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 5,
-    'all five migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 7,
+    'all seven migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 7,
+    'all seven migrations carry checksum drift guards');
   const kycMigration = migrations.find(function (migration) {
     return migration.name === '0006_trainer_onboarding_batches.sql';
   });
@@ -154,6 +192,34 @@ async function main() {
     kycMigration.sql.indexOf('grant all on public.mathify_records to service_role') !== -1 &&
     kycMigration.sql.indexOf('grant select on public.mathify_records to authenticated') === -1,
   'KYC and batch records stay service-role-only');
+  const hintLockdown = migrations.find(function (migration) {
+    return migration.name === '0007_student_hint_lockdown.sql';
+  });
+  check(Boolean(hintLockdown), 'student hint lockdown migration is present');
+  check(hintLockdown && hintLockdown.sql.indexOf('revoke select (hint) on public.quiz_questions from authenticated') !== -1 &&
+    hintLockdown.sql.indexOf('q.hint') === -1,
+  'the hint column is revoked and absent from the student view');
+  check(hintLockdown && hintLockdown.sql.indexOf("app_metadata'->>'role'") !== -1 &&
+    hintLockdown.sql.indexOf('user_metadata') === -1,
+  'hint lockdown role policy reads app_metadata, never user-editable metadata');
+  const paymentIdempotency = migrations.find(function (migration) {
+    return migration.name === '0008_payment_idempotency.sql';
+  });
+  check(Boolean(paymentIdempotency), 'payment idempotency migration is present');
+  check(paymentIdempotency &&
+    paymentIdempotency.sql.indexOf('create table if not exists public.mathify_razorpay_payments') !== -1 &&
+    paymentIdempotency.sql.indexOf('create table if not exists public.mathify_razorpay_order_credits') !== -1,
+  'payment and order-credit identity relations are created');
+  check(paymentIdempotency &&
+    paymentIdempotency.sql.indexOf('mathify_records_payment_identity_uidx') !== -1 &&
+    paymentIdempotency.sql.indexOf('mathify_records_credited_payment_uidx') !== -1,
+  'payment identity and credited-payment uniqueness are enforced');
+  check(paymentIdempotency &&
+    paymentIdempotency.sql.indexOf('revoke all on public.mathify_razorpay_payments from public, anon, authenticated') !== -1 &&
+    paymentIdempotency.sql.indexOf('revoke all on public.mathify_razorpay_order_credits from public, anon, authenticated') !== -1 &&
+    paymentIdempotency.sql.indexOf('grant all on public.mathify_razorpay_payments to service_role') !== -1 &&
+    paymentIdempotency.sql.indexOf('grant all on public.mathify_razorpay_order_credits to service_role') !== -1,
+  'payment idempotency tables stay service-role-only');
 
   console.log('livePersistence: ' + assertions + ' assertions passed');
 }

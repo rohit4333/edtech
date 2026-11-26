@@ -126,9 +126,12 @@ function fireCelebration(req, triggerName) {
   });
 }
 
-router.get('/:sessionId/events', function (req, res) {
+router.get('/:sessionId/events', async function (req, res) {
   const since = Number(req.query.since) || 0;
-  const events = realtime.forSession(req.sessionRecord.id, since, req.query.limit)
+  /* Live mode reads the Supabase outbox asynchronously; the allowlist and
+     scrub below see the resolved events either way. */
+  const events = await realtime.forSession(req.sessionRecord.id, since, req.query.limit);
+  const visible = (Array.isArray(events) ? events : [])
     .filter(function (message) { return SHARED_EVENTS.indexOf(message.event) !== -1; })
     .map(function (message) {
       return {
@@ -138,7 +141,7 @@ router.get('/:sessionId/events', function (req, res) {
         payload: safePayload(message.payload, 0) || {}
       };
     });
-  return res.json({ sessionId: req.sessionRecord.id, mode: realtime.mode, events: events });
+  return res.json({ sessionId: req.sessionRecord.id, mode: realtime.mode, events: visible });
 });
 
 /* Session chat. Only the two verified participants can reach this route, and

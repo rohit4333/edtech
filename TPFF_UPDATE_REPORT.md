@@ -1,12 +1,12 @@
-# TPFF UPDATE REPORT — v3.0.0
+# TPFF UPDATE REPORT — v4.0.0
 
 ## U0. HEADER
 
 | Field | Value |
 |---|---|
 | Previous version | v2.0, built from `f36321c830f4aa6a9282f7341034841dbfa3194e` |
-| Current version | v3.0.0 |
-| Commits compared | `f36321c..f36321c` (no commit since v2.0; all changes are in the working tree) |
+| Current version | v4.0.0 |
+| Commits compared | `f36321c..3b9d597` (one documentation commit); v3.1.0 implementation and v4.0.0 audit/fix evidence remain in the working tree, with the final commit hash `UNKNOWN_AT_AUTHORING_TIME` |
 | Mode | PATCH (declared once; not changed) |
 | Date | 2026-11-26 |
 | Author | OpenCode assisted Principal Systems Archivist; user-supplied rules R1–R9 |
@@ -16,7 +16,7 @@ Recommended commit workflow (not executed by the archivist until explicitly appr
 
 ```
 git add TPFF_UPDATE_REPORT.md PROJECT_FLOW_FILE.md PROJECT_FLOW_INDEX.json KNOWN_UNKNOWNS.md HOWEVER_LOG.md TPFF_QUESTION_LEDGER.md
-git commit -m "docs(tpff): v3.0.0 — apply nine founder rules and record update ledger"
+git commit -m "docs(tpff): v4.0.0 — fold in E2E audit, fixes and final validation"
 git push
 ```
 
@@ -145,3 +145,81 @@ No section shrank. No row was deleted.
 - [x] HOWEVER_LOG.md retains all 28 prior entries plus H-29–H-31 (31 total, each with severity and owner); KNOWN_UNKNOWNS.md retains all 26 entries with deltas recorded.
 - [x] PROJECT_FLOW_INDEX.json is valid JSON and diffs cleanly.
 - [x] No prior section shrank without a corresponding change row.
+
+## U9. v3.1.0 RECONCILIATION
+
+| Field | Value |
+|---|---|
+| Previous version | v3.0.0, built from `f36321c830f4aa6a9282f7341034841dbfa3194e` |
+| Current version | v3.1.0 |
+| Evidence HEAD | `3b9d597766358356d0d2bd9b555cf7a3614de205` (`3b9d597`) |
+| Mode | PATCH (append-only; the v3.0.0 history row remains intact) |
+| Date | 2026-11-26 |
+| Scope | Reconcile counts, AI strings, founder MCP, WhatsApp parent support, student hint lock, async auth, Razorpay exactly-once credits and Agora ambiguity handling against the evidence snapshot |
+
+| ID | Classification | Section | Summary | Old value | New value | New citation |
+|---|---|---|---|---|---|---|
+| UC-1001 | COUNT_RECONCILIATION | §0, §2, §3, §8, §9, §10, §13, §14 | Tree/test/migration/env counts updated | 176 tracked, 65 porcelain, 32 tests, 5 SQL, 58 env | 206 tracked, 25 porcelain snapshot, 36 tests, 7 review-only SQL, 59 env | `[ev: git ls-files; npm.cmd test --prefix server; npm.cmd run migrate --silent --prefix server, 2026-11-26]`; `[src: server/.env.example:50]` |
+| UC-1002 | NEW_FACT | §2, §8, §9.6 | Unified Cloudflare Workers AI exact strings recorded | Mixed model language | `@cf/meta/llama-3.1-8b-instruct`, `@cf/llava-hf/llava-v1.6b-34b`, exact JSON-only suffix, trainer closing line, Study Buddy hint-step-1 and unsafe reply | `[src: worker-core.mjs:9-21]`; `[src: worker-core.mjs:47-57]`; `[src: worker-core.mjs:344]` |
+| UC-1003 | NEW_FACT | §2, §8.2, §9.2, §9.6 | Founder MCP read-only contract | Not inventoried | Exactly three tools, `MCP_FOUNDER_TOKEN`, `readOnly: true`, `executed: false`, dry-run proposals, no writes | `[src: server/mcp-server.js:28-54]`; `[src: server/mcp-server.js:96]`; `[src: server/mcp-server.js:150-152]`; `[src: server/mcp-server.js:438-440]`; `[src: server/tests/mcpServer.test.js]` |
+| UC-1004 | NEW_FACT | §2, §8.5, §9.3 | WhatsApp parent support completed | Pseudonymity and founder handoff only | Progress draft, payment-link proposal, reschedule policy, handoff pause/resume and preserved signature/dedupe | `[src: server/services/whatsappAiService.js:24-35,266-311,444-503]`; `[src: server/routes/webhooks.js:85-155]` |
+| UC-1005 | NEW_FACT | §2, §3, §6, §8.4, §9.6 | Student hint lock and async middleware recorded | `q.hint` in safe view; unawaited `db.findSession` | Hint-free view, review-only `0007`, awaited auth/session loads and 6 async assertions | `[src: server/db/schema.sql:629-645]`; `[src: server/migrations/0007_student_hint_lockdown.sql:10-31]`; `[src: server/middleware/auth.js:49,98-103]`; `[src: server/tests/asyncAuthMiddleware.test.js]` |
+| UC-1006 | NEW_FACT | §2, §8.6, §9.3, §9.6 | Exactly-once Razorpay and Agora ambiguity handling | Code-level replay protection only | `ALREADY_CREDITED` replay response, `540 SAR / 12 sessions`, `409 AMBIGUOUS_CHANNEL`; live payment/join still BLOCKED | `[src: server/routes/razorpay.js:86-158]`; `[src: server/routes/agora.js:33-71]`; `[src: server/tests/razorpayWebhook.test.js]`; `[src: server/tests/agoraRoutes.test.js]` |
+| UC-1007 | INVENTORY_REGENERATION | §13.c, §13.d | Test and file inventories regenerated | 32 test rows, 201 file rows | 36 test rows, 213 file rows (206 tracked + 7 in-scope untracked) | `[ev: Get-ChildItem server/tests -Filter *.test.js; git ls-files; user-specified v3.1.0 evidence snapshot, 2026-11-26]` |
+| UC-1008 | SIDECAR_PARITY | §10, §11, sidecars, index | Known unknowns and however rows reconciled without row-count changes | Stale 32/5/f36321c language | 26/31 rows retained with 36/7/3b9d597 language; index row counts 26/31 and env 59 | `[src: KNOWN_UNKNOWNS.md]`; `[src: HOWEVER_LOG.md]`; `[src: PROJECT_FLOW_INDEX.json]` |
+
+- [x] TPFF version is v3.1.0 on the cover, §1.5, index `version`/`document` and this report header; the v3.0.0 §1.5 row remains intact.
+- [x] R1–R9 in §1.1 and §1.6 were not paraphrased; exact founder strings remain unchanged.
+- [x] No live Supabase, Razorpay, Twilio, Agora or Cloudflare provider action was performed by this reconciliation pass.
+- [x] §13.c has 36 rows, §13.d has 213 rows, §13.a has 59 env names, and the validator expectations were updated.
+
+## U10. v4.0.0 E2E AUDIT FOLD-IN (APPEND-ONLY)
+
+| Field | Value |
+|---|---|
+| Previous version | v3.1.0, reconciled against `3b9d597766358356d0d2bd9b555cf7a3614de205` |
+| Current version | v4.0.0 |
+| Evidence baseline | `3b9d597766358356d0d2bd9b555cf7a3614de205` (`3b9d597`) |
+| Final commit | `UNKNOWN_AT_AUTHORING_TIME` — not invented by this documentation pass |
+| Mode | PATCH (append-only; the v2.0, v3.0.0 and v3.1.0 §1.5 rows remain intact) |
+| Date | 2026-11-26 |
+| Scope | Fold in the 10-role E2E audit, A-01…A-09 fixed defects, final 36/36 validation, syntax/dry-run/diff checks, and the final 41/32/9 pre-commit inventory without touching code, tests, `.env`, migration SQL, read-only evidence files, the git index, or any remote |
+
+| ID | Classification | Section | Summary | Old value | New value | New citation |
+|---|---|---|---|---|---|---|
+| UC-2001 | AUDIT_TRAIL | §8, §9, §11, §12 | 10-role multi-agent audit folded into the canonical file | No in-repo audit trail | Ten role outcomes from Founder FAIL through Bug Fixer PASS, with exact assertions and triage decisions | `[src: E2E_TEST_LOG.md:14-29,38-64]` |
+| UC-2002 | DEFECT_REGISTER | §11, §12 | In-repo defects separated from external blockers | A-01…A-08 fixed in code/tests; A-09 fixed by v3.1.0 | A-01…A-09 all FIXED; B-01…B-06 remain `BLOCKED_EXTERNAL`; G-01…G-03 unchanged | `[src: TPFF_BLOCKERS.md:9-40]`; `[src: E2E_TEST_LOG.md:55-64,82]` |
+| UC-2003 | FINAL_VALIDATION | §2, §8, §9, §12, §14 | Final suite/assertion values supersede earlier current-state figures | `agoraRoutes: 35`, `sessionPolicy: 34`, `rtcControls: 42`, `livePersistence: 43` | `agoraRoutes: 60`, `sessionPolicy: 37`, `rtcControls: 46`, `livePersistence: 54`; `SYNTAX_FILES=136`, `SYNTAX_FAILURES=0` | `[src: E2E_TEST_LOG.md:70-79]` |
+| UC-2004 | INVENTORY_REGENERATION | §0, §9.8, §10, §11 H-25, §13.d, §14 | File inventory and working-tree snapshot regenerated | 213 file rows; 25/18/7 and 28/19/9 snapshots | 215 file rows; 41/32/9 final pre-commit inventory; 9 untracked paths become tracked after the v4.0.0 commit | `[ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26]`; `[src: E2E_TEST_LOG.md:46,70-82]` |
+| UC-2005 | SIDECAR_PARITY | §10, §11, sidecars, index, ledger | Row counts preserved while present-tense facts were reconciled | 26 U / 31 H / 36 tests / 59 env | Unchanged 26 / 31 / 36 / 59; no new U or H rows; index `v4.0.0` and final commit unknown | `[src: KNOWN_UNKNOWNS.md]`; `[src: HOWEVER_LOG.md]`; `[src: TPFF_QUESTION_LEDGER.md §Q5]`; `[src: PROJECT_FLOW_INDEX.json]` |
+| UC-2006 | PRESERVATION | §1.1, §1.5, §1.6 | Founder rules and version history preserved | v2.0/v3.0.0/v3.1.0 rows and R1–R9 verbatim | All retained; v4.0.0 row appended and R1–R9 carried forward unchanged | `[src: PROJECT_FLOW_FILE.md:§1.1,§1.5,§1.6]` |
+
+- [x] TPFF version is v4.0.0 on the cover, §1.5, index `version`/`document`, question ledger and this report header; the v2.0/v3.0.0/v3.1.0 §1.5 rows remain intact.
+- [x] R1–R9 in §1.1 and §1.6 were not paraphrased; exact founder strings remain unchanged with `EXACT_STRINGS_MISSING=0`.
+- [x] No new U/H rows were added; KNOWN_UNKNOWNS.md retains 26, HOWEVER_LOG.md retains 31 with owners, TEST_REPORT.md retains the 36-test inventory, and §13.a retains 59 env rows. `.env.example` assignment lines remain 45, a distinct count.
+- [x] `E2E_TEST_LOG.md` and `TPFF_BLOCKERS.md` are cited as read-only evidence; `A-09` is recorded as already fixed by v3.1.0 and not re-applied.
+- [x] No live Supabase, Razorpay, Twilio, Agora or Cloudflare provider action, migration apply, commit or push was performed by this documentation pass.
+- [x] §13.c has 36 rows, §13.d has 215 rows, §13.a has 59 env names, and the validator expectations were updated without weakening checks.
+
+Final validator command and exact output:
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\rohit\AppData\Local\Temp\opencode\tpff_final_validate.ps1'
+TPFF_LINES=1836
+SECTIONS=## 0. COVER | ## 1. HOW TO READ THIS FILE | ## 2. EXECUTIVE MAP | ## 3. PROVENANCE TABLE | ## 4. ACTOR & ROLE MATRIX — EXHAUSTIVE | ## 5. SURFACE INVENTORY | ## 6. DATA MODEL & PERSISTENCE | ## 7. STATE MACHINES | ## 8. FLOW NARRATIVES | ## 9. INTEGRATIONS & JOBS | ## 10. KNOWN UNKNOWNS REGISTER | ## 11. HOWEVER LOG | ## 12. TIMELINE | ## 13. APPENDICES | ## 14. COMPLETENESS COVERAGE ATTESTATION
+BAD_MULTI_TAG_ROWS=0 UNTAGGED_CLAIM_ROWS=61
+INVENTORY unknown=26 however=31 tests=36 files=215 env=59
+SIDECARS unknown=26 however=31 howeverOwners=31
+INDEX doc=PROJECT_FLOW_FILE.md complete v4.0.0 version=v4.0.0 unknown=26 however=31 routes=118 env=59
+QUESTION_LEDGER carried=26 new=1
+EXACT_STRINGS_MISSING=0
+CITATION_PATH_FAILURES=0
+VALIDATION=PASS
+```
+
+The `UNTAGGED_CLAIM_ROWS=61` diagnostic is limited to table headers and the append-only version-history table; no bad multi-tag rows, missing exact strings or broken local citation paths were found. JSON parse command and exact output:
+
+```
+powershell -NoProfile -Command "if (Get-Content -Raw -Encoding UTF8 'PROJECT_FLOW_INDEX.json' | ConvertFrom-Json) { Write-Output 'JSON_PARSE=OK' }"
+JSON_PARSE=OK
+```

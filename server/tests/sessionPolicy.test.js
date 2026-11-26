@@ -213,6 +213,12 @@ async function main() {
       { observer: true }, founderToken);
     check(observerJoin.status === 200,
       'the API allows an explicit founder observer join');
+    check(observerJoin.body.rtc.role === 'subscriber' && observerJoin.body.rtc.role !== 'publisher',
+      'the explicit founder observer token is subscriber, never publisher');
+    check(observerJoin.body.rtc.observer === true,
+      'the explicit founder observer token is marked read-only');
+    check(observerJoin.body.rtc.viewerRole === 'founder',
+      'the explicit founder observer token keeps the founder viewer role');
 
     const observerState = await request('GET', '/api/sessions/' + sessionId + '/state',
       undefined, studentToken);

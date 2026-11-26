@@ -4,6 +4,9 @@
 const assert = require('assert');
 const app = require('../app');
 const db = require('../db');
+const realtime = require('../realtime');
+const whatsappAi = require('../services/whatsappAiService');
+const notifications = require('../services/notificationService');
 
 /* Keep the smoke test on deterministic AI output even when .env has Cloudflare. */
 const cloudflareKeys = [
@@ -42,6 +45,15 @@ async function main() {
       headers: headers,
       body: body === undefined ? undefined : JSON.stringify(body)
     });
+  }
+
+  function collectKeys(value, out) {
+    if (!value || typeof value !== 'object') return out;
+    Object.keys(value).forEach(function (key) {
+      out.push(key);
+      collectKeys(value[key], out);
+    });
+    return out;
   }
 
   try {
@@ -404,11 +416,31 @@ async function main() {
     assert.strictEqual(firstCheck.requiresCorrectAnswer, true);
 
     const realtimeLog = await request('GET', '/api/realtime/log?limit=20', undefined, trainer);
+    assert.strictEqual(realtimeLog.status, 200);
     assert.strictEqual(realtimeLog.body.events.some(function (event) {
       return event.event === 'quiz.check.added' &&
         event.payload.questionId === firstCheck.id &&
         event.payload.correct === undefined;
     }), true);
+
+    /* The app-level log is session-scoped and uses the same scrub as the
+       browser event bridge even in live (Promise-returning) mode. */
+    const trainerSessionIds = db.listSessionsForUser({
+      id: trainerLogin.body.user.id, role: 'trainer'
+    }).map(function (session) { return session.id; });
+    assert.ok(trainerSessionIds.length > 0);
+    const channelPrefix = 'mathify:session:';
+    assert.ok(realtimeLog.body.events.length <= 20, 'realtime log respects the requested limit');
+    assert.strictEqual(realtimeLog.body.events.every(function (event) {
+      const channel = String(event.channel || '');
+      return channel.indexOf(channelPrefix) === 0 &&
+        trainerSessionIds.indexOf(channel.slice(channelPrefix.length)) !== -1;
+    }), true, 'realtime log only exposes the caller sessions');
+    const realtimeKeys = [];
+    realtimeLog.body.events.forEach(function (event) { collectKeys(event.payload || {}, realtimeKeys); });
+    assert.strictEqual(realtimeKeys.some(function (key) {
+      return /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i.test(key);
+    }), false, 'realtime log payloads contain no forbidden keys');
 
     const studentCheckState = await request('GET', '/api/student/sessions/ses_math_001', undefined, student);
     assert.strictEqual(studentCheckState.status, 200);
@@ -544,6 +576,122 @@ async function main() {
     const afterReteach = await request('GET', '/api/sessions/ses_math_003/state', undefined, trainer);
     assert.strictEqual(afterReteach.status, 200);
     assert.strictEqual(afterReteach.body.state.reteachRequired, true);
+
+    /* A-04: the recording webhook awaits a Promise-returning session write
+       before it reads updated.recording.url. */
+    const savedUpdateSession = db.updateSession;
+    const savedRecordingPublish = realtime.publish;
+    try {
+      let published = null;
+      db.updateSession = function (id, updater) {
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            const current = db.findSession(id);
+            resolve(current ? updater(current) : null);
+          }, 5);
+        });
+      };
+      realtime.publish = function (id, event, payload) {
+        published = { id: id, event: event, payload: payload };
+        return Promise.resolve({ seq: 1 });
+      };
+      const recording = await request('POST', '/api/webhooks/recording', {
+        sessionId: 'ses_math_001',
+        url: 'https://recordings.mathify.test/async.mp4',
+        durationSeconds: 42
+      });
+      assert.strictEqual(recording.status, 200, 'async recording write succeeds');
+      assert.strictEqual(recording.body.sessionId, 'ses_math_001', 'recording echoes the session id');
+      assert.strictEqual(published.event, 'recording.ready', 'recording.ready is published');
+      assert.strictEqual(published.payload.url, 'https://recordings.mathify.test/async.mp4',
+        'the resolved recording url is published');
+      const missingRecording = await request('POST', '/api/webhooks/recording', {
+        sessionId: 'ses_unknown', url: 'https://recordings.mathify.test/missing.mp4'
+      });
+      assert.strictEqual(missingRecording.status, 404, 'unknown session still returns 404');
+    } finally {
+      db.updateSession = savedUpdateSession;
+      realtime.publish = savedRecordingPublish;
+    }
+
+    /* A-07/A-08: concurrent identical MessageSids produce exactly one reply
+       and one escalation; distinct messages get unique escalation ids. */
+    const savedGenerate = whatsappAi.generateAiResponse;
+    const savedClaim = db.claimWhatsappMessage;
+    const savedEscalation = db.recordSupportEscalation;
+    const savedNotify = notifications.notifyHumanHandoff;
+    const savedPublish = realtime.publish;
+    const savedTwilioToken = process.env.TWILIO_AUTH_TOKEN;
+    const savedTwilioUrl = process.env.TWILIO_WEBHOOK_URL;
+    try {
+      delete process.env.TWILIO_AUTH_TOKEN;
+      delete process.env.TWILIO_WEBHOOK_URL;
+      whatsappAi.resumeBotForParent('whatsapp:+15005550006');
+      let generations = 0;
+      const escalations = [];
+      whatsappAi.generateAiResponse = async function () {
+        generations += 1;
+        return {
+          reply: 'A coordinator will take it from here.',
+          handoff: { required: true, summary: 'Refund request needs a human.' },
+          student: null
+        };
+      };
+      notifications.notifyHumanHandoff = async function () {
+        return { email: 'queued', slack: 'queued' };
+      };
+      /* Async wrapper around the real mock claim: both deliveries enter the
+         route before either claims the MessageSid. */
+      db.claimWhatsappMessage = async function (message) {
+        await new Promise(function (resolve) { setTimeout(resolve, 5); });
+        const existing = db.findWhatsappMessage(message.id);
+        if (existing) return { claimed: false, message: existing };
+        db.recordWhatsappMessage(message);
+        return { claimed: true, message: message };
+      };
+      db.recordSupportEscalation = function (escalation) {
+        escalations.push(escalation);
+        return escalation;
+      };
+      realtime.publish = function () { return Promise.resolve({ seq: 0 }); };
+
+      const duplicateBody = {
+        From: 'whatsapp:+15005550006', Body: 'I need a refund', MessageSid: 'SM_concurrent_duplicate'
+      };
+      const replies = await Promise.all([
+        request('POST', '/api/webhooks/whatsapp', duplicateBody),
+        request('POST', '/api/webhooks/whatsapp', duplicateBody)
+      ]);
+      assert.strictEqual(generations, 1, 'a duplicate MessageSid generates one reply');
+      assert.strictEqual(escalations.length, 1, 'a duplicate MessageSid opens one escalation');
+      assert.strictEqual(replies.filter(function (reply) { return reply.text === '<Response/>'; }).length, 1,
+        'the losing duplicate receives an empty TwiML response');
+
+      whatsappAi.resumeBotForParent('whatsapp:+15005550006');
+      await request('POST', '/api/webhooks/whatsapp', {
+        From: 'whatsapp:+15005550006', Body: 'I need a refund', MessageSid: 'SM_unique_1'
+      });
+      whatsappAi.resumeBotForParent('whatsapp:+15005550006');
+      await request('POST', '/api/webhooks/whatsapp', {
+        From: 'whatsapp:+15005550006', Body: 'I need a refund', MessageSid: 'SM_unique_2'
+      });
+      assert.strictEqual(escalations.length, 3, 'distinct MessageSids each escalate once');
+      assert.strictEqual(new Set(escalations.map(function (item) { return item.id; })).size, 3,
+        'escalation ids are unique within the same millisecond');
+      assert.strictEqual(escalations.every(function (item) { return item.id.indexOf('sup_') === 0; }), true,
+        'escalation ids keep the sup_ prefix');
+    } finally {
+      whatsappAi.generateAiResponse = savedGenerate;
+      db.claimWhatsappMessage = savedClaim;
+      db.recordSupportEscalation = savedEscalation;
+      notifications.notifyHumanHandoff = savedNotify;
+      realtime.publish = savedPublish;
+      if (savedTwilioToken === undefined) delete process.env.TWILIO_AUTH_TOKEN;
+      else process.env.TWILIO_AUTH_TOKEN = savedTwilioToken;
+      if (savedTwilioUrl === undefined) delete process.env.TWILIO_WEBHOOK_URL;
+      else process.env.TWILIO_WEBHOOK_URL = savedTwilioUrl;
+      whatsappAi.resumeBotForParent('whatsapp:+15005550006');
+    }
 
     const unknown = await call('/api/does-not-exist');
     assert.strictEqual(unknown.status, 404);

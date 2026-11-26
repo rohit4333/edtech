@@ -634,7 +634,6 @@ select
   q.quiz_id,
   q.prompt,
   q.options,
-  q.hint,
   q.position,
   q.status,
   q.source
@@ -1404,7 +1403,7 @@ revoke all on public.trainer_slots, public.presence_events,
 -- service_role keeps full access and remains the only writer of answer keys.
 revoke all on public.quiz_questions from public, anon, authenticated;
 revoke all on public.quiz_attempts from public, anon, authenticated;
-grant select (id, quiz_id, prompt, options, hint, position, status, source,
+grant select (id, quiz_id, prompt, options, position, status, source,
               template_id) on public.quiz_questions to authenticated;
 grant select (id, question_id, student_id, option_index, created_at)
   on public.quiz_attempts to authenticated;

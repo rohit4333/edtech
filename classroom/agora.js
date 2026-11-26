@@ -144,12 +144,14 @@
   }
 
   function setMicEnabled(enabled) {
+    if (state.observer) return false;
     if (state.controlsLocked && !enabled) return false;
     state.micEnabled = Boolean(enabled);
     return safeSetEnabled(state.localTracks[0], state.micEnabled);
   }
 
   function setCameraEnabled(enabled) {
+    if (state.observer) return false;
     if (state.controlsLocked && !enabled) return false;
     state.cameraEnabled = Boolean(enabled);
     return safeSetEnabled(state.localTracks[1], state.cameraEnabled);
@@ -157,6 +159,16 @@
 
   /* Ordered revoke transition: call this BEFORE setMediaControlsLocked(true). */
   function forceMediaOn() {
+    if (state.observer) {
+      return {
+        micApplied: false,
+        cameraApplied: false,
+        micTrackPresent: false,
+        cameraTrackPresent: false,
+        joined: state.joined,
+        observer: true
+      };
+    }
     var micApplied = safeSetEnabled(state.localTracks[0], true);
     var cameraApplied = safeSetEnabled(state.localTracks[1], true);
     state.micEnabled = true;
@@ -174,6 +186,16 @@
      A null value means "leave this track as it is". Results are honest: a
      missing, closed or permission-denied track is never reported as applied. */
   function applyTrainerMediaState(settings) {
+    if (state.observer) {
+      return {
+        micApplied: false,
+        cameraApplied: false,
+        micTrackPresent: false,
+        cameraTrackPresent: false,
+        joined: state.joined,
+        observer: true
+      };
+    }
     var input = settings || {};
     var result = {
       micApplied: false,
@@ -224,7 +246,7 @@
      Called on quiz/whiteboard transitions, tab focus and a light keep-alive so
      a mobile browser suspension cannot silently leave a camera or mic off. */
   function reaffirmMedia() {
-    if (!state.joined || !state.localTracks.length) return false;
+    if (state.observer || !state.joined || !state.localTracks.length) return false;
     var changed = false;
     if (state.micEnabled && safeSetEnabled(state.localTracks[0], true)) changed = true;
     if (state.cameraEnabled && safeSetEnabled(state.localTracks[1], true)) changed = true;
@@ -392,22 +414,32 @@
         state.channelName = rtc.channelName;
         state.uid = rtc.uid;
         state.peerUid = rtc.peerUid;
+        /* A subscriber token or an explicit observer opt-in is read-only: join
+           the channel to receive the two participants, but never publish. */
+        state.observer = state.observer || rtc.role === 'subscriber' || rtc.observer === true;
         state.client = state.sdk.createClient({ mode: 'rtc', codec: 'vp8' });
         wireEvents();
-        status('Joining…');
+        status(state.observer ? 'Joining as observer…' : 'Joining…');
 
         return state.client.join(rtc.appId, rtc.channelName, token, rtc.uid)
-          .then(function () { return state.sdk.createMicrophoneAndCameraTracks(); })
-          .then(function (tracks) {
-            state.localTracks = tracks || [];
-            safeSetEnabled(state.localTracks[0], state.micEnabled);
-            safeSetEnabled(state.localTracks[1], state.cameraEnabled);
-            if (state.localTracks[1] && state.nodes && state.nodes.local) {
-              clear(state.nodes.local);
-              state.localTracks[1].play(state.nodes.local);
-              markVideo(state.nodes.localTile, true);
+          .then(function () {
+            if (state.observer) {
+              state.localTracks = [];
+              return true;
             }
-            return state.client.publish(state.localTracks);
+            return state.sdk.createMicrophoneAndCameraTracks()
+              .then(function (tracks) {
+                state.localTracks = tracks || [];
+                safeSetEnabled(state.localTracks[0], state.micEnabled);
+                safeSetEnabled(state.localTracks[1], state.cameraEnabled);
+                if (state.localTracks[1] && state.nodes && state.nodes.local) {
+                  clear(state.nodes.local);
+                  state.localTracks[1].play(state.nodes.local);
+                  markVideo(state.nodes.localTile, true);
+                }
+                return state.client.publish(state.localTracks);
+              })
+              .then(function () { return true; });
           })
           .then(function () {
             if (state.destroyed) {
@@ -416,15 +448,17 @@
             }
             state.joined = true;
             state.joining = false;
-            if (!keepAliveTimer) {
+            if (!state.observer && !keepAliveTimer) {
               keepAliveTimer = setInterval(function () { reaffirmMedia(); }, 5000);
             }
             labelPeer();
             syncButtons();
-            setLive('Live', 'on');
-            status(state.peerUid !== null && state.peerUid !== undefined
-              ? 'Connected to peer ' + state.peerUid + '. Camera and voice stay in this 1:1 room.'
-              : 'Connected. Your peer will appear when they join.');
+            setLive(state.observer ? 'Observing' : 'Live', 'on');
+            status(state.observer
+              ? 'Observing the 1:1 call. You can see and hear the participants; they cannot see or hear you.'
+              : (state.peerUid !== null && state.peerUid !== undefined
+                ? 'Connected to peer ' + state.peerUid + '. Camera and voice stay in this 1:1 room.'
+                : 'Connected. Your peer will appear when they join.'));
             return true;
           });
       })
@@ -535,6 +569,7 @@
       micEnabled: state.micEnabled,
       cameraEnabled: state.cameraEnabled,
       controlsLocked: state.controlsLocked,
+      observer: state.observer,
       networkReady: state.networkReady,
       networkReason: state.networkReason
     };

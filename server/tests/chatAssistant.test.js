@@ -13,6 +13,7 @@ const providerKeys = [
   'CLOUDFLARE_TIMEOUT_MS'
 ];
 const originalEnv = {};
+const originalPaymentLink = process.env.WHATSAPP_PAYMENT_LINK;
 const originalFetch = global.fetch;
 let checks = 0;
 
@@ -60,6 +61,8 @@ async function main() {
   providerKeys.forEach(function (key) { originalEnv[key] = process.env[key]; });
   try {
     providerKeys.forEach(function (key) { delete process.env[key]; });
+    delete process.env.WHATSAPP_PAYMENT_LINK;
+    whatsappAi.resumeBotForParent('whatsapp:+15005550006');
     curriculumRepository.reset('mock');
 
     const offline = await chatAssistant.reply('student', 'How do I start?', { student: student });
@@ -163,6 +166,77 @@ async function main() {
     const parentBlocked = await whatsappAi.generateAiResponse(parentPhone, 'Any update?');
     equal(parentBlocked.action, 'BLOCKED_REPLY', 'parent reply leaking PII is rejected');
 
+    /* A deterministic, pseudonymous progress draft is returned but never sent
+       unless the parent asks; the model sees it only as untrusted context. */
+    const progressSeen = [];
+    stubFetch([JSON.stringify({
+      success: true,
+      result: { response: 'Here is a short progress note.' }
+    })], progressSeen);
+    const progress = await whatsappAi.generateAiResponse(parentPhone, "Can you share my child's progress?");
+    ok(Boolean(progress.progressReport && progress.progressReport.text),
+      'progress report artifact is returned');
+    equal(progress.progressReport.status, 'draft', 'progress report is marked as a draft');
+    ok(progress.progressReport.text.indexOf('78%') !== -1, 'draft includes the average check score');
+    ok(progress.progressReport.text.indexOf('62%') !== -1, 'draft includes the attendance rate');
+    ok(progress.progressReport.text.indexOf('Fractions') !== -1, 'draft includes the last topic');
+    ok(progress.progressReport.text.indexOf('Aarav Menon') === -1 &&
+      progress.progressReport.text.indexOf('+15005550006') === -1,
+    'progress draft stays pseudonymous');
+    ok(progressSeen[0].user.indexOf('Pseudonymous progress draft') !== -1,
+      'progress draft is passed to Workers AI as context');
+    ok(progress.reply.indexOf('Pseudonymous progress draft') === -1,
+      'progress draft is not sent verbatim as the parent reply');
+
+    /* Renewal requests return a safe reply plus a proposal/draft action. No
+       live payment order is created from the webhook path. */
+    const paymentSeen = [];
+    stubFetch([], paymentSeen);
+    const payment = await whatsappAi.generateAiResponse(parentPhone, 'I want to renew and buy more sessions');
+    equal(paymentSeen.length, 0, 'payment request does not call Workers AI');
+    ok(Boolean(payment.action && payment.action.type === 'PAYMENT_LINK_REQUEST'),
+      'payment request returns a PAYMENT_LINK_REQUEST action object');
+    equal(payment.action.status, 'draft', 'unconfigured payment link is clearly a draft');
+    equal(payment.action.url, null, 'draft action carries no invented URL');
+    ok(payment.reply.indexOf('DRAFT PAYMENT LINK') !== -1,
+      'unconfigured payment reply is explicitly marked as a draft');
+
+    process.env.WHATSAPP_PAYMENT_LINK = 'https://pay.example.com/renew';
+    const configuredPayment = await whatsappAi.generateAiResponse(parentPhone, 'How can I pay?');
+    equal(configuredPayment.action.url, 'https://pay.example.com/renew',
+      'configured canonical payment URL is proposed');
+    equal(configuredPayment.action.status, 'proposed', 'configured payment link is a proposal');
+    ok(configuredPayment.reply.indexOf('https://pay.example.com/renew') !== -1,
+      'parent receives the proposed payment link');
+    delete process.env.WHATSAPP_PAYMENT_LINK;
+
+    /* After a handoff the bot pauses for that phone until authenticated code
+       resumes it: no AI call, no repeated escalation. */
+    const handoff = await whatsappAi.generateAiResponse(parentPhone, 'I want a refund');
+    equal(handoff.action, 'HUMAN_HANDOFF_REQUIRED', 'refunds still require a human handoff');
+    const pauseState = whatsappAi.pauseBotForParent(parentPhone);
+    equal(pauseState.paused, true, 'handoff path pauses the bot for the parent');
+
+    const pausedSeen = [];
+    stubFetch([], pausedSeen);
+    const paused = await whatsappAi.generateAiResponse(parentPhone, 'Any update?');
+    equal(pausedSeen.length, 0, 'paused parent does not call Workers AI');
+    equal(paused.reply, 'A Mathify coordinator will take it from here.',
+      'paused parent gets the short coordinator reply');
+    equal(paused.handoff, null, 'paused parent does not create a duplicate handoff');
+    equal(paused.paused, true, 'paused outcome reports its pause state');
+
+    const resumed = whatsappAi.resumeBotForParent(parentPhone);
+    equal(resumed.resumed, true, 'founder-safe resume clears the pause');
+    const resumedSeen = [];
+    stubFetch([JSON.stringify({
+      success: true,
+      result: { response: 'The team is reviewing your note.' }
+    })], resumedSeen);
+    const afterResume = await whatsappAi.generateAiResponse(parentPhone, 'Any update?');
+    equal(resumedSeen.length, 1, 'resumed parent can use Workers AI again');
+    equal(afterResume.reply, 'The team is reviewing your note.', 'resumed reply is delivered');
+
     console.log('chatAssistant: ' + checks + ' assertions passed');
   } finally {
     global.fetch = originalFetch;
@@ -170,6 +244,9 @@ async function main() {
       if (originalEnv[key] === undefined) delete process.env[key];
       else process.env[key] = originalEnv[key];
     });
+    if (originalPaymentLink === undefined) delete process.env.WHATSAPP_PAYMENT_LINK;
+    else process.env.WHATSAPP_PAYMENT_LINK = originalPaymentLink;
+    whatsappAi.resumeBotForParent('whatsapp:+15005550006');
   }
 }
 

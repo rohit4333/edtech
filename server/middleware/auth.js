@@ -37,19 +37,26 @@ function getBearer(req) {
   return match ? match[1] : null;
 }
 
-function requireAuth(req, res, next) {
-  const payload = token.verify(getBearer(req));
-  if (!payload) {
-    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Sign in to continue.' });
-  }
+async function requireAuth(req, res, next) {
+  try {
+    const payload = token.verify(getBearer(req));
+    if (!payload) {
+      return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Sign in to continue.' });
+    }
 
-  const user = db.findUserById(payload.sub);
-  if (!user || user.status !== 'active') {
-    return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Account is not active.' });
-  }
+    /* Mock reads are synchronous; the live Supabase adapter is async. Awaiting
+       both keeps identity loading identical in every database mode. */
+    const user = await db.findUserById(payload.sub);
+    if (!user || user.status !== 'active') {
+      return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Account is not active.' });
+    }
 
-  req.user = sessionUser(user);
-  return next();
+    req.user = sessionUser(user);
+    return next();
+  } catch (error) {
+    console.error('Auth identity load failed:', error.message);
+    return res.status(500).json({ error: 'AUTH_DB_ERROR', message: 'Unable to load the signed-in account.' });
+  }
 }
 
 function requireRole() {
@@ -88,17 +95,24 @@ function sessionIdFrom(req) {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function loadSession(req, res, next) {
-  const id = sessionIdFrom(req);
-  const session = db.findSession(id);
-  if (!session) {
-    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session does not exist.' });
+async function loadSession(req, res, next) {
+  try {
+    const id = sessionIdFrom(req);
+    /* A live Supabase lookup returns a Promise; a mock lookup returns a value.
+       Awaiting both prevents a Promise from being treated as a session record. */
+    const session = await db.findSession(id);
+    if (!session) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session does not exist.' });
+    }
+    if (!canAccessSession(req.user, session)) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not part of this session.' });
+    }
+    req.sessionRecord = session;
+    return next();
+  } catch (error) {
+    console.error('Session load failed:', error.message);
+    return res.status(500).json({ error: 'SESSION_DB_ERROR', message: 'Unable to load that session.' });
   }
-  if (!canAccessSession(req.user, session)) {
-    return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not part of this session.' });
-  }
-  req.sessionRecord = session;
-  return next();
 }
 
 module.exports = {

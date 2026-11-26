@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const auth = require('./middleware/auth');
+const db = require('./db');
 const realtime = require('./realtime');
 const logger = require('./services/logger');
 const rateLimit = require('./middleware/rateLimit');
@@ -97,8 +98,55 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/parent-chat', parentChatRoutes);
 
-app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), function (req, res) {
-  return res.json({ mode: realtime.mode, events: realtime.recent(req.query.limit) });
+/* The app-level diagnostic log follows the same browser-safe rules as the
+   session event bridge: the same forbidden-key scrub and an allowlist of the
+   caller's sessions. No raw outbox event is returned verbatim. */
+const REALTIME_CHANNEL_PREFIX = 'mathify:session:';
+const EVENT_FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
+
+function scrubEventPayload(value, depth) {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(function (item) { return scrubEventPayload(item, (depth || 0) + 1); });
+  if ((depth || 0) > 4) return undefined;
+  const clean = {};
+  Object.keys(value).forEach(function (key) {
+    if (EVENT_FORBIDDEN_KEY.test(key)) return;
+    const safe = scrubEventPayload(value[key], (depth || 0) + 1);
+    if (safe !== undefined) clean[key] = safe;
+  });
+  return clean;
+}
+
+app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), async function (req, res) {
+  try {
+    const size = Math.max(1, Math.min(200, Number(req.query.limit) || 20));
+    const [events, sessions] = await Promise.all([
+      realtime.recent(req.query.limit),
+      db.listSessionsForUser(req.user)
+    ]);
+    const allowed = {};
+    (Array.isArray(sessions) ? sessions : []).forEach(function (session) {
+      allowed[String(session.id)] = true;
+    });
+
+    const visible = (Array.isArray(events) ? events : []).filter(function (event) {
+      const channel = String((event && event.channel) || '');
+      if (channel.indexOf(REALTIME_CHANNEL_PREFIX) !== 0) return false;
+      return Boolean(allowed[channel.slice(REALTIME_CHANNEL_PREFIX.length)]);
+    }).slice(-size).map(function (event) {
+      return {
+        seq: event.seq,
+        at: event.at,
+        channel: event.channel,
+        event: event.event,
+        payload: scrubEventPayload(event.payload, 0) || {}
+      };
+    });
+
+    return res.json({ mode: realtime.mode, events: visible });
+  } catch (error) {
+    return res.status(502).json({ error: 'REALTIME_LOG_FAILED', message: error.message });
+  }
 });
 
 /* A tiny inline favicon keeps browser consoles clean without exposing a new

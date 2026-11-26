@@ -1,16 +1,17 @@
 {
-    "document":  "PROJECT_FLOW_FILE.md complete v3.0.0",
+    "document":  "PROJECT_FLOW_FILE.md complete v4.0.0",
     "generated":  "2026-11-26",
-    "baselineCommit":  "f36321c",
+    "baselineCommit":  "3b9d597",
+    "finalCommit":  "UNKNOWN_AT_AUTHORING_TIME",
     "branch":  "feat/student-rtc-control-permission",
     "counts":  {
-                   "trackedFiles":  176,
-                   "statusPorcelainAllLines":  65,
-                   "modifiedTrackedPaths":  40,
-                   "untrackedPaths":  25,
-                   "testFiles":  32,
-                   "scriptEntries":  32,
-                   "migrationFiles":  5,
+                   "trackedFiles":  206,
+                   "statusPorcelainAllLines":  41,
+                   "modifiedTrackedPaths":  32,
+                   "untrackedPaths":  9,
+                   "testFiles":  36,
+                   "scriptEntries":  36,
+                   "migrationFiles":  7,
                    "routerDefinitions":  114,
                    "appHttpDefinitions":  4,
                    "appGetPostUseLines":  32,
@@ -26,6 +27,47 @@
                           "[ev: npm.cmd test --prefix server, 2026-11-26]",
                           "[ev: node.exe C:/Users/rohit/AppData/Local/Temp/opencode/tpff-routes.js; Select-String -Path server\\app.js -Pattern \u0027app\\.(get|post|put|patch|delete)\\(\u0027, 2026-11-26]"
                       ],
+    "v4Audit":  {
+                    "mode":  "PATCH",
+                    "evidenceBaseline":  "3b9d597766358356d0d2bd9b555cf7a3614de205",
+                    "finalCommit":  "UNKNOWN_AT_AUTHORING_TIME",
+                    "roleResults":  {
+                                        "founder":  "FAIL (observer publisher bug; fixed as A-01)",
+                                        "trainer1":  "PASS (1,224 counted assertions + apiSmoke)",
+                                        "trainer2":  "BLOCKED (contracts PASS; exact *_002 fixture absent)",
+                                        "kid1":  "FAIL (over-strict session-id interpretation only; NOT a defect)",
+                                        "kid2":  "FAIL (same observer bug)",
+                                        "observer":  "FAIL (3 confirmed findings)",
+                                        "tester":  "PASS",
+                                        "qualityAssurance":  "PASS",
+                                        "bugFinder":  "FAIL (6 confirmed findings)",
+                                        "bugFixer":  "PASS (two authorized batches)"
+                                    },
+                    "defects":  "A-01..A-09 all FIXED; A-09 was fixed by v3.1.0 and recorded, not re-applied",
+                    "externalBlockers":  "B-01..B-06 BLOCKED_EXTERNAL, unchanged; no live success claimed",
+                    "gaps":  "G-01..G-03 UNKNOWN/OPEN, unchanged",
+                    "finalValidation":  {
+                                            "suites":  "36/36, EXITCODE=0",
+                                            "assertionHighlights":  [
+                                                                        "agoraRoutes: 60",
+                                                                        "sessionPolicy: 37",
+                                                                        "rtcControls: 46",
+                                                                        "livePersistence: 54",
+                                                                        "chatWorker: 110",
+                                                                        "mcpServer: 55",
+                                                                        "razorpayWebhook: all exactly-once assertions passed",
+                                                                        "apiSmoke: passed"
+                                                                    ],
+                                            "syntax":  "SYNTAX_FILES=136, SYNTAX_FAILURES=0",
+                                            "migrationDryRun":  "EXITCODE=0; 0001, 0002, 0003, 0004, 0006, 0007, 0008",
+                                            "diffCheck":  "EXITCODE=0; CRLF warnings only",
+                                            "preCommitInventory":  "41/32/9 (41 porcelain paths: 32 modified tracked + 9 untracked)"
+                                        },
+                    "sources":  [
+                                    "[src: E2E_TEST_LOG.md:14-29,38-82]",
+                                    "[src: TPFF_BLOCKERS.md:9-40]"
+                                ]
+                },
     "sections":  {
                      "10":  {
                                 "heading":  "KNOWN UNKNOWNS REGISTER",
@@ -43,7 +85,7 @@
                                                   "src":  63,
                                                   "ev":  8
                                               },
-                                "rowCount":  28
+                                "rowCount":  31
                             },
                      "12":  {
                                 "heading":  "TIMELINE",
@@ -62,15 +104,16 @@
                                                   "ev":  37
                                               },
                                 "tagCount":  332,
-                                "testInventoryRows":  32,
-                                "untrackedFileRows":  25
+                                "testInventoryRows":  36,
+                                "fileInventoryRows":  215,
+                                "untrackedFileRows":  9
                             }
                  },
     "unknowns":  [
                      {
                          "entity":  "unknown",
                          "id":  "U-01",
-                         "unknown":  "Which of the five migration files (`0001`, `0002`, `0003`, `0004`, `0006`) are actually applied in a live Supabase project",
+                         "unknown":  "Which of the seven review-only SQL files (`0001`, `0002`, `0003`, `0004`, `0006`, `0007`, `0008`) are actually applied in a live Supabase project",
                          "why":  "Every live table, RLS policy, service-only store and outbox depends on the reviewed plan; the runner dry-run contacted no database",
                          "close":  "`psql \"$DATABASE_URL\" -c \"select version, name, checksum, applied_at from public.mathify_migrations order by version;\"`; artifact: one row per applied file with matching checksum",
                          "owner":  "Platform/DB operator (migration guard holder)",
@@ -126,7 +169,7 @@
                          "id":  "U-05",
                          "unknown":  "Live Supabase service-role adapter proof for practice, chat audit and session events",
                          "why":  "`TEST_REPORT.md` records SKIPPED with no practice or chat audit row written live",
-                         "close":  "Set `DATABASE_MODE=supabase` + credentials, run the 32-suite test command with live adapter enabled, then `psql \"$DATABASE_URL\" -c \"select collection, key, updated_at from public.mathify_records order by updated_at desc limit 20;\"`; artifact: live rows plus no credential values in logs",
+                         "close":  "Set `DATABASE_MODE=supabase` + credentials, run the 36-suite test command with live adapter enabled, then `psql \"$DATABASE_URL\" -c \"select collection, key, updated_at from public.mathify_records order by updated_at desc limit 20;\"`; artifact: live rows plus no credential values in logs",
                          "owner":  "Backend/QA lead",
                          "tag":  "UNKNOWN",
                          "source":  [
@@ -255,7 +298,7 @@
                          "id":  "U-15",
                          "unknown":  "Planner publish and pack import behavior",
                          "why":  "Planner is live only as local authoring/export; publish and pack import are explicitly disabled",
-                         "close":  "Product decision plus implementation commit and test; artifact: enabled UI controls, server route or documented local-only contract and passing 32-suite run",
+                         "close":  "Product decision plus implementation commit and test; artifact: enabled UI controls, server route or documented local-only contract and passing 36-suite run",
                          "owner":  "Product/LMS owner",
                          "tag":  "UNKNOWN",
                          "source":  [
@@ -449,7 +492,7 @@
                            "id":  "H-03",
                            "severity":  "MED",
                            "roleSurface":  "Docs/branch",
-                           "observation":  "`PROJECT_GUIDE.md:5` and `TEST_REPORT.md:4` say working tree is based on `9838d0a`, while HEAD is `f36321c`, three commits later; the task brief also names `b2bf372` as base",
+                           "observation":  "[U+2026-11-26] Older docs still name `9838d0a` or `f36321c`; v3.1.0 evidence HEAD is `3b9d597766358356d0d2bd9b555cf7a3614de205`, and the reconciliation is uncommitted on that HEAD",
                            "status":  "DRIFT",
                            "tag":  "VERIFIED",
                            "source":  [
@@ -464,7 +507,7 @@
                            "id":  "H-04",
                            "severity":  "MED",
                            "roleSurface":  "Docs/tests",
-                           "observation":  "`server/migrations/README.md:44` says 26 Node suites and `TEST_REPORT.md:161` says three reviewed migrations; current working tree has 32 test files/32 script entries and 5 SQL migration files",
+                           "observation":  "[U+2026-11-26] The 26-suite and three-migration statements were stale; the v3.1.0 evidence snapshot records 36 test files, 36 chained suite entries and 7 review-only SQL files, and the sidecar docs were updated",
                            "status":  "DRIFT",
                            "tag":  "VERIFIED",
                            "source":  [
@@ -766,11 +809,11 @@
                            "id":  "H-25",
                            "severity":  "MED",
                            "roleSurface":  "In-flight work",
-                           "observation":  "Current 65-path working tree is uncommitted/untracked on top of `f36321c`; 40 tracked files changed (+2137/−444) and 25 paths are untracked, including new landing, routes, services, tests and migration `0006`",
-                           "status":  "IN FLIGHT",
+                           "observation":  "[U+2026-11-26] H-25 preserves the v3.1.0 code snapshot of 25 porcelain paths (18 modified tracked + 7 in-scope untracked) and the 28/19/9 drift; [U~2026-11-26] v4.0.0 final pre-commit evidence supersedes both with 41 porcelain paths (32 modified tracked + 9 untracked), including `E2E_TEST_LOG.md` and `TPFF_BLOCKERS.md`",
+                           "status":  "SUPERSEDED IN v4.0.0",
                            "tag":  "VERIFIED",
                            "source":  [
-                                          "[ev: git status --porcelain=v1 --untracked-files=all; git diff --stat, 2026-11-26]"
+                                          "[ev: user-specified v3.1.0 evidence snapshot; user-supplied v4.0 final pre-commit inventory; git status --porcelain=v1 --untracked-files=all, 2026-11-26]"
                                       ],
                            "owner":  "Repo maintainer"
                        },
@@ -779,7 +822,7 @@
                            "id":  "H-26",
                            "severity":  "MED",
                            "roleSurface":  "Parent/announcements",
-                           "observation":  "New parent/announcement surfaces add 15 router definitions beyond the earlier 99-definition inventory, but `PROJECT_FLOW_FILE.md` currently has headings only for §§0–4 and no §5 route table; §13.e is therefore the count authority until §5 is written",
+                           "observation":  "New parent/announcement surfaces add 15 router definitions beyond the earlier 99-definition inventory; `PROJECT_FLOW_FILE.md` now contains §§0–14 with a full §5 surface inventory and §13.e reconciles to 118 HTTP definitions",
                            "status":  "DRIFT / IN FLIGHT",
                            "tag":  "VERIFIED",
                            "source":  [
@@ -794,8 +837,8 @@
                            "id":  "H-27",
                            "severity":  "HIGH",
                            "roleSurface":  "Live session routes",
-                           "observation":  "`loadSession()` calls `db.findSession(id)` without `await`, but the live adapter delegates to `supabase.findSession()`, whose `getRecord()` is async; live session routes therefore receive a Promise instead of a session record",
-                           "status":  "OPEN / LIVE BLOCKER",
+                           "observation":  "[U+2026-11-26] The unawaited-session defect is fixed: `requireAuth` awaits `db.findUserById` and `loadSession` awaits `db.findSession`; `asyncAuthMiddleware` passes 6 assertions. Live Supabase four-room behavior remains unverified",
+                           "status":  "RESOLVED IN CODE / LIVE UNVERIFIED",
                            "tag":  "VERIFIED",
                            "source":  [
                                           "[src: server/middleware/auth.js:91-102]",
@@ -2633,6 +2676,15 @@
                     },
                     {
                         "entity":  "envVar",
+                        "name":  "MCP_FOUNDER_TOKEN",
+                        "source":  [
+                                       "[src: server/.env.example:50]",
+                                       "[src: server/mcp-server.js:96]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
                         "name":  "NODEMAILER_EMAIL",
                         "source":  [
                                        "[src: tpff-data-state-env.md:106]"
@@ -2864,7 +2916,7 @@
                         "tag":  "VERIFIED"
                     }
                 ],
-    "version":  "v3.0.0",
+    "version":  "v4.0.0",
     "updateMode":  "PATCH",
     "newRulesApplied":  9,
     "newQuestionsAnswered":  0,

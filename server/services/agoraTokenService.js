@@ -2,6 +2,7 @@
    derived from the session + verified role; browser input is never trusted. */
 const crypto = require('crypto');
 const { RtcTokenBuilder, RtmTokenBuilder, RtcRole } = require('agora-token');
+const config = require('../config');
 const networkQuality = require('./networkQualityService');
 
 const TOKEN_TTL_SECONDS = 3600;
@@ -17,13 +18,99 @@ function configured() {
   return appId && appCertificate ? { appId, appCertificate } : null;
 }
 
-function rtmToken(appId, appCertificate, uid) {
-  if (!RtmTokenBuilder || typeof RtmTokenBuilder.buildToken !== 'function') return null;
-  try {
-    return RtmTokenBuilder.buildToken(appId, appCertificate, String(uid), TOKEN_TTL_SECONDS);
-  } catch (error) {
-    return null;
+/* The mock database mode is the local demo contract. Fake App IDs/certificates
+   make the Agora builder return an empty string; deterministic mock tokens keep
+   local flows usable without ever emitting a null/empty RTM token as success. */
+function mockMode() {
+  return config.databaseMode !== 'supabase';
+}
+
+function mockToken(prefix, parts) {
+  const digest = crypto.createHash('sha256')
+    .update(parts.map(function (part) { return String(part); }).join('|'))
+    .digest('hex')
+    .slice(0, 32);
+  return prefix + '_' + digest;
+}
+
+function usableToken(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function rtcToken(settings, channel, uid, role) {
+  const mockFallback = function () {
+    return mockMode()
+      ? mockToken('mock_rtc', [settings.appId, channel, uid, role, TOKEN_TTL_SECONDS])
+      : null;
+  };
+
+  if (!RtcTokenBuilder || typeof RtcTokenBuilder.buildTokenWithUid !== 'function') {
+    const fallback = mockFallback();
+    if (fallback) return fallback;
+    throw Object.assign(new Error('The Agora RTC token builder is unavailable.'), {
+      code: 'RTC_TOKEN_UNAVAILABLE', status: 503
+    });
   }
+
+  let token = null;
+  try {
+    token = RtcTokenBuilder.buildTokenWithUid(
+      settings.appId,
+      settings.appCertificate,
+      channel,
+      uid,
+      role,
+      TOKEN_TTL_SECONDS,
+      TOKEN_TTL_SECONDS
+    );
+  } catch (error) {
+    token = null;
+  }
+
+  if (!usableToken(token)) {
+    const fallback = mockFallback();
+    if (fallback) return fallback;
+    throw Object.assign(new Error('The Agora RTC token could not be generated.'), {
+      code: 'RTC_TOKEN_FAILED', status: 500
+    });
+  }
+  return token;
+}
+
+function rtmToken(settings, uid) {
+  const mockFallback = function () {
+    return mockMode()
+      ? mockToken('mock_rtm', [settings.appId, uid, TOKEN_TTL_SECONDS])
+      : null;
+  };
+
+  if (!RtmTokenBuilder || typeof RtmTokenBuilder.buildToken !== 'function') {
+    const fallback = mockFallback();
+    if (fallback) return fallback;
+    throw Object.assign(new Error('The Agora RTM token builder is unavailable.'), {
+      code: 'RTM_TOKEN_UNAVAILABLE', status: 503
+    });
+  }
+
+  let token = null;
+  try {
+    token = RtmTokenBuilder.buildToken(
+      settings.appId, settings.appCertificate, String(uid), TOKEN_TTL_SECONDS
+    );
+  } catch (error) {
+    token = null;
+  }
+
+  /* Empty output is a failed issuance, not a valid token. Never return a 200
+     with a null/empty RTM token outside the explicit mock-mode allowance. */
+  if (!usableToken(token)) {
+    const fallback = mockFallback();
+    if (fallback) return fallback;
+    throw Object.assign(new Error('The Agora RTM token could not be generated.'), {
+      code: 'RTM_TOKEN_FAILED', status: 500
+    });
+  }
+  return token;
 }
 
 function issueSessionToken(session, user) {
@@ -46,41 +133,32 @@ function issueSessionToken(session, user) {
 
   const channel = String(session.rtc.channel);
   const uid = numericUid(user.id);
+  const observer = user.role === 'founder';
+  const rtcRole = observer ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
   const peerId = user.role === 'student' ? session.trainerId : session.studentId;
   const peerUid = numericUid(peerId);
   const expiresAt = Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS;
 
-  try {
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      settings.appId,
-      settings.appCertificate,
-      channel,
-      uid,
-      RtcRole.PUBLISHER,
-      TOKEN_TTL_SECONDS,
-      TOKEN_TTL_SECONDS
-    );
-    return {
-      provider: 'agora',
-      mode: 'agora',
-      appId: settings.appId,
-      channelName: channel,
-      channel,
-      uid,
-      peerUid,
-      token: token,
-      rtcToken: token,
-      rtmToken: rtmToken(settings.appId, settings.appCertificate, uid),
-      role: 'publisher',
-      viewerRole: user.role === 'student' ? 'student' : 'trainer',
-      expiresAt,
-      expiresInSeconds: TOKEN_TTL_SECONDS
-    };
-  } catch (error) {
-    throw Object.assign(new Error('The Agora token could not be generated.'), {
-      code: 'TOKEN_GENERATION_FAILED', status: 500
-    });
-  }
+  const rtc = rtcToken(settings, channel, uid, rtcRole);
+  const rtm = rtmToken(settings, uid);
+
+  return {
+    provider: 'agora',
+    mode: 'agora',
+    appId: settings.appId,
+    channelName: channel,
+    channel: channel,
+    uid: uid,
+    peerUid: peerUid,
+    token: rtc,
+    rtcToken: rtc,
+    rtmToken: rtm,
+    role: observer ? 'subscriber' : 'publisher',
+    observer: observer,
+    viewerRole: observer ? 'founder' : (user.role === 'student' ? 'student' : 'trainer'),
+    expiresAt: expiresAt,
+    expiresInSeconds: TOKEN_TTL_SECONDS
+  };
 }
 
 module.exports = { TOKEN_TTL_SECONDS, numericUid, issueSessionToken };

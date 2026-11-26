@@ -209,6 +209,19 @@ async function main() {
     const studentHtml = read('student/index.html');
     const studentApp = read('student/app.js');
 
+    const observerBranchAt = agora.indexOf("rtc.role === 'subscriber'");
+    const tracksAt = agora.indexOf('createMicrophoneAndCameraTracks(');
+    const publishAt = agora.indexOf('client.publish(state.localTracks)');
+    check(observerBranchAt !== -1 && tracksAt !== -1 && observerBranchAt < tracksAt &&
+      tracksAt < publishAt,
+    'the subscriber/observer branch precedes local-track creation and publish');
+    check(!/client\.publish/.test(agora.slice(observerBranchAt, tracksAt)),
+      'the observer branch never publishes local tracks');
+    check(/Observing the 1:1 call/.test(agora),
+      'the observer status text says the user is observing');
+    check(!/if \(!keepAliveTimer\)/.test(agora),
+      'local-track keepalive is not started unconditionally');
+
     check(/forceStudentMediaOn\(\)[\s\S]*setMediaButtonsLocked\(true\)/.test(classroomApp),
       'student media is forced on before the controls are locked');
     check(/studentCanToggleMedia: true/.test(classroomApp),

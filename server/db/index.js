@@ -150,12 +150,72 @@ function findRazorpayOrder(orderId) {
   return found ? copy(found) : null;
 }
 
+function findRazorpayOrderByReceipt(receipt) {
+  const needle = String(receipt || '');
+  if (!needle) return null;
+  const found = store.razorpayOrders.find(function (item) { return String(item.receipt || '') === needle; });
+  return found ? copy(found) : null;
+}
+
 function findPayment(paymentId) {
   const found = store.payments.find(function (item) { return item.id === paymentId; });
   return found ? copy(found) : null;
 }
 
+/* Check-and-insert in one synchronous step. Mock mode is single-threaded, so no
+   second webhook can observe a half-written claim between the read and push. */
+function claimPayment(payment) {
+  const record = copy(payment) || {};
+  if (!record.id) return { claimed: false, payment: null, reason: 'INVALID_PAYMENT' };
+  const existing = findPayment(record.id);
+  if (existing) return { claimed: false, payment: existing };
+  store.payments.push(copy(record));
+  return { claimed: true, payment: copy(record) };
+}
+
+function releasePayment(paymentId) {
+  const index = store.payments.findIndex(function (item) { return item.id === paymentId; });
+  if (index === -1) return false;
+  store.payments.splice(index, 1);
+  return true;
+}
+
+/* Atomic compare-and-set of the order credit state: only a row still in
+   'created' can become 'credited'. */
+function creditOrderIfCreated(orderId, paymentId, creditedAt) {
+  const index = store.razorpayOrders.findIndex(function (item) { return item.id === orderId; });
+  if (index === -1) return { claimed: false, order: null };
+  const current = store.razorpayOrders[index];
+  if (current.status === 'credited' || current.paymentId) {
+    return { claimed: false, order: copy(current) };
+  }
+  const next = Object.assign({}, copy(current), {
+    status: 'credited',
+    paymentId: paymentId,
+    creditedAt: creditedAt || new Date().toISOString()
+  });
+  store.razorpayOrders[index] = next;
+  return { claimed: true, order: copy(next) };
+}
+
+function uncreditOrderIfCredited(orderId, paymentId) {
+  const index = store.razorpayOrders.findIndex(function (item) { return item.id === orderId; });
+  if (index === -1) return { released: false, order: null };
+  const current = store.razorpayOrders[index];
+  if (current.status !== 'credited') return { released: false, order: copy(current) };
+  if (paymentId && current.paymentId && String(current.paymentId) !== String(paymentId)) {
+    return { released: false, order: copy(current) };
+  }
+  const next = Object.assign({}, copy(current), { status: 'created' });
+  delete next.paymentId;
+  delete next.creditedAt;
+  store.razorpayOrders[index] = next;
+  return { released: true, order: copy(next) };
+}
+
 function recordPayment(payment) {
+  const existing = payment && payment.id ? findPayment(payment.id) : null;
+  if (existing) return existing;
   store.payments.push(copy(payment));
   return copy(payment);
 }
@@ -164,10 +224,20 @@ function addSessions(studentId, sessions, payment) {
   const user = store.users.find(function (item) { return item.id === studentId; });
   if (!user) return null;
 
+  /* The payment ID is the pack's deterministic identity. A replay with the
+     same payment is a no-op, so no duplicate pack credential is ever issued. */
+  const paymentId = payment && payment.id ? String(payment.id) : '';
+  const packId = paymentId
+    ? 'pack_' + paymentId
+    : 'pack_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  if (paymentId && store.packs.some(function (pack) { return pack.id === packId; })) {
+    return copy(user);
+  }
+
   user.sessionsRemaining = Number(user.sessionsRemaining || 0) + sessions;
 
   const pack = {
-    id: 'pack_' + Date.now(),
+    id: packId,
     studentId: studentId,
     label: 'Monthly pack · ' + sessions + ' sessions',
     totalSessions: sessions,
@@ -175,7 +245,7 @@ function addSessions(studentId, sessions, payment) {
     purchasedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 38 * 24 * 60 * 60 * 1000).toISOString(),
     refundable: false,
-    paymentRef: payment && payment.id ? payment.id : null
+    paymentRef: paymentId || null
   };
   store.packs.push(pack);
 
@@ -185,6 +255,17 @@ function addSessions(studentId, sessions, payment) {
 function findWhatsappMessage(id) {
   const found = store.whatsappMessages.find(function (item) { return item.id === id; });
   return found ? copy(found) : null;
+}
+
+/* Same check-and-insert contract as the live adapter, synchronously in mock
+   mode: only one delivery can claim a MessageSid. */
+function claimWhatsappMessage(message) {
+  const record = copy(message) || {};
+  if (!record.id) return { claimed: false, message: null, reason: 'INVALID_MESSAGE' };
+  const existing = findWhatsappMessage(record.id);
+  if (existing) return { claimed: false, message: existing };
+  store.whatsappMessages.push(copy(record));
+  return { claimed: true, message: copy(record) };
 }
 
 function recordWhatsappMessage(message) {
@@ -597,10 +678,16 @@ const mockApi = {
   findActiveRecording,
   saveRazorpayOrder,
   findRazorpayOrder,
+  findRazorpayOrderByReceipt,
   findPayment,
+  claimPayment,
+  releasePayment,
+  creditOrderIfCreated,
+  uncreditOrderIfCredited,
   recordPayment,
   addSessions,
   findWhatsappMessage,
+  claimWhatsappMessage,
   recordWhatsappMessage,
   recordSupportEscalation,
   updateSupportEscalation,

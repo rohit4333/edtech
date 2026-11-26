@@ -14,7 +14,7 @@
 | --- | --- |
 | Product | Private **1-on-1** live maths tutoring. No group classes. |
 | Stack | Vanilla HTML/CSS/JS surfaces + Node/Express API. No framework or build step. |
-| AI | **Cloudflare Workers AI only.** No DeepSeek, no OpenAI; curriculum drafts plus Trainer Desk / Study Buddy chat run through one Worker and a shared core. |
+| AI | **Unified Cloudflare Workers AI stack.** `@cf/meta/llama-3.1-8b-instruct` handles every text task (curriculum/quiz drafts, Trainer Desk, Study Buddy, WhatsApp intent and progress replies); `@cf/llava-hf/llava-v1.6b-34b` handles vision. DeepSeek/OpenAI mentions in the newer brief are legacy and are not used. |
 | Video | Agora RTC/RTM, server-signed tokens. One channel, two publishers. |
 | Database | In-memory mock by default; completed Supabase service-role adapter for `DATABASE_MODE=supabase`. |
 | Realtime | DB-backed session event outbox + scrubbed cursor polling; Supabase Realtime for canvas strokes. |
@@ -74,7 +74,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - Student Control: one trainer-only surface for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz, progress and end.
 - Server-owned brand-safe celebrations and role-scoped reactions with separate visual layers, sound opt-in and reduced-motion fallback.
 - Private parent ↔ trainer human chat for a linked child, with per-recipient unread counts, mark-read, regex DLP and founder-only flags.
-- 27 automated suites, CI, Docker, Render/Railway manifests, opt-in reminders, structured logging, rate limiting.
+- 36 automated suites, CI, Docker, Render/Railway manifests, opt-in reminders, structured logging, rate limiting.
 
 ---
 
@@ -94,7 +94,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Reactions are not celebrations | Emoji are small, immediate signals; celebrations are bounded recognition moments. Separate layers prevent visual and audio overlap. |
 | Review-first migrations | A live Supabase schema change is destructive; it never runs without human review and two explicit confirmations. |
 | Mock-first runtime | Local development needs zero credentials and deterministic data. Production must fail closed rather than silently fall back to demo identities. |
-| Cloudflare-only AI | The product constraint forbids DeepSeek/OpenAI references; one provider keeps moderation and model behavior predictable. |
+| Unified Workers AI | One provider handles every text task, including WhatsApp intent/progress replies and quiz generation, and vision; DeepSeek/OpenAI mentions in the newer brief are legacy. This keeps moderation, pinned models and model behavior predictable. |
 | Two scoped chat bots | Trainer support is an internal policy desk with a professional tone; student help must coach with hints and analogies, never replace the trainer's reveal with a final answer. |
 | Shared Worker core | The same sanitizers, model prompts and reply guards must run in the deployed Worker and in local development; Express only bridges identity and owns no prompt text. |
 | Server-held practice keys | Practice is self-paced, but an answer key or trainer-only field in the browser would break the reveal boundary and the 1-on-1 privacy promise. |
@@ -375,11 +375,13 @@ Browser smoke should show: mic/camera on by default, Join disabled until **Check
 
 Live status: one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Live image chat is gated until the user accepts the Meta model agreement; no Supabase call, Razorpay payment, Twilio SMS, Agora webhook proof, live migration or deployed-Worker browser chat is claimed. Evidence is in `TEST_REPORT.md`.
 
+v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Final local validation is 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
+
 ### Production checklist
 
 1. Rotate the exposed Cloudflare API token, `SUPABASE_SECRET_KEY` and Agora Primary Certificate.
 2. Fill `server/.env` from `server/.env.example`; never commit secrets.
-3. Review all four SQL files (including `0004_ai_chat_logs.sql`), then apply only with `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`.
+3. Review all seven SQL files (`0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql`, `0004_ai_chat_logs.sql`, `0006_trainer_onboarding_batches.sql`, `0007_student_hint_lockdown.sql`, `0008_payment_idempotency.sql`), then apply only with founder approval, `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`. No live apply occurred in the v3.1.0 evidence pass.
 4. Set `NODE_ENV=production`, `DATABASE_MODE=supabase`, explicit `CORS_ORIGIN`, `AUTH_SECRET ≥ 32` and every secret named in `assertProductionConfig()`.
 5. Deploy `worker.js` with `wrangler secret put` for `AUTH_SECRET`, `SUPABASE_URL` and `SUPABASE_SECRET_KEY`; set `CHAT_WORKER_URL` on Express only if the deployed Worker is intended to serve chat. Workers AI text is verified; accept the Meta model agreement explicitly if image chat is needed, then run a signed webhook test.
 6. Confirm both participants can pass the connection gate and that Join opens only then.

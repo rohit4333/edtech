@@ -98,6 +98,31 @@ async function listRecords(collection) {
   return Array.isArray(rows) ? rows.map(function (row) { return copy(row.data); }) : [];
 }
 
+function isDuplicateRecordError(error) {
+  if (!error) return false;
+  if (error.status === 409) return true;
+  const details = error.details || {};
+  return details.code === '23505' || /duplicate key|unique violation/i.test(String(error.message || ''));
+}
+
+/* Strict insert: the mathify_records primary key (collection, key) rejects a
+   second claim for the same payment ID. PostgREST returns 409/23505, which is
+   a duplicate webhook rather than an operational failure. */
+async function insertRecordOnce(collection, key, value) {
+  const data = copy(value);
+  try {
+    await request('/rest/v1/mathify_records', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: [{ collection: String(collection), key: String(key), data: data }]
+    });
+    return { claimed: true, data: data };
+  } catch (error) {
+    if (!isDuplicateRecordError(error)) throw error;
+    return { claimed: false, data: await getRecord(collection, key) };
+  }
+}
+
 /* Enrollment batches and locked trainer onboarding are service-only records.
    The Data API never receives their identity or document fields. */
 function listBatches() { return listRecords('batch'); }
@@ -334,21 +359,117 @@ function findRazorpayOrder(orderId) {
   return getRecord('razorpay_orders', orderId);
 }
 
+async function findRazorpayOrderByReceipt(receipt) {
+  const needle = String(receipt || '');
+  if (!needle) return null;
+  const rows = await listRecords('razorpay_orders');
+  return rows.find(function (row) { return String(row.receipt || '') === needle; }) || null;
+}
+
 function findPayment(paymentId) {
   return getRecord('payments', paymentId);
 }
 
+function claimPayment(payment) {
+  const record = copy(payment) || {};
+  if (!record.id) return Promise.resolve({ claimed: false, payment: null, reason: 'INVALID_PAYMENT' });
+  return insertRecordOnce('payments', record.id, record).then(function (result) {
+    return { claimed: result.claimed, payment: result.data };
+  });
+}
+
+function releasePayment(paymentId) {
+  if (!paymentId) return Promise.resolve(false);
+  return request('/rest/v1/mathify_records?collection=eq.payments&key=eq.' + encode(paymentId), {
+    method: 'DELETE',
+    prefer: 'return=minimal'
+  }).then(function () { return true; });
+}
+
+/* Conditional PATCH is the live compare-and-set: the filter only matches a row
+   still marked 'created', so two concurrent credits cannot both win. */
+async function creditOrderIfCreated(orderId, paymentId, creditedAt) {
+  const current = await getRecord('razorpay_orders', orderId);
+  if (!current) return { claimed: false, order: null };
+  if (current.status === 'credited' || current.paymentId) {
+    return { claimed: false, order: current };
+  }
+  const next = Object.assign({}, current, {
+    status: 'credited',
+    paymentId: paymentId,
+    creditedAt: creditedAt || new Date().toISOString()
+  });
+  const rows = await request('/rest/v1/mathify_records?collection=eq.razorpay_orders&key=eq.' +
+    encode(orderId) + '&data->>status=eq.created', {
+      method: 'PATCH',
+      prefer: 'return=representation',
+      body: { data: next }
+    });
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { claimed: false, order: await getRecord('razorpay_orders', orderId) };
+  }
+  return { claimed: true, order: next };
+}
+
+/* Compensating operation for a failed post-credit step. The PATCH filter only
+   matches the order we credited with this payment, so a retry can safely turn
+   it back into a claimable 'created' order. */
+async function uncreditOrderIfCredited(orderId, paymentId) {
+  const current = await getRecord('razorpay_orders', orderId);
+  if (!current || current.status !== 'credited') return { released: false, order: current };
+  if (paymentId && current.paymentId && String(current.paymentId) !== String(paymentId)) {
+    return { released: false, order: current };
+  }
+  const next = Object.assign({}, current, { status: 'created' });
+  delete next.paymentId;
+  delete next.creditedAt;
+  let path = '/rest/v1/mathify_records?collection=eq.razorpay_orders&key=eq.' +
+    encode(orderId) + '&data->>status=eq.credited';
+  if (paymentId) path += '&data->>paymentId=eq.' + encode(paymentId);
+  const rows = await request(path, {
+    method: 'PATCH',
+    prefer: 'return=representation',
+    body: { data: next }
+  });
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { released: false, order: await getRecord('razorpay_orders', orderId) };
+  }
+  return { released: true, order: next };
+}
+
 function recordPayment(payment) {
-  return putRecord('payments', payment.id, payment);
+  if (!payment || !payment.id) return Promise.resolve(null);
+  return claimPayment(payment).then(function (result) {
+    return result.claimed ? result.payment : findPayment(payment.id);
+  });
+}
+
+/* A credit commits in two stages: the deterministic pack claim is inserted
+   atomically first, then the balance is advanced by compare-and-set. A bounded
+   retry absorbs distinct payments racing on the same student. */
+const SESSION_CREDIT_RETRIES = 6;
+
+async function compareAndSetSessions(studentId, expected, next) {
+  const rows = await request('/rest/v1/mathify_records?collection=eq.users&key=eq.' +
+    encode(studentId) + '&data->>sessionsRemaining=eq.' + encode(expected), {
+    method: 'PATCH',
+    prefer: 'return=representation',
+    body: { data: next }
+  });
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return copy(rows[0].data);
 }
 
 async function addSessions(studentId, sessions, payment) {
-  const user = await findUserById(studentId);
-  if (!user) return null;
-  user.sessionsRemaining = Number(user.sessionsRemaining || 0) + sessions;
-  const updated = await putRecord('users', studentId, user);
+  if (!await findUserById(studentId)) return null;
+
+  /* Deterministic pack identity, mirrored from mock mode. The strict insert
+     is the replay gate: a duplicate payment can never issue a second pack or
+     touch the balance again. */
+  const paymentId = payment && payment.id ? String(payment.id) : '';
+  const packId = paymentId ? 'pack_' + paymentId : id('pack');
   const pack = {
-    id: id('pack'),
+    id: packId,
     studentId: studentId,
     label: 'Monthly pack · ' + sessions + ' sessions',
     totalSessions: sessions,
@@ -356,16 +477,58 @@ async function addSessions(studentId, sessions, payment) {
     purchasedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + 38 * 24 * 60 * 60 * 1000).toISOString(),
     refundable: false,
-    paymentRef: payment && payment.id ? payment.id : null
+    paymentRef: paymentId || null
   };
-  await putRecord('packs', pack.id, pack);
-  return updated;
+
+  const claim = await insertRecordOnce('packs', packId, pack);
+  if (!claim.claimed) return findUserById(studentId);
+
+  const releasePackClaim = function () {
+    return request('/rest/v1/mathify_records?collection=eq.packs&key=eq.' + encode(packId), {
+      method: 'DELETE',
+      prefer: 'return=minimal'
+    });
+  };
+
+  try {
+    for (let attempt = 0; attempt < SESSION_CREDIT_RETRIES; attempt += 1) {
+      const user = await findUserById(studentId);
+      if (!user) break;
+      const expected = Number(user.sessionsRemaining || 0);
+      const next = Object.assign({}, user, { sessionsRemaining: expected + Number(sessions) });
+      const updated = await compareAndSetSessions(studentId, expected, next);
+      if (updated) return updated;
+    }
+  } catch (error) {
+    /* An unexpected adapter failure must not leave a claimed pack behind: a
+       retry would then see the claim and skip the balance credit entirely. */
+    try { await releasePackClaim(); } catch (cleanupError) { /* keep the original error */ }
+    throw error;
+  }
+
+  /* No compare-and-set ever won. Release the claim so the webhook's
+     compensation can roll the order back and a retry can start clean. */
+  await releasePackClaim();
+  const error = new Error('Session balance changed concurrently; retry the payment.');
+  error.code = 'SESSION_CREDIT_CONFLICT';
+  throw error;
 }
 
 /* ----------------------------------------------------------- messaging/escalations */
 
 function findWhatsappMessage(messageId) {
   return getRecord('whatsapp_messages', messageId);
+}
+
+/* Atomic dedupe: the primary key on (collection, key) decides which webhook
+   owns a MessageSid, so concurrent identical deliveries cannot both generate
+   a reply or open a second escalation. */
+function claimWhatsappMessage(message) {
+  const record = copy(message) || {};
+  if (!record.id) return Promise.resolve({ claimed: false, message: null, reason: 'INVALID_MESSAGE' });
+  return insertRecordOnce('whatsapp_messages', record.id, record).then(function (result) {
+    return { claimed: result.claimed, message: result.data };
+  });
 }
 
 async function recordWhatsappMessage(message) {
@@ -639,10 +802,16 @@ module.exports = {
   findActiveRecording,
   saveRazorpayOrder,
   findRazorpayOrder,
+  findRazorpayOrderByReceipt,
   findPayment,
+  claimPayment,
+  releasePayment,
+  creditOrderIfCreated,
+  uncreditOrderIfCredited,
   recordPayment,
   addSessions,
   findWhatsappMessage,
+  claimWhatsappMessage,
   recordWhatsappMessage,
   recordSupportEscalation,
   updateSupportEscalation,

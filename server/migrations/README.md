@@ -11,8 +11,10 @@ plan.
 | `0001_baseline.sql` | Full baseline schema, copied from `server/db/schema.sql`. RLS, safe student views, column-level answer-key lockdown and explicit grants. Safe to re-run. |
 | `0002_student_curriculum.sql` | Adds `public.student_curriculum` — academic fields only (board, grade, language, school chapter). RLS from `app_metadata`, column-level Data API grant, no contact or identity columns. |
 | `0003_live_persistence.sql` | Adds service-only `public.mathify_records` and the `public.mathify_session_events` outbox used by the live adapter. No anon/authenticated write access; participant reads are scoped by session and role checks use `app_metadata`. |
-| `0006_trainer_onboarding_batches.sql` | Service-only collections for enrollment batches, locked trainer KYC onboarding and append-only founder corrections. No anon/authenticated Data API grants. |
 | `0004_ai_chat_logs.sql` | Adds founder-only `trainer_support_logs` and `student_doubt_logs` audit tables for Trainer Desk and Study Buddy. Sanitized prompt/reply and metadata only; no image bytes, contact data, answer keys or trainer notes. RLS reads `app_metadata`; no anon/authenticated Data API grants; service-role writes only. |
+| `0006_trainer_onboarding_batches.sql` | Service-only collections for enrollment batches, locked trainer KYC onboarding and append-only founder corrections. No anon/authenticated Data API grants. |
+| `0007_student_hint_lockdown.sql` | Revokes the drifted Data API grant on `quiz_questions.hint` and recreates `student_quiz_questions` without `hint`. Hints stay trainer-owned until an explicit trainer grant releases them; role checks use `app_metadata`. |
+| `0008_payment_idempotency.sql` | Adds service-only Razorpay payment/order-credit relations and unique payment/order-credit indexes for exactly-once crediting; no anon/authenticated Data API grants. |
 
 ## Review before applying
 
@@ -41,10 +43,18 @@ to the Data API automatically, so the academic columns are explicitly granted to
 
 `server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
 check the transaction wrapper, checksum drift guards, service-only grants and
-outbox shape. They are part of 26 Node suites run with plain `node` + `assert`
-(no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`. All four
-SQL files, including `0004`, are review-only in this workspace: no live apply
-occurred and no Supabase call was made during the recorded checks.
+outbox shape. They are part of 36 Node suites run with plain `node` + `assert`
+(no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`. All seven
+SQL files, including `0007` and `0008`, are review-only in this workspace: no
+live apply occurred and no Supabase call was made during the recorded checks.
+
+v4.0.0 dry-run context [U+2026-11-26]: `node server/migrate.js --dry-run` returned
+`EXITCODE=0` and listed the same seven ordered files (`0001`, `0002`, `0003`,
+`0004`, `0006`, `0007`, `0008`) without contacting a database. B-05 remains
+`BLOCKED_EXTERNAL`; applying still requires reviewed SQL, `DATABASE_URL`,
+`MATHIFY_MIGRATE_CONFIRM=apply` and explicit founder approval. A-09 (this README
+omitting `0008`) was fixed by the v3.1.0 documentation pass and is recorded, not
+re-applied. [src: E2E_TEST_LOG.md:78]; [src: TPFF_BLOCKERS.md:15,32]
 
 **No live migration has been applied.** Review the SQL above before setting the
 confirmation variable.

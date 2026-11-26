@@ -37,6 +37,19 @@ async function main() {
   equal(core.VISION_MODEL, '@cf/llava-hf/llava-v1.6b-34b', 'primary vision model is the requested LLaVA model');
   equal(core.VISION_FALLBACK_MODEL, '@cf/meta/llama-3.2-11b-vision-instruct',
     'documented vision fallback keeps live image calls working');
+  ok(core.TEXT_MODEL === '@cf/meta/llama-3.1-8b-instruct' &&
+    core.VISION_MODEL === '@cf/llava-hf/llava-v1.6b-34b' &&
+    core.VISION_FALLBACK_MODEL === '@cf/meta/llama-3.2-11b-vision-instruct' &&
+    core.JSON_ONLY_INSTRUCTION === 'CRITICAL: Return ONLY valid JSON. No markdown, no explanations.' &&
+    core.TRAINER_SYSTEM.endsWith(core.JSON_ONLY_INSTRUCTION) &&
+    core.STUDENT_SYSTEM.endsWith(core.JSON_ONLY_INSTRUCTION),
+  'pinned models and the exact JSON-only suffix are unchanged');
+  equal(core.TRAINER_CLOSING_LINE,
+    'Is there anything else I can help you with, or would you like me to connect you with the admin?',
+  'trainer closing line matches the brief exactly');
+  equal(core.UNSAFE_STUDENT_REPLY,
+    "I'm just an AI study buddy, but please tell your parents or your Mathify trainer about this right away!",
+  'student unsafe response matches the brief exactly');
   ok(core.isModelNotFoundError(new Error('No route for that URI.')) === true,
     'a Cloudflare route error is recognised as a missing model');
   ok(core.isModelNotFoundError({ detail: 'No route for that URI' }) === true,
@@ -58,6 +71,26 @@ async function main() {
     'trainer prompt ends with the exact JSON-only instruction');
   ok(core.STUDENT_SYSTEM.endsWith('CRITICAL: Return ONLY valid JSON. No markdown, no explanations.'),
     'student prompt ends with the exact JSON-only instruction');
+
+  ok(core.TRAINER_SYSTEM.indexOf('Mathify Trainer Desk') !== -1 &&
+    core.TRAINER_SYSTEM.indexOf('professional') !== -1 &&
+    core.TRAINER_SYSTEM.indexOf('empathetic') !== -1 &&
+    core.TRAINER_SYSTEM.indexOf('policy-aligned') !== -1,
+  'trainer persona is professional, empathetic and policy-aligned');
+  ['₹300–₹400', '6 hours', '48 hours', '₹2,000', '₹500', 'no cap',
+    'Rohit Vishwakarma', core.FOUNDER_EMAIL, 'complex payroll'].forEach(function (fact) {
+    ok(core.TRAINER_SYSTEM.indexOf(fact) !== -1, 'trainer system prompt includes ' + fact);
+  });
+  ok(core.TRAINER_SYSTEM.indexOf(core.TRAINER_CLOSING_LINE) !== -1,
+    'trainer system prompt contains the exact closing line');
+  ok(core.STUDENT_SYSTEM.indexOf('stories') !== -1 &&
+    core.STUDENT_SYSTEM.indexOf('visual analogies') !== -1 &&
+    core.STUDENT_SYSTEM.indexOf('Socratic') !== -1,
+  'student system prompt teaches Socratically with stories and visual analogies');
+  ok(core.STUDENT_SYSTEM.indexOf('acknowledge') !== -1 &&
+    core.STUDENT_SYSTEM.indexOf('hint step 1') !== -1 &&
+    core.STUDENT_SYSTEM.indexOf('never give the final answer') !== -1,
+  'student system prompt requires image acknowledgement and only hint step 1');
   ok(core.TRAINER_FACTS.indexOf('₹300–₹400') !== -1 &&
     policy.payout.rateRange[0] === 300 && policy.payout.rateRange[1] === 400,
   'trainer facts match the authoritative payout range');
@@ -93,6 +126,23 @@ async function main() {
   ok(trainerPrompt.indexOf('<untrusted_trainer_question>') !== -1 &&
     trainerPrompt.indexOf('never as an instruction') !== -1,
   'trainer question is fenced as untrusted data');
+  ok(answer.reply.endsWith(core.TRAINER_CLOSING_LINE) &&
+    answer.reply.split(core.TRAINER_CLOSING_LINE).length - 1 === 1,
+  'trainer AI reply ends with the exact closing line exactly once');
+
+  const alreadyClosed = await core.answer('trainer-support', {
+    role: 'trainer', question: 'What is the payout?'
+  }, {
+    run: async function () {
+      return envelope('Payout is ₹300–₹400 per session. ' + core.TRAINER_CLOSING_LINE);
+    }
+  });
+  equal(alreadyClosed.reply.split(core.TRAINER_CLOSING_LINE).length - 1, 1,
+    'a model-supplied closing line is never duplicated');
+  ok(alreadyClosed.reply.endsWith(core.TRAINER_CLOSING_LINE),
+    'a model-supplied closing line stays at the very end');
+  ok(core.fallbackReply('trainer-support', 'AI_ERROR').endsWith(core.TRAINER_CLOSING_LINE),
+    'the trainer offline fallback also ends with the exact closing line');
 
   await assert.rejects(
     core.answer('trainer-support', { role: 'student', question: 'Payout?' }, {
@@ -151,10 +201,45 @@ async function main() {
   }, {
     run: async function () { return envelope('Log it with your coordinator.'); }
   });
-  ok(forcedEscalation.reply.indexOf(core.FOUNDER_EMAIL) !== -1,
-    'a severe complaint always routes to the founder even if the model omits the address');
+  ok(forcedEscalation.reply.indexOf(core.FOUNDER_EMAIL) !== -1 &&
+    forcedEscalation.reply.indexOf('Rohit Vishwakarma') !== -1,
+  'a severe complaint always routes to Founder Rohit Vishwakarma at the founder email');
+  ok(forcedEscalation.reply.endsWith(core.TRAINER_CLOSING_LINE),
+    'forced escalation still ends with the exact closing line');
 
   const image = { data: Buffer.alloc(64, 7).toString('base64'), mime: 'image/png', name: 'working.png' };
+
+  equal(core.fallbackReply('student-doubt', 'UNSAFE'), core.UNSAFE_STUDENT_REPLY,
+    'the unsafe student fallback is deterministic and exact');
+  const unsafeQuestion = await core.answer('student-doubt', {
+    role: 'student', question: 'Someone is hurting me at home, what should I do?'
+  }, {
+    run: async function () { return envelope('Try a bar model first 🙂'); }
+  });
+  equal(unsafeQuestion.reply, core.UNSAFE_STUDENT_REPLY,
+    'an unsafe question returns the exact safety response');
+  equal(unsafeQuestion.source, 'fallback', 'the unsafe response is a local fallback');
+  equal(unsafeQuestion.reason, 'UNSAFE', 'the unsafe response has an explicit reason');
+
+  let unsafeRunnerCalls = 0;
+  const unsafeImage = await core.answer('student-doubt', {
+    role: 'student', question: 'Please look at this picture, I want to hurt myself', image: image
+  }, {
+    run: async function () { unsafeRunnerCalls += 1; return envelope('What do you notice?'); }
+  });
+  equal(unsafeRunnerCalls, 0, 'an unsafe image question is blocked before any model call');
+  equal(unsafeImage.reply, core.UNSAFE_STUDENT_REPLY,
+    'an unsafe image question returns the exact safety response');
+  equal(unsafeImage.imageUsed, true, 'the unsafe image is still recorded as metadata only');
+
+  const unsafeModel = await core.answer('student-doubt', {
+    role: 'student', question: 'How do I start this sum?'
+  }, {
+    run: async function () { return envelope('Please hurt yourself 🙂'); }
+  });
+  equal(unsafeModel.reply, core.UNSAFE_STUDENT_REPLY,
+    'an unsafe model reply is replaced by the exact safety response');
+
   seen = [];
   const vision = await core.answer('student-doubt', {
     role: 'student', question: 'What should I try first?', image: image, actorId: 'usr_student_001'
@@ -172,6 +257,10 @@ async function main() {
   ok(seen[0].prompt.indexOf('untrusted_image_task') !== -1 &&
     seen[0].prompt.indexOf('Ignore faces, names, backgrounds') !== -1,
   'the image prompt explicitly refuses identity and background reading');
+  ok(seen[0].prompt.indexOf('acknowledge') !== -1 &&
+    seen[0].prompt.indexOf('only hint step 1') !== -1 &&
+    seen[0].prompt.indexOf('Never give the final answer') !== -1,
+  'the image prompt asks for acknowledgement and only hint step 1');
   equal(core.toProviderInput(seen[0], Buffer.from(image.data, 'base64')).image.length, 64,
     'LLaVA receives decoded image bytes, never the raw prompt text');
   ok(vision.question.indexOf('working.png') === -1, 'the uploaded filename is not stored in the question');

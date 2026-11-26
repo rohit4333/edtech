@@ -7,6 +7,16 @@ const service = require('../services/razorpayService');
 
 const router = express.Router();
 
+function packSummary() {
+  return {
+    id: service.MONTHLY_PACK.id,
+    label: service.MONTHLY_PACK.label,
+    sessions: service.MONTHLY_PACK.sessions,
+    amount: service.MONTHLY_PACK.amount,
+    currency: service.MONTHLY_PACK.currency
+  };
+}
+
 router.post('/orders/monthly', auth.requireAuth, auth.requireRole('student', 'founder'), async function (req, res) {
   const requestedStudentId = String((req.body || {}).studentId || '').trim();
 
@@ -17,8 +27,18 @@ router.post('/orders/monthly', auth.requireAuth, auth.requireRole('student', 'fo
   const studentId = requestedStudentId || (req.user.role === 'student' ? req.user.id : '');
 
   try {
-    const result = await service.createMonthlyPackOrder({ studentId: studentId });
-    db.saveRazorpayOrder({
+    /* Same pack + customer inside one retry window reuses the saved order. */
+    const receipt = service.monthlyPackReceipt(studentId);
+    const existing = await db.findRazorpayOrderByReceipt(receipt);
+    if (existing && existing.status === 'created') {
+      return res.status(200).json({
+        order: { id: existing.id, receipt: existing.receipt },
+        pack: packSummary()
+      });
+    }
+
+    const result = await service.createMonthlyPackOrder({ studentId: studentId, receipt: receipt });
+    await db.saveRazorpayOrder({
       id: result.order.id,
       studentId: studentId,
       packId: result.pack.id,
@@ -71,69 +91,97 @@ router.post('/webhook', async function (req, res) {
     return res.json({ received: true, ignored: true, reason: 'NO_CAPTURED_PAYMENT' });
   }
 
-  if (db.findPayment(payment.id)) {
+  const already = function () {
     return res.json({ received: true, ignored: true, reason: 'ALREADY_CREDITED' });
+  };
+
+  try {
+    if (await db.findPayment(payment.id)) return already();
+
+    /* Credit only against the order this server created. Payment notes and
+       order notes supplied by a client are never trusted for identity or value. */
+    const savedOrder = payment.orderId ? await db.findRazorpayOrder(payment.orderId) : null;
+    if (!savedOrder) {
+      return res.json({ received: true, ignored: true, reason: 'ORDER_NOT_FOUND' });
+    }
+    if (savedOrder.status === 'credited') return already();
+
+    const studentId = savedOrder.studentId;
+    const sessions = Number(savedOrder.sessions);
+
+    if (!studentId || !Number.isInteger(sessions) || sessions < 1) {
+      return res.json({ received: true, ignored: true, reason: 'INVALID_ORDER' });
+    }
+
+    if (payment.amount !== savedOrder.amount || payment.currency !== savedOrder.currency) {
+      return res.json({ received: true, ignored: true, reason: 'PACK_MISMATCH' });
+    }
+
+    if (!await db.findUserById(studentId)) {
+      return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
+    }
+
+    const creditedAt = new Date().toISOString();
+    const claim = await db.claimPayment({
+      id: payment.id,
+      orderId: payment.orderId,
+      studentId: studentId,
+      amount: payment.amount,
+      currency: payment.currency,
+      sessions: sessions,
+      capturedAt: payment.capturedAt,
+      createdAt: creditedAt
+    });
+    if (!claim || !claim.claimed) return already();
+
+    /* Second gate: the order itself can only transition created -> credited.
+       If another payment won that race, roll back our payment claim. */
+    const orderClaim = await db.creditOrderIfCreated(payment.orderId, payment.id, creditedAt);
+    if (!orderClaim || !orderClaim.claimed) {
+      await db.releasePayment(payment.id);
+      return already();
+    }
+
+    /* Once the order is credited, every remaining step must be able to undo
+       that CAS. Otherwise a transient failure would leave the order marked
+       credited and a retry would report ALREADY_CREDITED with no pack. */
+    const compensate = async function () {
+      try { await db.uncreditOrderIfCredited(payment.orderId, payment.id); }
+      catch (error) { /* best effort: never hide the original failure */ }
+      try { await db.releasePayment(payment.id); }
+      catch (error) { /* best effort: never hide the original failure */ }
+    };
+
+    try {
+      const student = await db.addSessions(studentId, sessions, { id: payment.id });
+      if (!student) {
+        await compensate();
+        return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
+      }
+
+      await realtime.publish(studentId, 'pack.credited', {
+        paymentId: payment.id,
+        sessionsAdded: sessions,
+        sessionsRemaining: student.sessionsRemaining
+      });
+
+      return res.json({
+        received: true,
+        credited: true,
+        studentId: studentId,
+        sessionsAdded: sessions,
+        sessionsRemaining: student.sessionsRemaining
+      });
+    } catch (error) {
+      await compensate();
+      throw error;
+    }
+  } catch (error) {
+    return res.status(502).json({
+      error: error.code || 'WEBHOOK_PROCESSING_FAILED',
+      message: error.message
+    });
   }
-
-  /* Credit only against the order this server created. Payment notes and
-     order notes supplied by a client are never trusted for identity or value. */
-  const savedOrder = payment.orderId ? db.findRazorpayOrder(payment.orderId) : null;
-  if (!savedOrder) {
-    return res.json({ received: true, ignored: true, reason: 'ORDER_NOT_FOUND' });
-  }
-  if (savedOrder.status === 'credited') {
-    return res.json({ received: true, ignored: true, reason: 'ALREADY_CREDITED' });
-  }
-
-  const studentId = savedOrder.studentId;
-  const sessions = Number(savedOrder.sessions);
-
-  if (!studentId || !Number.isInteger(sessions) || sessions < 1) {
-    return res.json({ received: true, ignored: true, reason: 'INVALID_ORDER' });
-  }
-
-  if (payment.amount !== savedOrder.amount || payment.currency !== savedOrder.currency) {
-    return res.json({ received: true, ignored: true, reason: 'PACK_MISMATCH' });
-  }
-
-  if (!db.findUserById(studentId)) {
-    return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
-  }
-
-  db.recordPayment({
-    id: payment.id,
-    orderId: payment.orderId,
-    studentId: studentId,
-    amount: payment.amount,
-    currency: payment.currency,
-    sessions: sessions,
-    capturedAt: payment.capturedAt,
-    createdAt: new Date().toISOString()
-  });
-
-  const student = db.addSessions(studentId, sessions, { id: payment.id });
-  if (!student) {
-    return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
-  }
-  db.saveRazorpayOrder(Object.assign({}, savedOrder, {
-    status: 'credited',
-    paymentId: payment.id,
-    creditedAt: new Date().toISOString()
-  }));
-
-  realtime.publish(studentId, 'pack.credited', {
-    paymentId: payment.id,
-    sessionsAdded: sessions,
-    sessionsRemaining: student.sessionsRemaining
-  });
-
-  return res.json({
-    received: true,
-    credited: true,
-    studentId: studentId,
-    sessionsAdded: sessions,
-    sessionsRemaining: student.sessionsRemaining
-  });
 });
 
 module.exports = router;

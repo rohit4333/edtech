@@ -7,7 +7,7 @@
 
 ## Result
 
-**PASS** — all 27 automated suites (including the new parent-chat suite), syntax checks, migration dry run, dependency audit, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully. The chat/practice additions are covered by the live evidence below; no full end-to-end browser live-chat success is claimed.
+**PASS** — all 36 automated suites in the v3.1.0 evidence snapshot (including the parent-chat, MCP, Agora-routes, async-auth and Razorpay-webhook suites), syntax checks, migration dry run, dependency audit, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully. The chat/practice additions are covered by the live evidence below; no full end-to-end browser live-chat success is claimed.
 
 ## Live verification evidence
 
@@ -158,7 +158,7 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - Published events land in the shared outbox in order, support exclusive `since` cursors, and are readable by the trainer log.
 - The Supabase adapter refuses calls without credentials and implements every facade operation, so live mode cannot silently fall back to demo identities.
 - `0003_live_persistence.sql` creates the service-only record store and session outbox, uses `app_metadata` rather than user-editable metadata, restricts client writes, and avoids runner dollar-quote collisions.
-- Three reviewed migrations are discovered and each carries a transaction wrapper and checksum guard.
+- Seven review-only SQL files are discovered and each carries a transaction wrapper and checksum guard; no live apply was performed.
 
 `server/tests/liveOperations.test.js` verifies:
 
@@ -251,3 +251,18 @@ The pasted assessment was checked against the current code, excluding demo crede
 3. Obtain explicit approval before applying reviewed Supabase migrations, then verify all deployed tables have RLS enabled, policies read `app_metadata`, the raw event outbox has no authenticated grant, and live-created sessions carry `rtc.channel`.
 4. Decide whether founder settings drafts should become a reviewed, persisted deployment source; until then they remain runtime drafts and planner exports remain local authoring output.
 5. Provide OCR access or extracted text for PDF pages 5–17 before quoting them verbatim.
+
+## v3.1.0 reconciliation addendum
+
+- VERIFIED — `npm.cmd test --prefix server` completed 36/36 chained suites with exit code 0; highlights include `chatWorker: 110 assertions passed`, `mcpServer: 55 checks`, `chatAssistant: 63 assertions passed`, `livePersistence: 43 assertions passed`, `asyncAuthMiddleware: 6 assertions passed`, `credentialLogin: 10 assertions passed`, `apiSmoke: passed`, `razorpayWebhook: all exactly-once assertions passed` and `agoraRoutes: 35 assertions passed` [ev: npm.cmd test --prefix server, 2026-11-26]; [src: server/package.json:13].
+- VERIFIED — `npm.cmd run migrate --silent --prefix server` listed seven review-only SQL files (`0001`, `0002`, `0003`, `0004`, `0006`, `0007`, `0008`), contacted no database and requires `DATABASE_URL` plus `MATHIFY_MIGRATE_CONFIRM=apply` and founder approval to apply [ev: npm.cmd run migrate --silent --prefix server, 2026-11-26]; [src: server/migrations/README.md:28-36].
+- VERIFIED — No live Razorpay charge, Twilio message, Supabase apply or Agora join was performed in the reconciliation pass; those remain BLOCKED/UNKNOWN [src: TEST_REPORT.md:19-25,242-253]; [ev: no live provider calls by this pass, 2026-11-26].
+
+## v4.0.0 final validation addendum
+
+[U~2026-11-26] The v3.1.0 figures above remain historical. The final post-fix local validation after the 10-role audit is the current state: `npm.cmd test --prefix server` returned `EXITCODE=0` with 36/36 chained suites, including `agoraRoutes: 60`, `sessionPolicy: 37`, `rtcControls: 46`, `livePersistence: 54`, `chatWorker: 110`, `mcpServer: 55`, `razorpayWebhook: all exactly-once assertions passed` and `apiSmoke: passed`. Earlier `agoraRoutes: 35`, `sessionPolicy: 34`, `rtcControls: 42` and `livePersistence: 43` values are superseded [src: E2E_TEST_LOG.md:57,70-79]; [ev: npm.cmd test --prefix server, 2026-11-26].
+
+- VERIFIED — [U+2026-11-26] `node --check` sweep reported `SYNTAX_FILES=136`, `SYNTAX_FAILURES=0`; `node server/migrate.js --dry-run` returned `EXITCODE=0` with seven review-only SQL files (`0001`, `0002`, `0003`, `0004`, `0006`, `0007`, `0008`); `git diff --check` returned `EXITCODE=0` with no whitespace errors, only CRLF normalization warnings [src: E2E_TEST_LOG.md:77-79].
+- VERIFIED — [U+2026-11-26] All in-repo defects A-01…A-09 are FIXED; A-09 was already fixed by the v3.1.0 documentation pass and is recorded, not re-applied. B-01…B-06 remain `BLOCKED_EXTERNAL`, G-01…G-03 remain unchanged gaps, and no live provider success is claimed [src: TPFF_BLOCKERS.md:9-40]; [src: E2E_TEST_LOG.md:55-64,82].
+- VERIFIED — [U~2026-11-26] Final pre-commit inventory is 41/32/9: 206 tracked files, 41 `git status --porcelain=v1 --untracked-files=all` paths, 32 modified tracked paths and 9 untracked paths including `E2E_TEST_LOG.md` and `TPFF_BLOCKERS.md`; earlier 25/18/7 and 28/19/9 snapshots remain in H-25. After the v4.0.0 documentation commit the 9 untracked paths become tracked, but the final commit hash is `UNKNOWN_AT_AUTHORING_TIME` [src: E2E_TEST_LOG.md:46,70-82]; [ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26].
+- VERIFIED — [U+2026-11-26] Documentation validation printed `VALIDATION=PASS` with `unknown=26 however=31 tests=36 files=215 env=59`, `EXACT_STRINGS_MISSING=0` and `CITATION_PATH_FAILURES=0`; `PROJECT_FLOW_INDEX.json` parsed with `JSON_PARSE=OK` [src: TPFF_UPDATE_REPORT.md §U10]; [ev: tpff_final_validate.ps1 final run, 2026-11-26].
