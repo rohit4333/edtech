@@ -35,27 +35,9 @@ create index if not exists mathify_session_events_session_seq_idx
 
 alter table public.mathify_session_events enable row level security;
 
--- Direct Data API reads are limited to the two verified session participants.
--- Writes are restricted to non-student roles. Role checks use app_metadata only;
--- user_metadata is never trusted. The classroom bridge still uses the
--- server-scrubbed /api/sessions/:id/events endpoint, not this raw table.
-drop policy if exists p_mathify_events_participants on public.mathify_session_events;
-create policy p_mathify_events_participants on public.mathify_session_events
-  for select to authenticated
-  using (
-    exists (
-      select 1 from public.sessions s
-      where s.id::text = session_id
-        and (s.trainer_id = (select auth.uid()) or s.student_id = (select auth.uid()))
-    )
-  );
-
-drop policy if exists p_mathify_events_no_students_write on public.mathify_session_events;
-create policy p_mathify_events_no_students_write on public.mathify_session_events
-  as restrictive for insert, update, delete to authenticated
-  using (((select auth.jwt())->'app_metadata'->>'role') <> 'student')
-  with check (((select auth.jwt())->'app_metadata'->>'role') <> 'student');
-
+-- Raw stored payloads may contain trainer-only authoring metadata and must
+-- never be readable through the Supabase Data API. The classroom bridge uses
+-- /api/sessions/:id/events, which allowlists event names and scrubs keys before
+-- they reach a browser. Only the Express service_role touches this table.
 revoke all on public.mathify_session_events from public, anon, authenticated;
-grant select on public.mathify_session_events to authenticated;
 grant all on public.mathify_session_events to service_role;

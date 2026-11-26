@@ -50,7 +50,7 @@ body{overflow:hidden}
 }
 .icon-btn:hover{background:var(--cream);color:var(--ink);border-color:var(--line-soft)}
 .brand{font-size:20px;font-weight:500;letter-spacing:-.045em;line-height:1;flex:none}
-.brand i{font-style:normal;font-weight:700;color:var(--coral)}
+.brand i{font-style:normal;font-weight:700;color:var(--coral-deep)}
 .top-rule{width:1px;height:24px;background:var(--line);flex:none;margin:0 2px}
 
 .lesson{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -406,7 +406,7 @@ body{overflow:hidden}
   font-size:8px;
   color:var(--coral-deep);
 }
-.foot-quiz{background:var(--coral);border-color:var(--coral);color:var(--ink);font-weight:500}
+.foot-quiz{background:var(--coral);border-color:var(--coral-deep);color:var(--ink);font-weight:500}
 .foot-quiz:hover{background:#FF7048;border-color:#FF7048}
 .foot-tools{display:none}
 .phone-tools{display:none}

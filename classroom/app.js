@@ -35,6 +35,8 @@
     studentCanToggleMedia: true,
     forceMicOn: false,
     forceCameraOn: false,
+    studentMuted: false,
+    studentCameraOff: false,
     version: 0
   };
   var networkState = null;
@@ -66,6 +68,7 @@
         window.MATHIFY_USER = window.MATHIFY_USER || { role: state.viewerRole };
       }
       if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
+      if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
       if (state && state.network) applyNetworkState(state.network);
       return true;
     }).catch(function (error) {
@@ -418,6 +421,14 @@
   var shareBtn = $('#shareBtn');
   var selfTile = $('#selfTile');
   var accessBtn = $('#studentMediaAccessBtn');
+  /* Student Control mirrors the same server state as the call bar shortcut. */
+  var scMediaBtn = $('#scMediaBtn');
+  var scApplauseBtn = $('#scApplauseBtn');
+  var scReactBtn = $('#scReactBtn');
+  var scMuteBtn = $('#scMuteMicBtn');
+  var scCameraBtn = $('#scCameraOffBtn');
+  var scBoardBtn = $('#scBoardBtn');
+  var reactionPermissionState = { studentCanReact: true, studentCanApplaud: true, version: 0 };
 
   function setIcon(button, id) {
     var use = button && button.querySelector('use');
@@ -515,13 +526,101 @@
     accessBtn.classList.toggle('is-on', allowed);
     accessBtn.setAttribute('aria-pressed', String(allowed));
     accessBtn.setAttribute('aria-label', allowed
-      ? 'Revoke student audio and video controls'
-      : 'Allow student audio and video controls');
+      ? 'Access on — revoke student audio and video controls'
+      : 'Access off — allow student audio and video controls');
     accessBtn.title = allowed
       ? 'Student can mute and switch camera off · click to lock'
       : 'Student controls locked · click to allow';
     var label = $('[data-media-access-label]', accessBtn);
     if (label) label.textContent = allowed ? 'Access on' : 'Access off';
+    if (scMediaBtn) {
+      scMediaBtn.classList.toggle('is-on', allowed);
+      scMediaBtn.setAttribute('aria-pressed', String(allowed));
+      var scLabel = $('[data-control-label]', scMediaBtn);
+      if (scLabel) scLabel.textContent = allowed ? 'On' : 'Off';
+      scMediaBtn.title = allowed
+        ? 'Student can mute and switch off the camera · click to lock'
+        : 'Student controls locked · click to allow';
+    }
+  }
+
+  function applyApplauseButton() {
+    if (!scApplauseBtn) return;
+    var allowed = reactionPermissionState.studentCanApplaud !== false;
+    scApplauseBtn.classList.toggle('is-on', allowed);
+    scApplauseBtn.setAttribute('aria-pressed', String(allowed));
+    var label = $('[data-control-label]', scApplauseBtn);
+    if (label) label.textContent = allowed ? 'On' : 'Off';
+    scApplauseBtn.title = allowed
+      ? 'Student may applaud the trainer · click to pause'
+      : 'Applause paused for this session · click to allow';
+    var engagement = window.classroomEngagement;
+    if (engagement && typeof engagement.setApplauseAllowed === 'function') {
+      engagement.setApplauseAllowed(allowed);
+    }
+    if (engagement && typeof engagement.setReactionAllowed === 'function') {
+      engagement.setReactionAllowed(reactionPermissionState.studentCanReact !== false);
+    }
+  }
+
+  function applyReactButton() {
+    var allowed = reactionPermissionState.studentCanReact !== false;
+    var engagement = window.classroomEngagement;
+    if (engagement && typeof engagement.setApplauseAllowed === 'function') {
+      engagement.setApplauseAllowed(reactionPermissionState.studentCanApplaud !== false);
+    }
+    if (engagement && typeof engagement.setReactionAllowed === 'function') {
+      engagement.setReactionAllowed(allowed);
+    }
+    if (!scReactBtn) return;
+    scReactBtn.classList.toggle('is-on', allowed);
+    scReactBtn.setAttribute('aria-pressed', String(allowed));
+    var label = $('[data-control-label]', scReactBtn);
+    if (label) label.textContent = allowed ? 'On' : 'Off';
+    scReactBtn.title = allowed
+      ? 'Student may send emoji reactions · click to pause'
+      : 'Emoji reactions paused · click to allow';
+    applyApplauseButton();
+  }
+
+  function applyReactionPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(reactionPermissionState.version) || 0);
+    if (incoming && incoming < current) return;
+    reactionPermissionState = {
+      studentCanReact: value.studentCanReact !== false,
+      studentCanApplaud: value.studentCanApplaud !== false,
+      version: incoming || current
+    };
+    applyReactButton();
+  }
+
+  function applyTrainerMediaButtons() {
+    var muted = mediaPermission.studentMuted === true;
+    var cameraOff = mediaPermission.studentCameraOff === true;
+    if (scMuteBtn) {
+      scMuteBtn.classList.toggle('is-on', muted);
+      scMuteBtn.setAttribute('aria-pressed', String(muted));
+      var micLabel = $('[data-control-label]', scMuteBtn);
+      if (micLabel) micLabel.textContent = muted ? 'Muted' : 'On';
+      scMuteBtn.title = muted ? 'Kid is muted · click to unmute' : 'Mute the kid’s microphone';
+    }
+    if (scCameraBtn) {
+      scCameraBtn.classList.toggle('is-on', cameraOff);
+      scCameraBtn.setAttribute('aria-pressed', String(cameraOff));
+      var cameraLabel = $('[data-control-label]', scCameraBtn);
+      if (cameraLabel) cameraLabel.textContent = cameraOff ? 'Off' : 'On';
+      scCameraBtn.title = cameraOff ? 'Kid camera is off · click to turn it on' : 'Turn off the kid’s camera';
+    }
+  }
+
+  function applyBoardButton() {
+    if (!scBoardBtn) return;
+    scBoardBtn.classList.toggle('is-on', sharing === true);
+    scBoardBtn.setAttribute('aria-pressed', String(Boolean(sharing)));
+    var label = $('[data-control-label]', scBoardBtn);
+    if (label) label.textContent = sharing ? 'On' : 'Off';
   }
 
   /* Force-on always runs before the lock. The honest status distinguishes a
@@ -537,22 +636,42 @@
       studentCanToggleMedia: allowed,
       forceMicOn: value.forceMicOn === true,
       forceCameraOn: value.forceCameraOn === true,
+      studentMuted: value.studentMuted === true,
+      studentCameraOff: value.studentCameraOff === true,
       version: incoming || current
     };
     applyAccessButton();
+    applyTrainerMediaButtons();
 
     if (!isStudentViewer()) return Promise.resolve(true);
+
+    /* An intentional trainer mute/camera-off always wins over the Access
+       force-on default. A null track means "leave it as it is". */
+    var micOn = mediaPermission.studentMuted ? false : (!allowed ? true : null);
+    var cameraOn = mediaPermission.studentCameraOff ? false : (!allowed ? true : null);
+    var remoteResult = null;
+    function applyRemoteState() {
+      var call = callModule();
+      if (!call || typeof call.applyTrainerMediaState !== 'function') return;
+      remoteResult = call.applyTrainerMediaState({ micOn: micOn, cameraOn: cameraOn });
+      if (micOn !== null) setMicVisual(micOn);
+      if (cameraOn !== null) setCameraVisual(cameraOn);
+    }
+
     if (!allowed) {
+      /* Force-on always runs before the lock; then an explicit off is applied
+         by the trainer's authority, even while the controls are locked. */
       var applied = forceStudentMediaOn();
       setMediaButtonsLocked(true);
       var lockedCall = callModule();
       if (lockedCall && typeof lockedCall.setMediaControlsLocked === 'function') {
         lockedCall.setMediaControlsLocked(true);
       }
+      applyRemoteState();
       var message = applied.joined
-        ? (applied.micApplied && applied.cameraApplied
-          ? 'Trainer locked media controls. Microphone and camera are on.'
-          : 'Trainer locked media controls. Allow camera and microphone access in your browser.')
+        ? (remoteResult && (!remoteResult.micApplied || !remoteResult.cameraApplied)
+          ? 'Trainer locked controls. Some devices could not be switched as requested.'
+          : 'Trainer locked media controls. Microphone and camera are on.')
         : 'Trainer locked media controls. Microphone and camera will start on when you join.';
       if (lockedCall && typeof lockedCall.setStatus === 'function') lockedCall.setStatus(message);
       toast('Your trainer locked audio and video controls.');
@@ -561,6 +680,10 @@
       var openCall = callModule();
       if (openCall && typeof openCall.setMediaControlsLocked === 'function') {
         openCall.setMediaControlsLocked(false);
+      }
+      applyRemoteState();
+      if (remoteResult && (remoteResult.micApplied === false || remoteResult.cameraApplied === false)) {
+        toast('Your trainer changed audio or video. Allow device access if a control did not change.');
       }
     }
     return Promise.resolve(true);
@@ -579,13 +702,13 @@
     }
   }
 
-  accessBtn && accessBtn.addEventListener('click', function () {
+  function setStudentMediaAccess(next) {
     if (!sessionId || !classroomApi || typeof classroomApi.setMediaPermission !== 'function') {
       toast('Student media access needs a live session.');
       return;
     }
-    var next = mediaPermission.studentCanToggleMedia !== true;
-    accessBtn.disabled = true;
+    var buttons = [accessBtn, scMediaBtn].filter(Boolean);
+    buttons.forEach(function (button) { button.disabled = true; });
     classroomApi.setMediaPermission(sessionId, next).then(function (permission) {
       applyMediaPermission(permission);
       toast(next
@@ -594,19 +717,114 @@
     }).catch(function (error) {
       toast('Media access update failed: ' + error.message);
     }).then(function () {
-      accessBtn.disabled = false;
+      buttons.forEach(function (button) { button.disabled = false; });
+    });
+  }
+
+  accessBtn && accessBtn.addEventListener('click', function () {
+    setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
+  });
+  scMediaBtn && scMediaBtn.addEventListener('click', function () {
+    setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
+  });
+
+  function setTrainerMedia(patch, message) {
+    if (!sessionId || !classroomApi || typeof classroomApi.setTrainerMediaState !== 'function') {
+      toast('Trainer media control needs a live session.');
+      return;
+    }
+    var buttons = [scMuteBtn, scCameraBtn].filter(Boolean);
+    buttons.forEach(function (button) { button.disabled = true; });
+    classroomApi.setTrainerMediaState(sessionId, patch).then(function (permission) {
+      applyMediaPermission(permission);
+      toast(message);
+    }).catch(function (error) {
+      toast('Media control update failed: ' + error.message);
+    }).then(function () {
+      buttons.forEach(function (button) { button.disabled = false; });
+    });
+  }
+
+  scMuteBtn && scMuteBtn.addEventListener('click', function () {
+    var next = mediaPermission.studentMuted !== true;
+    setTrainerMedia({ micOn: !next }, next ? 'Kid is muted.' : 'Kid microphone is on.');
+  });
+  scCameraBtn && scCameraBtn.addEventListener('click', function () {
+    var next = mediaPermission.studentCameraOff !== true;
+    setTrainerMedia({ cameraOn: !next }, next ? 'Kid camera is off.' : 'Kid camera is on.');
+  });
+
+  scApplauseBtn && scApplauseBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
+      toast('Applause permission needs a live session.');
+      return;
+    }
+    var next = reactionPermissionState.studentCanApplaud !== true;
+    scApplauseBtn.disabled = true;
+    classroomApi.setReactionPermission(sessionId, { studentCanApplaud: next }).then(function (permission) {
+      applyReactionPermission(permission);
+      toast(next ? 'Student may applaud again.' : 'Applause paused for this student.');
+    }).catch(function (error) {
+      toast('Applause permission update failed: ' + error.message);
+    }).then(function () {
+      scApplauseBtn.disabled = false;
+    });
+  });
+
+  scReactBtn && scReactBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
+      toast('Emoji permission needs a live session.');
+      return;
+    }
+    var next = reactionPermissionState.studentCanReact !== true;
+    scReactBtn.disabled = true;
+    classroomApi.setReactionPermission(sessionId, { studentCanReact: next }).then(function (permission) {
+      applyReactionPermission(permission);
+      toast(next ? 'Student may use emoji again.' : 'Emoji reactions paused for this student.');
+    }).catch(function (error) {
+      toast('Emoji permission update failed: ' + error.message);
+    }).then(function () {
+      scReactBtn.disabled = false;
     });
   });
 
   var sharing = false;
-  shareBtn && shareBtn.addEventListener('click', function () {
-    sharing = !sharing;
-    shareBtn.classList.toggle('is-on', sharing);
-    shareBtn.setAttribute('aria-pressed', String(sharing));
-    shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing board' : 'Share board');
-    shareBtn.title = sharing ? 'Stop sharing board' : 'Share board';
-    toast(sharing ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
+  function setBoardShare(next) {
+    sharing = Boolean(next);
+    if (shareBtn) {
+      shareBtn.classList.toggle('is-on', sharing);
+      shareBtn.setAttribute('aria-pressed', String(sharing));
+      shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing board' : 'Share board');
+      shareBtn.title = sharing ? 'Stop sharing board' : 'Share board';
+    }
     $$('.call-pip').forEach(function (pip) { pip.classList.toggle('is-sharing', sharing); });
+    applyBoardButton();
+    /* Sound is paused whenever a shared surface is visible. */
+    var engagement = window.classroomEngagement;
+    if (engagement && typeof engagement.setScreenSharing === 'function') {
+      engagement.setScreenSharing(sharing);
+    }
+  }
+
+  shareBtn && shareBtn.addEventListener('click', function () {
+    setBoardShare(!sharing);
+    toast(sharing ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
+  });
+  scBoardBtn && scBoardBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.shareBoard !== 'function') {
+      toast('Board sharing needs a live session.');
+      return;
+    }
+    var next = !sharing;
+    scBoardBtn.disabled = true;
+    classroomApi.shareBoard(sessionId, next).then(function () {
+      setBoardShare(next);
+      toast(next ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
+    }).catch(function (error) {
+      toast('Board sharing update failed: ' + error.message);
+    }).then(function () {
+      scBoardBtn.disabled = false;
+    });
   });
 
   /* Quiz mode is handled in session.js so the board can be hidden cleanly. */
@@ -987,6 +1205,8 @@
   });
 
   /* -------------------------------------------------------------------- init */
+  applyReactButton();
+  applyBoardButton();
   loadSessionContext();
 
   /* Live 1:1 call. The existing floating PiP is the call surface; the SDK is
@@ -1108,18 +1328,15 @@
   }
 
   var shareBoardBtn = $('#shareBoardBtn');
-  var boardShared = false;
   if (shareBoardBtn) {
     shareBoardBtn.addEventListener('click', function () {
-      boardShared = !boardShared;
+      setBoardShare(!sharing);
       if (!sessionId || !classroomApi || typeof classroomApi.shareBoard !== 'function') {
-        toast(boardShared ? 'Board sharing is on for this local preview.' : 'Board sharing stopped.');
+        toast(sharing ? 'Board sharing is on for this local preview.' : 'Board sharing stopped.');
         return;
       }
-      classroomApi.shareBoard(sessionId, boardShared).then(function () {
-        toast(boardShared ? 'Board shared with ' + studentName + '.' : 'Board sharing stopped.');
-      }).catch(function (error) {
-        boardShared = !boardShared;
+      classroomApi.shareBoard(sessionId, sharing).catch(function (error) {
+        setBoardShare(!sharing);
         toast('Board sharing failed: ' + error.message);
       });
     });
@@ -1192,6 +1409,8 @@
     setStudentName: applyStudentName,
     applyMediaPermission: applyMediaPermission,
     mediaPermission: function () { return mediaPermission; },
+    applyReactionPermission: applyReactionPermission,
+    reactionPermission: function () { return reactionPermissionState; },
     applyNetworkState: applyNetworkState,
     networkState: function () { return networkState; }
   };

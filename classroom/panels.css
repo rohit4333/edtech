@@ -253,7 +253,7 @@
   background:rgba(255,91,46,.08);
   box-shadow:inset 2px 0 0 var(--coral);
 }
-.plan-steps li.current .step-mark{border-color:var(--coral);background:var(--coral);color:var(--ink);font-weight:500}
+.plan-steps li.current .step-mark{border-color:var(--coral-deep);background:var(--coral);color:var(--ink);font-weight:500}
 .plan-steps li.current .step-main b{color:var(--paper)}
 .plan-steps li.current .step-main span{color:rgba(253,250,243,.55)}
 .plan-note{
@@ -264,7 +264,7 @@
   line-height:1.55;
   color:rgba(253,250,243,.5);
 }
-.plan-note .icon{width:14px;height:14px;flex:none;color:var(--coral);margin-top:1px}
+.plan-note .icon{width:14px;height:14px;flex:none;color:var(--coral-deep);margin-top:1px}
 
 /* ----------------------------------------------------------------- health */
 .health-top{
@@ -506,7 +506,7 @@
 .end-copy{margin-top:14px;font-size:11px;line-height:1.7;color:rgba(253,250,243,.62)}
 .end-copy b{font-weight:500;color:rgba(253,250,243,.9)}
 .end-note{display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px;border-radius:8px;background:rgba(253,250,243,.04);font-size:9.5px;color:rgba(253,250,243,.5)}
-.end-note .icon{width:14px;height:14px;color:var(--coral);flex:none}
+.end-note .icon{width:14px;height:14px;color:var(--coral-deep);flex:none}
 
 /* ------------------------------------------------------------------ toast */
 .toast{

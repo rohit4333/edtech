@@ -1,19 +1,20 @@
 # Mathify test report
 
 **Date:** 26 November 2026
-**Branch:** `feat/student-rtc-control-permission` (based on `main` at `b2bf372`)
-**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, trainer-owned student media permissions, two-sided connection precondition, curriculum LMS, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, DX/DevOps extras.
+**Branch:** `feat/student-rtc-control-permission` (working tree based on `main` at `9838d0a`)
+**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.
 **Mode:** Local/mock by default. No live database migration and no live paid transaction were performed.
 
 ## Result
 
-**PASS** — all 23 automated suites, syntax checks, migration dry run, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully.
+**PASS** — all 24 automated suites, syntax checks, migration dry run, dependency audit, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully.
 
 ## Commands and results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Full automated suite | `npm test` from `server/` | Exit `0`. All 23 suites passed. |
+| Full automated suite | `npm test` from `server/` | Exit `0`. All 24 suites passed. |
+| Engagement controls suite | `node tests/engagementControls.test.js` | `66 assertions passed`. |
 | Live-readiness suite | `node tests/liveReadiness.test.js` | `62 assertions passed`. |
 | Live persistence suite | `node tests/livePersistence.test.js` | `25 assertions passed`. |
 | Live operations suite | `node tests/liveOperations.test.js` | `14 assertions passed`. |
@@ -21,10 +22,12 @@
 | API smoke | Included in `npm test` | `apiSmoke: passed`. |
 | UI scaffold contract | Included in `npm test` | `scaffoldedUI: 12 assertions passed`. |
 | Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66763 bytes `sha256:82e6768ba8a2`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 2840 bytes `sha256:99e665c198c1`. Checksums reflect CRLF working-tree bytes; migration files are unchanged in git. |
-| JS syntax | `node --check` on every changed JS file | All 16 changed/new JS files passed. |
-| Whitespace | `git diff --check` | Clean (exit `0`). |
+| JS syntax | `node --check` on every changed JS file | All 19 changed/new JS files passed. |
+| Whitespace | `git diff --check` | Clean (exit `0`); only CRLF normalisation warnings on four CSS/service files. |
+| Dependency audit | `npm audit --omit=dev --json` | `0 vulnerabilities` after upgrading `zod` and `nodemailer` and committing the lockfile change. |
 | HTTP surface smoke | Express origin on port 4173 | Reviewed pages/assets returned `200`; server source, `.env`, `.git`, and migration files remain `404`. |
 | Browser smoke | In-app Chromium, 12 surfaces | `0` console errors and `0` failed requests on every surface. |
+| Lighthouse recheck | `apps.html`, `contact.html`, `lms/index.html` on port 4100 | Accessibility, best practices and SEO all `1`; `[]` failures after preview/booking-copy changes. |
 | Classroom live-call panel | `?sessionId=ses_math_001` | `Check speed` and Join controls present; Join disabled with “Check speed” label until both people pass; mic/camera on by default; server-signed token API exposed; no SDK/network call until Join. |
 | Trainer media Access button | Trainer classroom view | `Access on` toggled to `Access off` and back; force flags and version advanced server-side; no console errors. |
 | Student media lock | Student classroom view | After revoke: mic/camera on and disabled, Access button absent, version advanced; after grant: controls re-enabled; both events arrived via the safe channel with no quiz running; `0` console errors. |
@@ -41,15 +44,15 @@ All suites are registered in `server/package.json`:
 - `masteryGating`: 31 assertions
 - `quizGenerator`: 21 assertions
 - `quizPromptInjection`: 10 assertions
-- `cloudflareClient`: 72 assertions
+- `cloudflareClient`: 81 assertions
 - `curriculumAuthoring`: 107 assertions
 - `curriculumContext`: 116 assertions
 - `aiCurriculumIntegration`: 36 assertions
 - `studentSerializer`: 19 assertions
-- `privacyBoundary`: 139 assertions
+- `privacyBoundary`: 149 assertions
 - `chatAssistant`: 26 assertions
 - `curriculumPersistence`: 25 assertions
-- `navContract`: 44 assertions
+- `navContract`: 53 assertions
 - `slotService`: 15 assertions
 - `presenceService`: 17 assertions
 - `apiSmoke`: passed
@@ -58,6 +61,7 @@ All suites are registered in `server/package.json`:
 - `livePersistence`: 25 assertions
 - `liveOperations`: 14 assertions
 - `rtcControls`: 42 assertions
+- `engagementControls`: 66 assertions
 
 Expected non-fatal console output during tests:
 
@@ -115,6 +119,17 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - Students cannot award badges; unknown or invented badge ids are rejected; trainer picks a badge while policy owns label/points; the dashboard exposes only safe trophy fields and accumulated points.
 - Browser contracts: force-on happens before lock, media is reaffirmed on quiz/focus/keep-alive, the safe event channel opens on session load, and the student dashboard renders trophies.
 
+`server/tests/engagementControls.test.js` verifies:
+
+- One trainer-only Student Control section owns media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz controls and session end; the student view removes every `.trainer-only` node.
+- Student emoji and applause default to enabled, are independently patchable by trainer/founder, reject a student’s attempted change, advance a version per change, and are enforced server-side before any event is published.
+- Direct trainer media state is separate from Access revoke: mute/camera-off are versioned and honest, revoke still forces tracks on before locking, grant clears force flags, and an empty patch is rejected.
+- Six server-owned celebration types use only paper/ink/coral token keys, 250–4000 ms durations, mapped sounds, student > trainer > default preference priority, a 5-per-session cap and a 3-second gap; clients can only send a trigger id and allowlisted preference ids.
+- Celebration payloads carry no answer, correctness, hint, explanation, trainer note or instruction field; students cannot start celebrations; unknown triggers are rejected; `session_complete` randomizes inside the approved pool.
+- Kid reactions are limited to `💡 🤔 ✅ 👏`, trainer reactions include `🎯`, applause is explicitly addressed to the trainer, and all reaction/permission events are scrubbed before the safe channel.
+- Browser source contracts keep celebrations and reactions in separate layers, queue a reaction that arrives during a celebration instead of overlapping it, suppress celebrations during quiz mode, still render reactions during quiz mode, and apply a server quiz launch to the student tab.
+- Reduced motion has a static badge fallback and drops animation/sound; sound is opt-in, paused on screen share and volume-capped at `0.6`; engagement code never enables a camera or microphone.
+
 ## Browser click-through results
 
 - All 12 public and app surfaces: nav contract intact; 0 console errors and 0 failed requests.
@@ -125,10 +140,34 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - Student classroom view (`?view=student`): after revoke the mic/camera buttons were on and disabled and the Access button was absent; after grant both re-enabled; no console errors.
 - `student/index.html`: reward trophies rendered from the dashboard with a point total; search highlighted `3` matches, notifications popover opened, `8` session actions wired, recording chapter buttons carry real timestamps, mobile tabs carry real targets; no console errors.
 - `trainer/index.html`: search returned `1 matching student/session row`, `5` mobile tabs carry real targets, Start Class is wired; no console errors.
+- Partial-work labelling: the LMS surface shows a visible “Curriculum preview” banner, the apps hub marks it **Preview** instead of **Live**, and the contact form states that no payment is taken there; Lighthouse remained `1/1/1` on all three changed surfaces.
+
+## Fresh-session browser E2E (port 4100)
+
+- Both trainer and student tabs began with Join disabled and **Check speed**; after passing the client check both showed **Join**, with no RTC token issued before the two-sided gate passed.
+- Student Control clicks produced the expected server state for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing and badge/kudos/quiz/end links; the student view exposed `0` `.trainer-only` elements and no Student Control sheet.
+- Pausing applause and emoji disabled only the corresponding student buttons; trainer/founder role checks rejected the same writes from a student token.
+- A server quiz launch put the student tab into quiz mode (`quiz-live`) and suppressed the shared celebration: `/celebrate` returned `fired:false`, `seq:null`, and no `shared.celebration` event or visible celebration layer followed.
+- A kid reaction during that active quiz still reached the safe event stream (`reaction.sent`, seq `13`) and rendered the separate reaction layer containing `💡`; it did not enable any camera or microphone track.
+- A reaction arriving while a celebration was visible stayed hidden until the celebration cleared, then rendered; the two layers were never visible at the same time.
+- Reduced-motion / sound / screen-share contracts and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
+
+## Security assessment disposition
+
+The pasted assessment was checked against the current code, excluding demo credentials. Eight priorities were reconciled:
+
+- **IDOR / access control — already covered.** Signed JWTs are re-verified, the active user is reloaded from the DB, `canAccessSession` limits founder/trainer/student to the right records, and all session routes apply `requireAuth` + `loadSession`. Student payloads and the browser event channel strip trainer-only fields. No new IDOR was found; no fix required.
+- **Agora token trust — already covered.** Channel, UID, peer UID, publisher role and TTL are server-derived from the verified session; browser input is ignored; both roles must pass a fresh two-sided network check. Webhook signatures use HMAC-SHA256 with `timingSafeEqual`. Added one hardening fix: duplicated Agora channels now fail closed instead of attributing presence to the first match.
+- **Razorpay signature — already covered.** Raw body is preserved before JSON parsing, HMAC-SHA256 is compared in constant time, only `payment.captured` is credited, and amount/currency/order/student are revalidated with replay protection. No fix required.
+- **Supabase RLS — staged SQL hardened.** All policies read `auth.jwt()->'app_metadata'->>'role'`, never `user_metadata`; RLS is enabled on every public table. Closed the strongest gap by revoking authenticated `SELECT` on `mathify_session_events`, leaving the raw outbox service-role-only so clients cannot bypass browser event scrubbing. Removed `hint` from the safe student quiz view and column grant until an explicit trainer grant. The DB facade now throws `LIVE_ADAPTER_METHOD_MISSING` instead of silently falling back to mock data in live mode. **Deployment is still pending.**
+- **Workers AI cross-tenant / PII — hardened.** Tutor/copilot prompts already use academic-only fields. Added an explicit untrusted-question envelope plus reply-side DLP for PII, social links and trainer-only material. Parent support now sends `pseudonymous learner` instead of the student name, fences parent text as untrusted data, and applies the same reply DLP.
+- **Prompt injection — hardened.** System instructions establish hierarchy over fenced user data; adversarial “ignore previous instructions” and leaking-completion fixtures are covered by tests. Quiz drafts remain trainer-approval-only behind content moderation.
+- **Dependency CVEs — already covered.** `zod@^4.6.7` and `nodemailer@^10.6.1` resolved the reported advisories; `npm audit --omit=dev` reports `0 vulnerabilities`. Added `.github/workflows/ci.yml` so `npm ci`, `npm audit` and `npm test` run on every push/PR. Node engine requirement aligned to `>=20` for `nodemailer 10.x`.
+- **1:1 session isolation — already covered.** Sessions have exactly one trainer and one student with a distinct-party constraint. Trainer-created sessions now additionally validate that both ids resolve to active accounts with the correct roles via `server/services/sessionPartyService.js`. Live-created sessions get a unique server-derived `rtc.channel`, so tokens and webhooks cannot be misrouted.
 
 ## Deliberate non-actions
 
-- No Supabase migration was applied. Apply still requires human review plus both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`.
+- No Supabase migration was applied. Apply still requires human review plus both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`. One demo founder user row was inserted and verified in `public.users` at the user’s request; this is data, not a schema migration.
 - No live Cloudflare call was made because the current `.env` token must be rotated first.
 - No real Razorpay capture, Agora recording webhook, or Twilio message was sent from tests. Test notification credentials were cleared before HTTP checks.
 - The Agora Join control was not activated during browser smoke: it would load the remote SDK and request camera/microphone access. Its token contract and the connection gate are covered by server tests instead.
@@ -138,6 +177,6 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 
 1. Rotate the exposed Cloudflare API token, Supabase secret key, and Agora Primary Certificate; replace values in gitignored `server/.env` without sharing them in chat.
 2. After rotation, make one live Cloudflare Workers AI call and verify production env validation on the chosen host.
-3. Obtain explicit approval before applying reviewed Supabase migrations.
+3. Obtain explicit approval before applying reviewed Supabase migrations, then verify all deployed tables have RLS enabled, policies read `app_metadata`, the raw event outbox has no authenticated grant, and live-created sessions carry `rtc.channel`.
 4. Finish founder-editable policy/mastery/trainer-policy settings screens and planner designer v1 if they are required for the launch scope.
 5. Provide OCR access or extracted text for PDF pages 5–17 before quoting them verbatim.

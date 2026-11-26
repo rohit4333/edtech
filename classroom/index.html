@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="session.css">
 <link rel="stylesheet" href="agora.css">
+<link rel="stylesheet" href="engagement.css">
 </head>
 <body>
 
@@ -72,7 +73,7 @@
     </div>
     <div class="top-r">
       <span class="rec" title="Recording"><i aria-hidden="true"></i><span class="rec-label">REC</span><span class="num" id="recTime">42:18</span></span>
-      <button class="people" id="peopleBtn" type="button" aria-haspopup="dialog" aria-label="Ishaan Verma is in the room. Open session details.">
+      <button class="people" id="peopleBtn" type="button" aria-haspopup="dialog" title="Open session details for Ishaan Verma">
         <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
         <span class="people-txt"><b>1</b><span>in room</span></span>
       </button>
@@ -163,7 +164,7 @@
                 <div class="sketch-strip">
                   <span class="mono">Sketch space <span>· 3 parts</span></span>
                   <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
-                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
                 </div>
                 <footer class="p-foot"><span class="p-chip">Same bar, same story</span><span class="p-pagenum">01 / 03</span></footer>
               </article>
@@ -198,7 +199,7 @@
                 <div class="sketch-strip">
                   <span class="mono">Sketch space <span>· number line</span></span>
                   <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
-                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
                 </div>
                 <footer class="p-foot"><span class="p-chip">× the same number, top and bottom</span><span class="p-pagenum">02 / 03</span></footer>
               </article>
@@ -215,7 +216,7 @@
                     <button class="ws-expand" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand sketch</span></button>
                     <span class="ws-mark" aria-hidden="true">44</span>
                     <span class="ws-prompt">Start with the whole.</span>
-                    <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" title="Drag to resize"><span aria-hidden="true">↕</span></button>
+                    <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
                   </div>
                   <aside class="checklist">
                     <span class="mono">Before you solve</span>
@@ -328,13 +329,13 @@
           <div class="dock-tile dock-trainer cam-on" title="You · Ananya Rao">
             <span class="dock-initials" aria-hidden="true">AR</span>
             <div class="pip-video" data-agora-video="local" aria-hidden="true"></div>
-            <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
+            <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b>You</b>
           </div>
           <div class="dock-tile dock-student" title="Ishaan Verma">
             <span class="dock-initials" aria-hidden="true">IV</span>
             <div class="pip-video" data-agora-video="remote" aria-hidden="true"></div>
-            <span class="dock-mic" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
+            <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b data-agora-peer-label>Ishaan</b>
           </div>
         </div>
@@ -367,6 +368,26 @@
             <figcaption><span class="t-name">Ishaan</span><span class="t-mic"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span></figcaption>
           </figure>
         </div>
+        <div class="engagement-bar" role="group" aria-label="Session engagement">
+          <div class="reaction-set student-only" role="group" aria-label="Student reactions">
+            <button class="reaction-btn" type="button" data-reaction="💡" aria-label="Send an insight reaction" title="Insight">💡</button>
+            <button class="reaction-btn" type="button" data-reaction="🤔" aria-label="Send a thinking reaction" title="Thinking">🤔</button>
+            <button class="reaction-btn" type="button" data-reaction="✅" aria-label="Send a got-it reaction" title="Got it">✅</button>
+            <button class="reaction-btn" type="button" data-reaction="👏" data-target="trainer" aria-label="Applaud your trainer" title="Applaud your trainer">👏</button>
+          </div>
+          <div class="reaction-set trainer-only" role="group" aria-label="Trainer reactions">
+            <button class="reaction-btn" type="button" data-reaction="👏" aria-label="Applaud the student" title="Applaud the student">👏</button>
+            <button class="reaction-btn" type="button" data-reaction="⭐" aria-label="Send a star reaction" title="Star moment">⭐</button>
+            <button class="reaction-btn" type="button" data-reaction="🎯" aria-label="Send an on-target reaction" title="On target">🎯</button>
+          </div>
+          <div class="engagement-controls">
+            <label class="visually-hidden" for="celebrationPref">Celebration style preference</label>
+            <select id="celebrationPref" aria-label="Celebration style preference">
+              <option value="">Default (set by trainer policy)</option>
+            </select>
+            <button type="button" id="engagementSoundBtn" aria-pressed="false">Sound off</button>
+          </div>
+        </div>
       </section>
 
       <section class="side-card">
@@ -386,6 +407,10 @@
           <button class="tool-card" type="button" data-sheet="sheet-health" aria-haspopup="dialog">
             <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-health"/></svg></span>
             <b>Progress</b><span>Ishaan · 72%</span>
+          </button>
+          <button class="tool-card trainer-only" type="button" data-sheet="sheet-student-control" aria-haspopup="dialog">
+            <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg></span>
+            <b>Student Control</b><span>All permissions in one place</span>
           </button>
           <button class="tool-card" type="button" data-sheet="sheet-quiz" aria-haspopup="dialog">
             <span class="tc-ico"><svg class="icon" aria-hidden="true"><use href="#i-quiz"/></svg></span>
@@ -417,7 +442,7 @@
       <button class="ctl is-off" id="camBtn" type="button" aria-pressed="true" aria-label="Turn on camera" title="Turn on camera">
         <svg class="icon" aria-hidden="true"><use href="#i-cam-off"/></svg>
       </button>
-      <button class="ctl ctl-access trainer-only is-on" id="studentMediaAccessBtn" type="button" aria-pressed="true" aria-label="Revoke student audio and video controls" title="Student can mute and switch off the camera · click to lock">
+      <button class="ctl ctl-access trainer-only is-on" id="studentMediaAccessBtn" type="button" aria-pressed="true" aria-label="Access on — revoke student audio and video controls" title="Student can mute and switch off the camera · click to lock">
         <span data-media-access-label>Access on</span>
       </button>
       <button class="ctl" id="shareBtn" type="button" aria-pressed="false" aria-label="Share board" title="Share board">
@@ -432,6 +457,7 @@
     <div class="foot-actions">
       <button class="queue" id="handBtn" type="button"><svg class="icon" aria-hidden="true"><use href="#i-hand"/></svg><span>Hand up</span></button>
       <button class="foot-btn" id="chatBtn" type="button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg><span>Chat</span><span class="count" id="chatCount">1</span></button>
+      <button class="foot-btn foot-tools trainer-only" type="button" data-sheet="sheet-student-control" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg><span>Student Control</span></button>
       <button class="foot-btn foot-tools" type="button" data-sheet="sheet-tools" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span>Tools</span></button>
       <button class="foot-btn foot-quiz" type="button" data-sheet="sheet-quiz" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-quiz"/></svg><span>Quiz</span></button>
     </div>
@@ -451,7 +477,7 @@
       <button class="ptool" data-act="clear" type="button" aria-label="Clear page"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
     </div>
     <details class="legal">
-      <summary aria-label="Pricing and policies">Legal</summary>
+      <summary aria-label="Legal — pricing and policies">Legal</summary>
       <nav class="legal-links" aria-label="Pricing and policies">
         <a href="../pricing.html">Pricing</a>
         <a href="../terms.html">Terms</a>
@@ -703,20 +729,86 @@
         </div>
         <div class="quick-actions trainer-only">
           <span class="block-label">Room</span>
-          <button type="button" id="shareBoardBtn">Share board</button>
-          <button type="button" disabled title="Remote microphone control happens in the live Agora room.">Mute student</button>
           <button type="button" id="saveBoardBtn">Save board</button>
-          <span class="block-label">Rewards</span>
-          <div class="badge-award">
-            <label class="visually-hidden" for="badgeSelect">Choose a reward badge</label>
-            <select id="badgeSelect">
-              <option value="focus_star">Focus Star · 10 pts</option>
-              <option value="sharp_thinking">Sharp Thinking · 20 pts</option>
-              <option value="steady_progress">Steady Progress · 15 pts</option>
-              <option value="kind_partner">Kind Partner · 10 pts</option>
-              <option value="concept_master">Concept Master · 25 pts</option>
-            </select>
-            <button type="button" id="awardBadgeBtn">Award badge</button>
+          <span class="control-hint">Camera, microphone, reactions and rewards now live in <b>Student Control</b>.</span>
+        </div>
+      </div>
+      <footer class="sheet-foot">
+        <button class="btn btn-light btn-sm" type="button" data-close-sheet>Back to session</button>
+      </footer>
+    </section>
+
+    <section class="sheet trainer-only" id="sheet-student-control" role="dialog" aria-modal="true" aria-labelledby="studentControlTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="sheet-eyebrow">Trainer powers · one place</span>
+          <h2 id="studentControlTitle">Student Control</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close Student Control"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <p class="control-intro">Every permission for this 1:1 session lives here. Changes apply to the student's live classroom immediately.</p>
+
+        <div class="control-group">
+          <h3>Camera &amp; microphone</h3>
+          <button class="control-row" type="button" id="scMediaBtn" aria-pressed="true">
+            <span><b>Student controls</b><small>Allow the kid to mute and switch off their camera</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+          <button class="control-row" type="button" id="scMuteMicBtn" aria-pressed="false">
+            <span><b>Microphone</b><small>Mute the kid, even while controls are locked</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+          <button class="control-row" type="button" id="scCameraOffBtn" aria-pressed="false">
+            <span><b>Camera</b><small>Turn off the kid's camera, even while controls are locked</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+        </div>
+
+        <div class="control-group">
+          <h3>Kid engagement</h3>
+          <button class="control-row" type="button" id="scReactBtn" aria-pressed="true">
+            <span><b>Emoji reactions</b><small>💡 🤔 ✅ from the kid</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+          <button class="control-row" type="button" id="scApplauseBtn" aria-pressed="true">
+            <span><b>Applause</b><small>Kid can applaud you with 👏</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+        </div>
+
+        <div class="control-group">
+          <h3>Room &amp; recognition</h3>
+          <button class="control-row" type="button" id="shareBoardBtn" aria-pressed="false">
+            <span><b>Board sharing</b><small>Let the kid see your whiteboard</small></span>
+            <span class="control-state" data-control-label>Off</span>
+          </button>
+          <div class="control-row is-static">
+            <span><b>Reward badge</b><small>Server-owned label and points</small></span>
+            <span class="badge-award">
+              <label class="visually-hidden" for="badgeSelect">Choose a reward badge</label>
+              <select id="badgeSelect">
+                <option value="focus_star">Focus Star · 10 pts</option>
+                <option value="sharp_thinking">Sharp Thinking · 20 pts</option>
+                <option value="steady_progress">Steady Progress · 15 pts</option>
+                <option value="kind_partner">Kind Partner · 10 pts</option>
+                <option value="concept_master">Concept Master · 25 pts</option>
+              </select>
+              <button type="button" id="awardBadgeBtn">Award</button>
+            </span>
+          </div>
+          <button class="control-row" type="button" id="sendKudosBtn">
+            <span><b>Star moment</b><small>Send a shared, brand-safe celebration</small></span>
+            <span class="control-state">Send</span>
+          </button>
+        </div>
+
+        <div class="control-group">
+          <h3>Quick links</h3>
+          <div class="control-links">
+            <button type="button" data-sheet="sheet-quiz">Open quiz controls</button>
+            <button type="button" data-sheet="sheet-health">Open progress</button>
+            <button type="button" data-sheet="sheet-end">End session</button>
           </div>
         </div>
       </div>
@@ -761,10 +853,13 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <p class="visually-hidden" id="chatStatus" aria-live="polite"></p>
+<div class="engagement-layer" id="celebrationLayer" hidden></div>
+<div class="engagement-layer" id="reactionLayer" hidden></div>
 
 <script src="api.js"></script>
 <script src="agora.js"></script>
 <script src="networkCheck.js"></script>
+<script src="engagement.js"></script>
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>

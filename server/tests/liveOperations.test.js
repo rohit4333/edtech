@@ -9,6 +9,7 @@ const notifications = require('../services/notificationService');
 const reminders = require('../jobs/reminders');
 const db = require('../db');
 const serializers = require('../serializers');
+const sessionParty = require('../services/sessionPartyService');
 
 let assertions = 0;
 function check(condition, message) { assert.ok(condition, message); assertions += 1; }
@@ -86,6 +87,19 @@ async function main() {
   check(Boolean(recording), 'student dashboard includes a recording');
   check(recording.chapters.some(function (chapter) { return chapter.seconds === 930; }),
     'quiz-review chapter timestamp is exposed to the student');
+
+  /* Trainer-created sessions must resolve to a real student, not just a UUID. */
+  const validParty = sessionParty.validate('usr_trainer_001', 'usr_student_001');
+  check(validParty.trainer.role === 'trainer' && validParty.student.role === 'student',
+    'a trainer and an active student form a valid 1:1 pair');
+  check(sessionParty.validate('usr_trainer_001', 'usr_trainer_001').error === 'SAME_PARTY',
+    'two roles cannot be filled by the same person');
+  check(sessionParty.validate('usr_trainer_001', 'usr_founder_001').error === 'INVALID_STUDENT',
+    'a founder account cannot be supplied as the session student');
+  check(sessionParty.validate('usr_student_001', 'usr_founder_001').error === 'INVALID_TRAINER',
+    'a student account cannot be supplied as the session trainer');
+  check(sessionParty.validate('usr_trainer_001', '').error === 'MISSING_STUDENT',
+    'a missing student id is rejected before any insert');
 
   /* Seed script is safe in mock mode and does not contact a database. */
   const seeded = spawnSync(process.execPath, ['scripts/seed.js'], {

@@ -25,6 +25,7 @@ const REQUIRED = ['pricing.html', 'terms.html', 'privacy.html', 'refund.html', '
   'student/index.html',
   'trainer/index.html',
   'lms/index.html',
+  'apps.html',
   'classroom/index.html'
 ].forEach(function (surface) {
   const html = read(surface);
@@ -32,6 +33,20 @@ const REQUIRED = ['pricing.html', 'terms.html', 'privacy.html', 'refund.html', '
     ok(html.indexOf(page) !== -1, surface + ' links ' + page);
   });
 });
+
+/* Partial work is labelled in the UI, not only in documentation. */
+ok(/preview-banner/.test(read('lms/index.html')) &&
+  /Curriculum preview/.test(read('lms/index.html')),
+  'LMS surface carries a visible preview banner');
+ok(/pill soon">Preview/.test(read('apps.html')) &&
+  /Partial course library preview/.test(read('apps.html')),
+  'apps hub labels the LMS as a preview');
+
+/* The booking form is a contact request, never a payment form. */
+const contact = read('contact.html');
+ok(/No payment is taken here/.test(contact), 'contact form says no payment is taken');
+ok(!/card-number|cardNumber|paymentMethod|razorpay/i.test(contact),
+  'contact form collects no payment fields');
 
 /* Public nav is exact and ordered. */
 const publicNav = read('index.html').match(/<nav class="nav-links"[\s\S]*?<\/nav>/)[0];

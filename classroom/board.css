@@ -45,7 +45,7 @@
   line-height:1.02;
   color:var(--ink);
 }
-.p-head h2 .dot{color:var(--coral)}
+.p-head h2 .dot{color:var(--coral-deep)}
 .p-problem{
   margin-top:12px;
   max-width:56ch;
@@ -89,7 +89,7 @@
   border-radius:3px 3px 0 0;
 }
 .bl.known b{color:var(--coral-deep)}
-.bl.known i{border-color:var(--coral)}
+.bl.known i{border-color:var(--coral-deep)}
 .bl.unknown i{border-style:dashed;border-color:rgba(14,20,32,.28)}
 .bar{
   display:flex;

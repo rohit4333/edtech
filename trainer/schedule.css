@@ -17,7 +17,11 @@
 .sc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:8px}
 .sc-week{font-family:var(--mono);font-size:7px;letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--faint);padding-bottom:3px}
 .sc-day{min-height:76px;padding:5px;border:1px solid var(--line-soft);border-radius:5px;background:transparent;text-align:left}
-.sc-day.is-muted{opacity:.36}
+/* Out-of-month days are de-emphasised with surface tone, not opacity:
+   opacity used to drop small class labels below WCAG AA contrast. */
+.sc-day.is-muted{background:var(--paper);border-color:var(--line-soft)}
+.sc-day.is-muted .sc-class{color:var(--muted)}
+.sc-day.is-muted .sc-class b{color:var(--coral-deep)}
 .sc-day.is-slot{background:rgba(255,91,46,.06);border-color:rgba(255,91,46,.28)}
 .sc-day.is-today{outline:1px solid var(--ink);outline-offset:1px}
 .sc-day-num{font-family:var(--mono);font-size:9px;color:var(--muted)}

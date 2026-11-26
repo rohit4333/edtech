@@ -45,7 +45,7 @@
 .block{margin-top:34px}
 .block-head{display:flex;align-items:baseline;gap:9px;margin-bottom:11px}
 .block-head .mono{color:var(--ink);font-size:10px;letter-spacing:.18em}
-.block-head .count{font-family:var(--mono);font-size:10px;color:var(--coral)}
+.block-head .count{font-family:var(--mono);font-size:10px;color:var(--coral-deep)}
 .block-head .link{
   display:inline-flex;
   align-items:center;

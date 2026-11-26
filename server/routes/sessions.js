@@ -11,6 +11,9 @@ const notifications = require('../services/notificationService');
 const mediaPermission = require('../services/mediaPermissionService');
 const networkQuality = require('../services/networkQualityService');
 const badges = require('../services/badgeService');
+const celebrations = require('../services/celebrationService');
+const reactions = require('../services/reactionService');
+const reactionPermission = require('../services/reactionPermissionService');
 const appPolicy = require('../config/policy.json');
 
 const router = express.Router();
@@ -48,7 +51,7 @@ const SHARED_EVENTS = [
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'rtc.media.control.changed', 'network.check.completed',
-  'badge.awarded'
+  'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
@@ -63,6 +66,28 @@ function safePayload(value, depth) {
     if (safe !== undefined) clean[key] = safe;
   });
   return clean;
+}
+
+/* A celebration is a server-owned recognition event, never a client-written
+   message. The client may only offer a preference id, which the service
+   validates against the config allowlist. */
+function fireCelebration(req, triggerName) {
+  const session = req.sessionRecord;
+  const body = req.body || {};
+  const student = db.findUserById(session.studentId);
+  const payload = celebrations.evaluateTrigger(triggerName, {
+    sessionId: session.id,
+    trigger: triggerName,
+    studentName: student && student.name ? student.name : 'Student',
+    quizActive: Boolean(session.quiz && (session.quiz.phase === 'answering' || session.quiz.phase === 'reteach')),
+    studentPref: body.studentPref,
+    trainerPref: body.trainerPref,
+    now: Date.now()
+  });
+  if (!payload) return Promise.resolve(null);
+  return realtime.publish(session.id, 'shared.celebration', payload).then(function (event) {
+    return { payload: payload, seq: event && event.seq };
+  });
 }
 
 router.get('/:sessionId/events', function (req, res) {
@@ -138,6 +163,65 @@ router.post('/:sessionId/media-permission', auth.requireRole('trainer', 'founder
     });
 });
 
+/* Trainer-only intentional media state. This is separate from Access: a
+   trainer can mute the kid or switch their camera off even while controls are
+   locked. The browser reports honestly whether the track actually changed. */
+router.post('/:sessionId/media-state', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const body = req.body || {};
+  const hasMic = typeof body.micOn === 'boolean';
+  const hasCamera = typeof body.cameraOn === 'boolean';
+  if (!hasMic && !hasCamera) {
+    return res.status(400).json({
+      error: 'INVALID_MEDIA_STATE',
+      message: 'Send micOn or cameraOn as true or false.'
+    });
+  }
+  const next = mediaPermission.setRemoteState(req.sessionRecord.mediaPermissions, {
+    micOn: body.micOn,
+    cameraOn: body.cameraOn
+  });
+  const updated = db.updateSession(req.sessionRecord.id, function (session) {
+    session.mediaPermissions = next;
+    return session;
+  });
+  if (!updated) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(next))
+    .then(function (event) {
+      return res.json({ ok: true, mediaPermissions: next, seq: event.seq });
+    });
+});
+
+/* Trainer-only applause permission. Disabling it only blocks the kid's 👏
+   gesture; trainer feedback, celebrations and media controls are unaffected. */
+router.post('/:sessionId/reaction-permission', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const body = req.body || {};
+  const hasReact = typeof body.studentCanReact === 'boolean';
+  const hasApplaud = typeof body.studentCanApplaud === 'boolean';
+  if (!hasReact && !hasApplaud) {
+    return res.status(400).json({
+      error: 'INVALID_REACTION_PERMISSION',
+      message: 'Send studentCanReact or studentCanApplaud as true or false.'
+    });
+  }
+  const next = reactionPermission.setPermission(req.sessionRecord.reactionPermissions, {
+    studentCanReact: body.studentCanReact,
+    studentCanApplaud: body.studentCanApplaud
+  });
+  const updated = db.updateSession(req.sessionRecord.id, function (session) {
+    session.reactionPermissions = next;
+    return session;
+  });
+  if (!updated) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  return realtime.publish(updated.id, 'reaction.permission.changed', reactionPermission.eventPayload(next))
+    .then(function (event) {
+      return res.json({ ok: true, reactionPermissions: next, seq: event.seq });
+    });
+});
+
 /* Both participants report their own connection result. The role is derived
    from the JWT, so a student cannot submit a passing trainer measurement. */
 router.post('/:sessionId/network-check', function (req, res) {
@@ -194,6 +278,49 @@ router.post('/:sessionId/badges', auth.requireRole('trainer', 'founder'), functi
   return realtime.publish(req.sessionRecord.id, 'badge.awarded', badges.eventPayload(record))
     .then(function (event) {
       return res.status(201).json({ ok: true, badge: trophy, seq: event.seq });
+    });
+});
+
+/* Trainer kudos uses the shared celebration system. The request cannot write
+   copy, colors, sound, correctness or a trainer note — only a trigger id. */
+router.post('/:sessionId/celebrate', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const trigger = String((req.body || {}).trigger || '');
+  if (trigger !== 'trainer_kudos') {
+    return res.status(400).json({
+      error: 'UNKNOWN_TRIGGER',
+      message: 'Only trainer kudos can be started from the classroom.'
+    });
+  }
+  return fireCelebration(req, trigger).then(function (result) {
+    return res.json({ fired: Boolean(result), celebration: result ? result.payload : null, seq: result && result.seq });
+  });
+});
+
+/* Reaction gestures stay on their own layer. The role comes from the JWT, so
+   a student cannot send a trainer-only gesture or inject celebration copy. */
+router.post('/:sessionId/reactions', function (req, res) {
+  const emoji = String((req.body || {}).emoji || '');
+  const permission = reactionPermission.normalize(req.sessionRecord.reactionPermissions);
+  if (req.user.role === 'student' &&
+      ((emoji === '👏' && !permission.studentCanApplaud) ||
+       (emoji !== '👏' && !permission.studentCanReact))) {
+    return res.status(403).json({
+      error: 'REACTION_NOT_PERMITTED',
+      message: emoji === '👏'
+        ? 'Your trainer has paused applause for this session.'
+        : 'Your trainer has paused emoji reactions for this session.'
+    });
+  }
+  const row = reactions.record(req.sessionRecord, req.user, req.body || {});
+  if (!row) {
+    return res.status(400).json({
+      error: 'INVALID_REACTION',
+      message: 'Choose a reaction allowed for your role.'
+    });
+  }
+  return realtime.publish(req.sessionRecord.id, 'reaction.sent', reactions.eventPayload(row, req.user))
+    .then(function (event) {
+      return res.status(201).json({ ok: true, seq: event && event.seq });
     });
 });
 
@@ -341,6 +468,17 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
   });
 
   const presence = presenceService.finalize(updated, endedAt);
+
+  /* One end-of-session celebration only. The priority is milestone → mastery
+     gate → session complete, so a child never sees stacked overlays. */
+  const studentSessions = db.listSessionsForUser({ id: session.studentId, role: 'student' });
+  const priorEnded = studentSessions.filter(function (item) {
+    return item.status === 'ended' && item.id !== session.id;
+  }).length;
+  const endTrigger = priorEnded === 0
+    ? 'first_session_completed'
+    : (gating.unlockedNext ? 'mastery_gate_crossed' : 'session_complete');
+  fireCelebration(req, endTrigger);
 
   realtime.publish(updated.id, 'session.ended', {
     endedAt: endedAt,

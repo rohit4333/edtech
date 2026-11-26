@@ -16,6 +16,9 @@ const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
 const chatAssistant = require('../services/chatAssistantService');
 const curriculumRepository = require('../db/curriculum');
+const sessionParty = require('../services/sessionPartyService');
+const celebrations = require('../services/celebrationService');
+const reactions = require('../services/reactionService');
 
 const router = express.Router();
 
@@ -28,6 +31,25 @@ function sessionsFor(user) {
   return db.listSessionsForUser(user).filter(function (session) {
     return session.trainerId === user.id || user.role === 'founder';
   });
+}
+
+/* Server-owned celebration trigger. No correctness or trainer text is written
+   by the request; the service resolves copy and palette from config. */
+function celebrate(req, trigger) {
+  const session = req.sessionRecord;
+  if (!session) return Promise.resolve(null);
+  const student = db.findUserById(session.studentId);
+  const body = req.body || {};
+  const payload = celebrations.evaluateTrigger(trigger, {
+    sessionId: session.id,
+    studentName: student && student.name ? student.name : 'Student',
+    quizActive: Boolean(session.quiz && (session.quiz.phase === 'answering' || session.quiz.phase === 'reteach')),
+    studentPref: body.studentPref,
+    trainerPref: body.trainerPref,
+    now: Date.now()
+  });
+  if (!payload) return Promise.resolve(null);
+  return realtime.publish(session.id, 'shared.celebration', payload);
 }
 
 function readStatus(value) {
@@ -85,6 +107,43 @@ router.get('/attention', function (req, res) {
   const ids = sessions.map(function (session) { return session.id; });
   const attendance = db.listAttendance().filter(function (row) { return ids.indexOf(row.sessionId) !== -1; });
   return res.json({ attention: serializers.toTrainerAttention(sessions, attendance) });
+});
+
+/* Engagement pulse is trainer/founder only. It is computed from role-tagged
+   reaction gestures and contains no contact details or celebration content. */
+router.get('/engagement/live/:sessionId', function (req, res) {
+  const sessions = sessionsFor(req.user);
+  const session = sessions.find(function (item) { return item.id === req.params.sessionId; });
+  if (!session) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  const student = db.findUserById(session.studentId);
+  return res.json({
+    engagement: Object.assign({
+      sessionId: session.id,
+      studentName: student && student.name ? student.name : 'Student'
+    }, reactions.live(session.id))
+  });
+});
+
+router.get('/engagement/student/:studentId', function (req, res) {
+  const sessions = sessionsFor(req.user);
+  const owns = sessions.some(function (item) { return item.studentId === req.params.studentId; });
+  if (!owns) {
+    return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Student not found.' });
+  }
+  const student = db.findUserById(req.params.studentId);
+  return res.json({
+    engagement: Object.assign({
+      studentId: req.params.studentId,
+      studentName: student && student.name ? student.name : 'Student'
+    }, reactions.student(req.params.studentId, sessions))
+  });
+});
+
+router.get('/engagement/cohort', function (req, res) {
+  const sessions = sessionsFor(req.user);
+  return res.json({ cohort: reactions.cohort(sessions, db.listUsers()) });
 });
 
 router.get('/payouts', function (req, res) {
@@ -210,11 +269,9 @@ router.post('/sessions', async function (req, res) {
   const studentId = body.student_id || body.studentId;
   const title = body.title || '1-on-1 maths session';
 
-  if (!studentId) {
-    return res.status(400).json({
-      error: 'MISSING_STUDENT',
-      message: 'student_id is required and must be a UUID from public.users.'
-    });
+  const parties = sessionParty.validate(trainerId, studentId);
+  if (parties.error) {
+    return res.status(parties.status).json({ error: parties.error, message: parties.message });
   }
 
   try {
@@ -334,6 +391,14 @@ router.post('/sessions/:sessionId/quiz/reveal', auth.loadSession, function (req,
   session.quiz.phase = 'revealed';
   const updated = db.updateSession(session.id, function () { return session; });
   realtime.publish(updated.id, 'quiz.answer.revealed', { questionIds: ids, at: at });
+
+  /* A perfect-score celebration fires only after the reveal and carries no
+     score, option or explanation in its payload. */
+  const questionCount = (updated.quiz.questions || []).length;
+  const correctCount = (updated.quiz.attempts || []).filter(function (attempt) {
+    return attempt.correct === true;
+  }).length;
+  if (questionCount && correctCount >= questionCount) celebrate(req, 'quiz_perfect_score');
 
   return res.json({ session: serializers.toTrainerSession(updated) });
 });

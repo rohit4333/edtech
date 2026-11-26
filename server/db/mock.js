@@ -307,6 +307,9 @@ const leaveRequests = [];
 const contactRequests = [];
 const presenceEvents = [];
 const presenceSnapshots = [];
+/* Engagement gestures stay separate from celebrations. Only code, role,
+   session and minute are stored — never a note or personal detail. */
+const reactions = [];
 /* Academic-only curriculum profile. Mirrors public.student_curriculum from
    migrations/0002_student_curriculum.sql; no contact or identity fields. */
 const studentCurriculum = [
@@ -355,6 +358,7 @@ module.exports = {
   contactRequests: contactRequests,
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
+  reactions: reactions,
   studentCurriculum: studentCurriculum,
   trainerSlots: trainerSlots,
   demoPassword: demoPassword

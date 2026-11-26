@@ -2,7 +2,7 @@
 
 **What this is:** the single reference for what Mathify is, why it is built the way it is, where every piece lives, when each flow runs, and how to run/verify/ship it.
 
-**Status:** `main` and `feat/student-rtc-control-permission` at `044f9e4` (26 November 2026). Local/mock mode by default; no live database migration and no live paid transaction have been performed.
+**Status:** `feat/student-rtc-control-permission` working tree based on `9838d0a` (26 November 2026). Local/mock mode by default; no live database migration and no live paid transaction have been performed.
 
 **Companion documents:** [`README.md`](README.md) (quick start), [`server/README.md`](server/README.md) (API reference), [`TEST_REPORT.md`](TEST_REPORT.md) (verification evidence), [`server/migrations/README.md`](server/migrations/README.md) (SQL review procedure).
 
@@ -19,7 +19,7 @@
 | Database | In-memory mock by default; completed Supabase service-role adapter for `DATABASE_MODE=supabase`. |
 | Realtime | DB-backed session event outbox + scrubbed cursor polling; Supabase Realtime for canvas strokes. |
 | Payments | Razorpay, 12 sessions / 540 SAR; credit only on verified `payment.captured`. |
-| Tests | 23 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. |
+| Tests | 24 Node suites, plain `node` + `assert`. CI, Dockerfile and deploy manifests present. `npm audit --omit=dev` reports 0 vulnerabilities. |
 | Migrations | 3 reviewed SQL files, dry-run by default; apply needs explicit confirmation. |
 | Live readiness | Code-complete; blocked on credential rotation and migration approval. |
 
@@ -63,7 +63,9 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - Trainer-owned student media permission with force-on-before-lock.
 - Two-sided connection precondition before any class can start.
 - Fixed-catalog reward badges rendered as student trophies.
-- 23 automated suites, CI, Docker, Render/Railway manifests, opt-in reminders, structured logging, rate limiting.
+- Student Control: one trainer-only surface for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz, progress and end.
+- Server-owned brand-safe celebrations and role-scoped reactions with separate visual layers, sound opt-in and reduced-motion fallback.
+- 24 automated suites, CI, Docker, Render/Railway manifests, opt-in reminders, structured logging, rate limiting.
 
 ---
 
@@ -78,6 +80,9 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Honest media status | A browser cannot flip another device's hardware. Claiming “camera on” when a track is denied, stopped or the tab is offline would be a lie; the UI reports the real state. |
 | Two-sided bandwidth gate | A 1:1 video lesson fails for both people if either connection is poor. Both must pass a fresh check before a token is issued. |
 | Badges as trophies | Positive reinforcement owned by the trainer, with server-owned point values so the reward cannot be forged by the client. |
+| One Student Control surface | Trainers should never hunt through panels mid-lesson; every permission and quick action is in one role-gated place. |
+| Server-owned celebrations | Clients may only request a configured trigger and offer an allowlisted preference. Labels, motion, sound and spotlight come from server config and are scrubbed before the safe event channel. |
+| Reactions are not celebrations | Emoji are small, immediate signals; celebrations are bounded recognition moments. Separate layers prevent visual and audio overlap. |
 | Review-first migrations | A live Supabase schema change is destructive; it never runs without human review and two explicit confirmations. |
 | Mock-first runtime | Local development needs zero credentials and deterministic data. Production must fail closed rather than silently fall back to demo identities. |
 | Cloudflare-only AI | The product constraint forbids DeepSeek/OpenAI references; one provider keeps moderation and model behavior predictable. |
@@ -91,15 +96,15 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Public HTML | `*.html`, `public.css`, `assets/` | Marketing, legal, nav/footer contract. |
 | Student desk | `student/index.html`, `student/app.js`, `student/api.js` | Dashboard rendering, trophy list, recording chapters. |
 | Trainer console | `trainer/` | Attendance, timeline, payouts, session actions. |
-| Classroom | `classroom/index.html`, `app.js`, `session.js`, `agora.js`, `api.js`, `networkCheck.js`, `realtime.js`, `room.css`, `panels.css` | Live room, quiz/board state, call controls, connection preflight, safe event bridge. |
+| Classroom | `classroom/index.html`, `app.js`, `session.js`, `agora.js`, `api.js`, `networkCheck.js`, `engagement.js`, `engagement.css`, `realtime.js`, `room.css`, `panels.css` | Live room, quiz/board state, call controls, connection preflight, Student Control, celebrations/reactions, safe event bridge. |
 | LMS | `lms/` | Partial course library. |
 | App entry | `server/index.js`, `server/app.js`, `server/config.js` | Boot, production guard, routes, static serving. |
 | Auth | `server/auth/`, `server/middleware/auth.js` | Passwords, JWT, `sessionUser`/`publicUser` key allowlists, RBAC, session access. |
 | Routes | `server/routes/` | Auth, trainer, student, sessions, policy, webhooks, admin, agora, razorpay, leaves, contact, network. |
-| Services | `server/services/` | Agora tokens, Cloudflare client, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges. |
+| Services | `server/services/` | Agora tokens, Cloudflare client, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions. |
 | Data | `server/db/index.js`, `mock.js`, `supabase.js`, `schema.sql` | Facade, demo store, service-role adapter, canonical schema. |
 | Migrations | `server/migrations/0001…0003`, `server/migrate.js` | Ordered SQL, checksum guards, dry-run runner. |
-| Tests | `server/tests/*.test.js` | 23 suites; see `TEST_REPORT.md`. |
+| Tests | `server/tests/*.test.js` | 24 suites; see `TEST_REPORT.md`. |
 | Config | `server/config/policy.json`, `server/.env.example` | Business thresholds and env variable names (no secrets). |
 | DevOps | `.github/workflows/ci.yml`, `Dockerfile`, `docker-compose.yml`, `render.yaml`, `railway.json` | CI, containers, deployment manifests. |
 
@@ -236,7 +241,7 @@ Browser surface
 
 ### 5.9 Testing and delivery
 
-- 23 suites cover services, serializers, privacy, nav, API smoke, live readiness, persistence, operations and the new RTC controls.
+- 24 suites cover services, serializers, privacy, nav, API smoke, live readiness, persistence, operations, RTC controls and engagement controls.
 - Plain `node` + `assert` is intentional: no Jest/Vitest dependency, deterministic local runs.
 - CI runs on `.github/workflows/ci.yml`; `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json` cover container/deploy shapes.
 
@@ -274,7 +279,7 @@ Demo logins (password `mathify-demo`): `founder@mathify.app`, `trainer@mathify.a
 ### Verify
 
 ```powershell
-npm test                 # 23 suites
+npm test                 # 24 suites
 npm run migrate          # dry run, prints checksums
 ```
 

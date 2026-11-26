@@ -40,7 +40,7 @@
     letter-spacing:-.035em;
     line-height:1;
   }
-  .brand i{font-style:normal;color:var(--coral);font-weight:700}
+  .brand i{font-style:normal;color:var(--coral-deep);font-weight:700}
   .brand-sub{
     padding:7px 8px 0;
     font-family:var(--mono);
@@ -139,7 +139,7 @@
     border:1px solid var(--line-soft);
     box-shadow:0 1px 2px rgba(30,20,10,.04);
   }
-  .nav a.active .ic{color:var(--coral)}
+  .nav a.active .ic{color:var(--coral-deep)}
   .nav .spacer{height:16px}
 
   .rail-foot{margin-top:auto;display:flex;flex-direction:column;gap:14px}
@@ -149,7 +149,7 @@
     border:1px solid var(--line);
     border-radius:var(--r-md);
   }
-  .help .mono{font-size:9px;color:var(--coral)}
+  .help .mono{font-size:9px;color:var(--coral-deep)}
   .help p{
     margin:7px 0 11px;
     font-size:12px;
@@ -167,7 +167,7 @@
     padding-bottom:2px;
   }
   .help-btn svg{width:12px;height:12px}
-  .help-btn:hover{color:var(--coral);border-color:var(--coral)}
+  .help-btn:hover{color:var(--coral-deep);border-color:var(--coral-deep)}
 
   .user{
     display:flex;
@@ -214,7 +214,7 @@
     -webkit-backdrop-filter:blur(14px);
   }
   .brand-m{display:none;font-size:19px;font-weight:500;letter-spacing:-.035em;line-height:1}
-  .brand-m i{font-style:normal;color:var(--coral);font-weight:700}
+  .brand-m i{font-style:normal;color:var(--coral-deep);font-weight:700}
   .topbar .right{display:flex;align-items:center;gap:8px;margin-left:auto}
   .search{
     display:flex;
@@ -295,7 +295,7 @@
     letter-spacing:-.035em;
     line-height:1.04;
   }
-  .page-head h1 em{font-style:normal;color:var(--coral)}
+  .page-head h1 em{font-style:normal;color:var(--coral-deep)}
   .page-head .sub{
     display:flex;
     align-items:center;
@@ -346,7 +346,7 @@
   }
   .live-eyebrow{
     gap:9px;
-    color:var(--coral);
+    color:var(--coral-deep);
     font-size:9.5px;
     letter-spacing:.2em;
   }
@@ -498,7 +498,7 @@
     margin-bottom:11px;
   }
   .block-head .mono{color:var(--ink);font-size:10px;letter-spacing:.18em}
-  .block-head .count{font-family:var(--mono);font-size:10px;color:var(--coral)}
+  .block-head .count{font-family:var(--mono);font-size:10px;color:var(--coral-deep)}
   .block-head .link{
     display:inline-flex;
     align-items:center;
@@ -685,9 +685,9 @@
     padding-bottom:1px;
   }
   .rec-link svg{width:11px;height:11px}
-  .rec-link:hover{color:var(--coral);border-color:var(--coral)}
+  .rec-link:hover{color:var(--coral-deep);border-color:var(--coral-deep)}
   .rec-chapters{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
-  .rec-chapters .rec-link{background:none;border:0;border-bottom:1px solid var(--ink);padding:0 0 1px;cursor:pointer;font-family:inherit}
+  .rec-chapters .rec-link{display:inline-flex;align-items:center;min-height:28px;background:none;border:0;border-bottom:1px solid var(--ink);padding:4px 2px;cursor:pointer;font-family:inherit}
   .rec-none{display:none}
   [data-state="empty"] .rec-real{display:none}
   [data-state="empty"] .rec-none{display:block}
@@ -764,7 +764,7 @@
   .bcell:last-child{border-right:0}
   .bcell > .mono{font-size:8.5px;letter-spacing:.16em;color:var(--faint)}
   .teacher{display:flex;align-items:center;gap:11px;margin-top:11px}
-  .teacher .avatar{width:34px;height:34px;font-size:10px}
+  .teacher .avatar{width:34px;height:34px;font-size:10px;color:var(--paper)}
   .teacher b{display:block;font-size:12.5px;font-weight:500;line-height:1.3}
   .teacher span{display:block;font-size:10.5px;color:var(--muted);line-height:1.4}
   .sched{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
@@ -883,7 +883,7 @@
     width:26px;height:26px;
     border-radius:50%;
     background:var(--ink);
-    color:var(--coral);
+    color:var(--coral-deep);
   }
   .ai-head .mark svg{width:13px;height:13px}
   .ai-head b{display:block;font-size:12px;font-weight:500;line-height:1.3}
@@ -1099,7 +1099,7 @@
     }
     .tabs button svg{width:20px;height:20px;stroke-width:1.5}
     .tabs button.active{color:var(--ink);font-weight:500}
-    .tabs button.active svg{color:var(--coral)}
+    .tabs button.active svg{color:var(--coral-deep)}
 
     .fab{right:16px;bottom:calc(72px + env(safe-area-inset-bottom))}
     .ai{right:16px;bottom:calc(132px + env(safe-area-inset-bottom))}
@@ -1305,7 +1305,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
           <span class="badge" aria-hidden="true"></span>
         </button>
-        <button class="avatar avatar-btn" id="profileBtn" aria-label="Profile: Ishaan Verma" aria-expanded="false">IV</button>
+        <button class="avatar avatar-btn" id="profileBtn" aria-label="IV — open profile" aria-expanded="false">IV</button>
         <div class="top-popover" id="notificationsPanel" hidden>
           <span class="mono">Notifications</span>
           <p>Your practice set is due today.</p>

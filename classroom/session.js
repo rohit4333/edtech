@@ -1376,7 +1376,12 @@
 
   function handleSessionEvent(event) {
     if (!event || !event.event) return;
-    if (event.event === 'quiz.answer.revealed') applyRevealEvent(event);
+    if (event.event === 'quiz.launched' && studentView) {
+      /* The server launch is authoritative. Without this branch a student tab
+         would keep showing the board and would not suppress celebrations. */
+      if (!quizLive()) launchQuiz();
+      syncStudentQuestion();
+    } else if (event.event === 'quiz.answer.revealed') applyRevealEvent(event);
     else if (event.event === 'quiz.reteach.started' && studentView && quizLive()) {
       setQuizPhase('reteach');
       setFeedback('Your trainer is going over this once more.', 'is-waiting');
@@ -1407,6 +1412,19 @@
     } else if (event.event === 'badge.awarded' && studentView) {
       var badge = event.payload || {};
       toast((badge.label || 'Badge') + ' earned · ' + (badge.points || 0) + ' reward points.');
+    } else if (event.event === 'reaction.permission.changed') {
+      if (api.applyReactionPermission) api.applyReactionPermission(event.payload || {});
+    } else if (event.event === 'reaction.sent') {
+      /* Reactions never share the celebration layer. */
+      if (window.classroomEngagement && typeof window.classroomEngagement.onReaction === 'function') {
+        window.classroomEngagement.onReaction(event.payload || {});
+      }
+    } else if (event.event === 'shared.celebration') {
+      /* Client-side guard in addition to the server's quiz-active check. */
+      if (!quizLive() && window.classroomEngagement &&
+          typeof window.classroomEngagement.onCelebration === 'function') {
+        window.classroomEngagement.onCelebration(event.payload || {});
+      }
     } else if (event.event === 'session.ended') {
       document.body.classList.add('is-ended');
       var word = $('#liveWord');

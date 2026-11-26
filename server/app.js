@@ -22,6 +22,7 @@ const contactRoutes = require('./routes/contact');
 const networkRoutes = require('./routes/network');
 const networkQuality = require('./services/networkQualityService');
 const badgeService = require('./services/badgeService');
+const celebrationService = require('./services/celebrationService');
 
 const app = express();
 
@@ -65,7 +66,8 @@ app.get('/api/public/config', function (req, res) {
     },
     realtimeMode: realtime.mode,
     network: networkQuality.settings(),
-    badges: badgeService.catalog()
+    badges: badgeService.catalog(),
+    celebrations: celebrationService.publicConfig()
   });
 });
 

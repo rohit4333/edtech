@@ -30,7 +30,7 @@
   letter-spacing:-.04em;
   line-height:1;
 }
-.brand i{font-style:normal;color:var(--coral);font-weight:700}
+.brand i{font-style:normal;color:var(--coral-deep);font-weight:700}
 .rail-sub{
   padding:7px 8px 0;
   font-family:var(--mono);
@@ -61,7 +61,7 @@
   border:1px solid var(--line-soft);
   box-shadow:0 1px 2px rgba(30,20,10,.04);
 }
-.nav a.active .ic{color:var(--coral)}
+.nav a.active .ic{color:var(--coral-deep)}
 .nav-count{
   margin-left:auto;
   min-width:18px;
@@ -82,7 +82,7 @@
   border:1px solid var(--line);
   border-radius:var(--r-md);
 }
-.health-card .mono{font-size:9px;color:var(--coral)}
+.health-card .mono{font-size:9px;color:var(--coral-deep)}
 .health-big{display:flex;align-items:baseline;gap:5px;margin-top:5px}
 .health-big b{font-size:27px;font-weight:500;letter-spacing:-.03em;line-height:1}
 .health-big span{font-size:10px;color:var(--muted)}
@@ -136,7 +136,7 @@
   -webkit-backdrop-filter:blur(14px);
 }
 .brand-m{display:none;font-size:19px;font-weight:500;letter-spacing:-.04em;line-height:1}
-.brand-m i{font-style:normal;color:var(--coral);font-weight:700}
+.brand-m i{font-style:normal;color:var(--coral-deep);font-weight:700}
 .topbar .right{display:flex;align-items:center;gap:8px;margin-left:auto}
 
 .context{
@@ -251,7 +251,7 @@
   letter-spacing:-.045em;
   line-height:1.1;
 }
-.page-head h1 em{font-style:normal;color:var(--coral)}
+.page-head h1 em{font-style:normal;color:var(--coral-deep)}
 .page-head .sub{
   display:flex;
   align-items:center;
@@ -344,7 +344,7 @@
   padding:20px 24px 16px;
   border-bottom:1px solid var(--line-soft);
 }
-.sheet-head .mono{font-size:9px;color:var(--coral)}
+.sheet-head .mono{font-size:9px;color:var(--coral-deep)}
 .sheet-head h2{
   margin-top:5px;
   font-size:22px;

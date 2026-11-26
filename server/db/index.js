@@ -62,6 +62,25 @@ function updateUser(id, updater) {
   return copy(store.users[index]);
 }
 
+/* Reaction gestures are stored with role and minute only. They never carry a
+   note, contact detail or any celebration/reward payload. */
+function insertReaction(record) {
+  const stored = Object.assign({
+    id: 'rx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.reactions.push(stored);
+  return copy(stored);
+}
+
+function listReactions(sessionId) {
+  const source = Array.isArray(store.reactions) ? store.reactions : [];
+  const rows = sessionId
+    ? source.filter(function (row) { return row.sessionId === sessionId; })
+    : source;
+  return copy(rows);
+}
+
 function listAttendance() {
   return copy(store.attendance);
 }
@@ -339,6 +358,8 @@ const mockApi = {
   recordSupportEscalation,
   updateSupportEscalation,
   listSupportEscalations,
+  insertReaction,
+  listReactions,
   listLeaveRequests,
   listLeaveRequestsForUser,
   findLeaveRequestForSession,
@@ -364,8 +385,16 @@ const api = {};
 Object.keys(mockApi).forEach(function (name) {
   api[name] = function () {
     const active = live();
-    const implementation = active && typeof active[name] === 'function' ? active[name] : mockApi[name];
-    return implementation.apply(null, arguments);
+    if (active) {
+      const implementation = active[name];
+      if (typeof implementation !== 'function') {
+        const error = new Error('Live adapter does not implement ' + name + '.');
+        error.code = 'LIVE_ADAPTER_METHOD_MISSING';
+        throw error;
+      }
+      return implementation.apply(null, arguments);
+    }
+    return mockApi[name].apply(null, arguments);
   };
 });
 api.insertSession = function () {

@@ -214,7 +214,7 @@
     top.appendChild(status);
     card.appendChild(top);
 
-    card.appendChild(el('h3', 'cc-title', course.title));
+    card.appendChild(el('h2', 'cc-title', course.title));
     card.appendChild(el('p', 'cc-blurb', course.blurb));
 
     var meta = el('div', 'cc-meta');

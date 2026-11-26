@@ -3,6 +3,7 @@ const db = require('./db');
 const payoutService = require('./services/payoutService');
 const attendancePolicy = require('./services/attendancePolicy');
 const mediaPermission = require('./services/mediaPermissionService');
+const reactionPermission = require('./services/reactionPermissionService');
 const networkQuality = require('./services/networkQualityService');
 const badgeService = require('./services/badgeService');
 const appPolicy = require('./config/policy.json');
@@ -344,6 +345,7 @@ function toStudentSession(session, options) {
 function toSessionState(session, user) {
   const trainerView = user && (user.role === 'trainer' || user.role === 'founder');
   const media = mediaPermission.normalize(session.mediaPermissions);
+  const applause = reactionPermission.normalize(session.reactionPermissions);
   const state = {
     id: session.id,
     status: session.status,
@@ -366,13 +368,22 @@ function toSessionState(session, user) {
       canEditPlanner: trainerView,
       canDraw: true,
       canToggleMedia: trainerView || media.studentCanToggleMedia,
-      canStudentToggleMedia: media.studentCanToggleMedia
+      canStudentToggleMedia: media.studentCanToggleMedia,
+      canStudentApplaud: applause.studentCanApplaud,
+      canStudentReact: applause.studentCanReact
     },
     mediaPermissions: {
       studentCanToggleMedia: media.studentCanToggleMedia,
       forceMicOn: media.forceMicOn,
       forceCameraOn: media.forceCameraOn,
+      studentMuted: media.studentMuted,
+      studentCameraOff: media.studentCameraOff,
       version: media.version
+    },
+    reactionPermissions: {
+      studentCanReact: applause.studentCanReact,
+      studentCanApplaud: applause.studentCanApplaud,
+      version: applause.version
     },
     network: networkQuality.stateFor(session, user)
   };

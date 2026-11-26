@@ -46,7 +46,7 @@
   color:var(--paper);
 }
 .call-pip .pip-call-btn:disabled{opacity:.4;cursor:default}
-.call-pip .pip-call-btn.is-primary{border-color:var(--coral);color:#FFB49E}
+.call-pip .pip-call-btn.is-primary{border-color:var(--coral-deep);color:#FFB49E}
 
 .call-pip .pip-call-status{
   flex:none;

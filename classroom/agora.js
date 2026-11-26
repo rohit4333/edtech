@@ -43,6 +43,7 @@
     setMicEnabled: setMicEnabled,
     setCameraEnabled: setCameraEnabled,
     forceMediaOn: forceMediaOn,
+    applyTrainerMediaState: applyTrainerMediaState,
     setMediaControlsLocked: setMediaControlsLocked,
     setNetworkReady: setNetworkReady,
     reaffirmMedia: reaffirmMedia,
@@ -165,6 +166,42 @@
       cameraTrackPresent: Boolean(state.localTracks[1]),
       joined: state.joined
     };
+  }
+
+  /* An intentional trainer action is allowed even while controls are locked.
+     A null value means "leave this track as it is". Results are honest: a
+     missing, closed or permission-denied track is never reported as applied. */
+  function applyTrainerMediaState(settings) {
+    var input = settings || {};
+    var result = {
+      micApplied: false,
+      cameraApplied: false,
+      micTrackPresent: Boolean(state.localTracks[0]),
+      cameraTrackPresent: Boolean(state.localTracks[1]),
+      joined: state.joined
+    };
+    if (input.micOn === true || input.micOn === false) {
+      if (input.micOn === false && state.controlsLocked) {
+        /* Explicit trainer mute still overrides the student-control lock. */
+        state.controlsLocked = false;
+        result.micApplied = safeSetEnabled(state.localTracks[0], false);
+        state.controlsLocked = true;
+      } else {
+        result.micApplied = safeSetEnabled(state.localTracks[0], input.micOn);
+      }
+      state.micEnabled = input.micOn;
+    }
+    if (input.cameraOn === true || input.cameraOn === false) {
+      if (input.cameraOn === false && state.controlsLocked) {
+        state.controlsLocked = false;
+        result.cameraApplied = safeSetEnabled(state.localTracks[1], false);
+        state.controlsLocked = true;
+      } else {
+        result.cameraApplied = safeSetEnabled(state.localTracks[1], input.cameraOn);
+      }
+      state.cameraEnabled = input.cameraOn;
+    }
+    return result;
   }
 
   function setMediaControlsLocked(locked) {

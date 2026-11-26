@@ -83,16 +83,36 @@ async function main() {
     'service-only record store is created');
   check(live.sql.indexOf('create table if not exists public.mathify_session_events') !== -1,
     'session event outbox is created');
-  check(live.sql.indexOf("app_metadata'->>'role'") !== -1,
-    'role policy reads app_metadata, never user_metadata');
+  const baseline = migrations.find(function (migration) {
+    return migration.name === '0001_baseline.sql';
+  });
+  check(baseline && baseline.sql.indexOf("app_metadata'->>'role'") !== -1,
+    'role policies read app_metadata, never user_metadata');
   check(live.sql.indexOf("'user_metadata'") === -1 && live.sql.indexOf('raw_user_meta_data') === -1,
     'live migration never reads user-editable metadata');
-  check(live.sql.indexOf('for insert, update, delete to authenticated') !== -1,
-    'student write restriction does not block participant reads');
+  check(live.sql.indexOf('revoke all on public.mathify_session_events from public, anon, authenticated') !== -1 &&
+    live.sql.indexOf('grant all on public.mathify_session_events to service_role') !== -1 &&
+    live.sql.indexOf('grant select on public.mathify_session_events to authenticated') === -1,
+    'raw event outbox is service-role-only, so clients cannot bypass event scrubbing');
   check(live.sql.indexOf('grant all on public.mathify_records to service_role') !== -1,
     'only the service role can write app records');
   check(live.sql.indexOf('revoke all on public.mathify_records from public, anon, authenticated') !== -1,
     'clients cannot read raw app records');
+  const facade = fs.readFileSync(path.join(__dirname, '..', 'db', 'index.js'), 'utf8');
+  check(facade.indexOf('LIVE_ADAPTER_METHOD_MISSING') !== -1 &&
+    /typeof implementation !== 'function'/.test(facade),
+    'a missing live adapter method throws instead of falling back to mock data');
+  check(baseline && baseline.sql.indexOf('q.hint,') === -1 &&
+    baseline.sql.indexOf('grant select (id, quiz_id, prompt, options, position, status, source,') !== -1,
+    'safe student view and column grant withhold hints until trainer release');
+  const adapter = fs.readFileSync(path.join(__dirname, '..', 'db', 'supabase.js'), 'utf8');
+  check(adapter.indexOf("rtc: { channel: 'mathify_' + row.id }") !== -1,
+    'live-created sessions get a unique server-owned Agora channel');
+  const agoraRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'agora.js'), 'utf8');
+  check(agoraRoute.indexOf('matches.length > 1') !== -1 &&
+    agoraRoute.indexOf('ambiguous: true') !== -1,
+    'duplicated Agora channels fail closed instead of misattributing presence');
+
   check(live.sql.indexOf('$mathify$') === -1,
     'migration does not collide with the runner dollar tag');
   check(live.sql.indexOf('$$') === -1,

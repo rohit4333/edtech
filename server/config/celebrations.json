@@ -1,0 +1,174 @@
+{
+  "version": "3.0.0",
+  "note": "Mathify celebration library. Colors are token keys, not raw values, so every renderer resolves through the paper/ink/coral design tokens. No gradients, no off-brand palette, no default sound.",
+  "enabled": true,
+  "sharedCelebration": {
+    "enabled": true,
+    "audience": ["trainer", "student"],
+    "soundPlayback": "local_client_side",
+    "spotlightStudent": true,
+    "suppressDuringActiveQuiz": true,
+    "neverAutoEnableCamera": true
+  },
+  "palette": ["coral", "ink", "paper"],
+  "celebrationLibrary": {
+    "paper_ribbons": {
+      "label": "Paper Ribbons",
+      "enabled": true,
+      "bestFor": "Mastery gate crossed",
+      "animation": {
+        "type": "paper_ribbons",
+        "durationMs": 3000,
+        "count": 70,
+        "colors": ["coral", "ink", "paper"],
+        "origin": "top",
+        "fallStyle": "soft_wave",
+        "opacity": 0.9
+      },
+      "sound": "drum_roll_short",
+      "badgeStyle": "coral_pill"
+    },
+    "origami_balloons": {
+      "label": "Origami Balloons",
+      "enabled": true,
+      "bestFor": "Session complete",
+      "animation": {
+        "type": "origami_balloons",
+        "durationMs": 3500,
+        "count": 12,
+        "colors": ["coral", "ink"],
+        "origin": "bottom",
+        "riseStyle": "gentle_float",
+        "stringVisible": true,
+        "foldTexture": true
+      },
+      "sound": "chime_paper",
+      "badgeStyle": "ink_outline"
+    },
+    "drum_pulse": {
+      "label": "Drum Pulse",
+      "enabled": true,
+      "bestFor": "Perfect streak",
+      "animation": {
+        "type": "drum_pulse",
+        "durationMs": 2500,
+        "centerVisual": "tabla",
+        "rippleCount": 4,
+        "rippleColors": ["coral", "ink"],
+        "beatSync": true,
+        "pulseScale": [1, 1.3, 1]
+      },
+      "sound": "tabla_pulse",
+      "badgeStyle": "coral_pill"
+    },
+    "star_shower": {
+      "label": "Star Shower",
+      "enabled": true,
+      "bestFor": "Trainer kudos",
+      "animation": {
+        "type": "star_shower",
+        "durationMs": 2800,
+        "count": 25,
+        "style": "hand_drawn",
+        "colors": ["coral", "ink"],
+        "origin": "bottom_center",
+        "trajectory": "float_upward",
+        "rotation": true
+      },
+      "sound": "sparkle",
+      "badgeStyle": "coral_pill"
+    },
+    "torn_confetti": {
+      "label": "Torn Confetti",
+      "enabled": true,
+      "bestFor": "Perfect quiz score",
+      "animation": {
+        "type": "torn_confetti",
+        "durationMs": 3200,
+        "count": 90,
+        "colors": ["coral", "ink", "paper"],
+        "origin": "top",
+        "fallStyle": "scattered",
+        "rotation": true,
+        "paperTexture": true
+      },
+      "sound": "applause_soft",
+      "badgeStyle": "ink_outline"
+    },
+    "milestone_seal": {
+      "label": "Milestone Seal",
+      "enabled": true,
+      "bestFor": "First session completed",
+      "animation": {
+        "type": "milestone_seal",
+        "durationMs": 4000,
+        "sealIcon": "medal",
+        "shineSweep": true,
+        "shineColor": "coral",
+        "textTemplate": "{achievementText}",
+        "scaleAnimation": [0, 1.2, 1]
+      },
+      "sound": "welcome_bell",
+      "badgeStyle": "coral_pill"
+    }
+  },
+  "eventMapping": {
+    "mastery_gate_crossed": {
+      "defaultType": "paper_ribbons",
+      "spotlightDurationMs": 3000,
+      "badgeText": "Module unlocked"
+    },
+    "quiz_perfect_score": {
+      "defaultType": "torn_confetti",
+      "spotlightDurationMs": 4000,
+      "badgeText": "Perfect score"
+    },
+    "perfect_streak": {
+      "defaultType": "drum_pulse",
+      "spotlightDurationMs": 2500,
+      "badgeText": "Five in a row"
+    },
+    "trainer_kudos": {
+      "defaultType": "star_shower",
+      "spotlightDurationMs": 2000,
+      "badgeText": "Star moment"
+    },
+    "session_complete": {
+      "defaultType": "origami_balloons",
+      "spotlightDurationMs": 3000,
+      "badgeText": "Great work, {studentName}",
+      "randomize": true,
+      "randomizePool": ["origami_balloons", "paper_ribbons", "torn_confetti"]
+    },
+    "first_session_completed": {
+      "defaultType": "milestone_seal",
+      "spotlightDurationMs": 4000,
+      "badgeText": "Welcome to Mathify"
+    }
+  },
+  "preferences": {
+    "studentCanChoose": true,
+    "trainerCanChoose": true,
+    "priority": ["student", "trainer", "default"],
+    "allowedOverrides": ["paper_ribbons", "origami_balloons", "torn_confetti"]
+  },
+  "throttle": {
+    "maxPerSession": 5,
+    "minGapBetweenMs": 3000
+  },
+  "accessibility": {
+    "respectReducedMotion": true,
+    "reducedMotionFallback": "static_badge",
+    "localMuteAllowed": true,
+    "cameraPrivacyRespected": true
+  },
+  "sounds": {
+    "ui_click_soft": { "durationMs": 150, "character": "soft click" },
+    "drum_roll_short": { "durationMs": 1200, "character": "soft tabla roll" },
+    "chime_paper": { "durationMs": 800, "character": "paper bell" },
+    "tabla_pulse": { "durationMs": 1200, "character": "tabla beat" },
+    "sparkle": { "durationMs": 900, "character": "quiet sparkle" },
+    "applause_soft": { "durationMs": 1500, "character": "polite applause" },
+    "welcome_bell": { "durationMs": 1300, "character": "welcome bell" }
+  }
+}

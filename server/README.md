@@ -132,7 +132,9 @@ draft → answering → awaiting_reveal → revealed → answering → … → c
 
 Realtime events:
 
-`quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`, `rtc.media.control.changed`, `network.check.completed`, `badge.awarded`.
+`quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`, `rtc.media.control.changed`, `network.check.completed`, `badge.awarded`, `reaction.sent`, `reaction.permission.changed`, `shared.celebration`.
+
+Student Control is the single trainer surface for `/media-permission`, `/media-state`, `/reaction-permission`, badge awards, board sharing, quiz controls and session end. Celebrations are server-owned through `/celebrate`; clients may only send a trigger id and allowlisted preference ids. A server quiz launch also opens the student quiz view so celebrations stay suppressed in both tabs.
 
 In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` wires `/state`, `/events` and a live Agora call panel whose channel, uid and token always come from the server.
 

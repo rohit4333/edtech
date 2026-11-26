@@ -163,6 +163,21 @@
         body: { studentCanToggleMedia: studentCanToggleMedia !== false }
       }).then(function (data) { return data && data.mediaPermissions; });
     },
+    /* Trainer-only intentional mic/camera state. Separate from Access so a
+       trainer can mute or switch off the camera even while controls are locked. */
+    setTrainerMediaState: function (sessionId, patch) {
+      return request(sessionPath(sessionId) + '/media-state', {
+        method: 'POST',
+        body: patch || {}
+      }).then(function (data) { return data && data.mediaPermissions; });
+    },
+    /* Trainer-only. Pausing applause does not change any other permission. */
+    setReactionPermission: function (sessionId, patch) {
+      return request(sessionPath(sessionId) + '/reaction-permission', {
+        method: 'POST',
+        body: patch || {}
+      }).then(function (data) { return data && data.reactionPermissions; });
+    },
     /* Each verified participant reports only their own measurement. */
     reportNetworkCheck: function (sessionId, measurement) {
       return request(sessionPath(sessionId) + '/network-check', {
@@ -187,6 +202,26 @@
         method: 'POST',
         body: { badgeId: badgeId }
       }).then(function (data) { return data && data.badge; });
+    },
+    /* A reaction is a role-tagged gesture. The emoji allowlist is enforced by
+       the server from the JWT role; the client cannot send trainer gestures. */
+    sendReaction: function (sessionId, emoji) {
+      return request(sessionPath(sessionId) + '/reactions', {
+        method: 'POST',
+        body: { emoji: emoji }
+      }).then(function (data) { return data; });
+    },
+    /* Celebrations are server-owned. A client may only request a configured
+       trigger and offer a style preference id from the public catalog. */
+    sendCelebration: function (sessionId, trigger, preference) {
+      return request(sessionPath(sessionId) + '/celebrate', {
+        method: 'POST',
+        body: {
+          trigger: trigger,
+          studentPref: preference && role === 'student' ? preference : null,
+          trainerPref: preference && role !== 'student' ? preference : null
+        }
+      }).then(function (data) { return data; });
     },
     getPublicConfig: function () {
       return request('/public/config');

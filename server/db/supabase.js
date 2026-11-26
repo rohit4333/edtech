@@ -190,6 +190,9 @@ async function insertSession(input) {
     studentId: row.student_id,
     title: row.title,
     status: row.status,
+    /* Agora channels are server-derived and unique per session so live-created
+       sessions can issue tokens and attribute webhooks to exactly one pair. */
+    rtc: { channel: 'mathify_' + row.id },
     currentPage: 1,
     scheduledAt: row.scheduled_at || null,
     startedAt: row.started_at || null,
@@ -376,6 +379,21 @@ function savePresenceSnapshot(snapshot) {
   return putRecord('presence_snapshots', record.sessionId, record);
 }
 
+/* ----------------------------------------------------------------- reactions */
+
+async function listReactions(sessionId) {
+  const rows = await listRecords('reactions');
+  return sessionId ? rows.filter(function (row) { return sameId(row.sessionId, sessionId); }) : rows;
+}
+
+function insertReaction(record) {
+  const stored = Object.assign({
+    id: id('rx'),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  return putRecord('reactions', stored.id, stored);
+}
+
 /* -------------------------------------------------------------------- slots */
 
 async function listTrainerSlots(trainerId) {
@@ -509,6 +527,8 @@ module.exports = {
   findPresenceSnapshot,
   listPresenceSnapshots,
   savePresenceSnapshot,
+  listReactions,
+  insertReaction,
   listTrainerSlots,
   insertTrainerSlot,
   deleteTrainerSlot,

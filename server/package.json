@@ -10,18 +10,18 @@
     "migrate": "node migrate.js",
     "seed": "node scripts/seed.js",
     "reminders": "node jobs/reminders.js",
-    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/quizPromptInjection.test.js && node tests/cloudflareClient.test.js && node tests/curriculumAuthoring.test.js && node tests/curriculumContext.test.js && node tests/aiCurriculumIntegration.test.js && node tests/studentSerializer.test.js && node tests/privacyBoundary.test.js && node tests/chatAssistant.test.js && node tests/curriculumPersistence.test.js && node tests/navContract.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js && node tests/scaffoldedUI.test.js && node tests/liveReadiness.test.js && node tests/livePersistence.test.js && node tests/liveOperations.test.js && node tests/rtcControls.test.js"
+    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/quizPromptInjection.test.js && node tests/cloudflareClient.test.js && node tests/curriculumAuthoring.test.js && node tests/curriculumContext.test.js && node tests/aiCurriculumIntegration.test.js && node tests/studentSerializer.test.js && node tests/privacyBoundary.test.js && node tests/chatAssistant.test.js && node tests/curriculumPersistence.test.js && node tests/navContract.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js && node tests/scaffoldedUI.test.js && node tests/liveReadiness.test.js && node tests/livePersistence.test.js && node tests/liveOperations.test.js && node tests/rtcControls.test.js && node tests/engagementControls.test.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "agora-token": "^2.0.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.3",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "^10.6.1",
     "razorpay": "^2.9.6",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   }
 }

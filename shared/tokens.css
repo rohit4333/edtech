@@ -8,8 +8,8 @@
   /* Ink */
   --ink:#0E1420;
   --ink-2:#16203A;
-  --muted:#6E685D;
-  --faint:#9A9285;
+  --muted:#58534A;
+  --faint:#6E685D;
 
   /* Paper */
   --paper:#FDFAF3;
@@ -19,7 +19,9 @@
   /* Accent (action + active only) */
   --coral:#FF5B2E;
   --coral-soft:#FFE8DF;
-  --coral-deep:#E8471A;
+  /* Deeper coral for text and thin marks so small mono labels meet WCAG AA.
+     The action token --coral stays exactly #FF5B2E. */
+  --coral-deep:#B83A16;
 
   /* Semantics */
   --teal:#12968C;

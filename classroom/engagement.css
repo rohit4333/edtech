@@ -1,0 +1,145 @@
+/* Mathify engagement layer. Paper / ink / coral only, no gradients, no heavy
+   elevation. Celebrations and reactions occupy separate, mutually exclusive
+   layers; this file never changes a camera or microphone track. */
+
+body:not(.view-student) .student-only{display:none !important}
+
+/* Student Control: one scannable place for every trainer permission. */
+.control-intro{margin:0 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
+.control-group{margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid var(--line-soft)}
+.control-group:last-child{border-bottom:0;padding-bottom:0}
+.control-group h3{margin:0 0 8px;font:600 11px/1.3 'Poppins',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.control-row{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:52px;padding:9px 12px;margin:0 0 6px;
+  border:1px solid var(--line);border-radius:4px;background:var(--paper);
+  color:var(--ink);text-align:left;font:inherit;cursor:pointer;
+}
+.control-row.is-static{cursor:default}
+.control-row:hover:not(.is-static),.control-row:focus-visible{border-color:var(--coral);outline:none}
+.control-row:focus-visible{box-shadow:0 0 0 2px var(--coral-soft)}
+.control-row b{display:block;font-size:13px;font-weight:600}
+.control-row small{display:block;margin-top:2px;color:var(--muted);font-size:11px;line-height:1.35}
+.control-state{
+  flex:0 0 auto;min-width:52px;padding:4px 8px;text-align:center;
+  border:1px solid var(--line);border-radius:3px;
+  color:var(--muted);font:600 10px/1.2 'Poppins',sans-serif;text-transform:uppercase;letter-spacing:.05em;
+}
+.control-row.is-on .control-state{border-color:var(--coral);color:var(--coral-deep);background:var(--coral-soft)}
+.badge-award{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge-award select,.badge-award button{
+  height:32px;padding:0 8px;border:1px solid var(--line);border-radius:4px;
+  background:var(--paper);color:var(--ink);font:inherit;font-size:11px;
+}
+.badge-award button{cursor:pointer}
+.control-hint{display:block;margin:4px 0;color:var(--muted);font-size:11px}
+.control-links{display:flex;flex-wrap:wrap;gap:6px}
+.control-links button{
+  padding:8px 10px;border:1px solid var(--line);border-radius:4px;
+  background:var(--paper);color:var(--ink);font:inherit;font-size:11px;cursor:pointer;
+}
+
+.engagement-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);
+}
+.reaction-set{display:flex;gap:6px;flex-wrap:wrap}
+.reaction-btn{
+  min-width:38px;height:34px;padding:0 9px;
+  border:1px solid var(--line);border-radius:4px;background:var(--paper);
+  color:var(--ink);font-size:16px;line-height:1;cursor:pointer;
+}
+.reaction-btn:hover,.reaction-btn:focus-visible{border-color:var(--coral);outline:none}
+.reaction-btn:focus-visible{box-shadow:0 0 0 2px var(--coral-soft)}
+.engagement-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-left:auto}
+.engagement-controls select,.engagement-controls button{
+  height:32px;padding:0 9px;border:1px solid var(--line);border-radius:4px;
+  background:var(--paper);color:var(--ink);font:inherit;font-size:11px;
+}
+.engagement-controls button{cursor:pointer}
+.engagement-controls button[aria-pressed="true"]{border-color:var(--coral);color:var(--coral-deep);font-weight:600}
+
+/* The celebration layer is a full-room announcement. It is pointer-transparent
+   so teaching tools and live media stay usable underneath it. */
+.engagement-layer{position:fixed;pointer-events:none;z-index:60}
+.engagement-layer[hidden]{display:none !important}
+#celebrationLayer{inset:0;display:grid;place-items:center;overflow:hidden}
+.engagement-badge{
+  position:relative;z-index:2;display:inline-block;
+  max-width:min(420px,86vw);padding:12px 20px;
+  border:1px solid var(--coral);border-radius:4px;
+  background:var(--paper);color:var(--ink);
+  font:600 15px/1.4 'Poppins',sans-serif;text-align:center;
+  animation:engagement-badge-in 320ms ease-out both;
+}
+@keyframes engagement-badge-in{
+  from{opacity:0;transform:translateY(10px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+.celebration-piece{
+  position:absolute;top:-12%;left:var(--piece-x,50%);
+  width:8px;height:14px;opacity:.9;
+  animation-delay:var(--piece-delay,0s);
+  animation-duration:2.8s;animation-timing-function:ease-in;animation-fill-mode:both;
+}
+.tone-coral{background:var(--coral)}
+.tone-ink{background:var(--ink)}
+.tone-paper{background:var(--paper);border:1px solid var(--line)}
+.is-paper_ribbons{animation-name:piece-ribbon}
+.is-origami_balloons{top:auto;bottom:-12%;animation-name:piece-balloon;border-radius:2px}
+.is-drum_pulse{top:50%;left:50%;width:18px;height:18px;border:2px solid var(--coral);background:transparent;border-radius:50%;animation-name:piece-pulse}
+.is-star_shower{width:12px;height:12px;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation-name:piece-balloon}
+.is-torn_confetti{width:11px;height:8px;animation-name:piece-ribbon}
+.is-milestone_seal{width:22px;height:22px;border:2px solid var(--coral);border-radius:50%;animation-name:piece-pulse}
+@keyframes piece-ribbon{
+  from{transform:translate3d(0,-10vh,0) rotate(0);opacity:.9}
+  to{transform:translate3d(var(--piece-drift,0px),110vh,0) rotate(420deg);opacity:0}
+}
+@keyframes piece-balloon{
+  from{transform:translate3d(0,0,0) rotate(-8deg);opacity:0}
+  20%{opacity:.85}
+  to{transform:translate3d(14px,-115vh,0) rotate(12deg);opacity:0}
+}
+@keyframes piece-pulse{
+  from{transform:translate(-50%,-50%) scale(.4);opacity:0}
+  35%{opacity:.75}
+  to{transform:translate(-50%,-50%) scale(2.6);opacity:0}
+}
+
+/* Reactions are a small, separate corner signal. They never share the
+   celebration layer and are suppressed while a celebration is on screen. */
+#reactionLayer{right:18px;bottom:18px;z-index:55}
+.reaction-chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:44px;height:44px;padding:0 12px;
+  border:1px solid var(--line);border-radius:24px;
+  background:var(--paper);color:var(--ink);font-size:22px;
+  animation:reaction-pop 260ms ease-out both;
+}
+@keyframes reaction-pop{
+  from{opacity:0;transform:translateY(8px) scale(.9)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+
+.tile.is-spotlight{outline:2px solid var(--coral);outline-offset:-2px}
+.spotlight-badge{
+  position:absolute;left:8px;bottom:38px;z-index:3;
+  max-width:calc(100% - 16px);padding:4px 8px;
+  border:1px solid var(--coral);border-radius:3px;
+  background:var(--paper);color:var(--ink);
+  font-size:10px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* Reduced motion keeps the recognition message, drops every particle and
+   never plays sound (guarded in JavaScript too). */
+@media (prefers-reduced-motion: reduce){
+  .celebration-piece,.reaction-chip,.engagement-badge{animation:none !important}
+  .celebration-piece{display:none !important}
+}
+
+@media (max-width:720px){
+  .engagement-controls{margin-left:0;width:100%}
+  .engagement-controls select,.engagement-controls button{flex:1 1 auto}
+  #reactionLayer{right:10px;bottom:10px}
+}

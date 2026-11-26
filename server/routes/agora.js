@@ -112,11 +112,17 @@ router.post('/webhook', function (req, res) {
   }
 
   const channel = String(payload.channelName || payload.channel || '').trim();
-  const session = channel
-    ? db.listSessionsForUser({ role: 'founder' }).find(function (item) {
+  /* Fail closed on ambiguity: a duplicated channel must never attribute a
+     presence event to the wrong 1:1 session. */
+  const matches = channel
+    ? db.listSessionsForUser({ role: 'founder' }).filter(function (item) {
       return item.rtc && item.rtc.channel === channel;
     })
-    : null;
+    : [];
+  if (matches.length > 1) {
+    return res.json({ received: true, matched: false, ambiguous: true });
+  }
+  const session = matches.length === 1 ? matches[0] : null;
 
   if (!session) return res.json({ received: true, matched: false });
 

@@ -47,7 +47,7 @@
   }
   .tabs button svg{width:20px;height:20px;stroke-width:1.5}
   .tabs button.active{color:var(--ink);font-weight:500}
-  .tabs button.active svg{color:var(--coral)}
+  .tabs button.active svg{color:var(--coral-deep)}
 
   .fab{right:16px;bottom:calc(72px + env(safe-area-inset-bottom))}
   .ai{right:16px;bottom:calc(132px + env(safe-area-inset-bottom))}

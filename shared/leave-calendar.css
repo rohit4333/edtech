@@ -32,7 +32,7 @@
 }
 .lc-day.is-muted{opacity:.32}
 .lc-day.is-eligible{cursor:pointer;border-color:rgba(255,91,46,.42);background:rgba(255,91,46,.07);color:var(--ink)}
-.lc-day.is-eligible:hover{border-color:var(--coral);background:rgba(255,91,46,.14)}
+.lc-day.is-eligible:hover{border-color:var(--coral-deep);background:rgba(255,91,46,.14)}
 .lc-day.is-leave{background:rgba(14,20,32,.07);border-color:var(--line);color:var(--muted)}
 .lc-day.is-selected{outline:1px solid var(--coral);outline-offset:1px;color:var(--ink)}
 .lc-action{margin-top:12px;border-top:1px solid var(--line-soft);padding-top:10px}
@@ -42,7 +42,7 @@
   border-radius:5px;background:var(--card);text-align:left;cursor:pointer
 }
 .lc-session:hover{border-color:rgba(14,20,32,.34)}
-.lc-session[aria-pressed="true"]{border-color:var(--coral);background:rgba(255,91,46,.08)}
+.lc-session[aria-pressed="true"]{border-color:var(--coral-deep);background:rgba(255,91,46,.08)}
 .lc-session-time{flex:none;font-family:var(--mono);font-size:9px;color:var(--coral-deep)}
 .lc-session-copy{min-width:0}
 .lc-session-copy b{display:block;font-size:10px;font-weight:500;color:var(--ink)}
