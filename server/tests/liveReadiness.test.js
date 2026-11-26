@@ -1,8 +1,8 @@
 /* Live-readiness regression suite.
-   Covers the production guard, salted passwords, demo disablement, Agora token
-   ownership, webhook fail-closed paths, Razorpay order trust, session event
-   scrubbing, score-override validation, migration checksum SQL and reviewed
-   static serving. */
+   Covers the production guard (LiveKit + freelm, not Agora/Cloudflare), salted
+   passwords, demo disablement, LiveKit token ownership, webhook fail-closed
+   paths, Razorpay order trust, session event scrubbing, score-override
+   validation, migration checksum SQL and reviewed static serving. */
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -12,22 +12,70 @@ const db = require('../db');
 const realtime = require('../realtime');
 const password = require('../auth/password');
 const migrate = require('../migrate');
-const agoraTokens = require('../services/agoraTokenService');
+
+/* Every key the production guard touches is snapshotted and restored so this
+   suite never leaks a Supabase/LiveKit/freelm value into the next test file. */
+const GUARD_ENV_KEYS = [
+  'AUTH_SECRET', 'CORS_ORIGIN', 'DATABASE_MODE',
+  'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_SECRET_KEY',
+  'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',
+  'FREELM_KEYLESS', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET',
+  'RAZORPAY_WEBHOOK_SECRET', 'TWILIO_AUTH_TOKEN', 'TWILIO_WEBHOOK_URL'
+].concat(config.FREELM_PROVIDER_KEYS);
 
 const SAVED_ENV = {};
 const ENV_KEYS = [
-  'NODE_ENV', 'AUTH_SECRET', 'AGORA_APP_ID', 'AGORA_APP_CERTIFICATE',
-  'RAZORPAY_WEBHOOK_SECRET', 'TWILIO_AUTH_TOKEN', 'TWILIO_WEBHOOK_URL',
-  'RECORDING_WEBHOOK_SECRET', 'ENABLE_DEMO_LOGINS',
+  'NODE_ENV', 'RECORDING_WEBHOOK_SECRET', 'ENABLE_DEMO_LOGINS',
   'SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'NODEMAILER_EMAIL', 'NODEMAILER_PASSWORD'
-];
+].concat(GUARD_ENV_KEYS);
 ENV_KEYS.forEach(function (key) { SAVED_ENV[key] = process.env[key]; });
 
-function restoreEnv() {
-  ENV_KEYS.forEach(function (key) {
+function restoreKeys(keys) {
+  keys.forEach(function (key) {
     if (SAVED_ENV[key] === undefined) delete process.env[key];
     else process.env[key] = SAVED_ENV[key];
   });
+}
+
+function restoreEnv() {
+  restoreKeys(ENV_KEYS);
+}
+
+/* Minimal complete production environment. Each assertion below removes one
+   piece to prove the guard fails closed before a provider is contacted. */
+function setGuardEnv(overrides) {
+  const values = {
+    AUTH_SECRET: 'a'.repeat(48),
+    CORS_ORIGIN: 'https://mathify.example',
+    DATABASE_MODE: 'supabase',
+    SUPABASE_URL: 'https://example.supabase.co',
+    SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
+    SUPABASE_SECRET_KEY: 'test-secret-key',
+    RAZORPAY_KEY_ID: 'rzp_test',
+    RAZORPAY_KEY_SECRET: 'test-razorpay-secret',
+    RAZORPAY_WEBHOOK_SECRET: 'test-razorpay-webhook-secret',
+    TWILIO_AUTH_TOKEN: 'test-twilio-token',
+    TWILIO_WEBHOOK_URL: 'https://mathify.example/whatsapp',
+    FREELM_KEYLESS: ''
+  };
+  config.FREELM_PROVIDER_KEYS.forEach(function (key) { values[key] = ''; });
+  Object.keys(overrides || {}).forEach(function (key) { values[key] = overrides[key]; });
+  Object.keys(values).forEach(function (key) {
+    if (values[key] === undefined || values[key] === null || values[key] === '') {
+      delete process.env[key];
+    } else {
+      process.env[key] = values[key];
+    }
+  });
+}
+
+function guardMessageFor(productionConfig) {
+  try {
+    productionConfig.assertProductionConfig();
+    return '';
+  } catch (error) {
+    return error.message;
+  }
 }
 
 async function main() {
@@ -64,11 +112,49 @@ async function main() {
     const configPath = require.resolve('../config');
     delete require.cache[configPath];
     const productionConfig = require('../config');
-    let guardMessage = '';
-    try { productionConfig.assertProductionConfig(); } catch (error) { guardMessage = error.message; }
+    let guardMessage = guardMessageFor(productionConfig);
     check(/AUTH_SECRET/.test(guardMessage), 'production guard rejects a weak AUTH_SECRET');
     check(productionConfig.corsOrigins().length === 0, 'production CORS never falls back to *');
+
+    /* LiveKit replaced Agora; freelm replaced Cloudflare Workers AI. */
+    check(['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'].every(function (key) {
+      return productionConfig.PRODUCTION_REQUIRED_ENV.indexOf(key) !== -1;
+    }), 'production guard requires LiveKit credentials');
+    check(!productionConfig.PRODUCTION_REQUIRED_ENV.some(function (key) {
+      return /AGORA|CLOUDFLARE|RECORDING_WEBHOOK_SECRET/.test(key);
+    }), 'production guard no longer requires Agora or Cloudflare credentials');
+    check(productionConfig.FREELM_PROVIDER_KEYS.indexOf('OPENROUTER_API_KEY') !== -1,
+      'freelm provider keys are part of the production contract');
+
+    /* Call the already-loaded guard directly. Re-requiring config.js would
+       re-run dotenv and silently restore real keys from .env. */
+    setGuardEnv();
+    check(productionConfig.freelmConfigured() === false,
+      'freelm provider detection starts closed with no keys');
+    guardMessage = guardMessageFor(productionConfig);
+    check(/LIVEKIT_URL/.test(guardMessage), 'production guard requires LIVEKIT_URL');
+
+    /* LiveKit present but no freelm provider still fails. */
+    const livekitEnv = {
+      LIVEKIT_URL: 'https://mathify.livekit.cloud',
+      LIVEKIT_API_KEY: 'test-livekit-key',
+      LIVEKIT_API_SECRET: 'test-livekit-secret'
+    };
+    setGuardEnv(livekitEnv);
+    guardMessage = guardMessageFor(productionConfig);
+    check(/freelm/.test(guardMessage), 'production guard requires a freelm provider: ' + guardMessage);
+
+    /* LiveKit + one freelm key boots without any Agora or Cloudflare value. */
+    setGuardEnv(Object.assign({}, livekitEnv, { OPENROUTER_API_KEY: 'test-provider-key' }));
+    guardMessage = guardMessageFor(productionConfig);
+    check(guardMessage === '', 'a LiveKit + freelm deployment passes: ' + guardMessage);
+
+    setGuardEnv(Object.assign({}, livekitEnv, { FREELM_KEYLESS: '1' }));
+    guardMessage = guardMessageFor(productionConfig);
+    check(guardMessage === '', 'an explicit FREELM_KEYLESS opt-in also passes: ' + guardMessage);
+
     delete require.cache[configPath];
+    restoreKeys(GUARD_ENV_KEYS);
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = previousNodeEnv;
 
@@ -109,9 +195,8 @@ async function main() {
     check(whatsappUnsigned.status === 403, 'WhatsApp webhook rejects an unsigned production request');
     config.isProduction = wasProduction;
 
-    /* Agora identity is derived from the verified session, never the browser. */
-    process.env.AGORA_APP_ID = 'test-app-id';
-    process.env.AGORA_APP_CERTIFICATE = 'test-app-certificate';
+    /* LiveKit room and identity are derived from the verified session, never
+       from the browser's roomName/participantName body fields. */
     const trainerNetwork = await request('POST', '/api/sessions/ses_math_001/network-check', {
       downloadMbps: 40, uploadMbps: 25, latencyMs: 60
     }, trainer);
@@ -120,20 +205,33 @@ async function main() {
     }, student);
     check(trainerNetwork.status === 200 && studentNetwork.status === 200,
       'both participants can report a passing connection');
-    const trainerRtc = await request('POST', '/api/sessions/ses_math_001/rtc-token', {
-      channel: 'attacker-channel', uid: 1, peerUid: 2, role: 'subscriber'
+    const trainerRtc = await request('POST', '/api/get-token', {
+      sessionId: 'ses_math_001',
+      participantName: 'attacker'
     }, trainer);
-    check(trainerRtc.status === 200, 'trainer can obtain a server-signed RTC token');
-    check(trainerRtc.body.rtc.channel !== 'attacker-channel', 'browser-supplied channel is ignored');
-    check(trainerRtc.body.rtc.uid === agoraTokens.numericUid('usr_trainer_001'),
-      'trainer uid comes from the verified identity');
-    check(trainerRtc.body.rtc.peerUid === agoraTokens.numericUid('usr_student_001'),
-      'peer uid comes from the session record');
-    const studentRtc = await request('POST', '/api/sessions/ses_math_001/rtc-token', {
-      channel: 'attacker-channel'
+    check(trainerRtc.status === 200,
+      'trainer can obtain a server-signed LiveKit token: ' + trainerRtc.text);
+    check(trainerRtc.body.roomName === 'mathify-ses_math_001',
+      'room name is derived from the verified session');
+    check(trainerRtc.body.identity === 'trainer-usr_trainer_001',
+      'trainer identity comes from the verified JWT');
+    check(trainerRtc.body.peerIdentity === 'student-usr_student_001',
+      'peer identity comes from the session record');
+    const studentRtc = await request('POST', '/api/get-token', {
+      sessionId: 'ses_math_001'
     }, student);
-    check(studentRtc.body.rtc.uid === agoraTokens.numericUid('usr_student_001'),
-      'student uid comes from the verified identity');
+    check(studentRtc.status === 200,
+      'student can obtain a server-signed LiveKit token: ' + studentRtc.text);
+    check(studentRtc.body.identity === 'student-usr_student_001',
+      'student identity comes from the verified JWT');
+    check(studentRtc.body.peerIdentity === 'trainer-usr_trainer_001',
+      'peer identity comes from the session record');
+    const mismatchedRoom = await request('POST', '/api/get-token', {
+      sessionId: 'ses_math_001',
+      roomName: 'mathify-other-session'
+    }, trainer);
+    check(mismatchedRoom.status === 403 && mismatchedRoom.body.error === 'ROOM_MISMATCH',
+      'a browser cannot rename the verified LiveKit room');
 
     /* Session events are scrubbed again, even for an allowed event name. */
     await realtime.publish('ses_math_001', 'page.changed', {
