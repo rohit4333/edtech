@@ -640,11 +640,13 @@
   var recordingLink = null;
   var chapterHost = document.getElementById('recChapters');
   function chapterUrl(seconds) {
-    var base = recordingLink || 'https://recordings.mathify.local/ses_math_000';
-    return base + (base.indexOf('?') === -1 ? '?' : '&') + 't=' + Math.max(0, Number(seconds) || 0);
+    if (!recordingLink) return null;
+    return recordingLink + (recordingLink.indexOf('?') === -1 ? '?' : '&') +
+      't=' + Math.max(0, Number(seconds) || 0);
   }
   function openChapter(seconds) {
-    window.location.href = chapterUrl(seconds);
+    var url = chapterUrl(seconds);
+    if (url) window.location.href = url;
   }
   document.querySelectorAll('[data-chapter-seconds]').forEach(function (button) {
     button.addEventListener('click', function () {
@@ -710,7 +712,7 @@
       if (!Array.isArray(recordings) || !recordings.length) return;
       var recording = recordings[0];
       recordingLink = recording.url || recordingLink;
-      if (!Array.isArray(recording.chapters) || !recording.chapters.length) return;
+      if (!recordingLink || !Array.isArray(recording.chapters) || !recording.chapters.length) return;
       chapterHost.innerHTML = '';
       recording.chapters.forEach(function (chapter) {
         var button = document.createElement('button');

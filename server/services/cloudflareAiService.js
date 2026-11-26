@@ -1,9 +1,9 @@
-/* Mathify AI text service.
+/* Mathify AI text service — the single server-side model call boundary.
  *
- * Provider order: Gemini -> Groq -> Cloudflare Workers AI. Workers AI stays
- * the pinned canonical model path and is always attempted before a
- * deterministic fallback. Alternates are only enabled in live Supabase or
- * production mode, so mock tests keep their existing deterministic behavior.
+ * Provider order everywhere: freelm -> Gemini -> Groq -> Cloudflare Workers AI.
+ * Workers AI stays the pinned canonical last stage and is always attempted
+ * before a deterministic fallback. Every stage is only enabled in live
+ * Supabase or production mode, so mock tests keep deterministic behavior.
  *
  * Credentials are read at call time so tests and env rotations do not require
  * a process restart. The caller owns Zod validation; this module guarantees a
@@ -12,6 +12,7 @@
 
 const config = require('../config');
 const alternates = require('./aiProviders');
+const freelmStage = require('./freelmStage');
 
 const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -160,8 +161,10 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
     ? '\n\n' + JSON_ONLY_INSTRUCTION
     : '');
   const userContent = String(userPrompt || '');
+  const image = callOptions.image || null;
+  const live = alternates.enabled();
 
-  if ((!current.accountId || !current.apiToken) && !alternates.enabled()) {
+  if ((!current.accountId || !current.apiToken) && !live) {
     if (!safeFallback) {
       throw problem('CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required.',
         'CLOUDFLARE_NOT_CONFIGURED', 503);
@@ -171,21 +174,43 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
   }
 
   const attempts = [];
-  if (alternates.enabled()) {
-    /* Primary order is explicit: Gemini, then Groq, then Workers AI. */
+  if (live) {
+    /* Single authoritative order: freelm -> Gemini -> Groq -> Cloudflare.
+       Groq and the freelm string-message stage cannot carry images. */
+    if (callOptions.skipFreelm !== true && !image && freelmStage.configured()) {
+      attempts.push({
+        name: 'freelm',
+        run: function () {
+          return freelmStage.callFreelm({
+            system: systemContent,
+            user: userContent,
+            maxOutputTokens: callOptions.maxOutputTokens || 600
+          });
+        }
+      });
+    }
     if (alternates.geminiConfigured()) {
       attempts.push({
         name: 'Gemini',
         run: function () {
-          return alternates.callGemini({ system: systemContent, user: userContent });
+          return alternates.callGemini({
+            system: systemContent,
+            user: userContent,
+            image: image,
+            maxOutputTokens: callOptions.maxOutputTokens || 2048
+          });
         }
       });
     }
-    if (alternates.groqConfigured()) {
+    if (!image && alternates.groqConfigured()) {
       attempts.push({
         name: 'Groq',
         run: function () {
-          return alternates.callGroq({ system: systemContent, user: userContent });
+          return alternates.callGroq({
+            system: systemContent,
+            user: userContent,
+            maxOutputTokens: callOptions.maxOutputTokens || 2048
+          });
         }
       });
     }

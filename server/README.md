@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit**, new structured feedback uses **freelm**, and transactional email uses **Resend**; the earlier Agora and Cloudflare Workers AI routes remain for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 44 suites pass in deterministic mock mode; live provider calls are not claimed. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
+This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned Egress, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; the earlier Agora routes remain for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 45 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
 ## Run
 
@@ -203,27 +203,35 @@ whiteboard/Wacom activity are the only shared signals.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/livekit/token`, `/api/get-token` | LiveKit JWT + WebSocket URL; server-owned room/identity, subscribe-only observer grants; `NETWORK_BELOW_MINIMUM` until both sides pass |
-| `POST` | `/api/generate-feedback` | Structured feedback via `freelm` (`system`/`user` array); mock mode returns deterministically |
+| `POST` | `/api/generate-feedback` | Structured feedback through the shared `freelm → Gemini → Groq → Cloudflare` chain; mock mode returns deterministically |
+| `POST` | `/api/ai/test-ping` | Live-only health probe; requires at least two real provider answers, never returns a mock result |
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
 
 `services/livekitTokenService.js` lazily loads `livekit-server-sdk`, derives the room as `mathify-<sessionId>` and the identity from the JWT role/id, converts `https://` to `wss://`, and awaits `toJwt()`. A browser-supplied `roomName` may only confirm the derived room; any other value returns `403 ROOM_MISMATCH`. `ALLOW_DIRECT_ROOM_TOKENS=true` enables a dev-only literal-room path and is disabled in production/Supabase mode. Optional `LIVEKIT_AGENT_NAME` dispatch is trainer-initiated, deduplicated with `listDispatch`, and never runs in mock mode or for observers.
 
-`services/freeLmService.js` calls `freelm.FreeLLM.fromEnv({ timeout: FREELM_TIMEOUT_SECONDS })` (seconds) with `FREELM_MODEL` (default `chat:fast`), sanitizes transcript PII, and returns `{ text, provider, mode }`. Mock mode returns before any provider client is created. `services/emailService.js` wraps Resend `emails.send()` and exposes `sendSessionEmail(studentEmail, sessionLink)`.
+`services/cloudflareAiService.js` is the single server-side model boundary. Its live order is `freelm → Gemini → Groq → Cloudflare Workers AI`; `services/freelmStage.js` restricts freelm to those three approved provider families with keyless mode disabled, then the direct stages run in the same order. Image questions skip the text-only freelm and Groq stages but still use Gemini then Cloudflare. `services/freeLmService.js` sanitizes PII, calls that boundary for feedback/transcripts, and probes providers independently for `/api/ai/test-ping` (two live successes required). `FREELM_TIMEOUT_SECONDS` is in seconds and `FREELM_MODEL` defaults to `chat:fast`. Mock mode returns before any provider client is created. `services/emailService.js` wraps Resend `emails.send()` and exposes `sendSessionEmail(studentEmail, sessionLink)`.
 
-Legacy routes `GET /api/agora/token`, `POST /api/agora/recording/start|stop` and `/api/agora/webhook` are retained for compatibility/tests. LiveKit recording needs LiveKit Egress; the trainer adapter currently fails closed with an honest status.
+LiveKit recording is available through `POST /api/livekit/recording/start` and
+`POST /api/livekit/recording/stop`. The trainer sends only a session id or
+recording id; the server derives the room, object key and S3 destination. With
+no LiveKit Egress storage configured, both routes fail closed with
+`RECORDING_NOT_CONFIGURED`. Legacy routes `GET /api/agora/token`,
+`POST /api/agora/recording/start|stop` and `/api/agora/webhook` are retained for
+compatibility/tests only.
 
-Legacy curriculum path — `services/cloudflareService.js` generates curriculum in two Workers AI calls:
-`generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner blocks;
-`generateQuizTiers(context, plannerOutput)` returns `level_1`, `level_2`, `level_3` and
+Curriculum path — `services/cloudflareService.js` generates curriculum in two model calls through
+the shared chain: `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner
+blocks; `generateQuizTiers(context, plannerOutput)` returns `level_1`, `level_2`, `level_3` and
 `advance_criteria`. Each call renders its own system prompt, parses strict JSON (with fences and
 trailing commas tolerated), and validates the shape with Zod. A deterministic trainer-reviewable
-fallback is used when Workers AI is unavailable. `generateQuizDraft(topic, difficulty)` remains as
-a backward-compatible wrapper for the adaptive quiz generator.
+fallback is used only in mock mode; live calls fail closed instead of substituting a fake answer.
+`generateQuizDraft(topic, difficulty)` remains as a backward-compatible wrapper for the adaptive quiz
+generator.
 
-Legacy provider client — `services/cloudflareAiService.js` handles bearer auth, timeouts,
-both Workers AI response envelopes and JSON cleanup, and appends the strict JSON-only instruction to
-every system prompt. `services/cloudflareClient.js` remains as a compatibility alias.
+Provider client — `services/cloudflareAiService.js` also handles bearer auth, timeouts, both Workers
+AI response envelopes and JSON cleanup, and appends the strict JSON-only instruction when requested.
+`services/cloudflareClient.js` remains as a compatibility alias.
 
 `services/curriculumContext.js` maps CBSE, ICSE, IB, IGCSE, Common Core, British National and Ontario
 to country, style, notation and pedagogy, then returns a `promptInjection` from the student profile.
@@ -245,15 +253,15 @@ or `HUMAN_HANDOFF_REQUIRED`. The webhook logs handoffs, publishes a `support.han
 Slack/email alerts through `services/notificationService.js`. Twilio signature verification activates when both
 `TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are set.
 
-### AI chat Worker (legacy)
+### AI chat Worker
 
-`worker-core.mjs` is pure logic (no fetch or platform globals) shared by the deployed Worker and the local Express bridge. `worker.js` verifies the Express-issued HMAC token, applies allowlisted CORS and a per-minute rate limit, then calls Workers AI through the `[ai]` binding with a Cloudflare REST fallback. `wrangler.toml` declares the models; deploy secrets with `wrangler secret put` (`AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`). No Cloudflare or Supabase secret is exposed to the browser.
+`worker-core.mjs` is pure logic (no fetch or platform globals) shared by the Worker source and the local Express bridge. `worker.js` verifies the Express-issued HMAC token, applies allowlisted CORS and a per-minute rate limit, then calls the same chain as the server: restricted freelm → Gemini → Groq → Cloudflare. `wrangler.toml` declares `nodejs_compat`, the `[ai]` binding and non-secret model settings; deploy secrets with `wrangler secret put` (`AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, optional `FREELM_MODEL`). No Cloudflare or Supabase secret is exposed to the browser.
 
-`routes/chat.js` → `services/chatWorkerService.js` forwards only the JWT role, actor id, sanitized question and, for Study Buddy, the image. `CHAT_WORKER_URL` is optional: when set, Express calls the deployed Worker; otherwise the same core runs locally through the Cloudflare REST endpoint. Trainer Desk uses `@cf/meta/llama-3.1-8b-instruct` and verified facts (₹300–₹400 per completed 1-on-1 session, exact pay per contract/offer letter or onboarding, 48-hour notice, fines and bonuses, severe complaints to `founder@mathify.app`). Study Buddy uses the same text model for text and `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` for images; it gives Socratic hints and visual analogies only, never a final answer.
+`routes/chat.js` → `services/chatWorkerService.js` forwards only the JWT role, actor id, sanitized question and, for Study Buddy, the image. `CHAT_WORKER_URL` is optional: when set, Express calls the deployed Worker; otherwise the same core runs locally through the shared chain. Trainer Desk uses the verified policy facts (₹300–₹400 per completed 1-on-1 session, exact pay per contract/offer letter or onboarding, 48-hour notice, fines and bonuses, severe complaints to `founder@mathify.app`) and always appends exactly one closing line. Study Buddy gives Socratic hints and visual analogies only, never a final answer; unsafe questions return the exact parent/trainer escalation line.
 
 Reply guards reject contact data, social links, trainer-only material and student final-answer phrasing. Image bytes are decoded in memory only and never logged or stored. Audit rows go to `trainer_support_logs` / `student_doubt_logs` through the service-role key only.
 
-**Historical legacy-provider status:** text call PASS (HTTP `200`, about `453 ms`); requested 34b vision FAIL (HTTP `400 No route for that URI`, not available on this account); fallback vision BLOCKED (HTTP `403 Model Agreement`). Legacy live image chat was gated until the one-time Meta model agreement was accepted. No deployed-Worker browser end-to-end chat success is claimed. Model slugs stay literal in REST paths, LLaVA `No route` triggers the fallback, and JSON parsing extracts the first balanced object from chatty output.
+**Current status:** the Worker bundle builds cleanly with `wrangler@3` (`153.09 KiB / 39.64 KiB gzip`); live deploy remains blocked because the current Cloudflare token lacks Workers Scripts deploy permission. The local Express bridge uses the same verified chain and passed live chat checks. Historical legacy-provider evidence remains in `TEST_REPORT.md`.
 
 ### Mastery self-practice
 
@@ -264,19 +272,19 @@ Add these env vars in `.env` (`.env.example` lists every supported name):
 Required in production: `AUTH_SECRET`, `CORS_ORIGIN`, `DATABASE_MODE=supabase`,
 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (server-only),
 `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
-at least one freelm provider key (`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`,
-`NVIDIA_API_KEY`, `MISTRAL_API_KEY`, `CEREBRAS_API_KEY`, `ZAI_API_KEY`, `COHERE_API_KEY`,
-`KILO_API_KEY`) or `FREELM_KEYLESS=1`, plus `FREELM_MODEL`, `FREELM_TIMEOUT_SECONDS`,
+the full AI chain (`GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`) plus `FREELM_MODEL`, `FREELM_TIMEOUT_SECONDS`,
 `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `TWILIO_AUTH_TOKEN`,
-`TWILIO_WEBHOOK_URL`.
+`TWILIO_WEBHOOK_URL`. `FREELM_KEYLESS` and non-chain provider keys are rejected.
 
 Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape hatch),
-`RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,
-`TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`,
-`NODEMAILER_EMAIL`, `NODEMAILER_PASSWORD`.
+`APP_ORIGIN`, `RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,
+`TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`.
+All email, including password resets, reminders and human handoffs, goes through Resend.
 
-Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`,
-`CLOUDFLARE_*`. They are retained only for the compatibility routes and local tests.
+Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`.
+They are retained only for compatibility routes and local tests; Cloudflare Workers AI
+is a required member of the approved AI chain.
 
 ### Live session creation
 
@@ -327,7 +335,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Forty-four Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. `TEST_REPORT.md` at the repository root has the historical full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`; its live evidence table records the old provider round (one Workers AI text call and one local Agora token generation), not current LiveKit/freelm/Resend validation. No live provider calls are claimed for the current stack.
+Forty-five Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. `LIVE_QA_REPORT.md` at the repository root records current live HTTP and Supabase evidence. `TEST_REPORT.md` has historical full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 

@@ -7,11 +7,12 @@
  *
  * The worker verifies the same HMAC token the Express API issues, applies
  * CORS and per-caller rate limits, calls the live provider chain
- * (Gemini -> Groq -> Cloudflare Workers AI) and writes founder-auditable logs
+ * (freelm -> Gemini -> Groq -> Cloudflare Workers AI) and writes founder-auditable logs
  * to Supabase through the service-role key. Images are
  * decoded in memory for the model and are never logged or echoed back.
  */
 
+import { FreeLLM, Gemini, Groq, CloudflareWorkersAI } from 'freelm';
 import {
   answer,
   extractGenerated,
@@ -191,6 +192,48 @@ function textMessages(messages) {
   };
 }
 
+/* First chain stage. Providers are built from Worker bindings, never from
+   process.env, and keyless/public freelm endpoints are never enabled. Images
+   fall through to the Gemini/Cloudflare vision stages. */
+async function callFreelm(input, env) {
+  if (input.image) {
+    throw providerProblem('freelm does not accept image content.', 'FREELM_IMAGE_UNSUPPORTED', 400);
+  }
+  const providers = [];
+  const geminiKey = String(env.GEMINI_API_KEY || '').trim();
+  const groqKey = String(env.GROQ_API_KEY || '').trim();
+  const cloudflareToken = String(env.CLOUDFLARE_API_TOKEN || '').trim();
+  const cloudflareAccount = String(env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+  if (geminiKey) providers.push(new Gemini(geminiKey));
+  if (groqKey) providers.push(new Groq(groqKey));
+  if (cloudflareToken && cloudflareAccount) {
+    providers.push(new CloudflareWorkersAI(cloudflareToken, { accountId: cloudflareAccount }));
+  }
+  if (!providers.length) {
+    throw providerProblem('No approved freelm provider is configured.', 'FREELM_NOT_CONFIGURED', 503);
+  }
+
+  const llm = new FreeLLM(providers, {
+    strategy: 'priority',
+    maxAttempts: 1,
+    timeout: 20,
+    wait: false,
+    hedge: false,
+    persist: false
+  });
+  const parts = textMessages(input.messages);
+  const response = await llm.chat([
+    { role: 'system', content: parts.system },
+    { role: 'user', content: parts.user }
+  ], {
+    model: String(env.FREELM_MODEL || '').trim() || 'chat:fast',
+    max_tokens: 320
+  });
+  const output = String((response && response.text) || '').trim();
+  if (!output) throw providerProblem('freelm returned no text result.', 'FREELM_EMPTY_RESULT', 502);
+  return output;
+}
+
 async function callGemini(input, env) {
   const key = String(env.GEMINI_API_KEY || '').trim();
   if (!key) throw providerProblem('Gemini is not configured.', 'GEMINI_NOT_CONFIGURED', 503);
@@ -258,6 +301,13 @@ async function callGroq(input, env) {
 }
 
 async function runModel(input, env) {
+  if (!input.image && env.GEMINI_API_KEY) {
+    try {
+      return await callFreelm(input, env);
+    } catch (error) {
+      /* freelm may fall through to the direct providers below. */
+    }
+  }
   if (env.GEMINI_API_KEY) {
     try {
       return await callGemini(input, env);

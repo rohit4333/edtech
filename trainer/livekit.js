@@ -41,6 +41,13 @@
     if (node) node.textContent = message || '';
   }
 
+  function setRecordingButtons(canStart) {
+    var start = document.getElementById('mc-rec-start');
+    var stop = document.getElementById('mc-rec-stop');
+    if (start) start.disabled = canStart !== true || Boolean(state.recording);
+    if (stop) stop.disabled = !state.recording;
+  }
+
   function authHeaders() {
     if (!window.mathifyTrainerApi || !window.mathifyTrainerApi.ensureAuth) {
       return Promise.resolve({});
@@ -335,6 +342,7 @@
         state.joined = true;
         document.getElementById('mc-join').disabled = true;
         document.getElementById('mc-leave').disabled = false;
+        setRecordingButtons(false);
         status('Connected in mock mode. No media is sent.');
         return null;
       }
@@ -356,6 +364,7 @@
           state.joined = true;
           document.getElementById('mc-join').disabled = true;
           document.getElementById('mc-leave').disabled = false;
+          setRecordingButtons(true);
           status('Connected. Ink reaches the student in this 1:1 room.');
           return state.room;
         });
@@ -387,8 +396,8 @@
     });
     document.getElementById('mc-join').disabled = false;
     document.getElementById('mc-leave').disabled = true;
-    document.getElementById('mc-rec-start').disabled = true;
-    document.getElementById('mc-rec-stop').disabled = true;
+    state.recording = null;
+    setRecordingButtons(false);
   }
 
   function leave() {
@@ -397,17 +406,48 @@
     return Promise.resolve(true);
   }
 
-  /* Agora Cloud Recording does not apply to a LiveKit room. Keep the buttons
-     visible but fail closed with an honest status rather than calling a stale
-     provider endpoint. Server-side LiveKit Egress can be added separately. */
+  /* LiveKit Egress is started server-side from the verified session id. The
+     browser never sends a room name or a storage credential. */
   function startRecording() {
-    status('Recording is not configured for LiveKit on this server.');
-    return Promise.resolve(null);
+    if (!state.joined || !state.rtc || state.rtc.mock === true || state.rtc.mode === 'mock') {
+      status('Join a live 1:1 room before starting a recording.');
+      return Promise.resolve(null);
+    }
+    status('Starting recording…');
+    return apiRequest('/livekit/recording/start', {
+      method: 'POST',
+      body: { sessionId: sessionId() }
+    }).then(function (data) {
+      state.recording = data && data.recording;
+      setRecordingButtons(true);
+      status('Recording started. Stop it before leaving the call.');
+      return state.recording;
+    }).catch(function (error) {
+      status(error.message || 'Recording could not start.');
+      return null;
+    });
   }
 
   function stopRecording() {
-    status('Recording is not configured for LiveKit on this server.');
-    return Promise.resolve(null);
+    if (!state.recording || !state.recording.id) {
+      status('No active recording to stop.');
+      return Promise.resolve(null);
+    }
+    status('Stopping recording…');
+    return apiRequest('/livekit/recording/stop', {
+      method: 'POST',
+      body: { recordingId: state.recording.id }
+    }).then(function (data) {
+      state.recording = null;
+      setRecordingButtons(true);
+      status(data && data.recording && data.recording.url
+        ? 'Recording saved.'
+        : 'Recording stopped. The file is still being processed.');
+      return data && data.recording;
+    }).catch(function (error) {
+      status(error.message || 'Recording could not stop.');
+      return null;
+    });
   }
 
   function ready() {

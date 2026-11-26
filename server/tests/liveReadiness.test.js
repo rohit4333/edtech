@@ -21,12 +21,12 @@ const GUARD_ENV_KEYS = [
   'LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET',
   'FREELM_KEYLESS', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET',
   'RAZORPAY_WEBHOOK_SECRET', 'TWILIO_AUTH_TOKEN', 'TWILIO_WEBHOOK_URL'
-].concat(config.FREELM_PROVIDER_KEYS);
+].concat(config.FREELM_PROVIDER_KEYS, config.DISALLOWED_FREELM_KEYS);
 
 const SAVED_ENV = {};
 const ENV_KEYS = [
   'NODE_ENV', 'RECORDING_WEBHOOK_SECRET', 'ENABLE_DEMO_LOGINS',
-  'SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'NODEMAILER_EMAIL', 'NODEMAILER_PASSWORD'
+  'SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'APP_ORIGIN', 'RESEND_API_KEY', 'RESEND_FROM'
 ].concat(GUARD_ENV_KEYS);
 ENV_KEYS.forEach(function (key) { SAVED_ENV[key] = process.env[key]; });
 
@@ -51,6 +51,9 @@ function setGuardEnv(overrides) {
     SUPABASE_URL: 'https://example.supabase.co',
     SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
     SUPABASE_SECRET_KEY: 'test-secret-key',
+    LIVEKIT_URL: '',
+    LIVEKIT_API_KEY: '',
+    LIVEKIT_API_SECRET: '',
     RAZORPAY_KEY_ID: 'rzp_test',
     RAZORPAY_KEY_SECRET: 'test-razorpay-secret',
     RAZORPAY_WEBHOOK_SECRET: 'test-razorpay-webhook-secret',
@@ -58,7 +61,8 @@ function setGuardEnv(overrides) {
     TWILIO_WEBHOOK_URL: 'https://mathify.example/whatsapp',
     FREELM_KEYLESS: ''
   };
-  config.FREELM_PROVIDER_KEYS.forEach(function (key) { values[key] = ''; });
+  config.FREELM_PROVIDER_KEYS.concat(config.DISALLOWED_FREELM_KEYS)
+    .forEach(function (key) { values[key] = ''; });
   Object.keys(overrides || {}).forEach(function (key) { values[key] = overrides[key]; });
   Object.keys(values).forEach(function (key) {
     if (values[key] === undefined || values[key] === null || values[key] === '') {
@@ -102,7 +106,7 @@ async function main() {
 
   try {
     /* Never let a test notification reach a real Slack or email channel. */
-    ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'NODEMAILER_EMAIL', 'NODEMAILER_PASSWORD']
+    ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'APP_ORIGIN', 'RESEND_API_KEY', 'RESEND_FROM']
       .forEach(function (key) { process.env[key] = ''; });
 
     /* Production must fail closed before any server starts. */
@@ -116,25 +120,28 @@ async function main() {
     check(/AUTH_SECRET/.test(guardMessage), 'production guard rejects a weak AUTH_SECRET');
     check(productionConfig.corsOrigins().length === 0, 'production CORS never falls back to *');
 
-    /* LiveKit replaced Agora; freelm replaced Cloudflare Workers AI. */
+    /* LiveKit is the only RTC provider; AI uses one approved chain. */
     check(['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'].every(function (key) {
       return productionConfig.PRODUCTION_REQUIRED_ENV.indexOf(key) !== -1;
     }), 'production guard requires LiveKit credentials');
+    check(['GEMINI_API_KEY', 'GROQ_API_KEY', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'].every(function (key) {
+      return productionConfig.PRODUCTION_REQUIRED_ENV.indexOf(key) !== -1;
+    }), 'production guard requires the full AI provider chain');
     check(!productionConfig.PRODUCTION_REQUIRED_ENV.some(function (key) {
-      return /AGORA|CLOUDFLARE|RECORDING_WEBHOOK_SECRET/.test(key);
-    }), 'production guard no longer requires Agora or Cloudflare credentials');
-    check(productionConfig.FREELM_PROVIDER_KEYS.indexOf('OPENROUTER_API_KEY') !== -1,
-      'freelm provider keys are part of the production contract');
+      return /AGORA|RECORDING_WEBHOOK_SECRET|OPENROUTER|NVIDIA|MISTRAL|CEREBRAS|ZAI|COHERE|KILO/.test(key);
+    }), 'production guard excludes Agora and non-chain AI providers');
+    check(productionConfig.FREELM_PROVIDER_KEYS.indexOf('OPENROUTER_API_KEY') === -1,
+      'non-chain freelm providers are not part of the production contract');
 
     /* Call the already-loaded guard directly. Re-requiring config.js would
        re-run dotenv and silently restore real keys from .env. */
     setGuardEnv();
     check(productionConfig.freelmConfigured() === false,
-      'freelm provider detection starts closed with no keys');
+      'AI chain detection starts closed with no keys');
     guardMessage = guardMessageFor(productionConfig);
     check(/LIVEKIT_URL/.test(guardMessage), 'production guard requires LIVEKIT_URL');
 
-    /* LiveKit present but no freelm provider still fails. */
+    /* LiveKit present but no AI chain still fails. */
     const livekitEnv = {
       LIVEKIT_URL: 'https://mathify.livekit.cloud',
       LIVEKIT_API_KEY: 'test-livekit-key',
@@ -142,16 +149,30 @@ async function main() {
     };
     setGuardEnv(livekitEnv);
     guardMessage = guardMessageFor(productionConfig);
-    check(/freelm/.test(guardMessage), 'production guard requires a freelm provider: ' + guardMessage);
+    check(/AI provider chain/.test(guardMessage), 'production guard requires the AI chain: ' + guardMessage);
 
-    /* LiveKit + one freelm key boots without any Agora or Cloudflare value. */
-    setGuardEnv(Object.assign({}, livekitEnv, { OPENROUTER_API_KEY: 'test-provider-key' }));
+    /* One chain key is not enough; all three upstream providers are required. */
+    setGuardEnv(Object.assign({}, livekitEnv, { GEMINI_API_KEY: 'test-gemini-key' }));
     guardMessage = guardMessageFor(productionConfig);
-    check(guardMessage === '', 'a LiveKit + freelm deployment passes: ' + guardMessage);
+    check(/AI provider chain/.test(guardMessage), 'a partial AI chain fails closed: ' + guardMessage);
 
-    setGuardEnv(Object.assign({}, livekitEnv, { FREELM_KEYLESS: '1' }));
+    const chainEnv = {
+      GEMINI_API_KEY: 'test-gemini-key',
+      GROQ_API_KEY: 'test-groq-key',
+      CLOUDFLARE_API_TOKEN: 'test-cloudflare-token',
+      CLOUDFLARE_ACCOUNT_ID: 'test-cloudflare-account'
+    };
+    setGuardEnv(Object.assign({}, livekitEnv, chainEnv));
     guardMessage = guardMessageFor(productionConfig);
-    check(guardMessage === '', 'an explicit FREELM_KEYLESS opt-in also passes: ' + guardMessage);
+    check(guardMessage === '', 'a LiveKit + full AI chain deployment passes: ' + guardMessage);
+
+    setGuardEnv(Object.assign({}, livekitEnv, chainEnv, { FREELM_KEYLESS: '1' }));
+    guardMessage = guardMessageFor(productionConfig);
+    check(/FREELM_KEYLESS/.test(guardMessage), 'keyless public endpoints never pass production: ' + guardMessage);
+
+    setGuardEnv(Object.assign({}, livekitEnv, chainEnv, { OPENROUTER_API_KEY: 'test-extra-key' }));
+    guardMessage = guardMessageFor(productionConfig);
+    check(/OPENROUTER_API_KEY/.test(guardMessage), 'non-chain provider keys fail closed: ' + guardMessage);
 
     delete require.cache[configPath];
     restoreKeys(GUARD_ENV_KEYS);
@@ -195,6 +216,11 @@ async function main() {
     check(whatsappUnsigned.status === 403, 'WhatsApp webhook rejects an unsigned production request');
     config.isProduction = wasProduction;
 
+    /* The provider ping has no mock path: local mode must fail closed. */
+    const aiPingLocal = await request('POST', '/api/ai/test-ping', { message: 'ping' });
+    check(aiPingLocal.status === 503 && aiPingLocal.body.error === 'FREELM_NOT_CONFIGURED',
+      'AI provider ping fails closed without a live provider: ' + aiPingLocal.text);
+
     /* LiveKit room and identity are derived from the verified session, never
        from the browser's roomName/participantName body fields. */
     const trainerNetwork = await request('POST', '/api/sessions/ses_math_001/network-check', {
@@ -232,6 +258,22 @@ async function main() {
     }, trainer);
     check(mismatchedRoom.status === 403 && mismatchedRoom.body.error === 'ROOM_MISMATCH',
       'a browser cannot rename the verified LiveKit room');
+
+    /* GET alias accepts the same hints from the query string without ever
+       allowing the browser to choose the room or the participant identity. */
+    const getAlias = await request('GET',
+      '/api/livekit/token?sessionId=ses_math_001&roomName=mathify-ses_math_001&identity=trainer-usr_trainer_001&role=publisher&participantName=attacker',
+      undefined, trainer);
+    check(getAlias.status === 200,
+      'GET query alias can obtain a server-signed LiveKit token: ' + getAlias.text);
+    check(getAlias.body.roomName === 'mathify-ses_math_001' &&
+      getAlias.body.identity === 'trainer-usr_trainer_001',
+      'GET alias keeps room and identity server-owned');
+    const getMismatch = await request('GET',
+      '/api/livekit/token?sessionId=ses_math_001&roomName=mathify-other-session',
+      undefined, trainer);
+    check(getMismatch.status === 403 && getMismatch.body.error === 'ROOM_MISMATCH',
+      'GET alias rejects a browser-supplied room mismatch');
 
     /* Session events are scrubbed again, even for an allowed event name. */
     await realtime.publish('ses_math_001', 'page.changed', {

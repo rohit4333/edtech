@@ -2,7 +2,9 @@
  *
  * POST /api/livekit/token  — canonical route; reads `roomName` and
  *                            `participantName` from req.body.
- * POST /api/get-token      — same handler, mounted as an alias.
+ * GET  /api/livekit/token  — query-compatible alias; accepts the same hints
+ *                            from req.query.
+ * POST/GET /api/get-token  — same handlers, mounted as aliases.
  *
  * Room/identity/grants stay server-owned. A browser can only confirm the
  * room derived from a session it is authorized to enter. */
@@ -113,8 +115,8 @@ async function issueToken(req, res) {
     }
 
     const rtc = await livekitTokens.issueSessionToken(liveSession, req.user, {
-      roomName: body.roomName,
-      participantName: body.participantName,
+      roomName: options.roomName,
+      participantName: options.participantName,
       observer: access.observer
     });
 
@@ -148,6 +150,8 @@ async function issueToken(req, res) {
 }
 
 router.post('/token', directFirst, auth.requireAuth, requireTrainerAccess(), issueToken);
+router.get('/token', auth.requireAuth, requireTrainerAccess(), issueToken);
 router.post('/', directFirst, auth.requireAuth, requireTrainerAccess(), issueToken);
+router.get('/', auth.requireAuth, requireTrainerAccess(), issueToken);
 
 module.exports = router;

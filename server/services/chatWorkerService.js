@@ -5,13 +5,14 @@
  * REST credential, so the browser flow stays smooth without a deploy. The
  * browser never sees the Worker URL token or any Cloudflare/Supabase secret.
  *
- * Live local runner order: Gemini -> Groq -> Cloudflare Workers AI. Groq is
- * text-only; Gemini may also answer study-buddy image questions. Mock test
- * mode keeps the original Workers-AI-only runner and deterministic behavior.
+ * Live local runner order: freelm -> Gemini -> Groq -> Cloudflare Workers AI.
+ * The freelm and Groq stages are text-only; Gemini may also answer study-buddy
+ * image questions. Mock test mode keeps deterministic Workers-AI-only behavior.
  */
 
 const config = require('../config');
 const alternates = require('./aiProviders');
+const freelmStage = require('./freelmStage');
 
 let corePromise = null;
 function core() {
@@ -121,6 +122,20 @@ function localRunner(machine) {
 
     const parts = alternateParts(input);
     const attempts = [];
+    /* One authoritative chain: freelm -> Gemini -> Groq -> Cloudflare.
+       freelm's message shape is text-only, so image questions start at Gemini. */
+    if (!parts.image && freelmStage.configured()) {
+      attempts.push({
+        name: 'freelm',
+        run: function () {
+          return freelmStage.callFreelm({
+            system: parts.system,
+            user: parts.user,
+            maxOutputTokens: 320
+          });
+        }
+      });
+    }
     attempts.push({
       name: 'Gemini',
       run: function () {

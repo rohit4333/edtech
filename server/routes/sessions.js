@@ -611,11 +611,12 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
       current.unlockedNext = gating.unlockedNext;
       if (gating.reteachRequired) current.currentTopicId = topicId;
       if (gating.unlockedNext) current.nextTopicUnlocked = true;
-      current.recording = Object.assign(current.recording || {
-        url: 'https://recordings.mathify.local/' + current.id,
-        durationSeconds: current.elapsedSeconds,
-        readyAt: endedAt
-      }, recordingUrl ? { url: recordingUrl, readyAt: endedAt } : {});
+      if (recordingUrl) {
+        current.recording = Object.assign({}, current.recording || {}, {
+          url: recordingUrl,
+          readyAt: endedAt
+        });
+      }
       if (Object.keys(safeRecap).length) {
         current.recap = Object.assign({}, current.recap || {}, safeRecap, { savedAt: endedAt });
       }
@@ -667,7 +668,7 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
         title: updated.title,
         status: updated.status,
         endedAt: endedAt,
-        recordingUrl: updated.recording.url,
+        recordingUrl: (updated.recording && updated.recording.url) || null,
         pagesCompleted: updated.currentPage,
         quizAttempts: updated.quiz.attempts.length,
         readiness: serializers.readiness(updated),

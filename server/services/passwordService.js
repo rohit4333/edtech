@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const config = require('../config');
 const db = require('../db');
 const password = require('../auth/password');
+const emailService = require('./emailService');
 
 const RESET_TTL_MS = 15 * 60 * 1000;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,29 +64,36 @@ async function changePassword(userId, input) {
 }
 
 async function sendResetEmail(recipient, token) {
-  if (!process.env.NODEMAILER_EMAIL || !process.env.NODEMAILER_PASSWORD) {
+  if (!emailService.configured()) return { sent: false, reason: 'not_configured' };
+
+  const origin = String(process.env.APP_ORIGIN || process.env.CORS_ORIGIN || '').trim();
+  if (!/^https?:\/\/\S+$/i.test(origin)) {
     return { sent: false, reason: 'not_configured' };
   }
-  try {
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      service: process.env.NODEMAILER_SERVICE || 'gmail',
-      auth: { user: process.env.NODEMAILER_EMAIL, pass: process.env.NODEMAILER_PASSWORD }
-    });
-    const link = '/password-reset.html?token=' + encodeURIComponent(token) +
-      '&email=' + encodeURIComponent(recipient);
-    await transporter.sendMail({
-      from: '"Mathify Account Access" <' + process.env.NODEMAILER_EMAIL + '>',
-      to: recipient,
-      subject: 'Reset your Mathify password',
-      text: 'Use this one-time link within 15 minutes to set a new Mathify password: ' + link +
-        '\n\nIf you did not request this, ignore the message. Your password has not changed.'
-    });
-    return { sent: true };
-  } catch (error) {
-    console.error('Password reset email failed:', error.message);
-    return { sent: false, reason: error.message };
-  }
+  const link = origin.replace(/\/$/, '') + '/password-reset.html?token=' +
+    encodeURIComponent(token) + '&email=' + encodeURIComponent(recipient);
+  const safe = emailService.escapeHtml(link);
+  const html = [
+    '<div style="font-family:Poppins,Arial,sans-serif;color:#0E1420">',
+    '<h2>Reset your Mathify password</h2>',
+    '<p>Use this one-time link within 15 minutes to set a new password.</p>',
+    '<p><a href="' + safe + '" style="display:inline-block;background:#FF5B2E;color:#0E1420;',
+    'padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:600">Reset password</a></p>',
+    '<p style="font-size:12px;color:#555">If the button does not work, copy this link into your browser: ' +
+      safe + '</p>',
+    '<p style="font-size:12px;color:#555">If you did not request this, ignore the message. ' +
+      'Your password has not changed.</p>',
+    '</div>'
+  ].join('');
+
+  const result = await emailService.sendMail({
+    to: recipient,
+    subject: 'Reset your Mathify password',
+    html: html
+  });
+  return result.ok
+    ? { sent: true, id: result.id }
+    : { sent: false, reason: result.code };
 }
 
 /* The response is identical whether or not the email exists, so the endpoint

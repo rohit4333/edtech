@@ -13,9 +13,10 @@ const supabase = {
 
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 
-/* LiveKit replaced Agora for 1:1 RTC and freelm replaced Cloudflare Workers AI.
-   These are the exact names the production guard checks; Agora/Cloudflare keys
-   are deliberately absent so a LiveKit-only deployment can boot. */
+/* LiveKit is the only RTC provider. AI calls use one chain everywhere:
+   freelm -> Gemini -> Groq -> Cloudflare Workers AI, so production requires
+   the three upstream provider credentials that freelm also reads. Agora and
+   recording-webhook credentials are deliberately absent. */
 const PRODUCTION_REQUIRED_ENV = [
   'AUTH_SECRET',
   'CORS_ORIGIN',
@@ -26,6 +27,10 @@ const PRODUCTION_REQUIRED_ENV = [
   'LIVEKIT_URL',
   'LIVEKIT_API_KEY',
   'LIVEKIT_API_SECRET',
+  'GEMINI_API_KEY',
+  'GROQ_API_KEY',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_ACCOUNT_ID',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
   'RAZORPAY_WEBHOOK_SECRET',
@@ -33,10 +38,13 @@ const PRODUCTION_REQUIRED_ENV = [
   'TWILIO_WEBHOOK_URL'
 ];
 
-/* freelm reads provider keys directly from the environment. Keyless public
-   endpoints are off unless FREELM_KEYLESS is explicitly enabled. */
+/* Only the three approved AI chain providers are accepted. OpenRouter, Kilo,
+   OVH and other freelm endpoints are not part of the Mathify contract. */
 const FREELM_PROVIDER_KEYS = [
-  'GEMINI_API_KEY', 'GROQ_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY',
+  'GEMINI_API_KEY', 'GROQ_API_KEY', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'
+];
+const DISALLOWED_FREELM_KEYS = [
+  'FREELM_API_KEY', 'GOOGLE_API_KEY', 'OPENROUTER_API_KEY', 'NVIDIA_API_KEY',
   'MISTRAL_API_KEY', 'CEREBRAS_API_KEY', 'ZAI_API_KEY', 'COHERE_API_KEY',
   'KILO_API_KEY'
 ];
@@ -50,9 +58,7 @@ function requireEnv(name, minimumLength) {
 }
 
 function freelmConfigured() {
-  const keyless = String(process.env.FREELM_KEYLESS || '').trim().toLowerCase();
-  if (keyless === '1' || keyless === 'true') return true;
-  return FREELM_PROVIDER_KEYS.some(function (name) {
+  return FREELM_PROVIDER_KEYS.every(function (name) {
     return Boolean(String(process.env[name] || '').trim());
   });
 }
@@ -79,10 +85,20 @@ function assertProductionConfig() {
   requireEnv('LIVEKIT_API_KEY');
   requireEnv('LIVEKIT_API_SECRET');
 
-  /* freelm replaced Cloudflare Workers AI. At least one upstream key (or an
-     explicit keyless opt-in) is required before feedback can be generated. */
+  /* The full freelm -> Gemini -> Groq -> Cloudflare chain must be configured.
+     Keyless public endpoints are never allowed in production. */
+  if (String(process.env.FREELM_KEYLESS || '').trim().toLowerCase() === '1' ||
+      String(process.env.FREELM_KEYLESS || '').trim().toLowerCase() === 'true') {
+    throw new Error('FREELM_KEYLESS is not allowed in production.');
+  }
   if (!freelmConfigured()) {
-    throw new Error('One freelm provider key or FREELM_KEYLESS=1 is required in production.');
+    throw new Error('GEMINI_API_KEY, GROQ_API_KEY, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for the AI provider chain in production.');
+  }
+  const extraKey = DISALLOWED_FREELM_KEYS.find(function (name) {
+    return Boolean(String(process.env[name] || '').trim());
+  });
+  if (extraKey) {
+    throw new Error(extraKey + ' is not part of the approved AI provider chain and must be empty in production.');
   }
 
   /* Payments and parent notifications remain separate external integrations. */
@@ -109,6 +125,7 @@ module.exports = {
   assertProductionConfig,
   PRODUCTION_REQUIRED_ENV,
   FREELM_PROVIDER_KEYS,
+  DISALLOWED_FREELM_KEYS,
   freelmConfigured,
   supabase,
   supabaseConfigured: Boolean(supabase.url && supabase.publishableKey && supabase.secretKey)

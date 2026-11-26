@@ -1,5 +1,7 @@
-/* Alternate AI provider chain contract. Every network call is stubbed: the
-   test uses fake keys only and never reaches Gemini, Groq or Cloudflare. */
+/* AI provider chain contract. Every network call is stubbed: the test uses
+   fake keys only and never reaches Gemini, Groq or Cloudflare.
+
+   Authoritative order: freelm -> Gemini -> Groq -> Cloudflare Workers AI. */
 
 const assert = require('assert');
 const fs = require('fs');
@@ -9,21 +11,25 @@ const cloudflare = require('../services/cloudflareAiService');
 const chatWorker = require('../services/chatWorkerService');
 
 const managedEnv = [
-  'DATABASE_MODE',
-  'CHAT_WORKER_URL',
-  'GEMINI_API_KEY',
-  'GEMINI_MODEL',
-  'GEMINI_TIMEOUT_MS',
-  'GROQ_API_KEY',
-  'GROQ_MODEL',
-  'GROQ_TIMEOUT_MS',
-  'CLOUDFLARE_ACCOUNT_ID',
-  'CLOUDFLARE_API_TOKEN',
-  'CLOUDFLARE_TIMEOUT_MS'
+  'DATABASE_MODE', 'CHAT_WORKER_URL',
+  'GEMINI_API_KEY', 'GEMINI_MODEL', 'GEMINI_TIMEOUT_MS',
+  'GROQ_API_KEY', 'GROQ_MODEL', 'GROQ_TIMEOUT_MS',
+  'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_TIMEOUT_MS',
+  'FREELM_MODEL', 'FREELM_TIMEOUT_SECONDS', 'FREELM_KEYLESS'
 ];
 const originalEnv = {};
 const originalFetch = global.fetch;
 const originalMode = config.databaseMode;
+const CHAIN_ENV = {
+  GEMINI_API_KEY: 'gemini-fake-key',
+  GEMINI_MODEL: 'gemini-flash-lite-latest',
+  GROQ_API_KEY: 'groq-fake-key',
+  GROQ_MODEL: 'qwen/qwen3.8-27b',
+  CLOUDFLARE_ACCOUNT_ID: '0123456789abcdef0123456789abcdef',
+  CLOUDFLARE_API_TOKEN: 'test-token',
+  FREELM_MODEL: 'chat:fast',
+  FREELM_TIMEOUT_SECONDS: '5'
+};
 let checks = 0;
 
 function equal(actual, expected, label) {
@@ -55,49 +61,60 @@ function groqReply(text) {
   return response(200, { choices: [{ message: { role: 'assistant', content: text } }] });
 }
 
+function indexMatching(calls, needle) {
+  return calls.findIndex(function (call) { return call.url.indexOf(needle) !== -1; });
+}
+
 async function main() {
   managedEnv.forEach(function (key) { originalEnv[key] = process.env[key]; });
   try {
     config.databaseMode = 'supabase';
     process.env.DATABASE_MODE = 'supabase';
     delete process.env.CHAT_WORKER_URL;
-    process.env.GEMINI_API_KEY = 'gemini-fake-key';
-    process.env.GEMINI_MODEL = 'gemini-flash-lite-latest';
-    process.env.GROQ_API_KEY = 'groq-fake-key';
-    process.env.GROQ_MODEL = 'qwen/qwen3.8-27b';
-    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
-    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    process.env.FREELM_KEYLESS = '';
+    Object.keys(CHAIN_ENV).forEach(function (key) { process.env[key] = CHAIN_ENV[key]; });
 
     let calls = [];
     global.fetch = async function (url, options) {
       calls.push({ url: String(url), options: options });
-      if (String(url).indexOf('generativelanguage.googleapis.com') !== -1) {
+      const target = String(url);
+      if (target.indexOf('api.groq.com/openai/v1/models') !== -1) {
+        return response(200, { data: [] });
+      }
+      if (target.indexOf('generativelanguage.googleapis.com/v1beta/openai/chat/completions') !== -1) {
+        return response(503, { error: { message: 'freelm upstream busy' } });
+      }
+      if (target.indexOf('generativelanguage.googleapis.com/v1beta/interactions') !== -1) {
         return response(503, { error: { message: 'high demand' } });
       }
-      if (String(url).indexOf('api.groq.com') !== -1) {
+      if (target.indexOf('api.groq.com/openai/v1/chat/completions') !== -1) {
         return groqReply('{"ok":true}');
       }
       throw new Error('Cloudflare should not be reached after Groq succeeds.');
     };
 
-    /* Strict calls still try every alternate before Cloudflare. */
+    /* Strict calls still try every stage before Cloudflare. */
     const strictText = await cloudflare.generateAIResponse('system', 'user', { allowFallback: false });
-    equal(strictText, '{"ok":true}', 'Groq answers a strict JSON-only call after Gemini fails');
-    equal(calls.length, 2, 'exactly two providers were called');
-    ok(calls[0].url.indexOf('generativelanguage.googleapis.com') !== -1,
-      'Gemini is attempted first in live mode');
-    ok(calls[1].url.indexOf('api.groq.com') !== -1,
-      'Groq is attempted second in live mode');
-    equal(calls.some(function (call) { return call.url.indexOf('api.cloudflare.com') !== -1; }), false,
-      'Cloudflare is not called after an alternate succeeds');
-    equal(String(calls[0].options.headers['x-goog-api-key']), 'gemini-fake-key',
+    equal(strictText, '{"ok":true}', 'Groq answers after freelm and Gemini fail');
+
+    const freelmIndex = indexMatching(calls, '/v1beta/openai/chat/completions');
+    const geminiIndex = indexMatching(calls, '/v1beta/interactions');
+    const groqIndex = indexMatching(calls, '/v1/chat/completions');
+    ok(freelmIndex !== -1, 'freelm stage is attempted in live mode');
+    ok(geminiIndex !== -1, 'direct Gemini stage is attempted after freelm');
+    ok(groqIndex !== -1, 'direct Groq stage is attempted after Gemini');
+    ok(freelmIndex < geminiIndex && geminiIndex < groqIndex,
+      'the live chain order is freelm -> Gemini -> Groq');
+    equal(indexMatching(calls, 'api.cloudflare.com'), -1,
+      'Cloudflare is not called after an earlier stage succeeds');
+    equal(String(calls[geminiIndex].options.headers['x-goog-api-key']), CHAIN_ENV.GEMINI_API_KEY,
       'the fake Gemini key is sent in the provider header only');
 
-    /* Gemini may also answer image questions; Groq is text-only. */
+    /* Gemini may also answer image questions; freelm and Groq are text-only. */
     calls = [];
     global.fetch = async function (url, options) {
       calls.push({ url: String(url), options: options });
-      if (String(url).indexOf('generativelanguage.googleapis.com') !== -1) {
+      if (String(url).indexOf('generativelanguage.googleapis.com/v1beta/interactions') !== -1) {
         return geminiReply('{"reply":"I can see three equal bars. What would each bar represent?"}');
       }
       throw new Error('Text-only or final provider must not be used for an image.');
@@ -119,8 +136,11 @@ async function main() {
 
     /* Strict mode never substitutes a deterministic result when all fail. */
     calls = [];
-    global.fetch = async function (url) {
-      calls.push({ url: String(url) });
+    global.fetch = async function (url, options) {
+      calls.push({ url: String(url), options: options });
+      if (String(url).indexOf('api.groq.com/openai/v1/models') !== -1) {
+        return response(200, { data: [] });
+      }
       return response(500, { error: { message: 'provider unavailable' } });
     };
     await assert.rejects(
@@ -128,24 +148,28 @@ async function main() {
       /Cloudflare Workers AI returned HTTP 500/
     );
     checks += 1;
-    equal(calls.length, 3, 'a strict call attempts Gemini, Groq and Cloudflare in order');
-    ok(calls[0].url.indexOf('generativelanguage.googleapis.com') !== -1 &&
-      calls[1].url.indexOf('api.groq.com') !== -1 &&
-      calls[2].url.indexOf('api.cloudflare.com') !== -1,
-    'the complete live chain order is Gemini -> Groq -> Cloudflare');
+    const failFreelm = indexMatching(calls, '/v1beta/openai/chat/completions');
+    const failGemini = indexMatching(calls, '/v1beta/interactions');
+    const failGroq = indexMatching(calls, '/v1/chat/completions');
+    const failCloudflare = indexMatching(calls, 'api.cloudflare.com');
+    ok(failFreelm !== -1 && failGemini !== -1 && failGroq !== -1 && failCloudflare !== -1,
+      'a strict call attempts all four stages before failing');
+    ok(failFreelm < failGemini && failGemini < failGroq && failGroq < failCloudflare,
+      'the complete chain order is freelm -> Gemini -> Groq -> Cloudflare');
 
-    /* The deployed Worker uses the same order when alternates are configured. */
+    /* The deployed Worker uses the same order when bindings are configured. */
     const workerSource = fs.readFileSync(path.join(__dirname, '..', '..', 'worker.js'), 'utf8');
-    const start = workerSource.indexOf('async function runModel');
+    const start = workerSource.indexOf('async function callFreelm');
     const end = workerSource.indexOf('async function writeAudit');
-    ok(start !== -1 && end !== -1 && start < end, 'Worker runModel section is present');
+    ok(start !== -1 && end !== -1 && start < end, 'Worker chain section is present');
     const section = workerSource.slice(start, end);
+    const freelmCall = section.indexOf('callFreelm(input, env)');
     const geminiCall = section.indexOf('callGemini(input, env)');
     const groqCall = section.indexOf('callGroq(input, env)');
     const cloudflareCall = section.indexOf('env.AI.run');
-    ok(geminiCall !== -1 && groqCall !== -1 && cloudflareCall !== -1 &&
-      geminiCall < groqCall && groqCall < cloudflareCall,
-    'deployed Worker also orders Gemini before Groq before Cloudflare');
+    ok(freelmCall !== -1 && geminiCall !== -1 && groqCall !== -1 && cloudflareCall !== -1 &&
+      freelmCall < geminiCall && geminiCall < groqCall && groqCall < cloudflareCall,
+    'deployed Worker orders freelm before Gemini before Groq before Cloudflare');
     equal(/\b(deepseek|gpt-)\b/i.test(workerSource), false,
       'no unsupported AI provider is named in the Worker');
 

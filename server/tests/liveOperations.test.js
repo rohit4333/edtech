@@ -68,7 +68,7 @@ async function main() {
   if (previousEnabled === undefined) delete process.env.REMINDERS_ENABLED;
   else process.env.REMINDERS_ENABLED = previousEnabled;
 
-  const keys = ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'NODEMAILER_EMAIL', 'NODEMAILER_PASSWORD'];
+  const keys = ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'APP_ORIGIN', 'RESEND_API_KEY', 'RESEND_FROM'];
   const saved = {};
   keys.forEach(function (key) { saved[key] = process.env[key]; process.env[key] = ''; });
   const delivery = await notifications.sendSessionReminder({

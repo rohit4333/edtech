@@ -89,4 +89,4 @@ async function sendSessionEmail(studentEmail, sessionLink) {
   return result;
 }
 
-module.exports = { configured, sendMail, sendSessionEmail };
+module.exports = { configured, sendMail, sendSessionEmail, escapeHtml };

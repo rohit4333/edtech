@@ -4,8 +4,11 @@
 #   AUTH_SECRET              same value as server/.env AUTH_SECRET
 #   SUPABASE_URL             project URL for founder audit logs
 #   SUPABASE_SECRET_KEY      service-role key (RLS bypass, server-side only)
-#   CLOUDFLARE_ACCOUNT_ID    only needed when the [ai] binding is unavailable
-#   CLOUDFLARE_API_TOKEN     only needed when the [ai] binding is unavailable
+#   GEMINI_API_KEY           first approved upstream provider used by freelm
+#   GROQ_API_KEY             second approved upstream provider used by freelm
+#   CLOUDFLARE_ACCOUNT_ID    final chain stage / freelm provider binding
+#   CLOUDFLARE_API_TOKEN     final chain stage / freelm provider binding
+#   FREELM_MODEL             optional; defaults to chat:fast
 #
 # For local direct Worker calls with Express demo tokens, set
 # ALLOW_DEMO_AUTH=true in an untracked .dev.vars file. Production must omit it.
@@ -13,6 +16,7 @@
 name = "mathify-ai-chat"
 main = "worker.js"
 compatibility_date = "2026-11-26"
+compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
