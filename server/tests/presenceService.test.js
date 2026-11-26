@@ -80,4 +80,37 @@ assert.strictEqual(beats[1].learningEvents, 2);
 assert.strictEqual(beats[1].cumulativeLearningEvents, 5);
 assert.strictEqual(beats[1].role, 'trainer');
 
-console.log('presenceService: 17 assertions passed');
+/* Once the student joins, 15 trainer minutes are no longer enough: the
+   confirmed class length is 50 minutes. */
+db.insertPresenceEvent({
+  sessionId: sessionA.id,
+  userId: student.id,
+  role: 'student',
+  kind: 'agora_join',
+  at: '2026-11-30T12:31:00.000Z'
+});
+const withStudent = presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
+assert.strictEqual(withStudent.payoutRequirement.studentJoined, true);
+assert.strictEqual(withStudent.payoutRequirement.requiredTrainerMinutes, 50);
+assert.strictEqual(withStudent.payoutEligible, false);
+
+db.insertPresenceEvent({
+  sessionId: sessionA.id,
+  userId: trainer.id,
+  role: 'trainer',
+  kind: 'agora_join',
+  at: '2026-11-30T12:46:00.000Z'
+});
+db.insertPresenceEvent({
+  sessionId: sessionA.id,
+  userId: trainer.id,
+  role: 'trainer',
+  kind: 'agora_leave',
+  at: '2026-11-30T13:25:00.000Z'
+});
+const fullClass = presenceService.compute(sessionA, '2026-11-30T13:25:00.000Z');
+assert.strictEqual(fullClass.trainerActiveSecondsInWindow, 55 * 60);
+assert.strictEqual(fullClass.payoutRequirement.satisfied, true);
+assert.strictEqual(fullClass.payoutEligible, true);
+
+console.log('presenceService: 24 assertions passed');

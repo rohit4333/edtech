@@ -19,6 +19,9 @@ const curriculumRepository = require('../db/curriculum');
 const sessionParty = require('../services/sessionPartyService');
 const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
+const batchService = require('../services/batchService');
+const trainerOnboarding = require('../services/trainerOnboardingService');
+const trainerDocuments = require('../services/trainerDocumentService');
 
 const router = express.Router();
 
@@ -169,6 +172,54 @@ router.get('/dashboard', function (req, res) {
   return res.json({
     dashboard: serializers.toTrainerDashboard(req.user, sessions, attendance)
   });
+});
+
+router.post('/onboarding/documents', function (req, res, next) {
+  if (req.user.role !== 'trainer') {
+    const error = new Error('Only a trainer may upload onboarding documents.');
+    error.code = 'ROLE_DENIED';
+    error.status = 403;
+    return next(error);
+  }
+  trainerDocuments.upload(req.user.id, req.body)
+    .then(function (document) { return res.status(201).json({ document: document }); })
+    .catch(next);
+});
+
+router.get('/onboarding', function (req, res, next) {
+  trainerOnboarding.viewFor(req.user.id, req.user.role)
+    .then(function (record) { return res.json({ onboarding: record }); })
+    .catch(next);
+});
+
+router.post('/onboarding', function (req, res, next) {
+  if (req.user.role !== 'trainer') {
+    const error = new Error('Only a trainer may submit onboarding.');
+    error.code = 'ROLE_DENIED';
+    error.status = 403;
+    return next(error);
+  }
+  trainerOnboarding.submit(req.user.id, req.body)
+    .then(function (record) { return res.status(201).json({ onboarding: record }); })
+    .catch(next);
+});
+
+router.patch('/onboarding/personal', function (req, res, next) {
+  if (req.user.role !== 'trainer') {
+    const error = new Error('Only a trainer may edit personal details.');
+    error.code = 'ROLE_DENIED';
+    error.status = 403;
+    return next(error);
+  }
+  trainerOnboarding.updatePersonal(req.user.id, req.body)
+    .then(function (record) { return res.json({ onboarding: record }); })
+    .catch(next);
+});
+
+router.get('/batches', function (req, res, next) {
+  batchService.forTrainer(req.user.id)
+    .then(function (batches) { return res.json({ batches: batches }); })
+    .catch(next);
 });
 
 router.get('/attendance', function (req, res) {
@@ -712,6 +763,13 @@ router.delete('/slots/:slotId', function (req, res) {
       message: error.message
     });
   }
+});
+
+router.get('/schedule/week', function (req, res) {
+  const start = req.query.start || new Date().toISOString().slice(0, 10);
+  return res.json({
+    schedule: slotService.weekView(req.user, start, sessionsFor(req.user), new Date().toISOString())
+  });
 });
 
 router.get('/schedule', function (req, res) {

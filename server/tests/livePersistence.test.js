@@ -74,7 +74,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 4, 'four reviewed migrations are discovered');
+  check(migrations.length === 5, 'five reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -124,7 +124,7 @@ async function main() {
     baseline.sql.indexOf('grant select (id, quiz_id, prompt, options, position, status, source,') !== -1,
     'safe student view and column grant withhold hints until trainer release');
   const adapter = fs.readFileSync(path.join(__dirname, '..', 'db', 'supabase.js'), 'utf8');
-  check(adapter.indexOf("rtc: { channel: 'mathify_' + row.id }") !== -1,
+  check(/channel:\s*\(input\.rtc && input\.rtc\.channel\)\s*\|\|\s*\('mathify_' \+ row\.id\)/.test(adapter),
     'live-created sessions get a unique server-owned Agora channel');
   const agoraRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'agora.js'), 'utf8');
   check(agoraRoute.indexOf('matches.length > 1') !== -1 &&
@@ -139,10 +139,21 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 4,
-    'all four migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 4,
-    'all four migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 5,
+    'all five migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 5,
+    'all five migrations carry checksum drift guards');
+  const kycMigration = migrations.find(function (migration) {
+    return migration.name === '0006_trainer_onboarding_batches.sql';
+  });
+  check(Boolean(kycMigration), 'trainer onboarding and batch migration is present');
+  check(kycMigration && kycMigration.sql.indexOf("auth.jwt())->'app_metadata'->>'role'") === -1 &&
+    kycMigration.sql.indexOf('user_metadata') === -1,
+  'the new migration never reads user-editable role metadata');
+  check(kycMigration && kycMigration.sql.indexOf('revoke all on public.mathify_records from public, anon, authenticated') !== -1 &&
+    kycMigration.sql.indexOf('grant all on public.mathify_records to service_role') !== -1 &&
+    kycMigration.sql.indexOf('grant select on public.mathify_records to authenticated') === -1,
+  'KYC and batch records stay service-role-only');
 
   console.log('livePersistence: ' + assertions + ' assertions passed');
 }

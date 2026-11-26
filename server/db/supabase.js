@@ -98,6 +98,49 @@ async function listRecords(collection) {
   return Array.isArray(rows) ? rows.map(function (row) { return copy(row.data); }) : [];
 }
 
+/* Enrollment batches and locked trainer onboarding are service-only records.
+   The Data API never receives their identity or document fields. */
+function listBatches() { return listRecords('batch'); }
+function findBatch(batchId) { return getRecord('batch', batchId); }
+function findBatchByCode(code) {
+  return listRecords('batch').then(function (rows) {
+    const normalized = String(code || '').trim().toUpperCase();
+    return rows.find(function (row) { return String(row.code || '').toUpperCase() === normalized; }) || null;
+  });
+}
+function findBatchForStudent(studentId) {
+  return listRecords('batch').then(function (rows) {
+    return rows.find(function (row) { return row.studentId === studentId; }) || null;
+  });
+}
+function saveBatch(record) { return putRecord('batch', record.id, record); }
+function listTrainerOnboarding() { return listRecords('trainer_onboarding'); }
+function findTrainerOnboarding(trainerId) { return getRecord('trainer_onboarding', trainerId); }
+function saveTrainerOnboarding(record) { return putRecord('trainer_onboarding', record.trainerId, record); }
+function saveTrainerOnboardingCorrection(record) {
+  return putRecord('trainer_onboarding_correction', record.id, record);
+}
+function listTrainerOnboardingCorrections(trainerId) {
+  return listRecords('trainer_onboarding_correction').then(function (rows) {
+    return trainerId
+      ? rows.filter(function (row) { return row.trainerId === trainerId; })
+      : rows;
+  });
+}
+function listTrainerDocuments() { return listRecords('trainer_kyc_document'); }
+function findTrainerDocument(documentId) { return getRecord('trainer_kyc_document', documentId); }
+function saveTrainerDocument(record) {
+  return putRecord('trainer_kyc_document', record.id, record);
+}
+function listAnnouncements() { return listRecords('announcement'); }
+function saveAnnouncement(record) { return putRecord('announcement', record.id, record); }
+function findAnnouncementRead(announcementId, userId) {
+  return getRecord('announcement_read', announcementId + '|' + userId);
+}
+function saveAnnouncementRead(record) {
+  return putRecord('announcement_read', record.announcementId + '|' + record.userId, record);
+}
+
 /* Self-practice batches keep answer keys server-side in the service-only
    records table; the Data API never receives these columns. */
 function savePracticeBatch(batch) {
@@ -192,6 +235,7 @@ async function insertSession(input) {
     throw error;
   }
 
+  const scheduledAt = input.scheduledAt || input.startsAt || null;
   const rows = await request('/rest/v1/sessions', {
     method: 'POST',
     body: [{
@@ -199,7 +243,9 @@ async function insertSession(input) {
       trainer_id: input.trainerId,
       student_id: input.studentId,
       title: input.title || '1-on-1 maths session',
-      status: input.status || 'scheduled'
+      status: input.status || 'scheduled',
+      scheduled_at: scheduledAt,
+      started_at: input.startedAt || null
     }]
   });
   const row = Array.isArray(rows) ? rows[0] : rows;
@@ -213,12 +259,21 @@ async function insertSession(input) {
     status: row.status,
     /* Agora channels are server-derived and unique per session so live-created
        sessions can issue tokens and attribute webhooks to exactly one pair. */
-    rtc: { channel: 'mathify_' + row.id },
+    rtc: {
+      provider: 'agora',
+      channel: (input.rtc && input.rtc.channel) || ('mathify_' + row.id)
+    },
     currentPage: 1,
-    scheduledAt: row.scheduled_at || null,
-    startedAt: row.started_at || null,
+    /* Mirror the booking metadata so the 7-day calendar and classroom access
+       window see the same scheduled session in live and mock modes. */
+    scheduledAt: scheduledAt || row.scheduled_at || null,
+    startedAt: input.startedAt || row.started_at || null,
     endsAt: row.ends_at || null,
     elapsedSeconds: 0,
+    durationMinutes: input.durationMinutes || 50,
+    batchId: input.batchId || null,
+    batchCode: input.batchCode || null,
+    batchSlotKey: input.batchSlotKey || null,
     planner: [],
     pages: []
   });
@@ -606,6 +661,24 @@ module.exports = {
   listTrainerSlots,
   insertTrainerSlot,
   deleteTrainerSlot,
+  listBatches,
+  findBatch,
+  findBatchByCode,
+  findBatchForStudent,
+  saveBatch,
+  listTrainerOnboarding,
+  findTrainerOnboarding,
+  saveTrainerOnboarding,
+  saveTrainerOnboardingCorrection,
+  listTrainerOnboardingCorrections,
+  listTrainerOnboardingCorrectionsForAll: listTrainerOnboardingCorrections,
+  listTrainerDocuments,
+  findTrainerDocument,
+  saveTrainerDocument,
+  listAnnouncements,
+  saveAnnouncement,
+  findAnnouncementRead,
+  saveAnnouncementRead,
   savePracticeBatch,
   findPracticeBatch,
   listPracticeBatches,

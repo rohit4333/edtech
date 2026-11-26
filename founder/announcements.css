@@ -1,0 +1,32 @@
+/* Founder announcement composer. Paper/ink/coral; no extra chrome. */
+
+.announcement-form{display:grid;gap:12px;margin-top:14px}
+.announcement-form label{display:grid;gap:5px;font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.announcement-form select,.announcement-form input,.announcement-form textarea{
+  width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;
+  background:var(--card);color:var(--ink);font:inherit;font-size:12px;
+}
+.announcement-form textarea{min-height:82px;resize:vertical;line-height:1.5}
+.announcement-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.announcement-status{margin:0;font-size:10px;line-height:1.5;color:var(--muted)}
+.announcement-status.is-saved{color:#128D7C}
+.announcement-status.is-error{color:var(--coral-deep)}
+
+.announcement-history{margin-top:16px;border-top:1px solid var(--line-soft);padding-top:12px}
+.announcement-history h3{margin:0 0 8px;font-size:11px;font-weight:500;color:var(--ink)}
+.announcement-row{
+  display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:start;
+  padding:8px 0;border-bottom:1px solid var(--line-soft);
+}
+.announcement-audience{
+  font-family:var(--mono);font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--coral-deep);
+}
+.announcement-copy b{display:block;font-size:11px;font-weight:500;color:var(--ink)}
+.announcement-copy p{margin:3px 0 0;font-size:10px;line-height:1.5;color:var(--muted)}
+.announcement-row time{font-family:var(--mono);font-size:8px;color:var(--faint)}
+.announcement-empty{font-size:10px;color:var(--muted)}
+
+@media (max-width:620px){
+  .announcement-row{grid-template-columns:1fr}
+}

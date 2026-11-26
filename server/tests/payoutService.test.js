@@ -176,4 +176,48 @@ const slotPayResult = payout.buildPayout(
 assert.strictEqual(slotPayResult.amount.breakdown.slotPay, 315);
 assert.strictEqual(slotPayResult.amount.value, 315);
 
-console.log('payoutService: 31 assertions passed');
+/* Late-join bands and the 50-in-55 rule scale session pay; full active
+   minutes between 50 and 55 add 5 INR each. */
+const timingStart = '2026-11-14T10:00:00.000Z';
+const timedSessions = [
+  {
+    id: 'late_half',
+    trainerId: 't7',
+    scheduledAt: timingStart,
+    startedAt: timingStart,
+    status: 'ended',
+    presence: {
+      trainerJoinedAt: '2026-11-14T10:07:00.000Z',
+      trainerActiveSecondsInWindow: 16 * 60,
+      payoutEligible: true
+    }
+  },
+  {
+    id: 'stretch_full',
+    trainerId: 't7',
+    scheduledAt: timingStart,
+    startedAt: timingStart,
+    status: 'ended',
+    presence: {
+      trainerJoinedAt: timingStart,
+      studentJoinedAt: timingStart,
+      trainerActiveSecondsInWindow: 55 * 60,
+      payoutEligible: true
+    }
+  }
+];
+const timedResult = payout.buildPayout(
+  { id: 't7', name: 'G', role: 'trainer', payPerSession: 350, attendanceBonusStreak: 0 },
+  timedSessions,
+  '2026-11',
+  policy,
+  { trainers: [], allSessions: [], attendance: [] }
+);
+assert.strictEqual(timedResult.amount.breakdown.basePay, 525);
+assert.strictEqual(timedResult.amount.breakdown.stretchPay, 25);
+assert.strictEqual(timedResult.amount.value, 550);
+assert.strictEqual(timedResult.sessionTiming.sessions.find(function (row) {
+  return row.sessionId === 'late_half';
+}).lateBand, 'half_pay');
+
+console.log('payoutService: 35 assertions passed');

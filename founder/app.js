@@ -10,8 +10,8 @@
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.classroom.token.founder';
   var LOCAL_KEY = 'mathify.founder.settings.v1';
-  var DEMO_EMAIL = 'founder@mathify.app';
-  var DEMO_PASSWORD = 'mathify-demo';
+  var ROLE = 'founder';
+  var LOGIN_PAGE = 'login.html?role=' + ROLE;
 
   var FALLBACK_POLICY = {
     quiz: { unlockThreshold: 80, scoringBands: { easy: { min: 0, max: 40 }, medium: { min: 41, max: 79 }, hard: { min: 80, max: 100 } } },
@@ -180,33 +180,29 @@
     });
   }
 
-  function login() {
-    return request('/auth/login', {
-      method: 'POST',
-      body: { email: DEMO_EMAIL, password: DEMO_PASSWORD }
-    }).then(function (data) {
-      writeToken(data.token);
-      return data.token;
-    });
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (error) { /* private mode */ }
+    var next = window.location.pathname + window.location.search;
+    var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    var problem = new Error('SIGN_IN_REQUIRED');
+    problem.name = 'SignInRequired';
+    return problem;
   }
 
   function load() {
     var token = readToken();
-    var attempt = token
-      ? request('/admin/settings', { token: token }).catch(function (error) {
-        if (error.status !== 401) throw error;
-        return login().then(function (value) {
-          return request('/admin/settings', { token: value });
-        });
-      })
-      : login().then(function (value) { return request('/admin/settings', { token: value }); });
+    if (!token) return Promise.reject(requireLogin());
 
-    return attempt.then(function (data) {
+    return request('/admin/settings', { token: token }).then(function (data) {
       view = data;
       online = true;
       render();
       status('Server draft loaded · ' + (data.updatedAt ? 'edited ' + data.updatedAt : 'defaults active'), 'saved');
-    }).catch(function () {
+    }).catch(function (error) {
+      if (error && error.name === 'SignInRequired') return Promise.reject(error);
+      if (error && (error.status === 401 || error.status === 403)) return Promise.reject(requireLogin());
       view = fallbackView();
       online = false;
       render();

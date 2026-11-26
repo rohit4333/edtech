@@ -1,0 +1,165 @@
+/* Trainer KYC onboarding + alloted batches. Private fields only; no social
+   or contact details are ever rendered into student surfaces. */
+.batches-block,
+.onboarding-block {
+  margin-top: 18px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line, #E5E7EB);
+  border-radius: 10px;
+  background: var(--card, #FFFFFF);
+}
+
+.batch-list {
+  list-style: none;
+  margin: 14px 0 8px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.batch-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft, #EFF0F2);
+  border-radius: 8px;
+  background: var(--paper, #FAFAF8);
+}
+
+.batch-list li.batch-empty {
+  justify-content: flex-start;
+  color: var(--muted, #6B7280);
+  font: 500 12px/1.5 var(--mono, monospace);
+}
+
+.batch-list .batch-student {
+  font-weight: 600;
+  color: var(--ink, #0E1420);
+}
+
+.batch-list .batch-code {
+  font: 600 11px/1 var(--mono, monospace);
+  letter-spacing: .06em;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 91, 46, .12);
+  color: var(--coral, #FF5B2E);
+}
+
+.batch-note {
+  margin: 0;
+  color: var(--muted, #6B7280);
+  font: 500 11px/1.6 var(--mono, monospace);
+}
+
+.onboarding-block > summary {
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+}
+
+.onboarding-block > summary::-webkit-details-marker { display: none; }
+
+.onboarding-block > summary::after {
+  content: '+';
+  margin-left: auto;
+  font: 600 12px/1 var(--mono, monospace);
+  color: var(--coral, #FF5B2E);
+}
+
+.onboarding-block[open] > summary::after { content: '−'; }
+
+.onboarding-form {
+  margin-top: 16px;
+}
+
+.onboarding-form fieldset {
+  margin: 0 0 18px;
+  padding: 14px 16px 18px;
+  border: 1px solid var(--line-soft, #EFF0F2);
+  border-radius: 8px;
+}
+
+.onboarding-form legend {
+  padding: 0 6px;
+  font: 600 12px/1.4 var(--mono, monospace);
+  letter-spacing: .02em;
+  color: var(--ink, #0E1420);
+}
+
+.onboarding-form legend span {
+  margin-left: 8px;
+  color: var(--muted, #6B7280);
+  font-weight: 400;
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px;
+}
+
+.onboarding-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 500 11px/1.4 var(--mono, monospace);
+  color: var(--muted, #6B7280);
+}
+
+.onboarding-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.onboarding-grid input,
+.onboarding-grid textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 11px;
+  border: 1px solid var(--line, #E5E7EB);
+  border-radius: 6px;
+  background: var(--paper, #FAFAF8);
+  color: var(--ink, #0E1420);
+  font: 500 13px/1.5 inherit;
+}
+
+.onboarding-grid input:focus,
+.onboarding-grid textarea:focus {
+  outline: 2px solid rgba(255, 91, 46, .28);
+  outline-offset: 1px;
+}
+
+.onboarding-grid input:disabled {
+  opacity: .72;
+  cursor: not-allowed;
+}
+
+.onboarding-grid .optional {
+  font-weight: 400;
+  color: var(--muted, #6B7280);
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.onboarding-status {
+  margin: 0;
+  color: var(--muted, #6B7280);
+  font: 500 11px/1.5 var(--mono, monospace);
+}
+
+.onboarding-status[data-tone="error"] { color: #C0392B; }
+.onboarding-status[data-tone="ok"] { color: #128D7C; }
+
+@media (max-width: 720px) {
+  .batches-block,
+  .onboarding-block { padding: 14px; }
+  .onboarding-form fieldset { padding: 12px; }
+}

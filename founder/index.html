@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="founder.css">
+<link rel="stylesheet" href="announcements.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -27,6 +28,7 @@
       <a href="#mastery" data-nav>Mastery</a>
       <a href="#trainer-policy" data-nav>Trainer policy</a>
       <a href="#money-readonly" data-nav>Money <span aria-hidden="true">🔒</span></a>
+      <a href="#announcements" data-nav>Announcements</a>
     </nav>
     <div class="rail-note">
       <span class="mono">Founder rule</span>
@@ -97,6 +99,43 @@
       <button class="btn btn-coral" type="button" id="saveSettingsBtn">Save draft</button>
     </div>
 
+    <section class="setting-card" id="announcements" aria-labelledby="announcementTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">05 · Announcements</span>
+          <h2 id="announcementTitle">Send a notice</h2>
+          <p>Choose trainers, students, both, or one named person. Contact details and links are blocked.</p>
+        </div>
+        <span class="tag">Founder only</span>
+      </div>
+      <form class="announcement-form" id="announcementForm" novalidate>
+        <label for="announcementAudience">Audience
+          <select id="announcementAudience" name="audience">
+            <option value="trainers">Trainers only</option>
+            <option value="students">Students only</option>
+            <option value="both">Both</option>
+            <option value="individual">Individual person</option>
+          </select>
+        </label>
+        <label id="announcementRecipientWrap" for="announcementRecipient" hidden>Person
+          <select id="announcementRecipient" name="recipientId"></select>
+        </label>
+        <label for="announcementTitleInput">Title
+          <input id="announcementTitleInput" name="title" maxlength="120" required placeholder="Short headline">
+        </label>
+        <label for="announcementMessage">Message
+          <textarea id="announcementMessage" name="message" maxlength="2000" required placeholder="What recipients need to know"></textarea>
+        </label>
+        <div class="announcement-actions">
+          <button class="btn btn-coral" type="submit" id="announcementSend">Send announcement</button>
+          <p class="announcement-status" id="announcementStatus" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+      <div class="announcement-history" id="announcementHistory">
+        <h3>Sent announcements</h3>
+      </div>
+    </section>
+
     <footer class="foot">
       <a href="../pricing.html">Pricing</a>
       <a href="../terms.html">Terms</a>
@@ -110,5 +149,6 @@
 </div>
 
 <script src="app.js"></script>
+<script src="announcements.js"></script>
 </body>
 </html>

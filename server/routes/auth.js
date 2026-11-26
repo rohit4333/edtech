@@ -4,6 +4,7 @@ const config = require('../config');
 const tokenService = require('../auth/token');
 const password = require('../auth/password');
 const auth = require('../middleware/auth');
+const batchService = require('../services/batchService');
 
 const router = express.Router();
 
@@ -27,6 +28,18 @@ function throttled(key) {
   entry.count += 1;
   return entry.count > LOGIN_LIMIT;
 }
+
+router.get('/batch', function (req, res, next) {
+  if (!req.user || req.user.role !== 'student') {
+    const error = new Error('Students only.');
+    error.code = 'ROLE_DENIED';
+    error.status = 403;
+    return next(error);
+  }
+  batchService.ensureForStudent(req.user.id)
+    .then(function (batch) { return res.json({ batch: batch }); })
+    .catch(next);
+});
 
 router.post('/login', function (req, res) {
   const body = req.body || {};

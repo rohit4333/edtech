@@ -22,7 +22,10 @@ const contactRoutes = require('./routes/contact');
 const chatRoutes = require('./routes/chat');
 const parentChatRoutes = require('./routes/parentChat');
 const networkRoutes = require('./routes/network');
+const announcementRoutes = require('./routes/announcements');
 const networkQuality = require('./services/networkQualityService');
+const sessionAccess = require('./services/sessionAccessService');
+const sessionTiming = require('./services/sessionTimingService');
 const badgeService = require('./services/badgeService');
 const celebrationService = require('./services/celebrationService');
 
@@ -45,6 +48,9 @@ app.use(cors({
 /* Razorpay and Agora sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/agora/webhook', express.raw({ type: 'application/json' }));
+/* KYC images are uploaded as base64 JSON. Give this route its own larger
+   limit while every other API body stays at 2 MB. */
+app.use('/api/trainer/onboarding/documents', express.json({ limit: '6mb' }));
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/api/health', function (req, res) {
@@ -68,6 +74,8 @@ app.get('/api/public/config', function (req, res) {
     },
     realtimeMode: realtime.mode,
     network: networkQuality.settings(),
+    sessionAccess: sessionAccess.settings(),
+    sessionTiming: sessionTiming.settings(),
     badges: badgeService.catalog(),
     celebrations: celebrationService.publicConfig()
   });
@@ -82,6 +90,7 @@ app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/network', networkRoutes);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/contact', contactRoutes);
@@ -109,9 +118,10 @@ app.get('/favicon.ico', function (req, res) {
 const webRoot = path.resolve(__dirname, '..');
 const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
-  'privacy.html', 'refund.html', 'contact.html', 'public.css'
+  'privacy.html', 'refund.html', 'contact.html', 'public.css',
+  'landing.css', 'landing.js', 'login.html'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'parent', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'shared', 'student', 'trainer']);
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,

@@ -6,7 +6,8 @@
  * reading the browser-safe session event stream.
  *
  * No secrets are stored here. A caller-supplied access token always wins;
- * otherwise a demo token is obtained from /api/auth/login. */
+ * otherwise a verified credential token is required and the browser is sent
+ * to /login.html when none is present. */
 (function () {
   'use strict';
 
@@ -39,6 +40,7 @@
   function preferredRole() {
     if (params.get('view') === 'student' || params.get('role') === 'student') return 'student';
     if (params.get('role') === 'trainer') return 'trainer';
+    if (params.get('role') === 'founder') return 'founder';
     var injected = tokenRole(window.MATHIFY_ACCESS_TOKEN);
     if (injected) return injected === 'founder' ? 'trainer' : injected;
     var trainerToken = tokenRole(storedToken('trainer'));
@@ -54,7 +56,6 @@
      stop a trainer token from being reused on student-sized requests. */
   var TOKEN_KEY = TOKEN_PREFIX + role;
   var memoryToken = null;
-  var authPromise = null;
 
   function readToken() {
     if (window.MATHIFY_ACCESS_TOKEN) return window.MATHIFY_ACCESS_TOKEN;
@@ -99,7 +100,12 @@
     var settings = options || {};
     if (settings.skipAuth) return rawRequest(path, settings, null);
     return ensureAuth().then(function (tokenValue) {
-      return rawRequest(path, settings, tokenValue);
+      return rawRequest(path, settings, tokenValue).catch(function (error) {
+        if ((error.status === 401 || error.status === 403) && !window.MATHIFY_ACCESS_TOKEN) {
+          return Promise.reject(requireLogin());
+        }
+        throw error;
+      });
     });
   }
 
@@ -114,24 +120,23 @@
     });
   }
 
+  /* The copied classroom link is not a login. An injected token (used by
+     automated checks) still wins; every other viewer needs real credentials. */
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (error) { /* private mode */ }
+    memoryToken = null;
+    var next = window.location.pathname + window.location.search;
+    var target = 'login.html?role=' + encodeURIComponent(role) +
+      '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    return new Error('SIGN_IN_REQUIRED');
+  }
+
   function ensureAuth() {
     var existing = readToken();
     if (existing) return Promise.resolve(existing);
-    if (authPromise) return authPromise;
-
-    authPromise = rawRequest('/auth/demo', { skipAuth: true }, null)
-      .then(function (info) {
-        var account = (info.accounts || []).find(function (item) { return item.role === role; });
-        var email = role === 'student' ? 'student@mathify.app' : 'trainer@mathify.app';
-        return login(email, info.password || 'mathify-demo');
-      })
-      .catch(function () {
-        return login(role === 'student' ? 'student@mathify.app' : 'trainer@mathify.app', 'mathify-demo');
-      })
-      .then(function (value) { authPromise = null; return value; })
-      .catch(function (error) { authPromise = null; throw error; });
-
-    return authPromise;
+    return Promise.reject(requireLogin());
   }
 
   function sessionPath(sessionId) {
@@ -152,9 +157,18 @@
     },
     /* Live 1:1 call identity. No body is sent: channel, uid and role are
        derived by the server from the verified session, never by this page. */
-    getRtcToken: function (sessionId) {
-      return request(sessionPath(sessionId) + '/rtc-token', { method: 'POST' })
-        .then(function (data) { return data && data.rtc; });
+    getRtcToken: function (sessionId, options) {
+      var settings = options || {};
+      var body = settings.observer === true ? { observer: true } : undefined;
+      return request(sessionPath(sessionId) + '/rtc-token', {
+        method: 'POST',
+        body: body
+      }).then(function (data) { return data && data.rtc; });
+    },
+    /* The real JWT role is decoded from the token; a founder is deliberately
+       mapped to the trainer-shaped call surface, so ask the token here. */
+    viewerRole: function () {
+      return tokenRole(readToken()) || role;
     },
     /* Trainer-only. The server derives the session and rejects a student call. */
     setMediaPermission: function (sessionId, studentCanToggleMedia) {

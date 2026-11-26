@@ -59,6 +59,25 @@
   white-space:nowrap;
 }
 .call-pip.is-collapsed .pip-call-status{display:none}
+.call-pip .pip-observer-notice{
+  flex:none;
+  margin:0;
+  padding:4px 7px 5px;
+  border-top:1px solid rgba(255,180,158,.35);
+  color:#FFD2C4;
+  font:500 8px/1.35 var(--sans);
+}
+.call-pip .pip-observer-opt-in{
+  flex:none;
+  display:flex;
+  gap:5px;
+  align-items:center;
+  padding:3px 7px 6px;
+  color:rgba(253,250,243,.78);
+  font:500 8px/1.3 var(--sans);
+}
+.call-pip.is-collapsed .pip-observer-notice,
+.call-pip.is-collapsed .pip-observer-opt-in{display:none}
 
 .call-pip .pip-live[data-state="off"]{color:rgba(253,250,243,.45)}
 .call-pip .pip-live[data-state="off"] i{

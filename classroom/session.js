@@ -1409,6 +1409,18 @@
       if (studentView && event.payload) {
         toast(event.payload.ok ? 'Connection check passed.' : 'Connection check failed. Please improve your internet.');
       }
+    } else if (event.event === 'founder.observer.changed') {
+      /* Read the shared observer state back from the server. The event payload
+         is a signal only and never carries private identity fields. */
+      var observerClient = classroomApi();
+      if (sessionId && observerClient && typeof observerClient.getSessionState === 'function') {
+        observerClient.getSessionState(sessionId).then(function (state) {
+          if (api.applyObserverState && state) api.applyObserverState(state);
+        }).catch(function () {});
+      }
+      toast(event.payload && event.payload.active
+        ? 'The founder has joined openly as an observer.'
+        : 'The founder observer has left the room.');
     } else if (event.event === 'badge.awarded' && studentView) {
       var badge = event.payload || {};
       toast((badge.label || 'Badge') + ' earned · ' + (badge.points || 0) + ' reward points.');

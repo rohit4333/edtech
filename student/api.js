@@ -1,16 +1,13 @@
-/* Mathify student API client. Falls back silently when the API is unavailable. */
+/* Mathify student API client. A verified credential token is required; when
+   none is present the browser is sent to the shared sign-in page. */
 (function () {
   'use strict';
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.student.token';
-  var DEMO_LOGINS = {
-    founder: 'founder@mathify.app',
-    trainer: 'trainer@mathify.app',
-    student: 'student@mathify.app'
-  };
+  var ROLE = 'student';
+  var LOGIN_PAGE = 'login.html?role=' + ROLE;
   var memoryToken = null;
-  var authPromise = null;
 
   function readToken() {
     if (memoryToken) return memoryToken;
@@ -51,7 +48,10 @@
     var opts = options || {};
     if (opts.skipAuth) return rawRequest(path, opts, null);
     return ensureAuth().then(function (tokenValue) {
-      return rawRequest(path, opts, tokenValue);
+      return rawRequest(path, opts, tokenValue).catch(function (error) {
+        if (error.status === 401 || error.status === 403) return Promise.reject(requireLogin());
+        throw error;
+      });
     });
   }
 
@@ -66,33 +66,22 @@
     });
   }
 
+  /* No silent demo hand-off. A missing or rejected token sends the browser to
+     credential sign-in, carrying the current desk as a safe return path. */
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    memoryToken = null;
+    var next = window.location.pathname + window.location.search;
+    var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    return new Error('SIGN_IN_REQUIRED');
+  }
+
   function ensureAuth() {
     var existing = readToken();
     if (existing) return Promise.resolve(existing);
-    if (authPromise) return authPromise;
-
-    authPromise = rawRequest('/auth/demo', { skipAuth: true })
-      .then(function (info) {
-        var account = (info.accounts || []).find(function (item) { return item.role === 'student'; });
-        var role = account ? account.role : 'student';
-        return login(
-          DEMO_LOGINS[role] || DEMO_LOGINS.student,
-          info.password || 'mathify-demo'
-        );
-      })
-      .catch(function () {
-        return login('student@mathify.app', 'mathify-demo');
-      })
-      .then(function (data) {
-        authPromise = null;
-        return data.token;
-      })
-      .catch(function (error) {
-        authPromise = null;
-        throw error;
-      });
-
-    return authPromise;
+    return Promise.reject(requireLogin());
   }
 
   window.mathifyStudentApi = {

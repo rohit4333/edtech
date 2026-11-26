@@ -21,6 +21,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const BILLABLE_STATUSES = ['ended', 'completed'];
 const NO_SHOW_STATUSES = ['no_show', 'noshow', 'no-show'];
 const attendancePolicy = require('./attendancePolicy');
+const sessionTiming = require('./sessionTimingService');
 
 function pad(value) {
   return String(value).padStart(2, '0');
@@ -89,6 +90,24 @@ function isBillable(session) {
      even if the session record was closed as "ended". */
   if (session && session.presence && session.presence.payoutEligible === false) return false;
   return BILLABLE_STATUSES.indexOf(String(session && session.status || '').toLowerCase()) !== -1;
+}
+
+/* Late-join and 50-in-55 completion bands scale, but never increase, the
+   session rate. Sessions with no recorded presence timing keep full pay. */
+function sessionPayout(session, rate) {
+  const timing = sessionTiming.evaluatePayoutTiming(session);
+  const stretch = sessionTiming.evaluateStretch(session);
+  const factor = Math.max(0, Math.min(1, Number(timing.factor)));
+  const baseAmount = Math.round(rate * factor * 100) / 100;
+  return {
+    sessionId: session.id,
+    factor: factor,
+    baseAmount: baseAmount,
+    stretchPay: stretch.amount,
+    stretch: stretch,
+    amount: Math.round((baseAmount + stretch.amount) * 100) / 100,
+    timing: timing
+  };
 }
 
 function rateFor(user, config) {
@@ -332,13 +351,17 @@ function buildDailySeries(user, sessions, period, config, asOf) {
     const date = sessionDate(session);
     if (!date) return;
     const key = toYmd(date);
-    byDate[key] = (byDate[key] || 0) + 1;
+    if (!byDate[key]) byDate[key] = { count: 0, factor: 0 };
+    byDate[key].count += 1;
+    byDate[key].factor += Math.max(0, Math.min(1,
+      Number(sessionTiming.evaluatePayoutTiming(session).factor)));
   });
 
   let cumulative = 0;
   const points = periodDays(period, asOf).map(function (day, index) {
-    const count = byDate[day.date] || 0;
-    const daily = rulesConfigured ? count * rate : illustrativeDaily(index, rate);
+    const summary = byDate[day.date] || { count: 0, factor: 0 };
+    const daily = rulesConfigured ? Math.round(summary.factor * rate * 100) / 100
+      : illustrativeDaily(index, rate);
     cumulative += daily;
     return {
       date: day.date,
@@ -346,7 +369,7 @@ function buildDailySeries(user, sessions, period, config, asOf) {
       label: shortLabel(day.date),
       daily: daily,
       cumulative: cumulative,
-      sessions: rulesConfigured ? count : null
+      sessions: rulesConfigured ? summary.count : null
     };
   });
 
@@ -379,7 +402,18 @@ function buildPayout(user, sessions, period, policy, context) {
   const noShowPayout = Number.isFinite(Number(noShowConfig.payout)) ? Number(noShowConfig.payout) : 0;
   const capReport = enforceDailyCaps(completedSessions, config);
   const payableSessions = capReport.eligibleSessions;
-  const basePay = payableSessions.length * rate;
+  const sessionPayouts = payableSessions.map(function (session) {
+    return sessionPayout(session, rate);
+  });
+  const basePay = Math.round(sessionPayouts.reduce(function (sum, row) {
+    return sum + row.baseAmount;
+  }, 0) * 100) / 100;
+  const stretchPay = Math.round(sessionPayouts.reduce(function (sum, row) {
+    return sum + row.stretchPay;
+  }, 0) * 100) / 100;
+  const effectiveSessionCount = Math.round(sessionPayouts.reduce(function (sum, row) {
+    return sum + row.factor;
+  }, 0) * 100) / 100;
 
   const fines = cancellationFines(periodSessions, rate, config.fineRules);
   const fineTotal = fines.reduce(function (sum, entry) { return sum + entry.amount; }, 0);
@@ -406,7 +440,7 @@ function buildPayout(user, sessions, period, policy, context) {
   };
 
   const slotPay = Number.isFinite(Number(options.slotPay)) ? Math.max(0, Number(options.slotPay)) : 0;
-  const total = Math.max(0, basePay + attendance.bonus + mvt.award + slotPay - fineTotal);
+  const total = Math.max(0, basePay + stretchPay + attendance.bonus + mvt.award + slotPay - fineTotal);
   const parts = periodParts(period);
   const statementDate = validPeriod(period)
     ? new Date(Date.UTC(parts.year, parts.month, 1)).toISOString().slice(0, 10)
@@ -421,6 +455,7 @@ function buildPayout(user, sessions, period, policy, context) {
     period: period,
     statementDate: statementDate,
     sessionCount: payableSessions.length,
+    effectiveSessionCount: effectiveSessionCount,
     completedSessionCount: completedSessions.length,
     cappedSessionCount: capReport.cappedSessions.length,
     ratePerSession: rate,
@@ -430,12 +465,13 @@ function buildPayout(user, sessions, period, policy, context) {
       source: validPeriod(period) ? 'calculated' : 'unconfigured',
       breakdown: {
         basePay: basePay,
+        stretchPay: stretchPay,
         attendanceBonus: attendance.bonus,
         mvtAward: mvt.award,
         slotPay: slotPay,
         fines: fineTotal
       },
-      note: 'Calculated from completed sessions, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Mutual leave and no-shows are unpaid.'
+      note: 'Calculated from completed sessions, late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Mutual leave and no-shows are unpaid.'
     },
     bonuses: {
       value: attendance.bonus,
@@ -465,6 +501,24 @@ function buildPayout(user, sessions, period, policy, context) {
       source: 'committed_slots',
       percentOfSessionRate: 30,
       rule: 'Unutilised hours inside a declared trainer slot are paid at 30% of the session rate; classes inside the slot are paid at 100% through session pay.'
+    },
+    sessionTiming: {
+      source: 'presence_events',
+      clockStartOffsetMinutes: sessionTiming.settings().clockStartOffsetMinutes,
+      requiredTeachingMinutes: sessionTiming.settings().requiredTeachingMinutes,
+      completionWindowMinutes: sessionTiming.settings().completionWindowMinutes,
+      stretchReward: config.stretchReward || null,
+      sessions: sessionPayouts.map(function (row) {
+        return {
+          sessionId: row.sessionId,
+          factor: row.factor,
+          baseAmount: row.baseAmount,
+          stretchPay: row.stretchPay,
+          lateBand: row.timing.late.band,
+          lateMinutes: row.timing.late.lateMinutes,
+          completionCode: row.timing.completion.code
+        };
+      })
     },
     leaves: {
       count: mutualLeaveSessions.length,

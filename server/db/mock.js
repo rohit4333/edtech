@@ -333,6 +333,15 @@ const studentCurriculum = [
     updatedAt: '2026-11-01T00:00:00.000Z'
   }
 ];
+/* Enrollment batches and locked trainer onboarding records mirror the
+   service-only record collections in migration 0006. No private document
+   bytes are stored here — only object references and audit metadata. */
+const batches = [];
+const trainerOnboarding = [];
+const trainerOnboardingCorrections = [];
+const trainerDocuments = [];
+const announcements = [];
+const announcementReads = [];
 const trainerSlots = [
   {
     id: 'slot_001',
@@ -374,6 +383,12 @@ module.exports = {
   parentChatReads: parentChatReads,
   studentCurriculum: studentCurriculum,
   trainerSlots: trainerSlots,
+  batches: batches,
+  trainerOnboarding: trainerOnboarding,
+  trainerOnboardingCorrections: trainerOnboardingCorrections,
+  trainerDocuments: trainerDocuments,
+  announcements: announcements,
+  announcementReads: announcementReads,
   practiceBatches: [],
   demoPassword: demoPassword
 

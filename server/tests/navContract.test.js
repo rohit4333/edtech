@@ -22,6 +22,7 @@ const REQUIRED = ['pricing.html', 'terms.html', 'privacy.html', 'refund.html', '
 /* The five payment-policy destinations appear in every user-facing surface. */
 [
   'index.html',
+  'login.html',
   'student/index.html',
   'trainer/index.html',
   'lms/index.html',
@@ -33,6 +34,37 @@ const REQUIRED = ['pricing.html', 'terms.html', 'privacy.html', 'refund.html', '
   REQUIRED.forEach(function (page) {
     ok(html.indexOf(page) !== -1, surface + ' links ' + page);
   });
+});
+
+/* Credential sign in is a real destination, not a demo shortcut. */
+const loginHtml = read('login.html');
+const loginScript = read('login/login.js');
+ok(loginHtml.indexOf('id="loginForm"') !== -1 &&
+  loginHtml.indexOf('id="loginEmail"') !== -1 &&
+  loginHtml.indexOf('id="loginPassword"') !== -1,
+'login page exposes an email and password form');
+ok(loginScript.indexOf("'/auth/login'") !== -1,
+  'login page posts to the verified credential endpoint');
+ok(loginScript.indexOf('user.role !== role') !== -1,
+  'login page refuses credentials from a different account type');
+ok(loginScript.indexOf('mathify.student.token') !== -1 &&
+  loginScript.indexOf('mathify.trainer.token') !== -1,
+'login page stores tokens the dashboards actually read');
+ok(!/mathify-demo/.test(loginScript),
+  'login page contains no hard-coded demo password');
+const appsHtml = read('apps.html');
+ok(appsHtml.indexOf('login.html?role=student') !== -1 &&
+  appsHtml.indexOf('login.html?role=trainer') !== -1,
+'apps hub sends students and trainers through credential sign in');
+[
+  'student/api.js', 'trainer/api.js', 'classroom/api.js',
+  'parent/app.js', 'founder/app.js', 'trainer/parentChat.js'
+].forEach(function (client) {
+  const source = read(client);
+  ok(source.indexOf('login.html?role=') !== -1,
+    client + ' redirects unauthenticated viewers to sign in');
+  ok(source.indexOf('/auth/demo') === -1 && !/mathify-demo/.test(source),
+    client + ' contains no silent demo login');
 });
 
 /* Partial work is labelled in the UI, not only in documentation. */
@@ -106,10 +138,67 @@ checks.push('public nav is the exact seven-item list');
   const targets = Array.from(nav.matchAll(/<a[^>]+href="#([^"]+)"/g)).map(function (match) {
     return match[1];
   });
-  ok(targets.length === 5, surface + ' has five nav destinations');
+  const expectedNavCount = surface === 'founder/index.html' ? 6 : 5;
+  ok(targets.length === expectedNavCount,
+    surface + ' has ' + expectedNavCount + ' nav destinations');
   targets.forEach(function (target) {
     ok(sectionIds.indexOf(target) !== -1, surface + ' nav target #' + target + ' exists');
   });
 });
+
+/* Trainer console contract for alloted batches, private KYC uploads and the
+   seven-day timetable controls. */
+const trainerHtml = read('trainer/index.html');
+ok(trainerHtml.indexOf('Alloted Batches') !== -1, 'trainer dashboard has the Alloted Batches section');
+ok(trainerHtml.indexOf('id="allotedBatchList"') !== -1, 'alloted batches are rendered from live data');
+ok(trainerHtml.indexOf('type="file"') !== -1, 'KYC documents use image upload inputs');
+ok(trainerHtml.indexOf('accept="image/jpeg,image/png,image/webp"') !== -1,
+  'KYC uploads accept only images');
+ok(trainerHtml.indexOf('name="aadhaarNumber"') !== -1 &&
+  trainerHtml.indexOf('name="panNumber"') !== -1,
+'KYC card numbers have typed text inputs alongside uploads');
+
+const trainerSchedule = read('trainer/schedule.js');
+ok(trainerSchedule.indexOf('getWeekSchedule') !== -1, 'calendar loads a seven-day window');
+ok(trainerSchedule.indexOf('\'‹ Prev\'') !== -1 &&
+  trainerSchedule.indexOf('\'Today\'') !== -1 &&
+  trainerSchedule.indexOf('\'Next ›\'') !== -1,
+'calendar exposes Prev, Today and Next controls');
+ok(trainerSchedule.indexOf('shiftDays(state.weekStart, 7)') !== -1,
+  'Next advances the timetable by seven days');
+ok(trainerSchedule.indexOf('mondayOf(today())') !== -1,
+  'Today returns to the current date column');
+
+const trainerApp = read('trainer/app.js');
+ok(trainerApp.indexOf("node.classList.toggle('is-active'") !== -1 &&
+  trainerApp.indexOf("getAttribute('data-view')") !== -1,
+'nav switches one trainer view at a time instead of stacking every section');
+ok(read('trainer/index.html').indexOf('<details class="block onboarding-block"') !== -1,
+  'KYC form is collapsed inside the Insights view');
+
+/* Founder announcement audience selector and scoped recipient inboxes. */
+const announcementFounderHtml = read('founder/index.html');
+ok(announcementFounderHtml.indexOf('id="announcementAudience"') !== -1,
+  'founder announcement composer is present');
+['trainers', 'students', 'both', 'individual'].forEach(function (value) {
+  ok(announcementFounderHtml.indexOf('value="' + value + '"') !== -1,
+    'audience option ' + value + ' is offered to the founder');
+});
+ok(announcementFounderHtml.indexOf('id="announcementRecipientWrap"') !== -1,
+  'individual targeting reveals a named recipient picker');
+ok(announcementFounderHtml.indexOf('id="announcementHistory"') !== -1,
+  'founder can review sent announcements');
+['trainer/index.html', 'student/index.html'].forEach(function (surface) {
+  const html = read(surface);
+  ok(html.indexOf('data-announcement-list') !== -1,
+    surface + ' has a scoped announcement inbox');
+  ok(html.indexOf('../shared/announcements.js') !== -1,
+    surface + ' loads the shared inbox client');
+});
+const announcementService = read('server/services/announcementService.js');
+ok(announcementService.indexOf("AUDIENCES = ['trainers', 'students', 'both', 'individual']") !== -1,
+  'server allowlists exactly four announcement audiences');
+ok(announcementService.indexOf('dlp.scan(') !== -1,
+  'announcements pass the same DLP gate as parent chat');
 
 console.log('navContract: ' + checks.length + ' assertions passed');

@@ -14,6 +14,8 @@
 <link rel="stylesheet" href="schedule.css">
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="parent-chat.css">
+<link rel="stylesheet" href="onboarding.css">
+<link rel="stylesheet" href="../shared/announcements.css">
 <style>
   .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
   .score-link svg,.day-link svg,.block-head svg,.save-note svg,.swipe-hint svg,
@@ -214,6 +216,7 @@
 
     <main class="page" id="main">
 
+      <div class="view is-active" data-view="today">
       <div class="page-head">
         <div>
           <p class="eyebrow">Wednesday · 25 November 2026</p>
@@ -312,6 +315,9 @@
         </article>
       </section>
 
+      </div><!-- /today -->
+
+      <div class="view" data-view="insights">
       <!-- ---------- payout trend ---------- -->
       <section class="block payout-trend" aria-labelledby="payout-trend-title">
         <div class="block-head">
@@ -339,6 +345,9 @@
         </div>
       </section>
 
+      </div><!-- /insights -->
+
+      <div class="view" data-view="leave">
       <!-- ---------- leave calendar ---------- -->
       <section class="block leave-block" aria-labelledby="leave-title">
         <div class="block-head">
@@ -348,6 +357,9 @@
         <div id="leaveCalendar" data-role="trainer"></div>
       </section>
 
+      </div><!-- /leave -->
+
+      <div class="view" data-view="sessions">
       <!-- ---------- committed schedule calendar ---------- -->
       <section class="block schedule-block" aria-labelledby="schedule-title">
         <div class="block-head">
@@ -357,6 +369,9 @@
         <div id="trainerSchedule"></div>
       </section>
 
+      </div><!-- /sessions -->
+
+      <div class="view" data-view="today">
       <!-- ---------- needs attention ---------- -->
       <section class="block" aria-labelledby="attention-title">
         <div class="block-head">
@@ -398,6 +413,17 @@
         </div>
       </section>
 
+      <details class="block announce-block" id="announcementPanel">
+        <summary class="block-head">
+          <span class="mono">Announcements</span>
+          <span class="announce-badge" data-announcement-badge hidden></span>
+        </summary>
+        <div class="announce-list" data-announcement-list></div>
+      </details>
+
+      </div><!-- /today -->
+
+      <div class="view" data-view="students">
       <!-- ---------- parent messages (private 1-on-1) ---------- -->
       <section class="block pc-block" id="parent-messages" aria-labelledby="pc-title">
         <div class="block-head">
@@ -567,6 +593,124 @@
 
       </section>
 
+      <!-- ---------- alloted batches ---------- -->
+      <section class="block batches-block" aria-labelledby="batches-title">
+        <div class="block-head">
+          <span class="mono" id="batches-title">Alloted Batches</span>
+          <span class="chip-count" id="batchCount">0 batches</span>
+        </div>
+        <ul class="batch-list" id="allotedBatchList">
+          <li class="batch-empty">No batches allotted yet.</li>
+        </ul>
+        <p class="batch-note">Name and batch ID only. Contact details and social links are never shared with students or other trainers.</p>
+      </section>
+
+      </div><!-- /students -->
+
+      <div class="view" data-view="insights">
+      <!-- ---------- locked trainer onboarding ---------- -->
+      <details class="block onboarding-block" id="onboarding-panel">
+        <summary class="block-head">
+          <span class="mono" id="onboarding-title">KYC &amp; onboarding</span>
+          <span class="chip-count" id="onboardingState">Not submitted</span>
+        </summary>
+        <form class="onboarding-form" id="onboardingForm" novalidate>
+          <fieldset class="kyc-lock" id="kycLockFields">
+            <legend>KYC identity &amp; documents <span>locked after first submission</span></legend>
+            <div class="onboarding-grid">
+              <label>Full name as on document
+                <input id="kycFullName" name="fullName" autocomplete="name" required>
+              </label>
+              <label>Date of birth
+                <input id="kycDob" name="dateOfBirth" type="date" required>
+              </label>
+              <label>Aadhaar card number
+                <input id="kycAadhaarNumber" name="aadhaarNumber" inputmode="numeric" placeholder="12-digit Aadhaar number" required>
+              </label>
+              <label>Aadhaar card image
+                <input id="kycAadhaarImage" name="aadhaarImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              </label>
+              <label>PAN card number
+                <input id="kycPanNumber" name="panNumber" placeholder="10-character PAN" required>
+              </label>
+              <label>PAN card image
+                <input id="kycPanImage" name="panImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              </label>
+              <label>Signature image
+                <input id="kycSignatureImage" name="signatureImage" type="file" accept="image/jpeg,image/png,image/webp" required>
+              </label>
+              <label>Bank proof image <span class="optional">optional</span>
+                <input id="kycBankProofImage" name="bankProofImage" type="file" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <label>Other document label <span class="optional">optional</span>
+                <input id="kycOtherLabel" name="otherLabel" placeholder="e.g. Address proof">
+              </label>
+              <label>Other document number <span class="optional">optional</span>
+                <input id="kycOtherNumber" name="otherNumber">
+              </label>
+              <label>Other document image <span class="optional">optional</span>
+                <input id="kycOtherImage" name="otherImage" type="file" accept="image/jpeg,image/png,image/webp">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Personal details <span>you can edit these</span></legend>
+            <div class="onboarding-grid">
+              <label>Contact number
+                <input id="kycContact" name="contactNumber" inputmode="tel" autocomplete="tel">
+              </label>
+              <label>Alternate contact number
+                <input id="kycAlternateContact" name="alternateContactNumber" inputmode="tel">
+              </label>
+              <label>Email ID
+                <input id="kycEmail" name="emailId" type="email" autocomplete="email">
+              </label>
+              <label>Father's name
+                <input id="kycFather" name="fatherName">
+              </label>
+              <label>Mother's name
+                <input id="kycMother" name="motherName">
+              </label>
+              <label>Spouse name
+                <input id="kycSpouse" name="spouseName">
+              </label>
+              <label class="wide">Address
+                <textarea id="kycAddress" name="address" rows="2"></textarea>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Bank details <span>you can edit these</span></legend>
+            <div class="onboarding-grid">
+              <label>Account holder name
+                <input id="kycAccountHolder" name="accountHolderName">
+              </label>
+              <label>Account number
+                <input id="kycAccountNumber" name="accountNumber" inputmode="numeric">
+              </label>
+              <label>IFSC code
+                <input id="kycIfsc" name="ifscCode">
+              </label>
+              <label>Bank name
+                <input id="kycBankName" name="bankName">
+              </label>
+              <label>Branch
+                <input id="kycBranch" name="branch">
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="onboarding-actions">
+            <button class="btn btn-coral" id="onboardingSubmit" type="submit">Submit KYC</button>
+            <p class="onboarding-status" id="onboardingStatus" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </details>
+
+      </div><!-- /insights -->
+
       <footer class="foot">
         <a href="../pricing.html">Pricing</a>
         <a href="../terms.html">Terms</a>
@@ -672,6 +816,15 @@
 <script src="schedule.js" defer></script>
 <script src="app.js" defer></script>
 <script src="parentChat.js" defer></script>
+<script src="onboarding.js" defer></script>
+<script>
+  window.MATHIFY_ANNOUNCEMENTS = {
+    mount: '[data-announcement-list]',
+    badge: '[data-announcement-badge]',
+    tokenKey: 'mathify.trainer.token'
+  };
+</script>
+<script src="../shared/announcements.js" defer></script>
 <script type="module" src="agora.js"></script>
 
 </body>

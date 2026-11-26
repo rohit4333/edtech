@@ -345,6 +345,12 @@
           <button class="pip-call-btn" id="agoraLeaveBtn" type="button" disabled>Leave</button>
         </div>
         <p class="pip-call-status" id="agoraCallStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
+        <p class="pip-observer-notice" id="observerNotice" role="status" aria-live="polite" hidden>
+          Observer in room: <b id="observerName">Founder</b>. This visit is logged and visible to both participants.
+        </p>
+        <label class="pip-observer-opt-in" id="observerOptIn" hidden>
+          <input type="checkbox" id="founderObserverToggle"> Join openly as founder observer
+        </label>
         <button class="pip-resize" id="pipResize" type="button" aria-label="Resize video window" title="Drag to resize"></button>
       </section>
 

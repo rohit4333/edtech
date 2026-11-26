@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="../shared/leave-calendar.css">
+<link rel="stylesheet" href="../shared/announcements.css">
 <style>
   /* ======================================================================
      SHELL
@@ -1661,6 +1662,14 @@
         </div>
       </aside>
 
+      <details class="block announce-block" id="announcementPanel">
+        <summary class="block-head">
+          <span class="mono">Announcements</span>
+          <span class="announce-badge" data-announcement-badge hidden></span>
+        </summary>
+        <div class="announce-list" data-announcement-list></div>
+      </details>
+
       <footer class="foot">
         <a href="../pricing.html">Pricing</a>
         <a href="../terms.html">Terms</a>
@@ -1769,5 +1778,13 @@
 <script src="api.js" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="app.js" defer></script>
+<script>
+  window.MATHIFY_ANNOUNCEMENTS = {
+    mount: '[data-announcement-list]',
+    badge: '[data-announcement-badge]',
+    tokenKey: 'mathify.student.token'
+  };
+</script>
+<script src="../shared/announcements.js" defer></script>
 </body>
 </html>

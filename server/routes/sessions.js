@@ -10,6 +10,7 @@ const presenceService = require('../services/presenceService');
 const notifications = require('../services/notificationService');
 const mediaPermission = require('../services/mediaPermissionService');
 const networkQuality = require('../services/networkQualityService');
+const sessionAccess = require('../services/sessionAccessService');
 const badges = require('../services/badgeService');
 const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
@@ -22,19 +23,53 @@ router.use(auth.requireAuth);
 router.use(auth.loadSession);
 
 router.get('/:sessionId/state', function (req, res) {
-  return res.json({ state: serializers.toSessionState(req.sessionRecord, req.user) });
+  const state = serializers.toSessionState(req.sessionRecord, req.user);
+  return res.json({ state: state });
 });
 
 router.post('/:sessionId/rtc-token', function (req, res) {
   try {
+    /* The room opens ten minutes early for the two real participants. Founder
+       entry is never implicit: it needs an explicit observer request and is
+       announced to both participants. */
+    const options = Object.assign({}, req.body || {}, req.query || {});
+    const access = sessionAccess.evaluate(req.sessionRecord, req.user, options);
+    if (!access.canEnter) {
+      return res.status(access.status).json({
+        error: access.code,
+        message: access.reason,
+        roomAccess: access
+      });
+    }
+
+    let liveSession = req.sessionRecord;
+    let observerChanged = false;
+    if (access.observer) {
+      observerChanged = sessionAccess.setObserver(req.sessionRecord, req.user,
+        new Date().toISOString()).changed;
+      const updated = db.updateSession(req.sessionRecord.id, function (session) {
+        return sessionAccess.setObserver(session, req.user, new Date().toISOString()).session;
+      });
+      if (updated) liveSession = updated;
+    }
+
     /* Both verified participants must pass a fresh connection check. A browser
        cannot opt out, downgrade the threshold or start a call for its peer. */
-    if (!networkQuality.bothReady(req.sessionRecord)) {
+    if (!networkQuality.bothReady(liveSession)) {
       throw Object.assign(new Error(
         'Both people must pass the connection speed check before the class can start.'
       ), { code: 'NETWORK_BELOW_MINIMUM', status: 409 });
     }
-    return res.json({ rtc: agoraTokens.issueSessionToken(req.sessionRecord, req.user) });
+
+    const rtc = agoraTokens.issueSessionToken(liveSession, req.user);
+    const respond = function () {
+      return res.json({ rtc: rtc, roomAccess: access });
+    };
+    if (observerChanged) {
+      return realtime.publish(liveSession.id, 'founder.observer.changed',
+        sessionAccess.eventPayload(liveSession)).then(respond);
+    }
+    return respond();
   } catch (error) {
     return res.status(error.status || 500).json({
       error: error.code || 'RTC_TOKEN_FAILED',
@@ -51,7 +86,8 @@ const SHARED_EVENTS = [
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'rtc.media.control.changed', 'network.check.completed',
-  'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed'
+  'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
+  'founder.observer.changed'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
@@ -424,8 +460,10 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
   const finalScore = gating.currentScore;
 
   const endedAt = new Date().toISOString();
+  const observerWasActive = Boolean(session.founderObserver && session.founderObserver.active);
   const updated = db.updateSession(session.id, function (current) {
     current.status = 'ended';
+    current.founderObserver = sessionAccess.clearObserver(current, endedAt).session.founderObserver;
     current.endsAt = endedAt;
     current.quiz.status = current.quiz.status === 'live' ? 'ended' : current.quiz.status;
     current.masteryGating = gating;

@@ -57,6 +57,31 @@
     renderChat();
   }
 
+  var founderObserverOptIn = false;
+
+  function applyObserverState(state) {
+    var notice = $('#observerNotice');
+    var optIn = $('#observerOptIn');
+    var toggle = $('#founderObserverToggle');
+    var observer = state && state.founderObserver;
+
+    if (notice) {
+      notice.hidden = !(observer && observer.active);
+      var label = $('#observerName');
+      if (label && observer && observer.active) label.textContent = observer.name || 'Founder';
+    }
+    if (optIn) {
+      var isFounder = classroomApi && typeof classroomApi.viewerRole === 'function' &&
+        classroomApi.viewerRole() === 'founder';
+      optIn.hidden = !isFounder;
+      if (isFounder && toggle) toggle.checked = founderObserverOptIn;
+    }
+    var call = callModule();
+    if (call && typeof call.setObserverOptIn === 'function') {
+      call.setObserverOptIn(founderObserverOptIn);
+    }
+  }
+
   function loadSessionContext() {
     if (!sessionId || !classroomApi) return Promise.resolve(false);
     return classroomApi.getSessionState(sessionId).then(function (state) {
@@ -70,6 +95,8 @@
       if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
       if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
       if (state && state.network) applyNetworkState(state.network);
+      if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
+      applyObserverState(state);
       return true;
     }).catch(function (error) {
       console.warn('[mathify] Session context unavailable:', error.message);
@@ -80,7 +107,6 @@
 
   /* ----------------------------------------------------------------- timers */
   var recTime = $('#recTime');
-  var sessionSeconds = 42 * 60 + 18;
   var ended = false;
   var ending = false;
 
@@ -88,6 +114,45 @@
     var m = Math.floor(seconds / 60);
     var s = seconds % 60;
     return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  /* Server-owned class clock. It waits for verified trainer session presence,
+     never for a dashboard login or an early room entry. */
+  var timerAnchorAt = null;
+  var timerAnchorSeconds = null;
+  var timingState = null;
+
+  function timerClock(seconds) {
+    var negative = seconds < 0;
+    var absolute = Math.abs(Math.floor(seconds));
+    var m = Math.floor(absolute / 60);
+    var s = absolute % 60;
+    return (negative ? '-' : '') + (m < 10 ? '0' : '') + m + ':' +
+      (s < 10 ? '0' : '') + s;
+  }
+
+  function paintSessionTimer() {
+    if (!recTime) return;
+    if (ended || timerAnchorAt === null || timerAnchorSeconds === null) {
+      recTime.textContent = '--:--';
+      return;
+    }
+    var delta = Math.floor((Date.now() - timerAnchorAt) / 1000);
+    recTime.textContent = timerClock(timerAnchorSeconds + Math.max(0, delta));
+  }
+
+  function applySessionTiming(value) {
+    timingState = value || null;
+    if (!timingState || timingState.waitingForTrainer ||
+        timingState.offsetSeconds === null || timingState.offsetSeconds === undefined) {
+      timerAnchorAt = null;
+      timerAnchorSeconds = null;
+      paintSessionTimer();
+      return;
+    }
+    timerAnchorAt = Date.now();
+    timerAnchorSeconds = timingState.offsetSeconds;
+    paintSessionTimer();
   }
 
   var stepSeconds = 12 * 60 + 40;
@@ -99,8 +164,7 @@
 
   setInterval(function () {
     if (ended) return;
-    sessionSeconds += 1;
-    if (recTime) recTime.textContent = clock(sessionSeconds);
+    paintSessionTimer();
     if (stepSeconds > 0) {
       stepSeconds -= 1;
       paintStepTime();
@@ -1207,6 +1271,18 @@
   /* -------------------------------------------------------------------- init */
   applyReactButton();
   applyBoardButton();
+
+  var observerToggle = $('#founderObserverToggle');
+  if (observerToggle) {
+    observerToggle.addEventListener('change', function () {
+      founderObserverOptIn = observerToggle.checked === true;
+      var call = callModule();
+      if (call && typeof call.setObserverOptIn === 'function') {
+        call.setObserverOptIn(founderObserverOptIn);
+      }
+    });
+  }
+
   loadSessionContext();
 
   /* Live 1:1 call. The existing floating PiP is the call surface; the SDK is
@@ -1412,7 +1488,9 @@
     applyReactionPermission: applyReactionPermission,
     reactionPermission: function () { return reactionPermissionState; },
     applyNetworkState: applyNetworkState,
-    networkState: function () { return networkState; }
+    networkState: function () { return networkState; },
+    applyObserverState: applyObserverState,
+    sessionTiming: function () { return timingState; }
   };
 
 })();

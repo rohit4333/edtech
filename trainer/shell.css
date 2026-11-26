@@ -3,6 +3,10 @@
    ========================================================================== */
 
 [hidden]{display:none !important}
+/* Nav-driven views keep each console area uncluttered. Only one view renders
+   at a time; the footer stays common to every view. */
+[data-view]{display:none}
+[data-view].is-active{display:block}
 .shell{position:relative;z-index:1;min-height:100vh}
 .workspace{margin-left:var(--rail);min-width:0}
 

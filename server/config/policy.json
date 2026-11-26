@@ -1,6 +1,17 @@
 {
   "mode": "configurable",
   "note": "Unresolved founder-doc values stay unset. Do not ship a guessed rule as fact.",
+  "sessionAccess": {
+    "earlyJoinMinutes": 10,
+    "founderObserverRequiresOptIn": true,
+    "note": "Trainer and student may enter the shared room from ten minutes before the scheduled start. Founder entry requires an explicit observer request that is visible to both participants."
+  },
+  "sessionTiming": {
+    "clockStartOffsetMinutes": -1,
+    "requiredTeachingMinutes": 50,
+    "completionWindowMinutes": 55,
+    "note": "The room clock starts at -00:01 one minute before the allotted time. The trainer must complete 50 teaching minutes within the first 55 minutes from the scheduled start."
+  },
   "quiz": {
     "unlockThreshold": 80,
     "scoringBands": {
@@ -31,6 +42,7 @@
     "learningEventWindowSeconds": 60,
     "graceMinutes": 10,
     "trainerMinPresentMinutes": 15,
+    "trainerMinPresentWithStudentMinutes": 50,
     "studentMinPresentMinutes": 15,
     "learningEventsForPresent": 3,
     "trainerPayRequiresPresence": true,
@@ -82,6 +94,19 @@
       "penalty": "session_pay",
       "appliesTo": "trainer_cancellation",
       "currency": "INR"
+    },
+    "lateJoinBands": [
+      { "fromMinutes": 0, "toMinutes": 5, "payFactor": 1, "code": "on_time", "label": "Full pay" },
+      { "fromMinutes": 5, "toMinutes": 10, "payFactor": 0.5, "code": "half_pay", "label": "Half pay" },
+      { "fromMinutes": 10, "toMinutes": 15, "payFactor": 0, "code": "no_pay", "label": "No pay" },
+      { "fromMinutes": 15, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine_forfeited", "label": "No pay; no extra fine" }
+    ],
+    "stretchReward": {
+      "startAfterMinutes": 50,
+      "maxMinutes": 55,
+      "perMinuteInr": 5,
+      "currency": "INR",
+      "note": "Each full active teaching minute beyond 50 and up to 55 adds 5 INR."
     },
     "noShow": {
       "payout": 0,

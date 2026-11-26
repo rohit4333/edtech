@@ -27,6 +27,7 @@
     micEnabled: true,
     cameraEnabled: false,
     controlsLocked: false,
+    observer: false,
     networkReady: false,
     networkReason: 'Run the connection speed check before class.',
     peerLabel: '',
@@ -46,6 +47,7 @@
     applyTrainerMediaState: applyTrainerMediaState,
     setMediaControlsLocked: setMediaControlsLocked,
     setNetworkReady: setNetworkReady,
+    setObserverOptIn: setObserverOptIn,
     reaffirmMedia: reaffirmMedia,
     setStatus: status,
     getState: getState
@@ -375,7 +377,7 @@
         }
         state.sdk = sdk;
         status('Getting a call token…');
-        return classroomApi.getRtcToken(state.sessionId);
+        return classroomApi.getRtcToken(state.sessionId, { observer: state.observer });
       })
       .then(function (rtc) {
         if (state.destroyed) throw makeError('TOKEN_UNAVAILABLE', 'Call was closed.');
@@ -480,6 +482,11 @@
     state.handlers = null;
   }
 
+  function setObserverOptIn(value) {
+    state.observer = value === true;
+    return api;
+  }
+
   function init(options) {
     var opts = options || {};
     unbind();
@@ -489,6 +496,7 @@
     if (typeof opts.cameraEnabled === 'boolean') state.cameraEnabled = opts.cameraEnabled;
     if (typeof opts.networkReady === 'boolean') state.networkReady = opts.networkReady;
     if (typeof opts.networkReason === 'string') state.networkReason = opts.networkReason;
+    state.observer = opts.observer === true;
     state.destroyed = false;
     state.nodes = findNodes();
     bind();

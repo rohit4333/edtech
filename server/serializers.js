@@ -5,6 +5,9 @@ const attendancePolicy = require('./services/attendancePolicy');
 const mediaPermission = require('./services/mediaPermissionService');
 const reactionPermission = require('./services/reactionPermissionService');
 const networkQuality = require('./services/networkQualityService');
+const presenceService = require('./services/presenceService');
+const sessionAccess = require('./services/sessionAccessService');
+const sessionTiming = require('./services/sessionTimingService');
 const badgeService = require('./services/badgeService');
 const appPolicy = require('./config/policy.json');
 
@@ -346,6 +349,12 @@ function toSessionState(session, user) {
   const trainerView = user && (user.role === 'trainer' || user.role === 'founder');
   const media = mediaPermission.normalize(session.mediaPermissions);
   const applause = reactionPermission.normalize(session.reactionPermissions);
+  const presenceSnapshot = presenceService.compute(session);
+  /* A live legacy session has no join webhook, so its own startedAt is the
+     presence anchor. A scheduled room waits for verified trainer presence. */
+  const trainerPresenceAt = session.status === 'live'
+    ? (session.startedAt || presenceSnapshot.trainerJoinedAt)
+    : presenceSnapshot.trainerJoinedAt;
   const state = {
     id: session.id,
     status: session.status,
@@ -385,7 +394,13 @@ function toSessionState(session, user) {
       studentCanApplaud: applause.studentCanApplaud,
       version: applause.version
     },
-    network: networkQuality.stateFor(session, user)
+    network: networkQuality.stateFor(session, user),
+    roomAccess: sessionAccess.evaluate(session, user),
+    sessionTiming: sessionTiming.clock(session, undefined, trainerPresenceAt),
+    payoutRequirement: presenceSnapshot.payoutRequirement,
+    /* Observer identity is intentionally visible in the shared room. No user
+       id, contact detail or private metadata is included. */
+    founderObserver: sessionAccess.publicState(session)
   };
   return state;
 }
@@ -614,9 +629,36 @@ function toTrainerDashboard(user, sessions, attendance) {
   const todaySessions = ordered.filter(function (session) {
     return String(session.startedAt || '').slice(0, 10) === todayKey;
   });
-  const next = todaySessions.find(function (session) { return session.status === 'live'; })
-    || todaySessions.find(function (session) { return session.status === 'scheduled'; })
-    || null;
+  const completed = todaySessions.filter(function (session) {
+    return session.status === 'completed' || session.status === 'ended';
+  }).length;
+  const activityBySession = {};
+  (attendance || []).forEach(function (row) {
+    activityBySession[row.sessionId] = Math.max(
+      activityBySession[row.sessionId] || 0,
+      Number(row.activeTrainerMinutes || row.activeMinutes || 0)
+    );
+  });
+  function elapsedMinutes(session) {
+    const start = new Date(session.startedAt || session.scheduledAt || 0).getTime();
+    return isNaN(start) ? 0 : (Date.now() - start) / 60000;
+  }
+  const eligible = todaySessions.filter(function (session) {
+    return session.status === 'completed'
+      || session.status === 'ended'
+      || activityBySession[session.id] >= 50
+      || elapsedMinutes(session) >= 50;
+  }).length;
+  const taken = Math.max(completed, eligible);
+  const remaining = Math.max(0, todaySessions.length - taken);
+  const next = todaySessions.find(function (session) {
+    return session.status === 'live'
+      && (activityBySession[session.id] || 0) < 50
+      && elapsedMinutes(session) < 50;
+  }) || todaySessions.find(function (session) {
+    return session.status === 'scheduled'
+      && new Date(session.startedAt || 0) >= new Date(Date.now() - 50 * 60000);
+  }) || null;
 
   const today = todaySessions.map(function (session) {
     const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
@@ -660,6 +702,8 @@ function toTrainerDashboard(user, sessions, attendance) {
     },
     summary: {
       sessionsToday: today.length,
+      sessionsTaken: taken,
+      sessionsRemaining: remaining,
       studentsNext: 1,
       needsAttention: attention.length
     },
@@ -669,6 +713,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       title: next.title,
       status: next.status,
       startsAt: next.startedAt,
+      activeThroughMinutes: 50,
       currentPage: next.currentPage,
       student: participant(next.studentId),
       planner: next.planner.map(function (item) { return Object.assign({}, item); }),

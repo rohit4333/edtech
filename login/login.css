@@ -1,0 +1,149 @@
+/* ==========================================================================
+   MATHIFY — credential sign in
+   Uses the public Paper & Ink primitives in public.css. This file only adds
+   the two-column sign-in layout and the account-type switch.
+   ========================================================================== */
+
+.login-page { display: flex; flex-direction: column; }
+
+.login-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-left: auto;
+}
+.login-nav a {
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid transparent;
+}
+.login-nav a:hover { color: var(--ink); border-color: var(--coral); }
+
+.login-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-block: clamp(44px, 7vw, 88px);
+}
+.login-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: clamp(36px, 6vw, 84px);
+  align-items: center;
+}
+
+.login-intro h1 {
+  margin: 10px 0 18px;
+  max-width: 16ch;
+  font-size: clamp(34px, 5vw, 60px);
+  font-weight: 500;
+  letter-spacing: -.045em;
+  line-height: 1.04;
+}
+.login-intro h1 em { font-style: normal; color: var(--coral-deep); }
+.login-intro .lede { max-width: 52ch; }
+
+.login-points {
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.login-points li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.login-points .n { color: var(--coral-deep); }
+.login-note {
+  max-width: 52ch;
+  margin: 22px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+.login-card { width: 100%; }
+.login-title {
+  margin: 0 0 18px;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+.role-switch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.role-tab {
+  padding: 8px 4px;
+  border: 0;
+  border-radius: calc(var(--r-sm) - 3px);
+  background: transparent;
+  color: var(--muted);
+  font: 500 10px/1.2 var(--sans);
+  cursor: pointer;
+}
+.role-tab:hover { color: var(--ink); }
+.role-tab[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.login-destination {
+  margin: 0 0 18px;
+  color: var(--faint);
+}
+.login-destination span { color: var(--coral-deep); }
+
+.password-field { position: relative; }
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  bottom: 24px;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 500 9px/1.2 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.login-status {
+  min-height: 18px;
+  margin: 0 0 12px;
+  font: 500 10px/1.5 var(--mono);
+  color: var(--coral-deep);
+}
+.login-status[data-tone="success"] { color: #186b3d; }
+.login-status[data-tone="error"] { color: var(--coral-deep); }
+
+.demo-btn { width: 100%; margin-top: 10px; }
+.login-foot {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+@media (max-width: 820px) {
+  .login-grid { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .login-intro h1 { max-width: none; }
+  .login-card { max-width: 480px; }
+}
+@media (max-width: 420px) {
+  .role-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

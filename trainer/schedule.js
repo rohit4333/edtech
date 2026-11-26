@@ -1,36 +1,50 @@
 /* ==========================================================================
    MATHIFY — trainer commitment calendar.
-   Shows classes with timings, committed slots, and unutilised-hour pay.
+   Seven-day timetable: dates on the x-axis, UTC hour marks on the y-axis.
    ========================================================================== */
 (function () {
   'use strict';
 
-  var WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   function pad(value) { return String(value).padStart(2, '0'); }
 
-  function currentMonth() { return new Date().toISOString().slice(0, 7); }
-
-  function shiftMonth(month, delta) {
-    var parts = month.split('-').map(Number);
-    return new Date(Date.UTC(parts[0], parts[1] - 1 + delta, 1)).toISOString().slice(0, 7);
+  function parseDay(value) {
+    var input = String(value || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) return new Date(NaN);
+    var date = new Date(input + 'T00:00:00.000Z');
+    return isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== input ? new Date(NaN) : date;
   }
 
-  function monthDays(month) {
-    var parts = month.split('-').map(Number);
-    return new Date(Date.UTC(parts[0], parts[1], 0)).getUTCDate();
+  function ymd(date) { return date.toISOString().slice(0, 10); }
+
+  function today() { return ymd(new Date()); }
+
+  function mondayOf(value) {
+    var date = parseDay(value);
+    if (isNaN(date.getTime())) date = new Date(today() + 'T00:00:00.000Z');
+    var weekday = (date.getUTCDay() + 6) % 7;
+    return ymd(new Date(date.getTime() - weekday * 86400000));
   }
 
-  function leadingBlanks(month) {
-    var parts = month.split('-').map(Number);
-    return (new Date(Date.UTC(parts[0], parts[1] - 1, 1)).getUTCDay() + 6) % 7;
+  function shiftDays(value, amount) {
+    var date = parseDay(value);
+    return ymd(new Date(date.getTime() + amount * 86400000));
   }
 
-  function monthLabel(month) {
-    var parts = month.split('-').map(Number);
-    return new Date(Date.UTC(parts[0], parts[1] - 1, 1))
-      .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  function weekLabel(start) {
+    var first = parseDay(start);
+    var last = new Date(first.getTime() + 6 * 86400000);
+    var format = { day: '2-digit', month: 'short', timeZone: 'UTC' };
+    return first.toLocaleDateString('en-GB', format) + ' – ' +
+      last.toLocaleDateString('en-GB', format) + ' ' + last.getUTCFullYear();
+  }
+
+  function dayLabel(value) {
+    var date = parseDay(value);
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC'
+    }).toUpperCase();
   }
 
   function el(tag, className, text) {
@@ -50,90 +64,104 @@
     var api = config.api;
     if (!host || !api) return null;
 
-    var state = { month: currentMonth(), view: null, slots: [], error: '', success: '', loading: true };
-
-    function daysByDate() {
-      var map = {};
-      ((state.view && state.view.days) || []).forEach(function (day) { map[day.date] = day; });
-      return map;
-    }
+    var state = {
+      weekStart: mondayOf(today()),
+      view: null,
+      slots: [],
+      error: '',
+      success: '',
+      loading: true
+    };
 
     function renderHead(parent) {
       var head = el('div', 'sc-head');
       var copy = el('div');
       copy.appendChild(el('span', 'mono', 'COMMITTED SCHEDULE'));
-      copy.appendChild(el('h3', null, 'Your classes & slots'));
+      copy.appendChild(el('h3', null, 'Your 7-day class calendar'));
       copy.appendChild(el('p', null,
-        'Classes inside a declared slot are paid at 100%. Unutilised slot hours are paid at ' +
-        ((state.view && state.view.rules && state.view.rules.unutilisedPayPercent) || 30) +
-        '% of your session rate. All times shown in UTC.'));
+        'Dates run left to right, UTC hours run top to bottom. Classes inside a declared slot are paid at ' +
+        '100%; unutilised slot hours are paid at ' +
+        ((state.view && state.view.rules && state.view.rules.unutilisedPayPercent) || 30) + '%.'));
       head.appendChild(copy);
       parent.appendChild(head);
     }
 
+    function navButton(label, ariaLabel, handler, className) {
+      var button = el('button', className || null, label);
+      button.type = 'button';
+      button.setAttribute('aria-label', ariaLabel);
+      button.addEventListener('click', handler);
+      return button;
+    }
+
     function renderNav(parent) {
       var nav = el('div', 'sc-nav');
-      nav.appendChild(el('span', 'sc-month', monthLabel(state.month)));
+      nav.appendChild(el('span', 'sc-week-label', weekLabel(state.weekStart)));
       var buttons = el('div', 'sc-nav-buttons');
-
-      var prev = el('button', null, '‹');
-      prev.type = 'button';
-      prev.setAttribute('aria-label', 'Previous month');
-      prev.disabled = state.month <= currentMonth().slice(0, 7);
-      prev.addEventListener('click', function () { state.month = shiftMonth(state.month, -1); load(); });
-
-      var next = el('button', null, '›');
-      next.type = 'button';
-      next.setAttribute('aria-label', 'Next month');
-      next.addEventListener('click', function () { state.month = shiftMonth(state.month, 1); load(); });
-
-      buttons.appendChild(prev);
-      buttons.appendChild(next);
+      buttons.appendChild(navButton('‹ Prev', 'Previous 7 days', function () {
+        state.weekStart = shiftDays(state.weekStart, -7);
+        load();
+      }));
+      buttons.appendChild(navButton('Today', 'Jump to the current week and today column', function () {
+        state.weekStart = mondayOf(today());
+        load();
+      }, 'is-today-button'));
+      buttons.appendChild(navButton('Next ›', 'Next 7 days', function () {
+        state.weekStart = shiftDays(state.weekStart, 7);
+        load();
+      }));
       nav.appendChild(buttons);
       parent.appendChild(nav);
     }
 
     function renderGrid(parent) {
-      var grid = el('div', 'sc-grid');
+      var days = (state.view && state.view.days) || [];
+      var grid = el('div', 'sc-timetable');
       grid.setAttribute('role', 'group');
-      grid.setAttribute('aria-label', 'Scheduled classes by date');
-      WEEKDAYS.forEach(function (day) { grid.appendChild(el('span', 'sc-week', day)); });
+      grid.setAttribute('aria-label', 'Seven-day timetable with dates across the top and UTC times down the side');
+      grid.style.setProperty('--sc-columns', String(days.length || 7));
 
-      for (var blank = 0; blank < leadingBlanks(state.month); blank += 1) {
-        grid.appendChild(el('span', 'sc-day is-muted', ''));
-      }
+      grid.appendChild(el('div', 'sc-corner', 'UTC'));
+      days.forEach(function (day) {
+        var header = el('div', 'sc-date-head' + (day.isToday ? ' is-today' : '') +
+          (day.isPast ? ' is-past' : ''), dayLabel(day.date));
+        header.setAttribute('data-date', day.date);
+        grid.appendChild(header);
+      });
 
-      var parts = state.month.split('-').map(Number);
-      var byDate = daysByDate();
-      var today = new Date().toISOString().slice(0, 10);
+      var currentHour = new Date().getUTCHours();
+      for (var hour = 0; hour < 24; hour += 1) {
+        grid.appendChild(el('div', 'sc-time', pad(hour) + ':00'));
+        days.forEach(function (day) {
+          var cell = el('div', 'sc-cell');
+          if (day.isToday) cell.classList.add('is-today-column');
+          if (day.isToday && hour === currentHour) cell.classList.add('is-now');
+          if (day.isPast) cell.classList.add('is-past');
 
-      for (var day = 1; day <= monthDays(state.month); day += 1) {
-        var date = parts[0] + '-' + pad(parts[1]) + '-' + pad(day);
-        var record = byDate[date] || { classes: [], slots: [] };
-        var classesForDay = record.classes || [];
+          (day.slots || []).forEach(function (slot) {
+            if (Number(slot.startMinuteUtc) < (hour + 1) * 60 && Number(slot.endMinuteUtc) > hour * 60) {
+              cell.classList.add('is-slot');
+              cell.title = slot.label + ' · ' + slot.start + '–' + slot.end + ' UTC';
+            }
+          });
 
-        var dayEl = el('div', 'sc-day');
-        if (date < today) dayEl.classList.add('is-muted');
-        if (record.slots && record.slots.length) dayEl.classList.add('is-slot');
-        if (date === today) dayEl.classList.add('is-today');
+          (day.classes || []).forEach(function (item) {
+            if (Number(String(item.time || '').slice(0, 2)) !== hour) return;
+            var block = el('div', 'sc-class' + (item.status === 'live' ? ' is-live' : ''));
+            block.appendChild(el('b', null, item.time));
+            block.appendChild(el('span', null, item.title || '1-on-1 session'));
+            block.title = (item.startsAt || day.date) + ' · ' +
+              (item.durationMinutes || 50) + ' min · ' + item.status +
+              (item.batchCode ? ' · Batch ' + item.batchCode : '');
+            cell.appendChild(block);
+          });
 
-        dayEl.appendChild(el('span', 'sc-day-num', day));
-        classesForDay.forEach(function (item) {
-          var line = el('span', 'sc-class');
-          line.appendChild(el('b', null, item.time || '--:--'));
-          line.appendChild(document.createTextNode(item.title || '1-on-1 session'));
-          line.title = (item.startsAt || date) + ' · ' + (item.durationMinutes || 60) + ' min · ' + item.status;
-          dayEl.appendChild(line);
+          grid.appendChild(cell);
         });
-        if (record.slots && record.slots.length) {
-          var slot = record.slots[0];
-          dayEl.appendChild(el('span', 'sc-slotline', slot.start + '–' + slot.end + ' UTC'));
-        }
-
-        grid.appendChild(dayEl);
       }
 
       parent.appendChild(grid);
+      if (!days.length) parent.appendChild(el('p', 'sc-empty', state.loading ? 'Loading timetable…' : 'Schedule unavailable.'));
     }
 
     function renderTotals(parent) {
@@ -166,12 +194,11 @@
       if (!state.slots.length) list.appendChild(el('li', null, 'No slots declared yet.'));
       state.slots.forEach(function (slot) {
         var row = el('li');
-        var text = el('span', null,
+        row.appendChild(el('span', null,
           (slot.date || DAY_NAMES[slot.dayOfWeek] || 'One-off') + ' · ' +
           pad(Math.floor(slot.startMinuteUtc / 60)) + ':' + pad(slot.startMinuteUtc % 60) + '–' +
           pad(Math.floor(slot.endMinuteUtc / 60)) + ':' + pad(slot.endMinuteUtc % 60) + ' UTC · ' +
-          (slot.label || 'Committed slot'));
-        row.appendChild(text);
+          (slot.label || 'Committed slot')));
         row.appendChild(el('b', null, ((slot.endMinuteUtc - slot.startMinuteUtc) / 60) + ' h'));
         var remove = el('button', null, '×');
         remove.type = 'button';
@@ -188,7 +215,7 @@
       detail.appendChild(list);
 
       var form = el('form', 'sc-form');
-      var dayLabel = el('label', null, 'Day');
+      var dayLabelEl = el('label', null, 'Day');
       var day = el('select');
       DAY_NAMES.forEach(function (name, index) {
         var option = el('option', null, name);
@@ -196,8 +223,8 @@
         day.appendChild(option);
       });
       day.value = '1';
-      dayLabel.appendChild(day);
-      form.appendChild(dayLabel);
+      dayLabelEl.appendChild(day);
+      form.appendChild(dayLabelEl);
 
       var startLabel = el('label', null, 'Start UTC');
       var start = el('input');
@@ -265,7 +292,7 @@
       state.loading = true;
       state.error = '';
       return Promise.all([
-        api.getSchedule(state.month),
+        api.getWeekSchedule(state.weekStart),
         api.getSlots()
       ]).then(function (results) {
         state.view = results[0] || {};

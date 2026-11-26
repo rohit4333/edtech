@@ -13,8 +13,7 @@
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.trainer.token';
-  var DEMO_EMAIL = 'trainer@mathify.app';
-  var DEMO_PASSWORD = 'mathify-demo';
+  var LOGIN_PAGE = 'login.html?role=trainer';
   var POLL_MS = 30000;
   var UNAVAILABLE = 'Messages are unavailable right now';
   var BLOCKED = 'That message could not be sent. Please keep chat on Mathify and leave out phone numbers, social handles, links and personal contact details.';
@@ -25,7 +24,6 @@
   ];
   var el = {};
   var memoryToken = null;
-  var authPromise = null;
   var state = {
     thread: null,
     messages: [],
@@ -89,29 +87,25 @@
     });
   }
 
-  /* Prefer the console's own auth client; fall back to a local demo login. */
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    memoryToken = null;
+    var next = window.location.pathname + window.location.search;
+    var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    return new Error('SIGN_IN_REQUIRED');
+  }
+
+  /* Prefer the console's own auth client. Its fallback is credential sign-in,
+     never a local demo login. */
   function ensureAuth() {
     if (window.mathifyTrainerApi && typeof window.mathifyTrainerApi.ensureAuth === 'function') {
       return Promise.resolve(window.mathifyTrainerApi.ensureAuth());
     }
     var existing = readToken();
     if (existing) return Promise.resolve(existing);
-    if (authPromise) return authPromise;
-
-    authPromise = rawRequest('/auth/demo', {}, null)
-      .then(function (info) {
-        var accounts = (info && info.accounts) || [];
-        var account = accounts.find(function (item) { return item && item.role === 'trainer'; });
-        return login(
-          (account && (account.email || account.username)) || DEMO_EMAIL,
-          (info && info.password) || DEMO_PASSWORD
-        );
-      })
-      .catch(function () { return login(DEMO_EMAIL, DEMO_PASSWORD); })
-      .then(function (token) { authPromise = null; return token; })
-      .catch(function (error) { authPromise = null; throw error; });
-
-    return authPromise;
+    return Promise.reject(requireLogin());
   }
 
   function api(path, options) {

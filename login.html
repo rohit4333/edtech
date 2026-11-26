@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Secure sign in</title>
+<meta name="description" content="Sign in with your Mathify credentials to reach the student desk, trainer console, founder console or parent app.">
+<link rel="stylesheet" href="assets/poppins.css">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="public.css">
+<link rel="stylesheet" href="login/login.css">
+</head>
+<body class="login-page">
+
+<header class="site-nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+    <nav class="login-nav" aria-label="Sign in navigation">
+      <a href="apps.html">All dashboards</a>
+      <a href="contact.html">Need help?</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap login-main">
+  <div class="login-grid">
+
+    <section class="login-intro">
+      <p class="mono eyebrow">Secure access · strictly 1-on-1</p>
+      <h1>One desk. Your credentials<em>.</em></h1>
+      <p class="lede">Choose the desk you belong to and sign in. The server verifies your account and decides what you can see — the page you opened never grants access on its own.</p>
+      <ul class="login-points">
+        <li><span class="mono n">01</span><span>Students open their own desk, practice and recordings.</span></li>
+        <li><span class="mono n">02</span><span>Trainers open the console, register and teaching tools.</span></li>
+        <li><span class="mono n">03</span><span>Founders and parents get only the views meant for them.</span></li>
+      </ul>
+      <p class="login-note">A classroom link is not a login. Trainer and student join the same live room from ten minutes before class; a founder joins only by an explicit, visible observer opt-in.</p>
+    </section>
+
+    <section class="form-card login-card" aria-labelledby="loginTitle">
+      <h2 class="login-title" id="loginTitle">Sign in to Mathify</h2>
+      <div class="role-switch" role="group" aria-label="Choose your account type">
+        <button type="button" class="role-tab" data-role="student" aria-pressed="true">Student</button>
+        <button type="button" class="role-tab" data-role="trainer" aria-pressed="false">Trainer</button>
+        <button type="button" class="role-tab" data-role="founder" aria-pressed="false">Founder</button>
+        <button type="button" class="role-tab" data-role="parent" aria-pressed="false">Parent</button>
+      </div>
+      <p class="mono login-destination">Destination: <span id="loginDestination">Student desk</span></p>
+
+      <form id="loginForm" novalidate>
+        <p class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" name="email" type="email" autocomplete="username" spellcheck="false" required placeholder="you@example.com">
+        </p>
+        <p class="field password-field">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password">Show</button>
+        </p>
+        <p class="login-status" id="loginStatus" role="alert" aria-live="polite" hidden></p>
+        <button class="btn" type="submit" id="loginSubmit">Sign in</button>
+      </form>
+
+      <button class="btn-ghost demo-btn" type="button" id="demoLogin" hidden>Use the demo account</button>
+      <p class="login-foot">Your role comes from your signed-in account, never from the URL. Contact details are never shown to another trainer or student.</p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-inner">
+    <a href="apps.html">All dashboards</a>
+    <a href="index.html">Home</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="refund.html">Refund</a>
+    <a href="contact.html">Contact</a>
+    <span class="c">© 2026 Mathify</span>
+  </div>
+</footer>
+
+<script src="login/login.js" defer></script>
+</body>
+</html>

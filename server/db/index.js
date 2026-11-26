@@ -4,6 +4,12 @@ const config = require('../config');
 const store = require('./mock');
 
 const sessionEvents = [];
+let sessionEventSeq = 0;
+/* Parallel rooms each keep their own recent history. A global cap alone would
+   let a busy room evict a quiet room's unread events before the browser polls
+   them, so retention is per session first and global only as a hard ceiling. */
+const SESSION_EVENT_RETENTION = 200;
+const EVENT_OUTBOX_RETENTION = 10000;
 let liveAdapter = null;
 function live() {
   if (config.databaseMode !== 'supabase') return null;
@@ -305,15 +311,32 @@ function listAllSessions() {
 }
 
 function appendSessionEvent(sessionId, event, payload) {
+  sessionEventSeq += 1;
+  const channel = 'mathify:session:' + sessionId;
   const message = {
-    seq: sessionEvents.length + 1,
+    seq: sessionEventSeq,
     at: new Date().toISOString(),
-    channel: 'mathify:session:' + sessionId,
+    channel: channel,
     event: String(event),
     payload: copy(payload) || {}
   };
   sessionEvents.push(message);
-  if (sessionEvents.length > 500) sessionEvents.shift();
+
+  const channelSeqs = [];
+  for (let index = 0; index < sessionEvents.length; index += 1) {
+    if (sessionEvents[index].channel === channel) channelSeqs.push(sessionEvents[index].seq);
+  }
+  if (channelSeqs.length > SESSION_EVENT_RETENTION) {
+    const cutoff = channelSeqs[channelSeqs.length - SESSION_EVENT_RETENTION];
+    for (let index = sessionEvents.length - 1; index >= 0; index -= 1) {
+      if (sessionEvents[index].channel === channel && sessionEvents[index].seq < cutoff) {
+        sessionEvents.splice(index, 1);
+      }
+    }
+  }
+  if (sessionEvents.length > EVENT_OUTBOX_RETENTION) {
+    sessionEvents.splice(0, sessionEvents.length - EVENT_OUTBOX_RETENTION);
+  }
   return message;
 }
 
@@ -416,11 +439,143 @@ function saveParentChatRead(record) {
   return copy(stored);
 }
 
+/* Enrollment batches. A batch belongs to one student and is allotted to at
+   most one trainer; strictly 1-on-1, never a group cohort. */
+function listBatches() {
+  return copy(store.batches);
+}
+function findBatch(batchId) {
+  const found = store.batches.find(function (row) { return row.id === batchId || row.code === batchId; });
+  return found ? copy(found) : null;
+}
+function findBatchForStudent(studentId) {
+  const found = store.batches.find(function (row) { return row.studentId === studentId; });
+  return found ? copy(found) : null;
+}
+function saveBatch(record) {
+  const stored = copy(record) || {};
+  const index = store.batches.findIndex(function (row) { return row.id === stored.id; });
+  if (index === -1) store.batches.push(stored);
+  else store.batches[index] = stored;
+  return copy(stored);
+}
+function findBatchByCode(code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  const found = store.batches.find(function (row) { return String(row.code || '').toUpperCase() === normalized; });
+  return found ? copy(found) : null;
+}
+function insertSession(record) {
+  const stored = copy(record) || {};
+  if (!stored.id) stored.id = 'ses_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  /* Match the live adapter: every session owns one Agora channel, so parallel
+     rooms can never share media or webhook attribution. */
+  if (!stored.rtc || !stored.rtc.channel) {
+    stored.rtc = Object.assign({}, stored.rtc || {}, {
+      provider: 'agora',
+      channel: 'mathify_' + stored.id
+    });
+  }
+  store.sessions.push(stored);
+  return copy(stored);
+}
+
+/* Locked trainer onboarding. Only the founder correction path may write an
+   existing record, and that path always appends a separate audit row. */
+function listTrainerOnboarding() {
+  return copy(store.trainerOnboarding);
+}
+function findTrainerOnboarding(trainerId) {
+  const found = store.trainerOnboarding.find(function (row) { return row.trainerId === trainerId; });
+  return found ? copy(found) : null;
+}
+function saveTrainerOnboarding(record) {
+  const stored = copy(record) || {};
+  const index = store.trainerOnboarding.findIndex(function (row) { return row.trainerId === stored.trainerId; });
+  if (index === -1) store.trainerOnboarding.push(stored);
+  else store.trainerOnboarding[index] = stored;
+  return copy(stored);
+}
+function saveTrainerOnboardingCorrection(record) {
+  const stored = Object.assign({
+    id: 'tkyccorr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.trainerOnboardingCorrections.push(stored);
+  return copy(stored);
+}
+function listTrainerOnboardingCorrections(trainerId) {
+  const rows = trainerId
+    ? store.trainerOnboardingCorrections.filter(function (row) { return row.trainerId === trainerId; })
+    : store.trainerOnboardingCorrections;
+  return copy(rows);
+}
+function listTrainerOnboardingCorrectionsForAll() {
+  return copy(store.trainerOnboardingCorrections);
+}
+
+function listTrainerDocuments() {
+  return copy(store.trainerDocuments);
+}
+function findTrainerDocument(documentId) {
+  const found = store.trainerDocuments.find(function (row) { return row.id === documentId; });
+  return found ? copy(found) : null;
+}
+function saveTrainerDocument(record) {
+  const stored = copy(record) || {};
+  const index = store.trainerDocuments.findIndex(function (row) { return row.id === stored.id; });
+  if (index === -1) store.trainerDocuments.push(stored);
+  else store.trainerDocuments[index] = stored;
+  return copy(stored);
+}
+
+function listAnnouncements() {
+  return copy(store.announcements);
+}
+function saveAnnouncement(record) {
+  const stored = copy(record) || {};
+  const index = store.announcements.findIndex(function (row) { return row.id === stored.id; });
+  if (index === -1) store.announcements.push(stored);
+  else store.announcements[index] = stored;
+  return copy(stored);
+}
+function findAnnouncementRead(announcementId, userId) {
+  const key = announcementId + '|' + userId;
+  const found = store.announcementReads.find(function (row) { return row.key === key; });
+  return found ? copy(found) : null;
+}
+function saveAnnouncementRead(record) {
+  const stored = Object.assign({}, copy(record) || {});
+  stored.key = stored.announcementId + '|' + stored.userId;
+  const index = store.announcementReads.findIndex(function (row) { return row.key === stored.key; });
+  if (index === -1) store.announcementReads.push(stored);
+  else store.announcementReads[index] = stored;
+  return copy(stored);
+}
+
 function seedDemo() {
   return { users: store.users.length, sessions: store.sessions.length, mode: 'mock' };
 }
 
 const mockApi = {
+  listBatches,
+  findBatch,
+  findBatchByCode,
+  findBatchForStudent,
+  saveBatch,
+  listTrainerOnboarding,
+  findTrainerOnboarding,
+  saveTrainerOnboarding,
+  saveTrainerOnboardingCorrection,
+  listTrainerOnboardingCorrections,
+  listTrainerOnboardingCorrectionsForAll,
+  listTrainerDocuments,
+  findTrainerDocument,
+  saveTrainerDocument,
+  listAnnouncements,
+  saveAnnouncement,
+  findAnnouncementRead,
+  saveAnnouncementRead,
+  insertSession,
   savePracticeBatch,
   findPracticeBatch,
   listPracticeBatches,

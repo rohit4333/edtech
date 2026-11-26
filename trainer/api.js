@@ -1,16 +1,13 @@
-/* Mathify trainer API client. Falls back silently when the API is unavailable. */
+/* Mathify trainer API client. A verified credential token is required; when
+   none is present the browser is sent to the shared sign-in page. */
 (function () {
   'use strict';
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.trainer.token';
-  var DEMO_LOGINS = {
-    founder: 'founder@mathify.app',
-    trainer: 'trainer@mathify.app',
-    student: 'student@mathify.app'
-  };
+  var ROLE = 'trainer';
+  var LOGIN_PAGE = 'login.html?role=' + ROLE;
   var memoryToken = null;
-  var authPromise = null;
 
   function readToken() {
     if (memoryToken) return memoryToken;
@@ -51,7 +48,10 @@
     var opts = options || {};
     if (opts.skipAuth) return rawRequest(path, opts, null);
     return ensureAuth().then(function (tokenValue) {
-      return rawRequest(path, opts, tokenValue);
+      return rawRequest(path, opts, tokenValue).catch(function (error) {
+        if (error.status === 401 || error.status === 403) return Promise.reject(requireLogin());
+        throw error;
+      });
     });
   }
 
@@ -66,33 +66,22 @@
     });
   }
 
+  /* No silent demo hand-off. A missing or rejected token sends the browser to
+     credential sign-in, carrying the current desk as a safe return path. */
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    memoryToken = null;
+    var next = window.location.pathname + window.location.search;
+    var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    return new Error('SIGN_IN_REQUIRED');
+  }
+
   function ensureAuth() {
     var existing = readToken();
     if (existing) return Promise.resolve(existing);
-    if (authPromise) return authPromise;
-
-    authPromise = rawRequest('/auth/demo', { skipAuth: true })
-      .then(function (info) {
-        var account = (info.accounts || []).find(function (item) { return item.role === 'trainer'; });
-        var role = account ? account.role : 'trainer';
-        return login(
-          DEMO_LOGINS[role] || DEMO_LOGINS.trainer,
-          info.password || 'mathify-demo'
-        );
-      })
-      .catch(function () {
-        return login('trainer@mathify.app', 'mathify-demo');
-      })
-      .then(function (data) {
-        authPromise = null;
-        return data.token;
-      })
-      .catch(function (error) {
-        authPromise = null;
-        throw error;
-      });
-
-    return authPromise;
+    return Promise.reject(requireLogin());
   }
 
   window.mathifyTrainerApi = {
@@ -100,6 +89,20 @@
     request: request,
     ensureAuth: ensureAuth,
     getDashboard: function () { return request('/trainer/dashboard').then(function (d) { return d.dashboard; }); },
+    getBatches: function () { return request('/trainer/batches').then(function (d) { return d.batches; }); },
+    getOnboarding: function () { return request('/trainer/onboarding').then(function (d) { return d.onboarding; }); },
+    submitOnboarding: function (body) {
+      return request('/trainer/onboarding', { method: 'POST', body: body })
+        .then(function (d) { return d.onboarding; });
+    },
+    uploadDocument: function (body) {
+      return request('/trainer/onboarding/documents', { method: 'POST', body: body })
+        .then(function (d) { return d.document; });
+    },
+    updatePersonal: function (body) {
+      return request('/trainer/onboarding/personal', { method: 'PATCH', body: body })
+        .then(function (d) { return d.onboarding; });
+    },
     getAttention: function () { return request('/trainer/attention').then(function (d) { return d.attention; }); },
     getAttendance: function () { return request('/trainer/attendance').then(function (d) { return d.register; }); },
     getScore: function () { return request('/trainer/score').then(function (d) { return d.score; }); },
@@ -119,6 +122,10 @@
     saveAttendance: function (id, records) {
       return request('/trainer/attendance/' + encodeURIComponent(id) + '/save', { method: 'POST', body: { records: records } })
         .then(function (d) { return d; });
+    },
+    getWeekSchedule: function (start) {
+      return request('/trainer/schedule/week?start=' + encodeURIComponent(start))
+        .then(function (d) { return d.schedule; });
     },
     getSchedule: function (month) {
       return request('/trainer/schedule' + (month ? '?month=' + encodeURIComponent(month) : ''))

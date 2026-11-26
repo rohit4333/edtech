@@ -1,0 +1,2879 @@
+{
+    "document":  "PROJECT_FLOW_FILE.md complete v3.0.0",
+    "generated":  "2026-11-26",
+    "baselineCommit":  "f36321c",
+    "branch":  "feat/student-rtc-control-permission",
+    "counts":  {
+                   "trackedFiles":  176,
+                   "statusPorcelainAllLines":  65,
+                   "modifiedTrackedPaths":  40,
+                   "untrackedPaths":  25,
+                   "testFiles":  32,
+                   "scriptEntries":  32,
+                   "migrationFiles":  5,
+                   "routerDefinitions":  114,
+                   "appHttpDefinitions":  4,
+                   "appGetPostUseLines":  32,
+                   "appUseLines":  28,
+                   "currentHttpDefinitions":  118,
+                   "priorRouterDefinitions":  95,
+                   "priorHttpDefinitions":  99
+               },
+    "countEvidence":  [
+                          "[ev: git ls-files; git status --porcelain=v1 --untracked-files=all, 2026-11-26]",
+                          "[ev: git diff --stat, 2026-11-26]",
+                          "[ev: node.exe -e scripts-entry audit, 2026-11-26]",
+                          "[ev: npm.cmd test --prefix server, 2026-11-26]",
+                          "[ev: node.exe C:/Users/rohit/AppData/Local/Temp/opencode/tpff-routes.js; Select-String -Path server\\app.js -Pattern \u0027app\\.(get|post|put|patch|delete)\\(\u0027, 2026-11-26]"
+                      ],
+    "sections":  {
+                     "10":  {
+                                "heading":  "KNOWN UNKNOWNS REGISTER",
+                                "tag":  "UNKNOWN",
+                                "citations":  {
+                                                  "src":  58,
+                                                  "ev":  6
+                                              },
+                                "rowCount":  26
+                            },
+                     "11":  {
+                                "heading":  "HOWEVER LOG",
+                                "tag":  "VERIFIED",
+                                "citations":  {
+                                                  "src":  63,
+                                                  "ev":  8
+                                              },
+                                "rowCount":  28
+                            },
+                     "12":  {
+                                "heading":  "TIMELINE",
+                                "tag":  "VERIFIED",
+                                "citations":  {
+                                                  "src":  15,
+                                                  "ev":  12
+                                              },
+                                "tagCount":  17
+                            },
+                     "13":  {
+                                "heading":  "APPENDICES",
+                                "tag":  "VERIFIED",
+                                "citations":  {
+                                                  "src":  376,
+                                                  "ev":  37
+                                              },
+                                "tagCount":  332,
+                                "testInventoryRows":  32,
+                                "untrackedFileRows":  25
+                            }
+                 },
+    "unknowns":  [
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-01",
+                         "unknown":  "Which of the five migration files (`0001`, `0002`, `0003`, `0004`, `0006`) are actually applied in a live Supabase project",
+                         "why":  "Every live table, RLS policy, service-only store and outbox depends on the reviewed plan; the runner dry-run contacted no database",
+                         "close":  "`psql \"$DATABASE_URL\" -c \"select version, name, checksum, applied_at from public.mathify_migrations order by version;\"`; artifact: one row per applied file with matching checksum",
+                         "owner":  "Platform/DB operator (migration guard holder)",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:38]",
+                                        "[ev: npm.cmd run migrate --silent --prefix server, 2026-11-26]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-02",
+                         "unknown":  "Deployed RLS and Data API grant state: `app_metadata` policies, safe views, answer-key column lockdown, `rls_auto_enable` execute revoke",
+                         "why":  "Static schema assertions do not prove what is deployed; wrong grants expose answer keys, trainer notes or event payloads",
+                         "close":  "`psql \"$DATABASE_URL\" -c \"select tablename, rowsecurity from pg_tables where schemaname=\u0027public\u0027 order by tablename;\" -c \"select schemaname, tablename, policyname, roles from pg_policies where schemaname=\u0027public\u0027 order by tablename, policyname;\"`; artifact: all public tables RLS-enabled and only allowlisted roles granted",
+                         "owner":  "Platform/DB operator + Security reviewer",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/db/schema.sql:1377-1424]",
+                                        "[src: TEST_REPORT.md:251]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:21-23]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-03",
+                         "unknown":  "Whether private Storage bucket `trainer-kyc` exists live and is never readable by anon/authenticated",
+                         "why":  "KYC bytes are intended for private Storage only; metadata-only records are not byte storage",
+                         "close":  "`curl -sS -H \"apikey: $SUPABASE_SECRET_KEY\" -H \"Authorization: Bearer $SUPABASE_SECRET_KEY\" \"$SUPABASE_URL/storage/v1/bucket/trainer-kyc\"`; artifact: bucket JSON showing non-public bucket and no browser-facing bucket policy",
+                         "owner":  "Platform/DB operator",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/migrations/0006_trainer_onboarding_batches.sql:21-22]",
+                                        "[src: server/services/trainerDocumentService.js:1-15]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-04",
+                         "unknown":  "Live service-role write proof for KYC metadata and upload bytes",
+                         "why":  "Mock-mode tests prove only in-memory behavior; no live service-role row/object write was captured",
+                         "close":  "Set live credentials, then `curl -sS -X POST \"$SUPABASE_URL/rest/v1/mathify_records\" -H \"apikey: $SUPABASE_SECRET_KEY\" -H \"Authorization: Bearer $SUPABASE_SECRET_KEY\" -H \"Content-Type: application/json\" -H \"Prefer: return=representation\" -d \u0027{\"collection\":\"trainer_documents\",\"key\":\"verify:\u003ctrainerId\u003e:aadhaar\",\"data\":{}}\u0027` and `curl -sS -X POST \"$SUPABASE_URL/storage/v1/object/trainer-kyc/verify:\u003ctrainerId\u003e:aadhaar\" -H \"apikey: $SUPABASE_SECRET_KEY\" -H \"Authorization: Bearer $SUPABASE_SECRET_KEY\" --data-binary @\u003ctest-image\u003e`; artifact: metadata row and private object path with no anon read",
+                         "owner":  "Backend/DB operator",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/services/trainerDocumentService.js:1-15]",
+                                        "[src: server/migrations/0006_trainer_onboarding_batches.sql:14-22]",
+                                        "[src: TEST_REPORT.md:22]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-05",
+                         "unknown":  "Live Supabase service-role adapter proof for practice, chat audit and session events",
+                         "why":  "`TEST_REPORT.md` records SKIPPED with no practice or chat audit row written live",
+                         "close":  "Set `DATABASE_MODE=supabase` + credentials, run the 32-suite test command with live adapter enabled, then `psql \"$DATABASE_URL\" -c \"select collection, key, updated_at from public.mathify_records order by updated_at desc limit 20;\"`; artifact: live rows plus no credential values in logs",
+                         "owner":  "Backend/QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:22,243]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:45-49]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-06",
+                         "unknown":  "Live Supabase Realtime proof for canvas strokes and scrubbing",
+                         "why":  "Docs describe Realtime canvas strokes, but no live Supabase call was made and mock/non-UUID sessions use polling only",
+                         "close":  "`wrangler tail mathify-ai-chat` is unrelated; use browser live session with UUID and Supabase dashboard Realtime inspector plus `psql \"$DATABASE_URL\" -c \"select id, session_id, created_at from public.quiz_canvas_strokes order by created_at desc limit 10;\"`; artifact: realtime INSERT observed and browser payload contains no answer key",
+                         "owner":  "Frontend/Realtime owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:64-65,124]",
+                                        "[src: classroom/realtime.js:67-82]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-07",
+                         "unknown":  "Live Razorpay order/capture/webhook proof",
+                         "why":  "No order, capture or payment was made; credentials absent/empty in the recorded evidence",
+                         "close":  "Set real keys, then `curl -sS -X POST http://localhost:4000/api/razorpay/orders/monthly -H \"Authorization: Bearer \u003cstudent-token\u003e\" -H \"Content-Type: application/json\" -d \u0027{}\u0027`; artifact: order id, captured payment id, `payment.captured` webhook accepted and pack credited once",
+                         "owner":  "Payments owner + QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:23,243]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:48-53]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-08",
+                         "unknown":  "Live Twilio WhatsApp send/reply proof",
+                         "why":  "No message was sent; credentials absent/empty in the recorded evidence",
+                         "close":  "Set real Twilio credentials, send a signed POST to `/api/webhooks/whatsapp` from Twilio, then inspect Twilio message SID and server log; artifact: inbound SID, TwiML reply and founder-handoff row where applicable",
+                         "owner":  "Parent-assistant owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:24,243]",
+                                        "[src: server/routes/webhooks.js:25-47,85-153]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-09",
+                         "unknown":  "Live Agora webhook and real-join proof",
+                         "why":  "Local token generation passed, but no Agora webhook was proven and browser Join was deliberately not clicked",
+                         "close":  "`curl -sS -X POST http://localhost:4000/api/agora/webhook -H \"Content-Type: application/json\" -H \"x-agora-signature: \u003cHMAC\u003e\" -d \u0027\u003csigned fixture\u003e\u0027`; artifact: accepted join/leave callback and presence event, plus browser Join with real device permission",
+                         "owner":  "RTC owner + QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:21,244]",
+                                        "[src: server/routes/agora.js:91-134]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-10",
+                         "unknown":  "Live Cloudflare Workers AI text call in the current in-flight tree and deployed Worker browser chat",
+                         "why":  "The recorded PASS is documentary from an earlier check; no deployed Worker end-to-end browser chat was exercised",
+                         "close":  "`wrangler tail mathify-ai-chat` while running browser chat with `CHAT_WORKER_URL` set; artifact: routed Worker call source, HTTP 200 and reply envelope",
+                         "owner":  "AI/Worker owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:18,36]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:123]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-11",
+                         "unknown":  "Whether requested vision model is available or Meta fallback agreement accepted",
+                         "why":  "Requested vision failed HTTP 400 and fallback vision was blocked HTTP 403 Model Agreement; no live image chat succeeded",
+                         "close":  "Explicit Meta `agree` action by the account owner, then `wrangler tail mathify-ai-chat` during an image query; artifact: successful image reply with no image bytes in logs",
+                         "owner":  "Founder/account owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:19-20,250]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-12",
+                         "unknown":  "PR data and upstream review state",
+                         "why":  "Remotes are known, but `gh` is unauthenticated here; no PR state was verified",
+                         "close":  "`gh auth login` then `gh pr list --state all --repo rohit4333/edtech` and `gh pr view \u003cn\u003e --repo rohit4333/edtech`; artifact: PR numbers, states, reviewers and merge commits",
+                         "owner":  "Repo maintainer",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[ev: gh pr list --state all --repo rohit4333/edtech; GH_EXITCODE: 4, 2026-11-26]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-tests-timeline.md:102]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-13",
+                         "unknown":  "Verbatim content of PDF pages 5–17",
+                         "why":  "Policy numbers such as “Score 60” and “8% unlock” cannot be quoted or reconciled without OCR",
+                         "close":  "Provide the PDF or extracted text, then `pdftotext -f 5 -l 17 \u003cpolicy.pdf\u003e -`; artifact: page-numbered text that can be compared to `server/config/policy.json`",
+                         "owner":  "Founder/Policy owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: PROJECT_GUIDE.md:395]",
+                                        "[src: TEST_REPORT.md:253]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-14",
+                         "unknown":  "Persistence decision for founder settings drafts",
+                         "why":  "Server drafts are explicitly runtime-only and never written to disk; no reviewed deployment policy was promoted",
+                         "close":  "Human approval plus reviewed diff promoting `view()` values into `server/config/policy.json` and redeploy; artifact: committed policy diff and deployed snapshot matching founder-approved values",
+                         "owner":  "Founder + Platform owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/services/founderSettingsService.js:1-7,138-149]",
+                                        "[src: TEST_REPORT.md:252]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-15",
+                         "unknown":  "Planner publish and pack import behavior",
+                         "why":  "Planner is live only as local authoring/export; publish and pack import are explicitly disabled",
+                         "close":  "Product decision plus implementation commit and test; artifact: enabled UI controls, server route or documented local-only contract and passing 32-suite run",
+                         "owner":  "Product/LMS owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: PROJECT_GUIDE.md:399]",
+                                        "[src: lms/planner.js:550-554]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-16",
+                         "unknown":  "Deployed environment values on Render/Railway/Cloudflare",
+                         "why":  "Repo manifests declare intent only; no provider dashboard was inspected and no secret values were read",
+                         "close":  "Render/Railway dashboard variable export plus `wrangler secret list --name mathify-ai-chat`; artifact: names present, values confirmed SET/EMPTY by provider without copying them into docs",
+                         "owner":  "Platform/DevOps owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: render.yaml:10-58]",
+                                        "[src: railway.json:1-10]",
+                                        "[src: wrangler.toml:3-11]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:114]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-17",
+                         "unknown":  "Completion of credential rotations",
+                         "why":  "Exposed Cloudflare API token, Supabase secret key and Agora Primary Certificate still require rotation; no rotation was performed",
+                         "close":  "Rotate at each provider, replace gitignored `server/.env` values, then `git check-ignore -v server/.env`; artifact: rotation receipts with no values in chat or git",
+                         "owner":  "Founder + Security owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: TEST_REPORT.md:249]",
+                                        "[src: PROJECT_GUIDE.md:380,394]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-18",
+                         "unknown":  "Cloudflare per-model quota, token cost and billing cap",
+                         "why":  "Worker rate limit 20/min is configured, but provider quota and cost are not derivable from repo",
+                         "close":  "Cloudflare AI usage/billing dashboard export; artifact: per-model request counts and cost for the billing period",
+                         "owner":  "Founder/Finance owner",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: wrangler.toml:20-29]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:37,130]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-19",
+                         "unknown":  "Announcement live creation, targeting, delivery and read-state proof",
+                         "why":  "New announcement routes/services exist untracked and are covered only by mock-mode tests",
+                         "close":  "Set live credentials, call `POST /api/admin/announcements` as founder, then `GET /api/announcements` and `POST /api/announcements/:id/read` as each target role; artifact: targeted rows, inbox delivery and read receipts in live DB",
+                         "owner":  "Backend/QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/routes/announcements.js:31-43]",
+                                        "[src: server/routes/admin.js:147-175]",
+                                        "[src: server/tests/announcements.test.js:1-147]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-20",
+                         "unknown":  "Live batch allotment, onboarding and weekly schedule write proof",
+                         "why":  "Services and tests are mock-only; no live Supabase row proof exists",
+                         "close":  "Set live credentials, call `POST /api/admin/batches/:batchId/allot`, `POST /api/trainer/onboarding` and `GET /api/trainer/schedule/week`; artifact: live `mathify_records` rows for batches, onboarding and weekly slots",
+                         "owner":  "Backend/DB operator",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/routes/admin.js:64-131]",
+                                        "[src: server/routes/trainer.js:177-225,768]",
+                                        "[src: server/tests/trainerOnboarding.test.js:1-3]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-21",
+                         "unknown":  "Browser smoke / Lighthouse / click-through results for the new login and announcement surfaces",
+                         "why":  "Prior browser smoke evidence predates the untracked login and announcement files",
+                         "close":  "Run the project browser automation with pages `login.html`, `founder/index.html`, `parent/index.html`, `trainer/index.html`; artifact: click-through log and Lighthouse JSON for each surface",
+                         "owner":  "Frontend/QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-tests-timeline.md:103]",
+                                        "[src: login/login.js:1-226]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-22",
+                         "unknown":  "Implemented transition tables for payouts, escalations, incidents, cancelled sessions and rejected/cancelled leaves",
+                         "why":  "Schema enums are verified; service-level transition coverage was not fully traced",
+                         "close":  "`rg -n \"status\\\\s*=\\\\s*\u0027",
+                         "owner":  "status:\\\\s*\u0027\" server/services server/routes --glob \u0027*.js\u0027`; artifact: transition matrix with actor and guard per edge",
+                         "tag":  "Backend reviewer",
+                         "source":  [
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:80,99,171]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-23",
+                         "unknown":  "Meaning of `REALTIME_MODE` env var",
+                         "why":  "Name appears in `.env.example` but no code reference was found in the prior pass; realtime mode is derived from `DATABASE_MODE`",
+                         "close":  "`rg -n \"REALTIME_MODE\" . --glob \u0027!node_modules/**\u0027`; artifact: either a code reference or a documented removal decision",
+                         "owner":  "Backend reviewer",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:172]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-24",
+                         "unknown":  "Exact provider output-token cap",
+                         "why":  "Two-phase curriculum generation exists to stay inside a provider limit, but no numeric cap was found",
+                         "close":  "`rg -n \"max_tokens",
+                         "owner":  "maxTokens",
+                         "tag":  "max_output\" server worker.js worker-core.mjs`; artifact: provider-documented cap or explicit “unbounded/unknown” decision",
+                         "source":  [
+                                        "[src: server/services/cloudflareService.js:1-10]",
+                                        "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-data-state-env.md:170]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-25",
+                         "unknown":  "Live multi-instance concurrency proof for batch allotment, celebration throttling, rate limiting and reminders",
+                         "why":  "The local 60-check suite and per-process queues/Maps prove only single-process isolation; a horizontally scaled deployment needs shared coordination",
+                         "close":  "Run two or more instances with `DATABASE_MODE=supabase`, replay the four-trainer/four-student concurrency fixture at both instances at once, then `psql \"$DATABASE_URL\" -c \"select collection, key, data from public.mathify_records where collection in (\u0027batches\u0027,\u0027presence_events\u0027) order by collection, key;\"`; artifact: test log with 60 checks, no duplicate booking or Presence event, and one shared rate-limit/reminder decision per window",
+                         "owner":  "Platform/Backend + QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/tests/concurrency.test.js:1-4,158-176]",
+                                        "[src: server/services/batchService.js:24-31]",
+                                        "[src: server/services/celebrationService.js:126-147]",
+                                        "[src: server/middleware/rateLimit.js:1-5]",
+                                        "[src: server/jobs/reminders.js:17-18,123]",
+                                        "[ev: npm.cmd test --prefix server, 2026-11-26]"
+                                    ]
+                     },
+                     {
+                         "entity":  "unknown",
+                         "id":  "U-26",
+                         "unknown":  "Real Agora parallel-room join proof for four simultaneous sessions",
+                         "why":  "The 60-check suite proves local channel, Presence and media isolation with mock state; no real four-room Agora join was performed",
+                         "close":  "Join four live rooms with real device permissions, then export Agora Console channel usage and POST signed join/leave webhooks to the server; artifact: four distinct channel names, four isolated participant streams and one Presence event per room",
+                         "owner":  "RTC owner + QA lead",
+                         "tag":  "UNKNOWN",
+                         "source":  [
+                                        "[src: server/tests/concurrency.test.js:1-4,150-176]",
+                                        "[src: server/services/agoraTokenService.js:29-47]",
+                                        "[src: server/routes/agora.js:37-55,90-119]",
+                                        "[src: TEST_REPORT.md:21,244]",
+                                        "[ev: npm.cmd test --prefix server, 2026-11-26]"
+                                    ]
+                     }
+                 ],
+    "howeverLog":  [
+                       {
+                           "entity":  "however",
+                           "id":  "H-01",
+                           "severity":  "HIGH",
+                           "roleSurface":  "AI/Worker",
+                           "observation":  "`wrangler.toml:23` declares `TEXT_MODEL`, but `worker.js:135-141` pins the text model in code; changing the variable has no effect on chat text",
+                           "status":  "OPEN / DRIFT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: wrangler.toml:23]",
+                                          "[src: worker.js:135-141]"
+                                      ],
+                           "owner":  "AI/Worker owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-02",
+                           "severity":  "HIGH",
+                           "roleSurface":  "Student/image chat",
+                           "observation":  "Requested vision model returned HTTP 400 `No route for that URI`; fallback vision returned HTTP 403 `Model Agreement`; no live image chat succeeded",
+                           "status":  "OPEN / BLOCKED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:19-20,242]"
+                                      ],
+                           "owner":  "Student image-chat owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-03",
+                           "severity":  "MED",
+                           "roleSurface":  "Docs/branch",
+                           "observation":  "`PROJECT_GUIDE.md:5` and `TEST_REPORT.md:4` say working tree is based on `9838d0a`, while HEAD is `f36321c`, three commits later; the task brief also names `b2bf372` as base",
+                           "status":  "DRIFT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: PROJECT_GUIDE.md:5]",
+                                          "[src: TEST_REPORT.md:4]",
+                                          "[ev: git log --format=\u0027%h %ad %s\u0027 --date=iso -25, 2026-11-26]"
+                                      ],
+                           "owner":  "Documentation owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-04",
+                           "severity":  "MED",
+                           "roleSurface":  "Docs/tests",
+                           "observation":  "`server/migrations/README.md:44` says 26 Node suites and `TEST_REPORT.md:161` says three reviewed migrations; current working tree has 32 test files/32 script entries and 5 SQL migration files",
+                           "status":  "DRIFT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/migrations/README.md:42-47]",
+                                          "[src: TEST_REPORT.md:161]",
+                                          "[ev: node.exe -e scripts-entry audit; Get-ChildItem server/migrations -Filter *.sql, 2026-11-26]"
+                                      ],
+                           "owner":  "Documentation owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-05",
+                           "severity":  "LOW",
+                           "roleSurface":  "Docs/tests",
+                           "observation":  "`PROJECT_GUIDE.md:55` says `navContract` has 44 assertions; current run reports 126 assertions",
+                           "status":  "DRIFT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: PROJECT_GUIDE.md:55]",
+                                          "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-current-test.log:36]"
+                                      ],
+                           "owner":  "Documentation owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-06",
+                           "severity":  "MED",
+                           "roleSurface":  "Docs/runtime",
+                           "observation":  "Root `package.json:15` declares Node `\u003e=18`, server `package.json:16` declares `\u003e=20`, and CI pins Node 20; `TEST_REPORT.md:236` claims alignment to `\u003e=20` but root manifest is stale",
+                           "status":  "DRIFT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: package.json:14-16]",
+                                          "[src: server/package.json:15-16]",
+                                          "[src: .github/workflows/ci.yml:17-22]",
+                                          "[src: TEST_REPORT.md:236]"
+                                      ],
+                           "owner":  "Platform owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-07",
+                           "severity":  "HIGH",
+                           "roleSurface":  "DB/parent chat",
+                           "observation":  "`parent` is a real Express/demo role with chat routes, but `users.role` DB constraint allows only `founder`, `trainer`, `student`; live parent identity would violate the schema constraint",
+                           "status":  "OPEN",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/db/schema.sql:39]",
+                                          "[src: server/db/schema.sql:590-591]",
+                                          "[src: server/db/mock.js:58-62]",
+                                          "[src: server/routes/parentChat.js:26-28]"
+                                      ],
+                           "owner":  "DB/Schema owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-08",
+                           "severity":  "MED",
+                           "roleSurface":  "Trainer/pay policy",
+                           "observation":  "The 15+ minute late band is `no_pay_fine_forfeited` with label “No pay; no extra fine”; the test phrase “no extra fine” means pay is forfeited and no additional penalty is added, not that pay is preserved",
+                           "status":  "CLARIFIED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/config/policy.json:98-103]",
+                                          "[src: server/tests/sessionPolicy.test.js:95-98]",
+                                          "[src: server/services/sessionTimingService.js:9-13]"
+                                      ],
+                           "owner":  "Payments/Policy owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-09",
+                           "severity":  "LOW",
+                           "roleSurface":  "DB/advisories",
+                           "observation":  "`rls_auto_enable` EXECUTE is revoked from `public`, `anon` and `authenticated` specifically to remove the Supabase security-advisor Data API surface without changing trigger behavior; this is intentional, not an unresolved grant",
+                           "status":  "INTENTIONAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/db/schema.sql:1421-1424]",
+                                          "[src: server/migrations/0001_baseline.sql:1372-1375]"
+                                      ],
+                           "owner":  "Security/DB owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-10",
+                           "severity":  "MED",
+                           "roleSurface":  "Migrations/tests",
+                           "observation":  "`0005` was renamed to `0006_trainer_onboarding_batches.sql` because `parentChat.test.js` asserts that no migration matching `/^0005/` exists; inserting `0005` would break that contract",
+                           "status":  "RESOLVED BY RENAME",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/tests/parentChat.test.js:82-84]",
+                                          "[src: server/migrations/0006_trainer_onboarding_batches.sql:1-22]",
+                                          "[ev: npm.cmd run migrate --silent --prefix server, 2026-11-26]"
+                                      ],
+                           "owner":  "Migrations owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-11",
+                           "severity":  "MED",
+                           "roleSurface":  "Trainer/session creation",
+                           "observation":  "`POST /api/trainer/sessions` returns 503 `DATABASE_MODE_NOT_LIVE` in mock mode; session creation is intentionally live-only and demo sessions come from seeded mock state",
+                           "status":  "INTENTIONAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/routes/trainer.js:307-314]",
+                                          "[src: server/db/index.js:479-506]"
+                                      ],
+                           "owner":  "Backend owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-12",
+                           "severity":  "MED",
+                           "roleSurface":  "Founder/settings",
+                           "observation":  "Founder edits are validated runtime drafts, never written to disk; money fields are read-only and file-backed policy remains authoritative until reviewed deployment",
+                           "status":  "INTENTIONAL / UNDECIDED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/services/founderSettingsService.js:1-7,138-149]",
+                                          "[src: TEST_REPORT.md:218-220,252]"
+                                      ],
+                           "owner":  "Founder/Platform owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-13",
+                           "severity":  "MED",
+                           "roleSurface":  "LMS/planner",
+                           "observation":  "Planner designer is live as local authoring/export only; publish and pack import remain disabled",
+                           "status":  "PARTIAL / INTENTIONAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: PROJECT_GUIDE.md:399]",
+                                          "[src: lms/planner.js:550-554]"
+                                      ],
+                           "owner":  "Product/LMS owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-14",
+                           "severity":  "HIGH",
+                           "roleSurface":  "Platform/credentials",
+                           "observation":  "Exposed Cloudflare API token, Supabase secret key and Agora Primary Certificate still require rotation; no rotation was performed",
+                           "status":  "OPEN",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:249]",
+                                          "[src: PROJECT_GUIDE.md:380,394]"
+                                      ],
+                           "owner":  "Security owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-15",
+                           "severity":  "HIGH",
+                           "roleSurface":  "Live integrations",
+                           "observation":  "No Supabase call, Razorpay order/capture, Twilio message, Agora webhook or migration apply was made in the recorded verification round; credentials were absent/empty",
+                           "status":  "OPEN",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:22-25,243]"
+                                      ],
+                           "owner":  "Platform/Integrations owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-16",
+                           "severity":  "MED",
+                           "roleSurface":  "Cloudflare/Worker",
+                           "observation":  "`[ai] binding` is configured in `wrangler.toml`, but `worker.js` also contains a REST path using account ID and API token; actual deployed call source is unproven",
+                           "status":  "PARTIAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: wrangler.toml:17-18]",
+                                          "[src: worker.js:167-181]",
+                                          "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:123]"
+                                      ],
+                           "owner":  "AI/Worker owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-17",
+                           "severity":  "MED",
+                           "roleSurface":  "Realtime/browser",
+                           "observation":  "Docs describe Supabase Realtime canvas strokes, but no live Supabase call was made and browser bridge disables Realtime for non-UUID/mock sessions; only polling was exercised",
+                           "status":  "PARTIAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/README.md:153-159]",
+                                          "[src: classroom/realtime.js:67-82]",
+                                          "[src: TEST_REPORT.md:22]"
+                                      ],
+                           "owner":  "Realtime owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-18",
+                           "severity":  "MED",
+                           "roleSurface":  "Student/RTC",
+                           "observation":  "Agora Join was not clicked in browser smoke because it would request real camera/microphone; token and gate contracts are covered by server tests",
+                           "status":  "INTENTIONAL",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:244-245]",
+                                          "[src: PROJECT_GUIDE.md:400]",
+                                          "[src: server/tests/rtcControls.test.js:204-230]"
+                                      ],
+                           "owner":  "RTC/QA owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-19",
+                           "severity":  "MED",
+                           "roleSurface":  "Data/policy",
+                           "observation":  "PDF pages 5–17 were not OCR’d; verbatim policy numbers cannot be quoted from this evidence set",
+                           "status":  "OPEN",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: PROJECT_GUIDE.md:395]",
+                                          "[src: TEST_REPORT.md:253]"
+                                      ],
+                           "owner":  "Policy owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-20",
+                           "severity":  "LOW",
+                           "roleSurface":  "Tests/log",
+                           "observation":  "Fallback, `[SECURITY]` and mock-realtime lines in test output are expected; one line carries PowerShell’s `npm.cmd : ` prefix from `Tee-Object`",
+                           "status":  "EXPECTED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:126-134]",
+                                          "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-current-test.log:11,18,22,28]"
+                                      ],
+                           "owner":  "QA/Logging owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-21",
+                           "severity":  "INFO",
+                           "roleSurface":  "Security/review",
+                           "observation":  "A stale external review claimed no schema/tests/CI/realtime and DeepSeek usage; it describes an older Phase-1 snapshot and must not be used as a to-do list",
+                           "status":  "DISMISSED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: PROJECT_GUIDE.md:408]",
+                                          "[src: server/tests/cloudflareClient.test.js:114-140]"
+                                      ],
+                           "owner":  "Documentation owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-22",
+                           "severity":  "INFO",
+                           "roleSurface":  "Data/ops",
+                           "observation":  "One demo founder row was inserted in `public.users` at the user’s request; this is data, not a schema migration",
+                           "status":  "DISCLOSED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: TEST_REPORT.md:241]"
+                                      ],
+                           "owner":  "Data/Ops owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-23",
+                           "severity":  "LOW",
+                           "roleSurface":  "Docs/copy",
+                           "observation":  "“No group classes” is live behavior, while “Max 3 kids” is explicitly future chapter-plan language; quoting it without the qualifier is a copy risk",
+                           "status":  "RESOLVED / COPY RISK",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: README.md:3]",
+                                          "[src: PROJECT_GUIDE.md:15,85,228]"
+                                      ],
+                           "owner":  "Docs/Copy owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-24",
+                           "severity":  "INFO",
+                           "roleSurface":  "Migrations/tooling",
+                           "observation":  "Supabase CLI is absent, while `server/migrations/README.md` says migrations are not managed by CLI; consistent, but no CLI-based live apply is possible here",
+                           "status":  "CONSISTENT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/migrations/README.md:3-4]",
+                                          "[ev: supabase --version, 2026-11-26]"
+                                      ],
+                           "owner":  "Platform owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-25",
+                           "severity":  "MED",
+                           "roleSurface":  "In-flight work",
+                           "observation":  "Current 65-path working tree is uncommitted/untracked on top of `f36321c`; 40 tracked files changed (+2137/−444) and 25 paths are untracked, including new landing, routes, services, tests and migration `0006`",
+                           "status":  "IN FLIGHT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[ev: git status --porcelain=v1 --untracked-files=all; git diff --stat, 2026-11-26]"
+                                      ],
+                           "owner":  "Repo maintainer"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-26",
+                           "severity":  "MED",
+                           "roleSurface":  "Parent/announcements",
+                           "observation":  "New parent/announcement surfaces add 15 router definitions beyond the earlier 99-definition inventory, but `PROJECT_FLOW_FILE.md` currently has headings only for §§0–4 and no §5 route table; §13.e is therefore the count authority until §5 is written",
+                           "status":  "DRIFT / IN FLIGHT",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-roles-surfaces.md:229-235]",
+                                          "[src: PROJECT_FLOW_FILE.md:3-522]",
+                                          "[ev: Get-ChildItem PROJECT_FLOW_FILE.md|Select-String \u0027^## \u0027, 2026-11-26]"
+                                      ],
+                           "owner":  "Documentation owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-27",
+                           "severity":  "HIGH",
+                           "roleSurface":  "Live session routes",
+                           "observation":  "`loadSession()` calls `db.findSession(id)` without `await`, but the live adapter delegates to `supabase.findSession()`, whose `getRecord()` is async; live session routes therefore receive a Promise instead of a session record",
+                           "status":  "OPEN / LIVE BLOCKER",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/middleware/auth.js:91-102]",
+                                          "[src: server/db/index.js:13-17,638-650]",
+                                          "[src: server/db/supabase.js:79,216-218]",
+                                          "[ev: npm.cmd test --prefix server, 2026-11-26]"
+                                      ],
+                           "owner":  "Backend owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-28",
+                           "severity":  "MED",
+                           "roleSurface":  "Scale/concurrency",
+                           "observation":  "Batch allotment uses a process-wide promise queue, while celebration throttles, rate-limit buckets and reminder scheduling use per-process state; horizontal scaling needs shared coordination",
+                           "status":  "OPEN / SCALE RISK",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/services/batchService.js:24-31]",
+                                          "[src: server/services/celebrationService.js:126-147]",
+                                          "[src: server/middleware/rateLimit.js:1-5]",
+                                          "[src: server/jobs/reminders.js:17-18,123]",
+                                          "[src: server/tests/concurrency.test.js:1-4,158-176]",
+                                          "[ev: npm.cmd test --prefix server, 2026-11-26]"
+                                      ],
+                           "owner":  "Platform/Backend owner"
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-29",
+                           "severity":  "MED",
+                           "owner":  "Credential-login owner",
+                           "roleSurface":  "Login",
+                           "observation":  "Client role-tab mismatch refusal exists only in login/login.js; the API relies on per-route role gates.",
+                           "status":  "OPEN / CLIENT-ONLY",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: login/login.js:147-150]",
+                                          "[src: server/tests/credentialLogin.test.js:61-67]"
+                                      ]
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-30",
+                           "severity":  "HIGH",
+                           "owner":  "Auth/Backend owner",
+                           "roleSurface":  "Auth API",
+                           "observation":  "GET /api/auth/batch has no auth.requireAuth; it checks req.user.role and returns 403 for everyone.",
+                           "status":  "OPEN / AUTH GAP",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/routes/auth.js:32-42]"
+                                      ]
+                       },
+                       {
+                           "entity":  "however",
+                           "id":  "H-31",
+                           "severity":  "LOW",
+                           "owner":  "Platform/Frontend owner",
+                           "roleSurface":  "Static serving",
+                           "observation":  "The login.html static-allowlist gap that returned JSON 404 is resolved; server/app.js now permits login.html and login/, and a browser GET returned the sign-in page.",
+                           "status":  "RESOLVED",
+                           "tag":  "VERIFIED",
+                           "source":  [
+                                          "[src: server/app.js:119-125]",
+                                          "[ev: browser GET http://localhost:4000/login.html?role=student, 2026-11-26]"
+                                      ]
+                       }
+                   ],
+    "routes":  [
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/support-escalations",
+                       "source":  [
+                                      "[src: server/routes/admin.js:12]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/settings",
+                       "source":  [
+                                      "[src: server/routes/admin.js:26]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/admin/settings",
+                       "source":  [
+                                      "[src: server/routes/admin.js:35]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "DELETE",
+                       "path":  "/api/admin/settings",
+                       "source":  [
+                                      "[src: server/routes/admin.js:53]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/admin/batches/:batchId/allot",
+                       "source":  [
+                                      "[src: server/routes/admin.js:64]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/batches",
+                       "source":  [
+                                      "[src: server/routes/admin.js:76]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/trainer-onboarding",
+                       "source":  [
+                                      "[src: server/routes/admin.js:91]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/admin/trainer-onboarding/:trainerId/locked",
+                       "source":  [
+                                      "[src: server/routes/admin.js:109]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/trainer-onboarding/corrections",
+                       "source":  [
+                                      "[src: server/routes/admin.js:120]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/trainer-onboarding/:trainerId/documents/:documentId",
+                       "source":  [
+                                      "[src: server/routes/admin.js:131]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/announcements/recipients",
+                       "source":  [
+                                      "[src: server/routes/admin.js:147]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/admin/announcements",
+                       "source":  [
+                                      "[src: server/routes/admin.js:164]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/admin/announcements",
+                       "source":  [
+                                      "[src: server/routes/admin.js:175]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/agora/token",
+                       "source":  [
+                                      "[src: server/routes/agora.js:37]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/agora/recording/start",
+                       "source":  [
+                                      "[src: server/routes/agora.js:48]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/agora/recording/stop",
+                       "source":  [
+                                      "[src: server/routes/agora.js:69]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/agora/webhook",
+                       "source":  [
+                                      "[src: server/routes/agora.js:91]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/announcements",
+                       "source":  [
+                                      "[src: server/routes/announcements.js:31]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/announcements/unread",
+                       "source":  [
+                                      "[src: server/routes/announcements.js:38]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/announcements/:id/read",
+                       "source":  [
+                                      "[src: server/routes/announcements.js:43]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/auth/batch",
+                       "source":  [
+                                      "[src: server/routes/auth.js:32]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/auth/login",
+                       "source":  [
+                                      "[src: server/routes/auth.js:44]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/auth/demo",
+                       "source":  [
+                                      "[src: server/routes/auth.js:78]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/auth/me",
+                       "source":  [
+                                      "[src: server/routes/auth.js:96]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/chat/trainer-support",
+                       "source":  [
+                                      "[src: server/routes/chat.js:47]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/chat/student-doubt",
+                       "source":  [
+                                      "[src: server/routes/chat.js:48]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/contact",
+                       "source":  [
+                                      "[src: server/routes/contact.js:28]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/leaves",
+                       "source":  [
+                                      "[src: server/routes/leaves.js:10]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/leaves",
+                       "source":  [
+                                      "[src: server/routes/leaves.js:14]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/network/probe",
+                       "source":  [
+                                      "[src: server/routes/network.js:21]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/network/probe",
+                       "source":  [
+                                      "[src: server/routes/network.js:27]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/thread",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:86]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/thread/:studentId",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:87]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/threads/:studentId/messages",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:88]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/messages",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:89]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/thread/:studentId/messages",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:91]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/threads/:studentId/messages",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:92]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/messages",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:93]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/thread/:studentId/read",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:95]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/threads/:studentId/mark-read",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:96]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/parent-chat/read",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:97]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/unread",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:99]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/unread-summary",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:100]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/flags",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:102]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/parent-chat/privacy-flags",
+                       "source":  [
+                                      "[src: server/routes/parentChat.js:103]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/policy/config",
+                       "source":  [
+                                      "[src: server/routes/policy.js:7]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/razorpay/orders/monthly",
+                       "source":  [
+                                      "[src: server/routes/razorpay.js:10]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/razorpay/webhook",
+                       "source":  [
+                                      "[src: server/routes/razorpay.js:44]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/sessions/:sessionId/state",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:25]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/rtc-token",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:30]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/sessions/:sessionId/events",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:129]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/chat",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:147]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/board/share",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:170]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/media-permission",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:180]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/media-state",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:205]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/reaction-permission",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:234]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/network-check",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:263]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/badges",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:293]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/celebrate",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:322]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/reactions",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:337]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/notify-parent",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:365]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/sessions/:sessionId/presence",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:378]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/presence",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:382]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/presence/finalize",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:394]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/sessions/:sessionId/end",
+                       "source":  [
+                                      "[src: server/routes/sessions.js:398]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/student/dashboard",
+                       "source":  [
+                                      "[src: server/routes/student.js:15]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/student/sessions/:sessionId",
+                       "source":  [
+                                      "[src: server/routes/student.js:20]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/student/sessions/:sessionId/quiz/answers",
+                       "source":  [
+                                      "[src: server/routes/student.js:36]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/student/sessions/:sessionId/quiz/attempts/:attemptId",
+                       "source":  [
+                                      "[src: server/routes/student.js:92]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/student/me/curriculum",
+                       "source":  [
+                                      "[src: server/routes/student.js:121]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/student/practice/batch",
+                       "source":  [
+                                      "[src: server/routes/student.js:129]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/student/practice/batch/:batchId",
+                       "source":  [
+                                      "[src: server/routes/student.js:150]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/student/practice/batch/:batchId/answer",
+                       "source":  [
+                                      "[src: server/routes/student.js:162]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/student/tutor/query",
+                       "source":  [
+                                      "[src: server/routes/student.js:179]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/quiz/templates",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:101]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/attention",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:108]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/engagement/live/:sessionId",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:117]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/engagement/student/:studentId",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:132]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/engagement/cohort",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:147]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/payouts",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:152]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/payouts/:period",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:156]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/score",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:160]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/dashboard",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:164]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/onboarding/documents",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:177]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/onboarding",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:189]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/onboarding",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:195]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/trainer/onboarding/personal",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:207]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/batches",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:219]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/attendance",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:225]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/trainer/attendance/:sessionId",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:232]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/attendance/:sessionId/save",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:260]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/sessions",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:298]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:308]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/sessions/:sessionId",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:348]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/trainer/sessions/:sessionId/planner",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:352]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PATCH",
+                       "path":  "/api/trainer/sessions/:sessionId/page",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:380]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/launch",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:395]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/reveal",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:413]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/hints",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:459]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/next",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:501]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/drafts",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:540]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/drafts/:draftId/approve",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:544]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/reteach",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:573]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/generate",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:586]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/sessions/:sessionId/quiz/new-check",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:645]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/slots",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:742]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/slots",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:746]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "DELETE",
+                       "path":  "/api/trainer/slots/:slotId",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:757]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/schedule/week",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:768]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/trainer/schedule",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:775]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "PUT",
+                       "path":  "/api/trainer/students/:studentId/curriculum",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:783]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/trainer/copilot/query",
+                       "source":  [
+                                      "[src: server/routes/trainer.js:805]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/webhooks/recording",
+                       "source":  [
+                                      "[src: server/routes/webhooks.js:49]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "POST",
+                       "path":  "/api/webhooks/whatsapp",
+                       "source":  [
+                                      "[src: server/routes/webhooks.js:85]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/health",
+                       "source":  [
+                                      "[src: server/app.js:56]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/public/config",
+                       "source":  [
+                                      "[src: server/app.js:68]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/api/realtime/log",
+                       "source":  [
+                                      "[src: server/app.js:100]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "route",
+                       "method":  "GET",
+                       "path":  "/favicon.ico",
+                       "source":  [
+                                      "[src: server/app.js:106]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   }
+               ],
+    "routeCounts":  [
+                        {
+                            "entity":  "routeCount",
+                            "file":  "admin.js",
+                            "definitions":  13,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "agora.js",
+                            "definitions":  4,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "announcements.js",
+                            "definitions":  3,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "auth.js",
+                            "definitions":  4,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "chat.js",
+                            "definitions":  2,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "contact.js",
+                            "definitions":  1,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "leaves.js",
+                            "definitions":  2,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "network.js",
+                            "definitions":  2,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "parentChat.js",
+                            "definitions":  14,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "policy.js",
+                            "definitions":  1,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "razorpay.js",
+                            "definitions":  2,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "sessions.js",
+                            "definitions":  17,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "student.js",
+                            "definitions":  9,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "trainer.js",
+                            "definitions":  38,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        },
+                        {
+                            "entity":  "routeCount",
+                            "file":  "webhooks.js",
+                            "definitions":  2,
+                            "source":  [
+                                           "[src: tpff-current-routes.txt]"
+                                       ],
+                            "tag":  "VERIFIED"
+                        }
+                    ],
+    "roles":  [
+                  {
+                      "entity":  "role",
+                      "name":  "founder",
+                      "description":  "Founder console; JWT role from users.role",
+                      "source":  [
+                                     "[src: server/db/schema.sql:39]; [src: server/auth/token.js:39-51]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "trainer",
+                      "description":  "Trainer console; JWT role from users.role",
+                      "source":  [
+                                     "[src: server/db/schema.sql:39]; [src: server/routes/trainer.js:25-26]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "student",
+                      "description":  "Student desk; JWT role from users.role",
+                      "source":  [
+                                     "[src: server/db/schema.sql:39]; [src: server/routes/student.js:12-13]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "parent",
+                      "description":  "Express/demo role; absent from DB role constraint",
+                      "source":  [
+                                     "[src: server/db/mock.js:58-62]; [src: server/routes/parentChat.js:26-28]; [src: server/db/schema.sql:39]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "service_role",
+                      "description":  "Supabase service actor; bypasses RLS",
+                      "source":  [
+                                     "[src: server/db/schema.sql:18-19]; [src: server/db/supabase.js:13-25]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "webhook_callers",
+                      "description":  "Twilio/Razorpay/Agora/recording signed webhook callers",
+                      "source":  [
+                                     "[src: tpff-roles-surfaces.md:200-203]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "reminders_timer",
+                      "description":  "setInterval job; 300000 ms default",
+                      "source":  [
+                                     "[src: server/jobs/reminders.js:6-9,112-124]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  },
+                  {
+                      "entity":  "role",
+                      "name":  "chat_worker",
+                      "description":  "Cloudflare Worker with HMAC token verification",
+                      "source":  [
+                                     "[src: worker.js:78-110,274-281]"
+                                 ],
+                      "tag":  "VERIFIED"
+                  }
+              ],
+    "tables":  [
+                   {
+                       "entity":  "table",
+                       "name":  "public.users",
+                       "source":  [
+                                      "[src: server/db/schema.sql:29]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.trainer_profiles",
+                       "source":  [
+                                      "[src: server/db/schema.sql:43]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.student_profiles",
+                       "source":  [
+                                      "[src: server/db/schema.sql:51]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.packs",
+                       "source":  [
+                                      "[src: server/db/schema.sql:64]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.razorpay_orders",
+                       "source":  [
+                                      "[src: server/db/schema.sql:78]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.payments",
+                       "source":  [
+                                      "[src: server/db/schema.sql:90]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.sessions",
+                       "source":  [
+                                      "[src: server/db/schema.sql:105]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.lesson_pages",
+                       "source":  [
+                                      "[src: server/db/schema.sql:139]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.trainer_notes",
+                       "source":  [
+                                      "[src: server/db/schema.sql:151]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.planner_items",
+                       "source":  [
+                                      "[src: server/db/schema.sql:159]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_templates",
+                       "source":  [
+                                      "[src: server/db/schema.sql:172]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quizzes",
+                       "source":  [
+                                      "[src: server/db/schema.sql:180]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_questions",
+                       "source":  [
+                                      "[src: server/db/schema.sql:191]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_drafts",
+                       "source":  [
+                                      "[src: server/db/schema.sql:207]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_reveals",
+                       "source":  [
+                                      "[src: server/db/schema.sql:221]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_attempts",
+                       "source":  [
+                                      "[src: server/db/schema.sql:228]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.board_strokes",
+                       "source":  [
+                                      "[src: server/db/schema.sql:287]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.quiz_canvas_strokes",
+                       "source":  [
+                                      "[src: server/db/schema.sql:299]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.recordings",
+                       "source":  [
+                                      "[src: server/db/schema.sql:322]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.attendance",
+                       "source":  [
+                                      "[src: server/db/schema.sql:357]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.leaves",
+                       "source":  [
+                                      "[src: server/db/schema.sql:375]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.trainer_slots",
+                       "source":  [
+                                      "[src: server/db/schema.sql:416]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.presence_events",
+                       "source":  [
+                                      "[src: server/db/schema.sql:429]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.presence_snapshots",
+                       "source":  [
+                                      "[src: server/db/schema.sql:443]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.payouts",
+                       "source":  [
+                                      "[src: server/db/schema.sql:458]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.trainer_incidents",
+                       "source":  [
+                                      "[src: server/db/schema.sql:485]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.attendance_bonus_months",
+                       "source":  [
+                                      "[src: server/db/schema.sql:498]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.mvt_rankings",
+                       "source":  [
+                                      "[src: server/db/schema.sql:506]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.whatsapp_messages",
+                       "source":  [
+                                      "[src: server/db/schema.sql:525]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.support_escalations",
+                       "source":  [
+                                      "[src: server/db/schema.sql:532]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.trainer_support_logs",
+                       "source":  [
+                                      "[src: server/db/schema.sql:547]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   },
+                   {
+                       "entity":  "table",
+                       "name":  "public.student_doubt_logs",
+                       "source":  [
+                                      "[src: server/db/schema.sql:561]"
+                                  ],
+                       "tag":  "VERIFIED"
+                   }
+               ],
+    "envVars":  [
+                    {
+                        "entity":  "envVar",
+                        "name":  "ADMIN_EMAIL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_APP_CERTIFICATE",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_APP_ID",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_CUSTOMER_KEY",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_CUSTOMER_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_ACCESS_KEY",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_BUCKET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_REGION",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_SECRET_KEY",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_STORAGE_CONFIG",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_RECORDING_VENDOR",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AGORA_WEBHOOK_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "ALLOWED_ORIGINS",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "ALLOW_DEMO_AUTH",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AUTH_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "AUTH_TTL_SECONDS",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CHAT_WORKER_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_ACCOUNT_ID",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_API_TOKEN",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_TIMEOUT_MS",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_VISION_FALLBACK_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CLOUDFLARE_VISION_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "CORS_ORIGIN",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "DATABASE_MODE",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "DATABASE_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "DEMO_PASSWORD",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "ENABLE_DEMO_LOGINS",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "MATHIFY_MIGRATE_CONFIRM",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "NODEMAILER_EMAIL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "NODEMAILER_PASSWORD",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "NODEMAILER_SERVICE",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "NODE_ENV",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "OBSERVABILITY_WEBHOOK_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "PORT",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "POSTGRES_DB",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "POSTGRES_PASSWORD",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "POSTGRES_USER",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "RATE_LIMIT_PER_MIN",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "RAZORPAY_KEY_ID",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "RAZORPAY_KEY_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "RAZORPAY_WEBHOOK_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "REALTIME_MODE",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "RECORDING_WEBHOOK_SECRET",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "REMINDERS_ENABLED",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "REMINDER_CHECK_MS",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "SLACK_WEBHOOK_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "SUPABASE_PUBLISHABLE_KEY",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "SUPABASE_SECRET_KEY",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "SUPABASE_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "TEXT_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "TWILIO_ACCOUNT_SID",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "TWILIO_AUTH_TOKEN",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "TWILIO_WEBHOOK_URL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "TWILIO_WHATSAPP_NUMBER",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "VISION_FALLBACK_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "VISION_MODEL",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:109]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    },
+                    {
+                        "entity":  "envVar",
+                        "name":  "WHATSAPP_DEMO_PARENT_PHONE",
+                        "source":  [
+                                       "[src: tpff-data-state-env.md:106]"
+                                   ],
+                        "tag":  "VERIFIED"
+                    }
+                ],
+    "version":  "v3.0.0",
+    "updateMode":  "PATCH",
+    "newRulesApplied":  9,
+    "newQuestionsAnswered":  0,
+    "artifacts":  [
+                      "PROJECT_FLOW_FILE.md",
+                      "PROJECT_FLOW_INDEX.json",
+                      "KNOWN_UNKNOWNS.md",
+                      "HOWEVER_LOG.md",
+                      "TPFF_UPDATE_REPORT.md",
+                      "TPFF_QUESTION_LEDGER.md"
+                  ]
+}

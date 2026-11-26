@@ -12,8 +12,8 @@
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.parent.token';
-  var DEMO_EMAIL = 'parent@mathify.app';
-  var DEMO_PASSWORD = 'mathify-demo';
+  var ROLE = 'parent';
+  var LOGIN_PAGE = 'login.html?role=' + ROLE;
   var LIMIT = 2000;
   var POLL_MS = 30000;
   var UNAVAILABLE = 'Messages are unavailable right now';
@@ -26,7 +26,6 @@
   ];
   var el = {};
   var memoryToken = null;
-  var authPromise = null;
   var state = {
     thread: null,
     messages: [],
@@ -90,31 +89,30 @@
     });
   }
 
-  /* Demo login follows the student/trainer client pattern: reuse a stored
-     token, otherwise discover demo accounts and fall back to the parent one. */
+  /* The private inbox needs a verified parent token. No silent demo login. */
+  function requireLogin() {
+    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    memoryToken = null;
+    var next = window.location.pathname + window.location.search;
+    var target = LOGIN_PAGE + '&next=' + encodeURIComponent(next);
+    if (window.location.replace) window.location.replace(target);
+    else window.location.href = target;
+    return new Error('SIGN_IN_REQUIRED');
+  }
+
   function ensureAuth() {
     var existing = readToken();
     if (existing) return Promise.resolve(existing);
-    if (authPromise) return authPromise;
-
-    authPromise = rawRequest('/auth/demo', {}, null)
-      .then(function (info) {
-        var accounts = (info && info.accounts) || [];
-        var account = accounts.find(function (item) { return item && item.role === 'parent'; });
-        return login(
-          (account && (account.email || account.username)) || DEMO_EMAIL,
-          (info && info.password) || DEMO_PASSWORD
-        );
-      })
-      .catch(function () { return login(DEMO_EMAIL, DEMO_PASSWORD); })
-      .then(function (token) { authPromise = null; return token; })
-      .catch(function (error) { authPromise = null; throw error; });
-
-    return authPromise;
+    return Promise.reject(requireLogin());
   }
 
   function api(path, options) {
-    return ensureAuth().then(function (token) { return rawRequest(path, options, token); });
+    return ensureAuth().then(function (token) {
+      return rawRequest(path, options, token).catch(function (error) {
+        if (error.status === 401 || error.status === 403) return Promise.reject(requireLogin());
+        throw error;
+      });
+    });
   }
 
   function isBlocked(error) {
@@ -455,16 +453,8 @@
   }
 
   function demoLogin() {
-    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) {}
-    memoryToken = null;
-    authPromise = null;
-    setNotice('Signing in with the demo parent account…', 'info', false);
-    ensureAuth().then(load).catch(function () {
-      state.unavailable = true;
-      setNotice(UNAVAILABLE, 'warn', true);
-      setStatus('Unavailable');
-      render();
-    });
+    window.location.assign(LOGIN_PAGE + '&next=' +
+      encodeURIComponent(window.location.pathname + window.location.search));
   }
 
   function bind() {

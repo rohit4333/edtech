@@ -12,6 +12,7 @@
 
 const db = require('../db');
 const appPolicy = require('../config/policy.json');
+const sessionTiming = require('./sessionTimingService');
 
 const MINUTE_MS = 60 * 1000;
 
@@ -24,6 +25,9 @@ function rules() {
     graceMinutes: Number(configured.graceMinutes) || 10,
     trainerMinPresentMinutes: Number.isFinite(Number(configured.trainerMinPresentMinutes))
       ? Number(configured.trainerMinPresentMinutes) : 15,
+    trainerMinPresentWithStudentMinutes: Number.isFinite(
+      Number(configured.trainerMinPresentWithStudentMinutes)
+    ) ? Number(configured.trainerMinPresentWithStudentMinutes) : 50,
     studentMinPresentMinutes: Number.isFinite(Number(configured.studentMinPresentMinutes))
       ? Number(configured.studentMinPresentMinutes) : 15,
     learningEventsForPresent: Number(configured.learningEventsForPresent) || 3,
@@ -142,6 +146,20 @@ function toMs(value) {
   return Number.isNaN(time) ? null : time;
 }
 
+/* Teaching-time evidence is counted only inside the scheduled 55-minute
+   window. Overlapping heartbeat and Agora evidence stay separate; the larger
+   total wins, matching the existing active-seconds rule. */
+function secondsInWindow(intervals, start, end) {
+  if (start === null || start === undefined) return 0;
+  let total = 0;
+  intervals.forEach(function (interval) {
+    const from = Math.max(interval[0], start);
+    const to = Math.min(interval[1], end === null ? Infinity : end);
+    if (to > from) total += (to - from) / 1000;
+  });
+  return total;
+}
+
 function participantState(session, role, events, asOf, config) {
   const userId = role === 'trainer' ? session.trainerId : session.studentId;
   const roleEvents = events.filter(function (event) { return event.role === role; });
@@ -156,6 +174,7 @@ function participantState(session, role, events, asOf, config) {
   let lastActiveAt = null;
   let heartbeatSeconds = 0;
   let learningEvents = 0;
+  const heartbeatIntervals = [];
   const agoraIntervals = [];
   let agoraJoinedAt = null;
 
@@ -178,7 +197,10 @@ function participantState(session, role, events, asOf, config) {
         joinedAt = joinedAt === null ? at : Math.min(joinedAt, at);
         if (lastActiveAt !== null) {
           const delta = (at - lastActiveAt) / 1000;
-          if (delta > 0) heartbeatSeconds += Math.min(delta, capSeconds);
+          if (delta > 0) {
+            heartbeatSeconds += Math.min(delta, capSeconds);
+            heartbeatIntervals.push([lastActiveAt, at]);
+          }
         }
         lastActiveAt = at;
       } else {
@@ -198,6 +220,11 @@ function participantState(session, role, events, asOf, config) {
   }, 0);
   const activeSeconds = Math.max(heartbeatSeconds, agoraSeconds);
   const activeMinutes = Math.floor(activeSeconds / 60);
+  const windowEnd = sessionTiming.completionWindowEnd(session);
+  const activeSecondsInWindow = Math.max(
+    secondsInWindow(heartbeatIntervals, start, windowEnd),
+    secondsInWindow(agoraIntervals, start, windowEnd)
+  );
 
   const noShow = joinedAt === null && graceEnd !== null && asOf >= graceEnd;
   let state;
@@ -229,6 +256,9 @@ function participantState(session, role, events, asOf, config) {
     lastSeenAt: lastSeenAt === null ? null : new Date(lastSeenAt).toISOString(),
     activeSeconds: Math.round(activeSeconds),
     activeMinutes: activeMinutes,
+    activeSecondsInWindow: Math.round(activeSecondsInWindow),
+    activeMinutesInWindow: Math.floor(activeSecondsInWindow / 60),
+    windowEndsAt: windowEnd ? new Date(windowEnd).toISOString() : null,
     learningEvents: learningEvents,
     requiredMinutes: requiredMinutes,
     meetsMinimum: meetsMinimum,
@@ -246,8 +276,16 @@ function compute(session, now) {
 
   const sessionOpen = ['leave', 'cancelled', 'canceled', 'no_show', 'noshow', 'no-show']
     .indexOf(String(session.status || '').toLowerCase()) === -1;
+  /* A student who never joins does not block pay, but the trainer still has to
+     be present. Once the student joins, the confirmed class is 50 minutes. */
+  const studentJoined = student.joinedAt !== null;
+  const requiredTrainerMinutes = studentJoined
+    ? config.trainerMinPresentWithStudentMinutes : config.trainerMinPresentMinutes;
+  const trainerMeetsPayout = studentJoined
+    ? trainer.activeSecondsInWindow >= requiredTrainerMinutes * MINUTE_MS / 1000
+    : trainer.activeMinutes >= requiredTrainerMinutes;
   const payoutEligible = config.trainerPayRequiresPresence
-    ? sessionOpen && trainer.meetsMinimum
+    ? sessionOpen && trainerMeetsPayout
     : sessionOpen;
 
   return {
@@ -257,13 +295,23 @@ function compute(session, now) {
     participants: { trainer: trainer, student: student },
     trainerPresent: trainer.meetsMinimum,
     studentPresent: student.meetsMinimum,
+    trainerJoinedAt: trainer.joinedAt,
+    studentJoinedAt: student.joinedAt,
+    trainerActiveSecondsInWindow: trainer.activeSecondsInWindow,
     trainerNoShow: trainer.state === 'no_show',
     studentNoShow: student.state === 'no_show',
     payoutEligible: payoutEligible,
     payoutBlocked: !payoutEligible,
+    payoutRequirement: {
+      studentJoined: studentJoined,
+      requiredTrainerMinutes: requiredTrainerMinutes,
+      satisfied: trainerMeetsPayout,
+      source: 'presence_events'
+    },
     attendance: { trainer: trainer.attendance, student: student.attendance },
-    rule: 'Trainer is paid after at least ' + config.trainerMinPresentMinutes +
-      ' actively present minutes, regardless of student attendance.'
+    rule: studentJoined
+      ? 'When the student joins, the trainer is paid after 50 active teaching minutes inside the first 55 minutes from the scheduled start.'
+      : 'When the student does not join, the trainer is paid after at least 15 active minutes.'
   };
 }
 
@@ -281,7 +329,12 @@ function stateFor(session, user, now) {
       : { state: snapshot.participants.student.state },
     trainerPresent: snapshot.trainerPresent,
     studentPresent: snapshot.studentPresent,
+    trainerJoinedAt: role === 'trainer' || role === null ? snapshot.trainerJoinedAt : undefined,
+    studentJoinedAt: snapshot.studentJoinedAt,
+    trainerActiveSecondsInWindow: role === 'trainer' || role === null
+      ? snapshot.trainerActiveSecondsInWindow : undefined,
     payoutEligible: role === 'trainer' ? snapshot.payoutEligible : undefined,
+    payoutRequirement: role === 'trainer' || role === null ? snapshot.payoutRequirement : undefined,
     rules: rules()
   };
 }
@@ -294,9 +347,14 @@ function finalize(session, now) {
     current.presence = {
       trainerPresentMinutes: snapshot.participants.trainer.activeMinutes,
       studentPresentMinutes: snapshot.participants.student.activeMinutes,
+      trainerJoinedAt: snapshot.trainerJoinedAt,
+      studentJoinedAt: snapshot.studentJoinedAt,
+      trainerActiveSecondsInWindow: snapshot.trainerActiveSecondsInWindow,
+      trainerActiveMinutesInWindow: snapshot.participants.trainer.activeMinutesInWindow,
       trainerPresent: snapshot.trainerPresent,
       studentPresent: snapshot.studentPresent,
       payoutEligible: snapshot.payoutEligible,
+      payoutRequirement: snapshot.payoutRequirement,
       computedAt: snapshot.computedAt,
       source: 'presence_events'
     };

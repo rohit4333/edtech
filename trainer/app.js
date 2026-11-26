@@ -10,6 +10,11 @@
 
   var TZ = window.MATHIFY_TZ || 'Asia/Kolkata';
   var activeSessionId = window.MATHIFY_SESSION_ID || null;
+  var ACTIVE_LINK_MINUTES = 50;
+  var dashboardSnapshot = null;
+  var activeSessionStartedAt = null;
+  var rolledSessionIds = {};
+  var rolloverTimer = null;
 
   function parts(value) {
     if (!value) return null;
@@ -424,18 +429,43 @@
     });
   }
 
-  $$('.nav a[data-nav]').forEach(function (link) {
-    link.addEventListener('click', function () {
-      setActive('.nav a[data-nav]', link);
-      var targetId = link.getAttribute('href');
-      if (targetId && targetId.charAt(0) === '#') {
-        var target = document.getElementById(targetId.slice(1));
-        if (target && typeof target.scrollIntoView === 'function') {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
+  function viewForLink(link) {
+    var href = link && link.getAttribute('href') || '';
+    if (href.charAt(0) !== '#') return null;
+    var target = document.getElementById(href.slice(1));
+    if (!target) return null;
+    return target.closest ? target.closest('[data-view]') : null;
+  }
+
+  function activateView(link, scroll) {
+    if (!link) return;
+    setActive('.nav a[data-nav]', link);
+    var view = viewForLink(link);
+    var name = view ? view.getAttribute('data-view') : 'today';
+    $$('[data-view]').forEach(function (node) {
+      node.classList.toggle('is-active', node.getAttribute('data-view') === name);
     });
+    if (scroll) {
+      var target = view || document.getElementById('main');
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
+
+  $$('.nav a[data-nav]').forEach(function (link) {
+    link.addEventListener('click', function () { activateView(link, true); });
   });
+
+  window.addEventListener('hashchange', function () {
+    var link = $$('.nav a[data-nav]').find(function (item) {
+      return item.getAttribute('href') === window.location.hash;
+    });
+    activateView(link || $$('.nav a[data-nav]')[0], false);
+  });
+  activateView($$('.nav a[data-nav]').find(function (item) {
+    return item.getAttribute('href') === window.location.hash;
+  }) || $$('.nav a[data-nav]')[0], false);
 
   $$('.tabs button[data-tab]').forEach(function (button) {
     button.addEventListener('click', function () {
@@ -1036,28 +1066,93 @@
     }
   }
 
+  function renderBatches(batches) {
+    var list = $('#allotedBatchList');
+    if (!list) return;
+    list.textContent = '';
+    var rows = Array.isArray(batches) ? batches : [];
+    setText('#batchCount', rows.length + (rows.length === 1 ? ' batch' : ' batches'));
+    if (!rows.length) {
+      var empty = document.createElement('li');
+      empty.className = 'batch-empty';
+      empty.textContent = 'No batches allotted yet.';
+      list.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (batch) {
+      var item = document.createElement('li');
+      item.title = '1:1 · ' + batch.studentName + ' · Batch ' + batch.code;
+      var name = document.createElement('span');
+      name.className = 'batch-student';
+      name.textContent = batch.studentName || 'Student';
+      var code = document.createElement('span');
+      code.className = 'batch-code';
+      code.textContent = batch.code || '—';
+      item.appendChild(name);
+      item.appendChild(code);
+      list.appendChild(item);
+    });
+  }
+
+  function applyActiveSession(session) {
+    if (!session) return;
+    activeSessionId = session.id;
+    activeSessionStartedAt = session.startsAt || session.scheduledAt || null;
+    setText('#nextTime', fmtTime(session.startsAt) + ' · live 1:1');
+    setText('#nextTopic', session.title);
+    setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
+      ' · ' + (session.code || 'Session') + ' · link active for 50 min');
+    renderPlan(session);
+    setText('#countdownLabel', session.status === 'live' ? 'session' : 'starts in');
+    setText('#countdown', session.status === 'live' ? 'LIVE NOW' : 'SOON');
+  }
+
+  function nextScheduledSession(excludeId) {
+    if (!dashboardSnapshot || !Array.isArray(dashboardSnapshot.today)) return null;
+    var cutoff = Date.now() - ACTIVE_LINK_MINUTES * 60000;
+    return dashboardSnapshot.today.filter(function (session) {
+      return session.id !== excludeId &&
+        !rolledSessionIds[session.id] &&
+        (session.status === 'scheduled' || session.status === 'live') &&
+        new Date(session.startsAt || session.scheduledAt || 0).getTime() >= cutoff;
+    }).sort(function (left, right) {
+      return new Date(left.startsAt || 0) - new Date(right.startsAt || 0);
+    })[0] || null;
+  }
+
+  /* Dashboard link promotion is exactly 50 minutes from session start. Pay
+     still uses the 55-minute audit window on the server; the two stay separate. */
+  function checkActiveLinkRollover() {
+    if (!activeSessionStartedAt) return;
+    var started = new Date(activeSessionStartedAt).getTime();
+    if (isNaN(started) || Date.now() - started < ACTIVE_LINK_MINUTES * 60000) return;
+    var nextSession = nextScheduledSession(activeSessionId);
+    if (!nextSession) return;
+    rolledSessionIds[activeSessionId] = true;
+    applyActiveSession(nextSession);
+    if (window.toast) window.toast('Next session link is now active: ' + nextSession.title + '.');
+  }
+
   function renderDashboard(dashboard, score, payout, attention, register) {
     document.body.setAttribute('data-api', 'live');
     apiRendered = true;
+    dashboardSnapshot = dashboard;
 
+    var total = dashboard.summary.sessionsToday || 0;
+    var taken = dashboard.summary.sessionsTaken || 0;
+    var remaining = dashboard.summary.sessionsRemaining || 0;
     setText('#greetingName', (dashboard.trainer && dashboard.trainer.name || 'Ananya').split(' ')[0]);
-    setText('#subSessions', plural(dashboard.summary.sessionsToday, 'session') + ' today');
+    setText('#subSessions', plural(total, 'session') + ' today · ' + taken + ' taken · ' + remaining + ' left');
     setText('#subStudents', plural(dashboard.summary.studentsNext, 'student') + ' next');
     var attentionWord = dashboard.summary.needsAttention === 1 ? 'item needs' : 'items need';
     setText('#subAttention', dashboard.summary.needsAttention + ' ' + attentionWord + ' attention');
     setText('#attentionCount', String(dashboard.summary.needsAttention).padStart(2, '0'));
-    setText('#dayCount', plural(dashboard.today.length, 'session'));
+    setText('#dayCount', plural(total, 'session') + ' · ' + taken + ' taken · ' + remaining + ' left');
 
     var next = dashboard.nextSession;
-    if (next) {
-      if (next.id) activeSessionId = next.id;
-      setText('#nextTime', fmtTime(next.startsAt) + ' · live 1:1');
-      setText('#nextTopic', next.title);
-      setText('#nextMeta', '1:1 · ' + (next.student ? next.student.name : 'Student') + ' · ' + next.code);
-      renderPlan(next);
-      setText('#countdownLabel', next.status === 'live' ? 'session' : 'starts in');
-      setText('#countdown', next.status === 'live' ? 'LIVE NOW' : 'SOON');
-    }
+    if (next && !rolledSessionIds[next.id]) applyActiveSession(next);
+    checkActiveLinkRollover();
+    if (!rolloverTimer) rolloverTimer = window.setInterval(checkActiveLinkRollover, 1000);
 
     renderTimeline(dashboard.today);
     renderMetrics(dashboard, score, payout);
@@ -1084,9 +1179,11 @@
       api.getScore().catch(function () { return null; }),
       api.getPayout().catch(function () { return null; }),
       api.getAttention().catch(function () { return null; }),
-      api.getAttendance().catch(function () { return null; })
+      api.getAttendance().catch(function () { return null; }),
+      api.getBatches().catch(function () { return []; })
     ]).then(function (results) {
       renderDashboard(results[0], results[1], results[2], results[3], results[4]);
+      renderBatches(results[5]);
     }).catch(function (error) {
       document.body.setAttribute('data-api', 'fallback');
       var banner = document.createElement('div');

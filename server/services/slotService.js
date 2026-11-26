@@ -147,6 +147,81 @@ function daySummary(user, date, slots, sessions, config) {
   };
 }
 
+function classLines(date, sessions) {
+  return sessions.filter(function (session) {
+    const start = sessionStart(session);
+    return start && ymd(start) === date;
+  }).map(function (session) {
+    const start = sessionStart(session);
+    return {
+      id: session.id,
+      time: start.toISOString().slice(11, 16),
+      startsAt: start.toISOString(),
+      title: session.title || '1-on-1 maths session',
+      status: session.status,
+      durationMinutes: sessionMinutes(session),
+      studentId: session.studentId,
+      batchCode: session.batchCode || null
+    };
+  }).sort(function (a, b) { return a.time.localeCompare(b.time); });
+}
+
+function parseDay(value) {
+  const input = String(value || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    fail('INVALID_DATE', 'start must use YYYY-MM-DD.');
+  }
+  const date = new Date(input + 'T00:00:00.000Z');
+  if (isNaN(date.getTime()) || ymd(date) !== input) {
+    fail('INVALID_DATE', 'start must be a real calendar date.');
+  }
+  return date;
+}
+
+function mondayOf(value) {
+  const date = parseDay(value);
+  const weekday = (date.getUTCDay() + 6) % 7;
+  return new Date(date.getTime() - weekday * 86400000);
+}
+
+function weekView(user, startDate, sessions, asOf) {
+  const config = rules();
+  const slots = db.listTrainerSlots(user.id);
+  const start = mondayOf(startDate);
+  const days = [];
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = new Date(start.getTime() + offset * 86400000);
+    const summary = daySummary(user, date, slots, sessions, config);
+    days.push(Object.assign({}, summary, {
+      classes: classLines(summary.date, sessions),
+      isToday: summary.date === new Date().toISOString().slice(0, 10),
+      isPast: asOf ? summary.date < new Date(asOf).toISOString().slice(0, 10) : false
+    }));
+  }
+
+  const totals = days.reduce(function (sum, day) {
+    sum.committedHours = round2(sum.committedHours + day.committedHours);
+    sum.unutilisedHours = round2(sum.unutilisedHours + day.unutilisedHours);
+    sum.committedPay = round2(sum.committedPay + day.committedPay);
+    sum.unutilisedPay = round2(sum.unutilisedPay + day.unutilisedPay);
+    return sum;
+  }, { committedHours: 0, unutilisedHours: 0, committedPay: 0, unutilisedPay: 0 });
+
+  return {
+    trainerId: user.id,
+    start: ymd(start),
+    end: ymd(new Date(start.getTime() + 6 * 86400000)),
+    currency: config.currency,
+    ratePerHour: rateFor(user),
+    rules: config,
+    days: days,
+    totals: totals,
+    note: 'Committed classes are paid at 100% through session pay. Unutilised slot hours are added at ' +
+      config.unutilisedPayPercent + '% of the session rate. Times are shown in UTC.'
+  };
+}
+
 function monthView(user, month, sessions, asOf) {
   const config = rules();
   const slots = db.listTrainerSlots(user.id);
@@ -157,21 +232,7 @@ function monthView(user, month, sessions, asOf) {
   for (let day = 1; day <= last; day += 1) {
     const date = new Date(Date.UTC(parts[0], parts[1] - 1, day));
     const summary = daySummary(user, date, slots, sessions, config);
-    const classes = sessions.filter(function (session) {
-      const start = sessionStart(session);
-      return start && ymd(start) === summary.date;
-    }).map(function (session) {
-      const start = sessionStart(session);
-      return {
-        id: session.id,
-        time: start.toISOString().slice(11, 16),
-        startsAt: start.toISOString(),
-        title: session.title || '1-on-1 maths session',
-        status: session.status,
-        durationMinutes: sessionMinutes(session),
-        studentId: session.studentId
-      };
-    }).sort(function (a, b) { return a.time.localeCompare(b.time); });
+    const classes = classLines(summary.date, sessions);
 
     days.push(Object.assign({}, summary, {
       classes: classes,
@@ -255,6 +316,7 @@ module.exports = {
   minuteLabel: minuteLabel,
   daySummary: daySummary,
   monthView: monthView,
+  weekView: weekView,
   unutilisedPayForPeriod: unutilisedPayForPeriod,
   addSlot: addSlot,
   removeSlot: removeSlot
