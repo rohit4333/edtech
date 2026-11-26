@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`main` plus `feat/student-rtc-control-permission`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate and reward trophies. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration has been applied.
+This codebase state (`main` plus `feat/student-rtc-control-permission`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, Cloudflare Workers AI chat assistants, server-held mastery self-practice and a private parent ↔ trainer human chat with DLP founder flags. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration, Supabase call, payment or SMS is claimed; see the live evidence in `TEST_REPORT.md`.
 
 ## Run
 
@@ -28,6 +28,7 @@ Demo accounts (password `mathify-demo`, or `DEMO_PASSWORD` from `.env`):
 | Founder | founder@mathify.app |
 | Trainer | trainer@mathify.app |
 | Student | student@mathify.app |
+| Parent (linked to `usr_student_001`) | parent@mathify.app |
 
 `GET /api/auth/demo` returns the same list.
 
@@ -74,6 +75,7 @@ Send the token as `Authorization: Bearer <token>`.
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/drafts/:draftId/approve` | Approve a draft into the live question set |
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/reteach` | Freeze quiz during reteach |
 | `POST` | `/api/trainer/sessions/:sessionId/quiz/new-check` | Add a fresh parallel question from the same objective |
+| `POST` | `/api/chat/trainer-support` | Trainer/founder only: Mathify Trainer Desk support reply from verified payout, leave and policy facts |
 
 ### Leave (trainer, student, founder)
 
@@ -91,6 +93,16 @@ The trainer balance is 8 session leaves per calendar month. A student-initiated 
 | `GET` | `/api/student/dashboard` | Next session, streak, Mastery, recordings, safe trophy list and points |
 | `GET` | `/api/student/sessions/:sessionId` | Sanitized lesson + quiz; no notes or answer key |
 | `POST` | `/api/student/sessions/:sessionId/quiz/answers` | Save answer only; no correctness or explanation |
+| `POST` | `/api/chat/student-doubt` | Student/founder only: Study Buddy doubt reply; text plus optional PNG/JPG/WEBP/GIF image up to 1 MB, Socratic hints only |
+| `POST` | `/api/student/practice/batch` | Start a 10-question self-practice batch, 15% harder than the last one |
+| `GET` | `/api/student/practice/batch/:id` | Re-read a student-owned batch; prompts, options and progress only |
+| `POST` | `/api/student/practice/batch/:id/answer` | Save one answer; returns a private correctness boolean, no key or explanation |
+
+### Parent ↔ trainer chat
+
+Human-only, strictly 1-on-1 threads. The demo parent is linked to `usr_student_001`; a trainer reaches only assigned students; the founder audits all threads and flags but cannot send. `GET /api/parent-chat/thread/:studentId` (alias `/threads/:studentId/messages`) returns messages plus the viewer's unread count. `POST /api/parent-chat/thread/:studentId/messages` (alias `/threads/:studentId/messages`) sends; `POST /api/parent-chat/thread/:studentId/read` (alias `/threads/:studentId/mark-read`) clears only the caller's unread count. `GET /api/parent-chat/unread` (alias `/unread-summary`) is the dashboard summary. `GET /api/parent-chat/flags` (alias `/privacy-flags`) is founder-only.
+
+Text is scanned by `services/parentChatDlp.js` before any write or delivery. Email, URL/`www`, phone/`+country`/10-digit, `@handle`, social platform names, contact schemes and explicit off-platform requests return `422 CONTENT_BLOCKED` with a neutral message. The rejected text is not echoed, stored or published to realtime; a founder-only flag keeps actor id/role, reason code, masked preview and timestamp. Messages, unread cursors and flags use the existing service-only `mathify_records` store (collections `parent_chat_message`, `parent_chat_read`, `parent_chat_flag`) — no SQL migration and no browser Data API grant.
 
 ### Shared session
 
@@ -226,8 +238,23 @@ or `HUMAN_HANDOFF_REQUIRED`. The webhook logs handoffs, publishes a `support.han
 Slack/email alerts through `services/notificationService.js`. Twilio signature verification activates when both
 `TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are set.
 
+### AI chat Worker
+
+`worker-core.mjs` is pure logic (no fetch or platform globals) shared by the deployed Worker and the local Express bridge. `worker.js` verifies the Express-issued HMAC token, applies allowlisted CORS and a per-minute rate limit, then calls Workers AI through the `[ai]` binding with a Cloudflare REST fallback. `wrangler.toml` declares the models; deploy secrets with `wrangler secret put` (`AUTH_SECRET`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`). No Cloudflare or Supabase secret is exposed to the browser.
+
+`routes/chat.js` → `services/chatWorkerService.js` forwards only the JWT role, actor id, sanitized question and, for Study Buddy, the image. `CHAT_WORKER_URL` is optional: when set, Express calls the deployed Worker; otherwise the same core runs locally through the Cloudflare REST endpoint. Trainer Desk uses `@cf/meta/llama-3.1-8b-instruct` and verified facts (₹300–₹400 per 1-on-1 session, 48-hour notice, fines and bonuses, severe complaints to `founder@mathify.app`). Study Buddy uses the same text model for text and `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` for images; it gives Socratic hints and visual analogies only, never a final answer.
+
+Reply guards reject contact data, social links, trainer-only material and student final-answer phrasing. Image bytes are decoded in memory only and never logged or stored. Audit rows go to `trainer_support_logs` / `student_doubt_logs` through the service-role key only.
+
+**Live status:** text call PASS (HTTP `200`, about `453 ms`); requested 34b vision FAIL (HTTP `400 No route for that URI`, not available on this account); fallback vision BLOCKED (HTTP `403 Model Agreement`). **Live image chat is gated until the user explicitly accepts the one-time Meta model agreement.** No deployed-Worker browser end-to-end chat success is claimed. Model slugs stay literal in REST paths, LLaVA `No route` now triggers the fallback, and JSON parsing extracts the first balanced object from chatty output.
+
+### Mastery self-practice
+
+`services/masteryPracticeService.js` builds batches of exactly 10 questions, ramps difficulty 15% per batch (inside the requested 10–20% range) and caps a topic at 80 questions (8 batches); after that the student gets an encouraging rest message. There is no cross-topic cap. Answer keys stay in service-only `practice_batches` records; the browser receives prompts, options and a private correctness boolean only — no hint, explanation or trainer-only field. Batch ids are checked against the signed-in student.
+
 Add these env vars in `.env`:
 `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_MODEL`, `CLOUDFLARE_TIMEOUT_MS`,
+`CLOUDFLARE_VISION_MODEL`, `CLOUDFLARE_VISION_FALLBACK_MODEL`, `CHAT_WORKER_URL` (optional deployed Worker base URL),
 `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
 `RAZORPAY_WEBHOOK_SECRET`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`,
 `AGORA_CUSTOMER_KEY`, `AGORA_CUSTOMER_SECRET`, `AGORA_RECORDING_STORAGE_CONFIG`,
@@ -262,7 +289,12 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 - Quiz `answerIndex`, `explanation` and attempt `correct` are withheld until the trainer reveals that question.
 - Correctness is not broadcast on the shared realtime channel; `quiz.answer.saved` only carries ids and a timestamp.
 - AI drafts and templates are trainer-only until approved.
-- Founder role can audit all sessions.
+- AI chat prompts carry no name, contact detail, session id, answer key, hint or trainer note; image bytes are decoded in memory only.
+- Self-practice answer keys stay in service-only records; only prompts, options and a private correctness boolean reach the browser.
+- Parent ↔ trainer chat is human-only and strictly 1-on-1: the demo parent is linked to `usr_student_001`, trainers see only assigned students and the founder audits all threads. No group classes, batch pause, answer keys or trainer notes in messages.
+- Parent chat DLP blocks email, URL/`www`, phone/`+country`/10-digit numbers, `@handle`s and social platform names before storage or realtime. A blocked message is not delivered, echoed or stored; the sender gets `422 CONTENT_BLOCKED` and a founder-only flag keeps actor id/role, reason code, masked preview and timestamp.
+- Parent chat records and flags live in the existing service-only `mathify_records` store; browser Data API roles have no access and no SQL migration is required.
+- Founder role can audit all sessions and all DLP flags.
 
 ## Configurable policy
 
@@ -280,15 +312,15 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Twenty-four Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `engagementControls.test.js` and `apiSmoke.test.js`.
+Twenty-seven Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`. Its live evidence table records the only external calls made: one Workers AI text call and one local Agora token generation. No Supabase, payment, SMS or migration call occurred during the recorded chat checks.
 
 ## Migrations
 
-`db/schema.sql` is the source of truth. `migrations/0001_baseline.sql`, `0002_student_curriculum.sql` and `0003_live_persistence.sql` are reviewed with `npm run migrate` (dry run, SHA-256 checksums, no DB contact). Applying requires both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`; see `migrations/README.md`. No live migration has been applied.
+`db/schema.sql` is the source of truth. `migrations/0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql` and `0004_ai_chat_logs.sql` are reviewed with `npm run migrate` (dry run, SHA-256 checksums, no DB contact). Applying requires both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`; see `migrations/README.md`. No live migration has been applied; live credentials were absent during the chat checks.
 
 ## Remaining work
 
 1. Finish the partial LMS surface (publish and pack import) and mirror the remaining mock stores onto normalized relations.
 2. Decide whether founder settings drafts should become a reviewed persistence source; planner exports remain local authoring output until then.
-3. Rotate exposed credentials and make one live Cloudflare Workers AI call before launch.
+3. Rotate exposed credentials and verify production env validation; Workers AI text is verified, but the one-time Meta model agreement must be accepted explicitly before live image chat works. No Supabase call, payment, SMS or live migration was made in the recorded checks.
 4. OCR PDF pages 5–17 before quoting them verbatim.

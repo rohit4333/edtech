@@ -35,6 +35,9 @@ async function main() {
   check(moderation.moderateDraft({
     prompt: 'x = 4', hints: ['ask the trainer']
   }).ok === false, 'trainer-only fields are rejected');
+  check(moderation.moderateDraft({
+    prompt: 'x = 4', options: ['x = 4', 'x = 6'], answerIndex: 0, explanation: null
+  }).ok === true, 'empty trainer-side slots do not block draft approval');
   check(moderation.moderateDraft(null).ok === false, 'empty draft is rejected');
 
   /* Public write throttling complements signature verification. */

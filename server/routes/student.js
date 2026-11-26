@@ -5,6 +5,7 @@ const serializers = require('../serializers');
 const realtime = require('../realtime');
 const chatAssistant = require('../services/chatAssistantService');
 const curriculumRepository = require('../db/curriculum');
+const masteryPractice = require('../services/masteryPracticeService');
 
 const router = express.Router();
 
@@ -121,6 +122,56 @@ router.get('/me/curriculum', async function (req, res) {
   const profile = await curriculumRepository.get(req.user.id);
   if (!profile) return res.json({ curriculum: null, adapter: curriculumRepository.adapterName() });
   return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
+});
+
+/* Self-paced mastery practice. Each batch is ten student-safe questions, up to
+   80 per topic; keys stay server-side and correctness is private to this student. */
+router.post('/practice/batch', async function (req, res) {
+  try {
+    const body = req.body || {};
+    const batch = await masteryPractice.createBatch(req.user, body.topic, body.previousBatchId);
+    return res.json({
+      batch: batch,
+      batchSize: masteryPractice.BATCH_SIZE,
+      topicLimit: masteryPractice.MAX_TOPIC_QUESTIONS,
+      topicRemaining: batch.topicRemaining,
+      unlimitedTopics: true
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.code || 'PRACTICE_FAILED',
+      message: error.status === 400 || error.status === 409
+        ? error.message
+        : 'Practice could not be started.'
+    });
+  }
+});
+
+router.get('/practice/batch/:batchId', function (req, res) {
+  try {
+    const batch = masteryPractice.findForStudent(req.params.batchId, req.user);
+    return res.json({ batch: masteryPractice.safeBatch(batch) });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.code || 'PRACTICE_FAILED',
+      message: 'That practice batch is unavailable.'
+    });
+  }
+});
+
+router.post('/practice/batch/:batchId/answer', function (req, res) {
+  try {
+    const body = req.body || {};
+    const result = masteryPractice.answer(req.params.batchId, body.questionId, body.optionIndex, req.user);
+    return res.json({ result: result });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.code || 'PRACTICE_FAILED',
+      message: error.status === 400 || error.status === 409
+        ? error.message
+        : 'Your answer could not be saved.'
+    });
+  }
 });
 
 /* Cloudflare-backed study tutor. The request is scoped to the signed-in

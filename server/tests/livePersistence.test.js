@@ -74,7 +74,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 3, 'three reviewed migrations are discovered');
+  check(migrations.length === 4, 'four reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -98,6 +98,24 @@ async function main() {
     'only the service role can write app records');
   check(live.sql.indexOf('revoke all on public.mathify_records from public, anon, authenticated') !== -1,
     'clients cannot read raw app records');
+  const aiLogs = migrations.find(function (migration) {
+    return migration.name === '0004_ai_chat_logs.sql';
+  });
+  check(Boolean(aiLogs), 'AI chat audit migration is present');
+  check(aiLogs && aiLogs.sql.indexOf('create table if not exists public.trainer_support_logs') !== -1 &&
+    aiLogs.sql.indexOf('create table if not exists public.student_doubt_logs') !== -1,
+  'both founder audit tables are created');
+  const policyStart = aiLogs
+    ? aiLogs.sql.indexOf('drop policy if exists p_trainer_support_logs_founder_read')
+    : -1;
+  const policySection = policyStart === -1 ? '' : aiLogs.sql.slice(policyStart);
+  check(policySection.indexOf("auth.jwt())->'app_metadata'->>'role') = 'founder") !== -1 &&
+    policySection.indexOf('user_metadata') === -1,
+  'audit RLS reads app_metadata, never user-editable metadata');
+  check(aiLogs && aiLogs.sql.indexOf('enable row level security') !== -1 &&
+    aiLogs.sql.indexOf('revoke all on public.trainer_support_logs from anon, authenticated') !== -1 &&
+    aiLogs.sql.indexOf('revoke all on public.student_doubt_logs from anon, authenticated') !== -1,
+  'audit tables enable RLS and stay out of browser Data API roles');
   const facade = fs.readFileSync(path.join(__dirname, '..', 'db', 'index.js'), 'utf8');
   check(facade.indexOf('LIVE_ADAPTER_METHOD_MISSING') !== -1 &&
     /typeof implementation !== 'function'/.test(facade),
@@ -121,10 +139,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 3,
-    'all three migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 3,
-    'all three migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 4,
+    'all four migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 4,
+    'all four migrations carry checksum drift guards');
 
   console.log('livePersistence: ' + assertions + ' assertions passed');
 }

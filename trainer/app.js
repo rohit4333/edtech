@@ -479,13 +479,17 @@
     });
   });
 
-  /* ---------------------------------------------------------------- copilot */
+  /* ------------------------------------------- copilot / trainer desk */
   var fab = $('#aiFab');
   var panel = $('#aiPanel');
   var closeBtn = $('#aiClose');
   var form = $('#aiForm');
   var input = $('#aiInput');
   var body = $('#aiBody');
+  var aiTitle = $('#aiTitle');
+  var aiStatus = $('#aiStatus');
+  var modeButtons = $$('[data-chat-mode]');
+  var aiMode = 'copilot';
 
   function openPanel() {
     if (!panel || !fab) return;
@@ -509,7 +513,6 @@
       closePanel();
       fab.focus();
     });
-
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !panel.hidden) {
         closePanel();
@@ -528,10 +531,56 @@
     }
   }
 
-  /* The copilot is a real Cloudflare call. No keyword branches and no seeded
-     student names — the server supplies only academic context. */
-  function askCopilot(text) {
+  var COPILOT_OPEN = '<p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>' +
+    '<div class="ai-chips"><button type="button">Differentiate today&rsquo;s set</button>' +
+    '<button type="button">Draft a parent note</button>' +
+    '<button type="button">Summarise last session</button></div>';
+  var SUPPORT_OPEN = '<p class="msg bot">Mathify Trainer Desk here. Ask me about payout, leave or attendance policy.</p>' +
+    '<div class="ai-chips"><button type="button">What is the session payout?</button>' +
+    '<button type="button">48-hour cancellation rule</button>' +
+    '<button type="button">How do leaves work?</button>' +
+    '<button type="button">Attendance bonus rules</button></div>';
+
+  function setChatMode(mode, force) {
+    if (!mode || (mode === aiMode && !force)) return;
+    aiMode = mode === 'support' ? 'support' : 'copilot';
+    var support = aiMode === 'support';
+    if (aiTitle) aiTitle.textContent = support ? 'Mathify Trainer Desk' : 'Mathify copilot';
+    if (aiStatus) aiStatus.textContent = support ? 'Payout · leave · attendance' : 'Plans · grading · parent notes';
+    if (input) input.placeholder = support ? 'Ask about payout, leave or attendance…' : 'Ask about a plan, student or score…';
+    if (fab) fab.setAttribute('aria-label', support ? 'Open Mathify Trainer Desk' : 'Open Mathify copilot');
+    modeButtons.forEach(function (button) {
+      var active = button.getAttribute('data-chat-mode') === aiMode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    if (body) {
+      body.innerHTML = support ? SUPPORT_OPEN : COPILOT_OPEN;
+      body.scrollTop = 0;
+    }
+  }
+
+  modeButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      setChatMode(button.getAttribute('data-chat-mode'));
+      if (input) input.focus();
+    });
+  });
+
+  /* Both assistants are real Cloudflare calls. No keyword branches and no
+     seeded student names are sent by the client — the server supplies only
+     the policy facts or academic context the prompt is allowed to use. */
+  function ask(text) {
     var api = window.mathifyTrainerApi;
+    if (aiMode === 'support') {
+      if (!api || typeof api.askSupport !== 'function') {
+        return Promise.resolve({
+          reply: 'The Trainer Desk is unavailable right now. Please retry in a moment.',
+          source: 'offline'
+        });
+      }
+      return api.askSupport(text);
+    }
     if (!api || typeof api.askCopilot !== 'function') {
       return Promise.resolve({
         reply: 'The copilot service is unavailable right now. Please retry in a moment.',
@@ -555,11 +604,13 @@
       body.scrollTop = body.scrollHeight;
     }
 
-    askCopilot(value).then(function (data) {
+    ask(value).then(function (data) {
       pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
       if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
     }).catch(function () {
-      pending.textContent = 'The copilot could not be reached. Please retry in a moment.';
+      pending.textContent = aiMode === 'support'
+        ? 'The Trainer Desk could not be reached. Please retry in a moment.'
+        : 'The copilot could not be reached. Please retry in a moment.';
       pending.dataset.source = 'offline';
     });
   }
@@ -571,14 +622,16 @@
     });
   }
 
-  $$('.ai-chips button').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      send(chip.textContent.trim());
+  if (panel) {
+    panel.addEventListener('click', function (event) {
+      var chip = event.target.closest ? event.target.closest('.ai-chips button') : null;
+      if (chip && panel.contains(chip)) send(chip.textContent.trim());
     });
-  });
+  }
 
   $$('[data-ask]').forEach(function (el) {
     el.addEventListener('click', function () {
+      setChatMode('copilot');
       openPanel();
       send(el.getAttribute('data-ask'));
     });
@@ -829,9 +882,11 @@
     if (!mount) return;
 
     var knownRules = payout && payout.knownRules;
-    setText('#payoutPolicyNote', knownRules && knownRules.mutualLeave && knownRules.fine
-      ? knownRules.mutualLeave + ' ' + knownRules.fine + ' No-shows are unpaid.'
-      : '₹300–400 per completed session · 2+ days notice by either side is mutual leave · later trainer cancellation costs one session pay · no-shows unpaid.');
+    var detail = knownRules && knownRules.mutualLeave && knownRules.fine
+      ? knownRules.mutualLeave + ' ' + knownRules.fine
+      : 'A 48-hour notice is required from either side; later trainer cancellation costs one session pay.';
+    setText('#payoutPolicyNote', detail +
+      ' Pay is ₹300–₹400 per completed 1-on-1 session. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.');
 
     var series = payout && payout.dailySeries;
     var points = series && Array.isArray(series.points) ? series.points : [];

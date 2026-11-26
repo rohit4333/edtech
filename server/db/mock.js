@@ -54,6 +54,11 @@ const users = [
       }
     ],
     trophyPoints: 25
+  }),
+  /* Demo parent for the 1-on-1 parent↔trainer thread. Only a child link is
+     stored: no phone, social or other contact field exists on this account. */
+  user('usr_parent_001', 'Priya Verma', 'parent@mathify.app', 'parent', {
+    childId: 'usr_student_001'
   })
 ];
 
@@ -310,6 +315,11 @@ const presenceSnapshots = [];
 /* Engagement gestures stay separate from celebrations. Only code, role,
    session and minute are stored — never a note or personal detail. */
 const reactions = [];
+/* Strictly service-only parent chat. Messages are safe delivery text only;
+   blocked content lives exclusively in founder-visible flags, never here. */
+const parentChatMessages = [];
+const parentChatFlags = [];
+const parentChatReads = [];
 /* Academic-only curriculum profile. Mirrors public.student_curriculum from
    migrations/0002_student_curriculum.sql; no contact or identity fields. */
 const studentCurriculum = [
@@ -359,7 +369,12 @@ module.exports = {
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
   reactions: reactions,
+  parentChatMessages: parentChatMessages,
+  parentChatFlags: parentChatFlags,
+  parentChatReads: parentChatReads,
   studentCurriculum: studentCurriculum,
   trainerSlots: trainerSlots,
+  practiceBatches: [],
   demoPassword: demoPassword
+
 };

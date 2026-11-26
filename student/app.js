@@ -64,7 +64,7 @@
   /* ---------- batch switcher ---------- */
   var batchBtn = document.getElementById('batchBtn');
   var batchMenu = document.getElementById('batchMenu');
-  var batchLabel = document.getElementById('batchLabel');
+  var batchLabelEl = document.getElementById('batchLabel');
 
   function closeBatch() {
     if (!batchMenu || !batchBtn) return;
@@ -87,7 +87,7 @@
       batchMenu.querySelectorAll('[role="option"]').forEach(function (el) {
         el.setAttribute('aria-selected', String(el === option));
       });
-      batchLabel.textContent = option.dataset.value;
+      batchLabelEl.textContent = option.dataset.value;
       closeBatch();
       batchBtn.focus();
     });
@@ -158,7 +158,7 @@
     if (!panel || !fab) return;
     panel.hidden = false;
     fab.setAttribute('aria-expanded', 'true');
-    fab.setAttribute('aria-label', 'Close tutor');
+    fab.setAttribute('aria-label', 'Close Study Buddy');
     window.setTimeout(function () {
       if (input) input.focus();
     }, 30);
@@ -168,7 +168,7 @@
     if (!panel || !fab) return;
     panel.hidden = true;
     fab.setAttribute('aria-expanded', 'false');
-    fab.setAttribute('aria-label', 'Open tutor');
+    fab.setAttribute('aria-label', 'Open Study Buddy');
   }
 
   function togglePanel() {
@@ -187,7 +187,15 @@
     btn.addEventListener('click', openPanel);
   });
 
-  /* ---------- tutor conversation (Cloudflare-backed) ---------- */
+  /* ---------- study buddy conversation (Cloudflare-backed) ---------- */
+  var imageInput = document.getElementById('aiImage');
+  var attachRow = document.getElementById('aiAttachRow');
+  var attachName = document.getElementById('aiAttachName');
+  var attachClear = document.getElementById('aiAttachClear');
+  var pendingImage = null;
+  var MAX_IMAGE_BYTES = 1024 * 1024;
+  var ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
   function addMessage(text, who) {
     if (!body) return null;
     var p = document.createElement('p');
@@ -198,34 +206,74 @@
     return p;
   }
 
-  function askTutor(text) {
+  function setPendingImage(value) {
+    pendingImage = value || null;
+    if (attachRow) attachRow.hidden = !pendingImage;
+    if (attachName) attachName.textContent = pendingImage ? pendingImage.name : '';
+  }
+
+  function askBuddy(text, image) {
     var api = window.mathifyStudentApi;
-    if (!api || typeof api.askTutor !== 'function') {
+    if (!api || typeof api.askStudyBuddy !== 'function') {
       return Promise.resolve({
-        reply: 'The tutor service is unavailable right now. Please retry in a moment.',
+        reply: 'Study Buddy is unavailable right now. Please retry in a moment.',
         source: 'offline'
       });
     }
-    return api.askTutor(text, window.MATHIFY_SESSION_ID || null);
+    return api.askStudyBuddy(text, image);
+  }
+
+  if (imageInput) {
+    imageInput.addEventListener('change', function () {
+      var file = imageInput.files && imageInput.files[0];
+      imageInput.value = '';
+      if (!file) return;
+      if (ALLOWED_IMAGE_TYPES.indexOf(file.type) === -1) {
+        addMessage('I can read PNG, JPG, WEBP or GIF photos 📎', 'bot');
+        return;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        addMessage('That photo is a bit large. Try one under 1 MB 🙂', 'bot');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        setPendingImage({ data: String(reader.result), mime: file.type, name: file.name });
+        addMessage('Photo attached — ask me what to try first!', 'bot');
+      };
+      reader.onerror = function () {
+        addMessage('I could not read that photo. Please try again.', 'bot');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (attachClear) {
+    attachClear.addEventListener('click', function () {
+      setPendingImage(null);
+      if (imageInput) imageInput.value = '';
+    });
   }
 
   if (form && input) {
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       var text = input.value.trim();
-      if (!text) return;
+      if (!text && !pendingImage) return;
 
-      addMessage(text, 'me');
+      addMessage(text || 'Take a look at this 👀', 'me');
       input.value = '';
+      var image = pendingImage;
+      setPendingImage(null);
       var pending = addMessage('Thinking…', 'bot');
 
-      askTutor(text).then(function (data) {
+      askBuddy(text, image).then(function (data) {
         if (!pending) return;
         pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
         if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
       }).catch(function () {
         if (pending) {
-          pending.textContent = 'The tutor could not be reached. Please retry in a moment.';
+          pending.textContent = 'Study Buddy could not be reached. Please retry in a moment.';
           pending.dataset.source = 'offline';
         }
       });
@@ -339,7 +387,7 @@
       window.location.href = '../lms/index.html#recordings';
     },
     practice: function () {
-      window.location.href = '../lms/index.html?practice=1';
+      openPractice();
     },
     schedule: function () {
       var target = document.getElementById('schedule');
@@ -353,6 +401,247 @@
       if (action) action();
     });
   });
+
+  /* ---------- mastery self-practice · 10 per batch, 80 per topic ----------
+     Each round is +15% harder than the last. The server supplies the exact
+     difficultyPercent and topic counters; we only render and honour them. */
+  var practiceSlot = document.getElementById('practiceSlot');
+  var practiceList = document.getElementById('practiceList');
+  var practiceCounter = document.getElementById('practiceCounter');
+  var practiceStatus = document.getElementById('practiceStatus');
+  var practiceMore = document.getElementById('practiceMore');
+  var practiceRest = document.getElementById('practiceRest');
+  var practiceState = {
+    batch: null,
+    batchNumber: 0,
+    answered: 0,
+    topic: null,
+    topicComplete: false
+  };
+  var PRACTICE_TOPIC_LIMIT = 80;
+
+  function batchLabel(number) {
+    return ('0' + number).slice(-2);
+  }
+
+  function setPracticeStatus(text) {
+    if (practiceStatus) practiceStatus.textContent = text;
+  }
+
+  function difficultyText(batch) {
+    var percent = batch ? Number(batch.difficultyPercent) : 0;
+    return Number.isFinite(percent) && percent > 0 ? '+' + percent + '% harder' : 'Baseline';
+  }
+
+  function topicProgressText(batch) {
+    if (!batch) return '';
+    var total = Number(batch.topicTotal);
+    var limit = Number(batch.topicLimit);
+    if (!Number.isFinite(limit) || limit <= 0) limit = PRACTICE_TOPIC_LIMIT;
+    if (!Number.isFinite(total) || total < 0) return '';
+    return total + ' / ' + limit + ' topic questions';
+  }
+
+  function statusText(action, batch) {
+    var parts = [action];
+    if (batch) {
+      parts.push(difficultyText(batch));
+      var progress = topicProgressText(batch);
+      if (progress) parts.push(progress);
+    }
+    return parts.filter(Boolean).join(' · ');
+  }
+
+  function mergePracticeTopic(source) {
+    if (!practiceState.batch || !source) return;
+    ['topicTotal', 'topicLimit', 'topicRemaining'].forEach(function (key) {
+      if (source[key] !== undefined && source[key] !== null) practiceState.batch[key] = source[key];
+    });
+    if (source.topicComplete !== undefined) practiceState.batch.topicComplete = source.topicComplete;
+  }
+
+  function isTopicCompleteError(error) {
+    if (!error) return false;
+    var code = error.code || (error.data && error.data.error);
+    return code === 'TOPIC_PRACTICE_COMPLETE';
+  }
+
+  function fallbackRestMessage() {
+    var topic = practiceState.topic;
+    return 'Beautifully done! You have practised ' + PRACTICE_TOPIC_LIMIT +
+      ' questions' + (topic ? ' in ' + topic : '') + '. Take a rest — you have earned it 🌟';
+  }
+
+  function showPracticeRest(message) {
+    practiceState.topicComplete = true;
+    var text = message && String(message).trim() ? String(message).trim() : fallbackRestMessage();
+    if (practiceRest) {
+      practiceRest.textContent = text;
+      practiceRest.hidden = false;
+    }
+    if (practiceMore) practiceMore.hidden = true;
+    if (practiceList) {
+      practiceList.querySelectorAll('.practice-options button').forEach(function (item) {
+        item.disabled = true;
+      });
+    }
+    setPracticeStatus('Topic complete · time to rest');
+  }
+
+  function updatePracticeCounter() {
+    if (!practiceCounter) return;
+    var size = practiceState.batch ? practiceState.batch.questions.length : 10;
+    practiceCounter.textContent = 'Batch ' + batchLabel(practiceState.batchNumber) +
+      ' · ' + practiceState.answered + ' / ' + size + ' answered · ' + difficultyText(practiceState.batch);
+  }
+
+  function renderPracticeBatch(batch) {
+    if (!practiceList) return;
+    practiceList.innerHTML = '';
+    batch.questions.forEach(function (question) {
+      var card = document.createElement('div');
+      card.className = 'practice-q';
+
+      var top = document.createElement('div');
+      top.className = 'q-top';
+      var label = document.createElement('span');
+      label.className = 'mono';
+      label.textContent = 'Q ' + batchLabel(question.position) + ' · ' + (question.difficulty || 'Practice');
+      var tag = document.createElement('span');
+      tag.className = 'mono';
+      tag.textContent = 'Self practice';
+      top.appendChild(label);
+      top.appendChild(tag);
+
+      var prompt = document.createElement('p');
+      prompt.textContent = question.prompt;
+
+      var options = document.createElement('div');
+      options.className = 'practice-options';
+      question.options.forEach(function (option, index) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = option;
+        button.addEventListener('click', function () {
+          answerPracticeQuestion(question.id, index, button, card);
+        });
+        options.appendChild(button);
+      });
+
+      var feedback = document.createElement('span');
+      feedback.className = 'practice-feedback';
+      feedback.hidden = true;
+
+      card.appendChild(top);
+      card.appendChild(prompt);
+      card.appendChild(options);
+      card.appendChild(feedback);
+      practiceList.appendChild(card);
+    });
+    if (practiceRest) practiceRest.hidden = true;
+    practiceState.topicComplete = false;
+    if (practiceMore) {
+      practiceMore.hidden = true;
+      practiceMore.textContent = 'Fetch another 10 · 15% harder ↓';
+    }
+    setPracticeStatus(statusText('Ready', batch));
+  }
+
+  function answerPracticeQuestion(questionId, optionIndex, button, card) {
+    var api = window.mathifyStudentApi;
+    if (!practiceState.batch || !api || typeof api.answerPractice !== 'function' || practiceState.topicComplete) {
+      setPracticeStatus('Practice is offline');
+      return;
+    }
+    var buttons = card.querySelectorAll('.practice-options button');
+    buttons.forEach(function (item) { item.disabled = true; });
+    setPracticeStatus('Checking…');
+
+    api.answerPractice(practiceState.batch.id, questionId, optionIndex).then(function (data) {
+      var result = (data && data.result) || {};
+      var feedback = card.querySelector('.practice-feedback');
+      button.dataset.result = result.correct === true ? 'correct' : 'wrong';
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.textContent = result.correct === true
+          ? 'Correct — nice thinking ✓'
+          : 'Not quite — try the next one';
+      }
+      practiceState.answered = Math.max(
+        practiceState.answered,
+        Number(result.answeredCount) || practiceState.answered + 1
+      );
+      mergePracticeTopic(result);
+      updatePracticeCounter();
+
+      /* The server gates completion on all ten answers being saved, not just
+         on the offered count. Trust that flag so the final batch stays usable. */
+      if (result.topicComplete === true) {
+        showPracticeRest(result.restMessage);
+        return;
+      }
+      setPracticeStatus(statusText(result.complete ? 'Batch complete' : 'Answered', practiceState.batch));
+      if (result.complete && practiceMore) practiceMore.hidden = false;
+    }).catch(function (error) {
+      buttons.forEach(function (item) { item.disabled = false; });
+      if (isTopicCompleteError(error)) {
+        showPracticeRest(error && error.message);
+        return;
+      }
+      setPracticeStatus('Could not save that answer');
+    });
+  }
+
+  function loadPracticeBatch() {
+    if (practiceState.topicComplete) return;
+    var api = window.mathifyStudentApi;
+    if (!api || typeof api.fetchPracticeBatch !== 'function') {
+      setPracticeStatus('Practice is offline');
+      return;
+    }
+    setPracticeStatus('Fetching 10…');
+    api.fetchPracticeBatch(null, practiceState.batch ? practiceState.batch.id : null).then(function (data) {
+      var batch = data && data.batch;
+      if (!batch || !Array.isArray(batch.questions) || batch.questions.length !== 10) {
+        setPracticeStatus('Questions are unavailable');
+        return;
+      }
+      practiceState.batch = batch;
+      practiceState.batchNumber += 1;
+      practiceState.answered = 0;
+      practiceState.topic = batch.topic || batch.topicName || practiceState.topic;
+      renderPracticeBatch(batch);
+      updatePracticeCounter();
+      if (practiceSlot) practiceSlot.hidden = false;
+      if (batch.topicComplete === true) {
+        showPracticeRest(batch.restMessage);
+      }
+    }).catch(function (error) {
+      if (isTopicCompleteError(error)) {
+        showPracticeRest(error && error.message);
+        return;
+      }
+      setPracticeStatus('Could not fetch questions — retry');
+    });
+  }
+
+  function openPractice() {
+    if (!practiceSlot || !practiceList) return;
+    practiceSlot.hidden = false;
+    if (practiceSlot.scrollIntoView) {
+      practiceSlot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (practiceState.topicComplete) return;
+    if (!practiceState.batch || practiceState.answered >= practiceState.batch.questions.length) {
+      loadPracticeBatch();
+    }
+  }
+
+  if (practiceMore) {
+    practiceMore.addEventListener('click', function () {
+      loadPracticeBatch();
+    });
+  }
 
   /* Recording chapters jump straight to a timestamp. The server supplies the
      current recording URL and chapter list; static labels stay usable offline. */
@@ -372,6 +661,16 @@
   });
   var trophyList = document.getElementById('trophyList');
   var trophyPoints = document.getElementById('trophyPoints');
+  var walletSessions = document.getElementById('walletSessions');
+
+  function renderWallet(dashboard) {
+    if (!walletSessions) return;
+    var remaining = dashboard && dashboard.student && dashboard.student.sessionsRemaining;
+    walletSessions.textContent = (remaining === null || remaining === undefined)
+      ? 'Pack not loaded'
+      : remaining + ' sessions left';
+  }
+
   function renderTrophies(dashboard) {
     if (!trophyList) return;
     var badges = (dashboard && dashboard.badges) || [];
@@ -410,6 +709,7 @@
 
   if (api && typeof api.request === 'function') {
     api.request('/student/dashboard').then(function (data) {
+      renderWallet(data && data.dashboard);
       renderTrophies(data && data.dashboard);
       var recordings = data && data.dashboard && data.dashboard.recordings;
       if (!Array.isArray(recordings) || !recordings.length) return;

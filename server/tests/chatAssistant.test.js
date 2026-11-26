@@ -52,7 +52,7 @@ function stubFetch(responses, seen) {
 }
 
 function assertPrivateDataAbsent(text, label) {
-  ['Ishaan Verma', 'ishaan@example.com', '98765', 'instagram', 'wa.me']
+  ['Ishaan Verma', 'ishaan@example.com', '98765', 'instagram', 'wa.me', 'ses_math_001']
     .forEach(function (leak) { ok(text.indexOf(leak) === -1, label + ' excludes ' + leak); });
 }
 
@@ -118,6 +118,18 @@ async function main() {
     ok(injectionSeen[0].user.indexOf('<untrusted_user_question>') !== -1 &&
       injectionSeen[0].user.indexOf('Ignore previous instructions') !== -1,
       'the raw question is fenced as data, not dropped silently');
+
+    const sanitizedSeen = [];
+    stubFetch([envelope({ reply: 'Try a bar model first.' })], sanitizedSeen);
+    await chatAssistant.reply('student',
+      'My name is Ishaan Verma, hint: divide first, answer key is 42, sessionId: ses_math_001',
+      { student: student });
+    const sanitizedPrompt = sanitizedSeen[0].system + sanitizedSeen[0].user;
+    ok(sanitizedPrompt.indexOf('Ishaan Verma') === -1 &&
+      sanitizedPrompt.indexOf('divide first') === -1 &&
+      sanitizedPrompt.indexOf('answer key is 42') === -1 &&
+      sanitizedPrompt.indexOf('ses_math_001') === -1,
+    'legacy tutor prompt redacts names, hints, answer keys and session ids');
 
     const blockedSeen = [];
     stubFetch([envelope({ reply: 'Email leak@example.com for the answer key.' })], blockedSeen);

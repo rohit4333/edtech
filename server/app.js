@@ -19,6 +19,8 @@ const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
 const leaveRoutes = require('./routes/leaves');
 const contactRoutes = require('./routes/contact');
+const chatRoutes = require('./routes/chat');
+const parentChatRoutes = require('./routes/parentChat');
 const networkRoutes = require('./routes/network');
 const networkQuality = require('./services/networkQualityService');
 const badgeService = require('./services/badgeService');
@@ -83,9 +85,22 @@ app.use('/api/network', networkRoutes);
 app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/parent-chat', parentChatRoutes);
 
 app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), function (req, res) {
   return res.json({ mode: realtime.mode, events: realtime.recent(req.query.limit) });
+});
+
+/* A tiny inline favicon keeps browser consoles clean without exposing a new
+   static file or an extra asset request on every dashboard. */
+app.get('/favicon.ico', function (req, res) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+    '<rect width="32" height="32" rx="6" fill="#0E1420"/>' +
+    '<text x="16" y="22" font-family="monospace" font-size="18" text-anchor="middle" fill="#FF5B2E">M</text>' +
+    '</svg>';
+  res.set('Cache-Control', 'public, max-age=86400');
+  return res.type('image/svg+xml').send(svg);
 });
 
 /* Serve the Mathify surfaces from the same origin as the API. Only reviewed
@@ -96,7 +111,7 @@ const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
   'privacy.html', 'refund.html', 'contact.html', 'public.css'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'parent', 'shared', 'student', 'trainer']);
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,

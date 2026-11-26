@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Parent inbox</title>
+<meta name="description" content="Private 1-on-1 messages between a parent and their child's Mathify trainer.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="parent.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="shell">
+
+  <!-- ===================== rail ===================== -->
+  <aside class="rail">
+    <div>
+      <a class="brand" href="../index.html" aria-label="Mathify home"><span>Mathify</span><i>.</i></a>
+      <p class="brand-sub">Parent space</p>
+    </div>
+
+    <nav class="nav" aria-label="Parent space">
+      <a href="#inbox" class="active" data-nav aria-current="page">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m4.5 6.5 7.5 6 7.5-6"/></svg>
+        <span>Inbox</span>
+      </a>
+      <a href="#child" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19c.7-3 2.9-4.6 6.5-4.6s5.8 1.6 6.5 4.6"/></svg>
+        <span>My child</span>
+      </a>
+      <a href="#sessions" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 9.8h17M8 3v4M16 3v4"/></svg>
+        <span>1-on-1 sessions</span>
+      </a>
+      <a href="#guidance" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5 20 19H4z"/><path d="M12 9.3v4.2M12 16.6v.1"/></svg>
+        <span>Chat rules</span>
+      </a>
+      <a href="#policies" data-nav>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8.2h7M8.5 12h7M8.5 15.8h4"/></svg>
+        <span>Policies</span>
+      </a>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="demo-helper">
+        <span class="mono">Demo parent login</span>
+        <code>parent@mathify.app</code>
+        <code>mathify-demo</code>
+        <button type="button" id="demoLogin" class="btn btn-ghost btn-sm">Use demo account</button>
+      </div>
+      <div class="user">
+        <span class="avatar" aria-hidden="true">PV</span>
+        <span class="user-txt">
+          <b>Parent of Ishaan</b>
+          <span>Private 1-on-1 thread</span>
+        </span>
+      </div>
+      <div class="rail-note"><span>v1.0</span><span>2026</span></div>
+    </div>
+  </aside>
+
+  <!-- ===================== workspace ===================== -->
+  <div class="workspace">
+
+    <header class="topbar">
+      <a class="brand-m" href="../index.html" aria-label="Mathify home"><span>Mathify</span><i>.</i></a>
+      <span class="top-title mono">Private inbox · 1-on-1</span>
+      <div class="right">
+        <span class="top-thread" id="topThread">Ishaan Verma <span aria-hidden="true">↔</span> Ananya Rao</span>
+        <span class="avatar avatar-btn" aria-hidden="true">PV</span>
+      </div>
+    </header>
+
+    <main class="page" id="main">
+
+      <div class="page-head">
+        <p class="eyebrow">Parent space · Private 1-on-1</p>
+        <h1>Messages with <span id="trainerHeading">your child&rsquo;s trainer</span><em>.</em></h1>
+        <p class="sub" id="threadSub">Ishaan Verma <span class="dot-sep" aria-hidden="true"></span> Ananya Rao <span class="dot-sep" aria-hidden="true"></span> 1-on-1 maths</p>
+      </div>
+
+      <!-- ---------- context strip ---------- -->
+      <section class="context" aria-label="Your 1-on-1 context">
+        <article class="context-cell" id="child">
+          <span class="mono">Your child</span>
+          <p><b id="childName">Ishaan Verma</b><span>Class 6–7 · Mathematics</span></p>
+        </article>
+        <article class="context-cell" id="sessions">
+          <span class="mono">1-on-1 sessions</span>
+          <p><b id="sessionSummary">Plan for the week</b><span>This thread is only for your child&rsquo;s 1-on-1 learning.</span></p>
+        </article>
+      </section>
+
+      <!-- ---------- safety notice ---------- -->
+      <section class="notice" id="guidance" aria-labelledby="guidance-title">
+        <span class="mono" id="guidance-title">Private 1-on-1 chat</span>
+        <p>This thread is just you and your child&rsquo;s trainer. Messages stay on Mathify: mobile numbers, social handles, links and personal contact details are blocked. Never reveal final answers or trainer-only notes.</p>
+      </section>
+
+      <!-- ---------- inbox ---------- -->
+      <section class="inbox" id="inbox" aria-labelledby="inbox-title">
+        <div class="inbox-head">
+          <span class="sr-only" id="inbox-title">Messages with your child&rsquo;s trainer</span>
+          <div class="peer">
+            <span class="avatar" aria-hidden="true">AR</span>
+            <span class="peer-txt">
+              <b id="peerName">Ananya Rao</b>
+              <span id="peerMeta">Your child&rsquo;s 1-on-1 trainer</span>
+            </span>
+          </div>
+          <span class="unread mono" id="unreadBadge" hidden>0 unread</span>
+          <span class="state mono" id="threadStatus">Private · 1-on-1</span>
+        </div>
+
+        <ol class="messages" id="messageList" aria-live="polite" aria-label="Messages with your child's trainer"></ol>
+        <p class="empty-note" id="emptyState" hidden>No messages yet. Say hello to your child&rsquo;s trainer.</p>
+
+        <form class="composer" id="composer">
+          <label class="sr-only" for="composerInput">Write a message to your child&rsquo;s trainer</label>
+          <textarea id="composerInput" rows="2" maxlength="2000" placeholder="Write a message about your child&rsquo;s 1-on-1 learning…" required></textarea>
+          <div class="composer-foot">
+            <span class="counter mono num" id="charCount">0 / 2000</span>
+            <button type="submit" class="btn btn-coral" id="sendBtn">Send</button>
+          </div>
+        </form>
+
+        <div class="notice-row" id="noticeRow" hidden>
+          <p class="inline-notice" id="notice" role="status" aria-live="polite"></p>
+          <button type="button" class="link-btn" id="retryBtn" hidden>Try again</button>
+        </div>
+      </section>
+
+      <footer class="foot" id="policies">
+        <a href="../pricing.html">Pricing</a>
+        <a href="../terms.html">Terms</a>
+        <a href="../privacy.html">Privacy</a>
+        <a href="../refund.html">Refund</a>
+        <a href="../contact.html">Contact</a>
+        <span class="c">© 2026 Mathify</span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

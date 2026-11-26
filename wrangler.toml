@@ -1,0 +1,29 @@
+# Mathify AI chat Worker.
+#
+# Deploy secrets with `wrangler secret put` (never commit them):
+#   AUTH_SECRET              same value as server/.env AUTH_SECRET
+#   SUPABASE_URL             project URL for founder audit logs
+#   SUPABASE_SECRET_KEY      service-role key (RLS bypass, server-side only)
+#   CLOUDFLARE_ACCOUNT_ID    only needed when the [ai] binding is unavailable
+#   CLOUDFLARE_API_TOKEN     only needed when the [ai] binding is unavailable
+#
+# For local direct Worker calls with Express demo tokens, set
+# ALLOW_DEMO_AUTH=true in an untracked .dev.vars file. Production must omit it.
+
+name = "mathify-ai-chat"
+main = "worker.js"
+compatibility_date = "2026-11-26"
+
+[ai]
+binding = "AI"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:4000,http://127.0.0.1:4000"
+RATE_LIMIT_PER_MIN = "20"
+TEXT_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+# Primary vision model requested by the product contract. Cloudflare's public
+# model catalogue currently documents llava-1.5-7b-hf and llama-3.2-11b-vision;
+# the fallback below keeps live vision working if 1.6b-34b is unavailable.
+VISION_MODEL = "@cf/llava-hf/llava-v1.6b-34b"
+VISION_FALLBACK_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct"
+ALLOW_DEMO_AUTH = "false"

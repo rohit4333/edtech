@@ -105,6 +105,24 @@
         method: 'POST',
         body: { question: question, sessionId: sessionId || null }
       });
+    },
+    askStudyBuddy: function (question, image) {
+      return request('/chat/student-doubt', {
+        method: 'POST',
+        body: { question: question, image: image || null }
+      });
+    },
+    fetchPracticeBatch: function (topic, previousBatchId) {
+      return request('/student/practice/batch', {
+        method: 'POST',
+        body: { topic: topic || null, previousBatchId: previousBatchId || null }
+      });
+    },
+    answerPractice: function (batchId, questionId, optionIndex) {
+      return request('/student/practice/batch/' + encodeURIComponent(batchId) + '/answer', {
+        method: 'POST',
+        body: { questionId: questionId, optionIndex: optionIndex }
+      });
     }
   };
 })();

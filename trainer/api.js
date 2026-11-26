@@ -136,6 +136,12 @@
         method: 'POST',
         body: { question: question, sessionId: sessionId || null }
       });
+    },
+    askSupport: function (question) {
+      return request('/chat/trainer-support', {
+        method: 'POST',
+        body: { question: question }
+      });
     }
   };
 })();

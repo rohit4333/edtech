@@ -96,20 +96,28 @@ async function main() {
     const founderLogin = await request('POST', '/api/auth/login', {
       email: 'founder@mathify.app', password: password
     });
+    const parentLogin = await request('POST', '/api/auth/login', {
+      email: 'parent@mathify.app', password: password
+    });
     assert.strictEqual(trainerLogin.status, 200);
     assert.strictEqual(studentLogin.status, 200);
     assert.strictEqual(founderLogin.status, 200);
+    assert.strictEqual(parentLogin.status, 200);
 
     const trainer = trainerLogin.body.token;
     const student = studentLogin.body.token;
     const founder = founderLogin.body.token;
+    const parent = parentLogin.body.token;
     assert.strictEqual(trainerLogin.body.user.passwordHash, undefined);
 
     /* Privacy boundary: auth and demo endpoints carry no contact data. */
     const demoInfo = await call('/api/auth/demo');
     assert.strictEqual(demoInfo.status, 200);
     assert.strictEqual(/@/.test(demoInfo.text), false);
-    [trainerLogin, studentLogin, founderLogin].forEach(function (login) {
+    assert.strictEqual(demoInfo.body.accounts.some(function (account) {
+      return account.role === 'parent';
+    }), true);
+    [trainerLogin, studentLogin, founderLogin, parentLogin].forEach(function (login) {
       assert.deepStrictEqual(Object.keys(login.body.user).sort(),
         ['id', 'name', 'role']);
       assert.strictEqual(login.body.user.email, undefined);
@@ -119,6 +127,45 @@ async function main() {
     const me = await request('GET', '/api/auth/me', undefined, trainer);
     assert.strictEqual(me.status, 200);
     assert.strictEqual(me.body.user.role, 'trainer');
+
+    /* Parent ↔ trainer chat is human-only, role-scoped and DLP-guarded. */
+    const parentThread = await request('GET', '/api/parent-chat/thread/usr_student_001',
+      undefined, parent);
+    assert.strictEqual(parentThread.status, 200);
+    assert.strictEqual(parentThread.body.threadId, 'usr_student_001');
+    assert.strictEqual(parentThread.body.studentId, 'usr_student_001');
+    const trainerThread = await request('GET', '/api/parent-chat/thread/usr_student_001',
+      undefined, trainer);
+    assert.strictEqual(trainerThread.status, 200);
+    const studentThread = await request('GET', '/api/parent-chat/thread/usr_student_001',
+      undefined, student);
+    assert.strictEqual(studentThread.status, 403);
+    const foreignThread = await request('GET', '/api/parent-chat/thread/usr_student_002',
+      undefined, parent);
+    assert.strictEqual(foreignThread.status, 403);
+    const unassignedThread = await request('GET', '/api/parent-chat/thread/usr_student_002',
+      undefined, trainer);
+    assert.strictEqual(unassignedThread.status, 403);
+    const parentFlags = await request('GET', '/api/parent-chat/flags', undefined, parent);
+    assert.strictEqual(parentFlags.status, 403);
+    const founderFlags = await request('GET', '/api/parent-chat/flags', undefined, founder);
+    assert.strictEqual(founderFlags.status, 200);
+    const blockedParentMessage = await request('POST',
+      '/api/parent-chat/thread/usr_student_001/messages', {
+        body: 'Call me at +91 98765 43210'
+      }, parent);
+    assert.strictEqual(blockedParentMessage.status, 422);
+    assert.strictEqual(blockedParentMessage.body.error, 'CONTENT_BLOCKED');
+    assert.strictEqual(blockedParentMessage.text.indexOf('9876543210'), -1);
+    const safeParentMessage = await request('POST',
+      '/api/parent-chat/thread/usr_student_001/messages', {
+        body: 'Could we review ratios in class?'
+      }, parent);
+    assert.strictEqual(safeParentMessage.status, 200);
+    assert.strictEqual(safeParentMessage.body.message.senderRole, 'parent');
+    ['answerKey', 'trainerNotes', 'rawBody', 'passwordHash'].forEach(function (key) {
+      assert.strictEqual(JSON.stringify(safeParentMessage.body).indexOf('"' + key + '"'), -1);
+    });
 
     /* Founder settings drafts are founder-only; money and network contracts
        cannot be promoted into editable fields by a crafted request. */
@@ -171,6 +218,72 @@ async function main() {
       question: 'Hello'
     }, student);
     assert.strictEqual(copilotAsStudent.status, 403);
+
+    /* New Worker bridges stay role-scoped and honest without credentials. */
+    const buddyReply = await request('POST', '/api/chat/student-doubt', {
+      question: 'How do I start this ratio?'
+    }, student);
+    assert.strictEqual(buddyReply.status, 200);
+    assert.strictEqual(typeof buddyReply.body.reply, 'string');
+    assert.strictEqual(buddyReply.body.reply.indexOf('Study Buddy') !== -1, true);
+    const buddyAsTrainer = await request('POST', '/api/chat/student-doubt', {
+      question: 'Hello'
+    }, trainer);
+    assert.strictEqual(buddyAsTrainer.status, 403);
+    const deskReply = await request('POST', '/api/chat/trainer-support', {
+      question: 'What is the payout range?'
+    }, trainer);
+    assert.strictEqual(deskReply.status, 200);
+    assert.strictEqual(deskReply.body.reply.indexOf('Trainer Desk') !== -1, true);
+    const deskAsStudent = await request('POST', '/api/chat/trainer-support', {
+      question: 'Hello'
+    }, student);
+    assert.strictEqual(deskAsStudent.status, 403);
+
+    /* Mastery self-practice batches ten questions, ramps difficulty 15% per
+       batch and caps a topic at 80. Answer keys stay server-side. */
+    const batchOne = await request('POST', '/api/student/practice/batch', { topic: 'Ratios' }, student);
+    assert.strictEqual(batchOne.status, 200);
+    assert.strictEqual(batchOne.body.unlimitedTopics, true);
+    assert.strictEqual(batchOne.body.topicLimit, 80);
+    assert.strictEqual(batchOne.body.topicRemaining, 70);
+    assert.strictEqual(batchOne.body.batch.questions.length, 10);
+    assert.strictEqual(batchOne.body.batch.topicLimit, 80);
+    assert.strictEqual(batchOne.body.batch.topicTotal, 10);
+    assert.strictEqual(batchOne.body.batch.difficultyPercent, 0);
+    batchOne.body.batch.questions.forEach(function (question) {
+      assert.strictEqual(question.answerIndex, undefined);
+      assert.strictEqual(question.correctAnswer, undefined);
+      assert.strictEqual(question.hint, undefined);
+      assert.strictEqual(question.explanation, undefined);
+      assert.strictEqual(question.trainerInstructions, undefined);
+      assert.strictEqual(question.misconception_watch, undefined);
+    });
+    const practiceAnswer = await request('POST',
+      '/api/student/practice/batch/' + batchOne.body.batch.id + '/answer', {
+        questionId: batchOne.body.batch.questions[0].id, optionIndex: 0
+      }, student);
+    assert.strictEqual(practiceAnswer.status, 200);
+    assert.strictEqual(typeof practiceAnswer.body.result.correct, 'boolean');
+    assert.strictEqual(practiceAnswer.body.result.correctOptionIndex, undefined);
+    assert.strictEqual(practiceAnswer.body.result.answerIndex, undefined);
+    assert.strictEqual(practiceAnswer.body.result.correctAnswer, undefined);
+    const batchTwo = await request('POST', '/api/student/practice/batch', {
+      topic: 'Ratios', previousBatchId: batchOne.body.batch.id
+    }, student);
+    assert.strictEqual(batchTwo.status, 200);
+    assert.strictEqual(batchTwo.body.batch.questions.length, 10);
+    assert.strictEqual(batchTwo.body.batch.iteration, 1);
+    assert.strictEqual(batchTwo.body.batch.difficultyPercent, 15);
+    assert.strictEqual(batchTwo.body.batch.topicTotal, 20);
+    ['answerIndex', 'correctAnswer', 'hint', 'explanation', 'trainerInstructions',
+      'misconception_watch', 'answers', 'answerKey'].forEach(function (key) {
+      assert.strictEqual(JSON.stringify(batchTwo.body.batch).indexOf('"' + key + '"'), -1);
+    });
+    assert.notStrictEqual(batchTwo.body.batch.id, batchOne.body.batch.id);
+    assert.notStrictEqual(batchTwo.body.batch.questions[0].id, batchOne.body.batch.questions[0].id);
+    const batchAsTrainer = await request('POST', '/api/student/practice/batch', {}, trainer);
+    assert.strictEqual(batchAsTrainer.status, 403);
 
     /* Persisted curriculum is academic-only and role-scoped. */
     const ownCurriculum = await request('GET', '/api/student/me/curriculum', undefined, student);

@@ -35,6 +35,8 @@ function listSessionsForUser(user) {
     if (user.role === 'founder') return true;
     if (user.role === 'trainer') return session.trainerId === user.id;
     if (user.role === 'student') return session.studentId === user.id;
+    /* A parent sees only the sessions of their own child. */
+    if (user.role === 'parent' && user.childId) return session.studentId === user.childId;
     return false;
   }));
 }
@@ -328,11 +330,101 @@ function listSessionEvents(sessionId, since, limit) {
   }).slice(-size));
 }
 
+function savePracticeBatch(batch) {
+  store.practiceBatches.push(copy(batch));
+  return copy(batch);
+}
+
+function findPracticeBatch(batchId) {
+  const found = store.practiceBatches.find(function (item) { return item.id === batchId; });
+  return found ? copy(found) : null;
+}
+
+function listPracticeBatches() {
+  return copy(store.practiceBatches);
+}
+
+function updatePracticeBatch(batchId, patch) {
+  const found = store.practiceBatches.find(function (item) { return item.id === batchId; });
+  if (!found) return null;
+  Object.assign(found, copy(patch) || {});
+  return copy(found);
+}
+
+/* ------------------------------------------------------- parent chat records
+   All three collections live behind this service-role facade. Browser Data API
+   roles are never granted access; only the server can read or write them. */
+function parentChatThreadKey(threadId) {
+  return String(threadId || '');
+}
+
+function parentChatReadKey(threadId, recipientId) {
+  return parentChatThreadKey(threadId) + '::' + String(recipientId || '');
+}
+
+function listParentChatMessages(studentId, limit) {
+  const size = Math.max(1, Math.min(100, Number(limit) || 100));
+  const threadId = parentChatThreadKey(studentId);
+  const rows = store.parentChatMessages.filter(function (row) {
+    return parentChatThreadKey(row.threadId) === threadId || parentChatThreadKey(row.studentId) === threadId;
+  });
+  rows.sort(function (left, right) {
+    const byTime = String(left.createdAt || '').localeCompare(String(right.createdAt || ''));
+    return byTime || String(left.id || '').localeCompare(String(right.id || ''));
+  });
+  return copy(rows.slice(-size));
+}
+
+function insertParentChatMessage(record) {
+  const stored = Object.assign({
+    id: 'pch_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.parentChatMessages.push(stored);
+  return copy(stored);
+}
+
+function listParentChatFlags(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit) || 50));
+  const rows = store.parentChatFlags.slice().sort(function (left, right) {
+    return String(right.createdAt || '').localeCompare(String(left.createdAt || ''));
+  });
+  return copy(rows.slice(0, size));
+}
+
+function insertParentChatFlag(record) {
+  const stored = Object.assign({
+    id: 'pchflag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  store.parentChatFlags.push(stored);
+  return copy(stored);
+}
+
+function findParentChatRead(threadId, recipientId) {
+  const key = parentChatReadKey(threadId, recipientId);
+  const found = store.parentChatReads.find(function (row) { return row.key === key; });
+  return found ? copy(found) : null;
+}
+
+function saveParentChatRead(record) {
+  const stored = copy(record) || {};
+  stored.key = parentChatReadKey(stored.threadId, stored.recipientId);
+  const index = store.parentChatReads.findIndex(function (row) { return row.key === stored.key; });
+  if (index === -1) store.parentChatReads.push(stored);
+  else store.parentChatReads[index] = stored;
+  return copy(stored);
+}
+
 function seedDemo() {
   return { users: store.users.length, sessions: store.sessions.length, mode: 'mock' };
 }
 
 const mockApi = {
+  savePracticeBatch,
+  findPracticeBatch,
+  listPracticeBatches,
+  updatePracticeBatch,
   recordContactRequest,
   findUserByEmail,
   findUserById,
@@ -375,6 +467,12 @@ const mockApi = {
   appendSessionEvent,
   recentSessionEvents,
   listSessionEvents,
+  listParentChatMessages,
+  insertParentChatMessage,
+  listParentChatFlags,
+  insertParentChatFlag,
+  findParentChatRead,
+  saveParentChatRead,
   seedDemo
 };
 

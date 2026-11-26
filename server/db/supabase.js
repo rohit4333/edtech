@@ -98,6 +98,26 @@ async function listRecords(collection) {
   return Array.isArray(rows) ? rows.map(function (row) { return copy(row.data); }) : [];
 }
 
+/* Self-practice batches keep answer keys server-side in the service-only
+   records table; the Data API never receives these columns. */
+function savePracticeBatch(batch) {
+  return putRecord('practice_batches', batch.id, batch);
+}
+
+function findPracticeBatch(batchId) {
+  return getRecord('practice_batches', batchId);
+}
+
+function listPracticeBatches() {
+  return listRecords('practice_batches');
+}
+
+async function updatePracticeBatch(batchId, patch) {
+  const current = await getRecord('practice_batches', batchId);
+  if (!current) return null;
+  return putRecord('practice_batches', batchId, Object.assign({}, current, copy(patch) || {}));
+}
+
 function id(prefix) {
   return prefix + '_' + crypto.randomUUID();
 }
@@ -144,6 +164,7 @@ function listSessionsForUser(user) {
       if (user.role === 'founder') return true;
       if (user.role === 'trainer') return session.trainerId === user.id;
       if (user.role === 'student') return session.studentId === user.id;
+      if (user.role === 'parent' && user.childId) return session.studentId === user.childId;
       return false;
     });
   });
@@ -470,6 +491,59 @@ async function listSessionEvents(sessionId, since, limit) {
   return (Array.isArray(rows) ? rows : []).reverse().map(fromRow);
 }
 
+/* ------------------------------------------------------- parent chat records
+   Uses the same service-only mathify_records JSONB store as practice batches
+   and support escalations. No new table or SQL migration is required, and no
+   browser role is granted read access to these collections. */
+function parentChatReadKey(threadId, recipientId) {
+  return String(threadId || '') + '::' + String(recipientId || '');
+}
+
+async function listParentChatMessages(studentId, limit) {
+  const size = Math.max(1, Math.min(100, Number(limit) || 100));
+  const threadId = String(studentId || '');
+  const rows = await listRecords('parent_chat_message');
+  return rows.filter(function (row) {
+    return String(row.threadId || '') === threadId || String(row.studentId || '') === threadId;
+  }).sort(function (left, right) {
+    const byTime = String(left.createdAt || '').localeCompare(String(right.createdAt || ''));
+    return byTime || String(left.id || '').localeCompare(String(right.id || ''));
+  }).slice(-size);
+}
+
+function insertParentChatMessage(record) {
+  const stored = Object.assign({
+    id: id('pch'),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  return putRecord('parent_chat_message', stored.id, stored);
+}
+
+async function listParentChatFlags(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit) || 50));
+  const rows = await listRecords('parent_chat_flag');
+  return rows.sort(function (left, right) {
+    return String(right.createdAt || '').localeCompare(String(left.createdAt || ''));
+  }).slice(0, size);
+}
+
+function insertParentChatFlag(record) {
+  const stored = Object.assign({
+    id: id('pchflag'),
+    createdAt: new Date().toISOString()
+  }, copy(record) || {});
+  return putRecord('parent_chat_flag', stored.id, stored);
+}
+
+function findParentChatRead(threadId, recipientId) {
+  return getRecord('parent_chat_read', parentChatReadKey(threadId, recipientId));
+}
+
+function saveParentChatRead(record) {
+  const stored = copy(record) || {};
+  return putRecord('parent_chat_read', parentChatReadKey(stored.threadId, stored.recipientId), stored);
+}
+
 /* --------------------------------------------------------------------- seed */
 
 async function seedDemo() {
@@ -532,8 +606,18 @@ module.exports = {
   listTrainerSlots,
   insertTrainerSlot,
   deleteTrainerSlot,
+  savePracticeBatch,
+  findPracticeBatch,
+  listPracticeBatches,
+  updatePracticeBatch,
   recordContactRequest,
   appendSessionEvent,
   recentSessionEvents,
-  listSessionEvents
+  listSessionEvents,
+  listParentChatMessages,
+  insertParentChatMessage,
+  listParentChatFlags,
+  insertParentChatFlag,
+  findParentChatRead,
+  saveParentChatRead
 };

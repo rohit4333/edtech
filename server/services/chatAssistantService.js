@@ -15,6 +15,22 @@ const curriculumContext = require('./curriculumContext');
 const MAX_QUESTION_CHARS = 600;
 const MAX_REPLY_CHARS = 900;
 const ACADEMIC_KEYS = ['curriculum', 'board', 'grade', 'language', 'schoolChapter', 'school_chapter'];
+/* Input-side DLP. The model must never receive a session id, a name, contact
+   detail, answer key, hint or trainer-only note — even if a browser supplies
+   it inside the free-text question. */
+const SENSITIVE_INPUT = [
+  /[\w.+-]+@[\w-]+\.[\w.-]+/gi,
+  /https?:\/\/[^\s]+/gi,
+  /www\.[^\s]+/gi,
+  /wa\.me\/[^\s]*/gi,
+  /\+\d[\d\s-]{7,}/g,
+  /\b\d{10}\b/g,
+  /\b(?:instagram|whatsapp|telegram|facebook)\b/gi,
+  /\bsession[_-]?id\s*(?:[=:]|is)\s*\S+/gi,
+  /\b(?:answer[_-]?key|correct[_-]?option(?:_id)?|trainer[_-]?instructions|misconception_watch)\s*(?:[=:]|is)\s*[^\s.,!?]+/gi,
+  /\bhints?\s*(?:from\s+trainer\s*)?(?:[=:]|is)\s*[^.!?]+/gi,
+  /\b(?:my name is|student name|trainer name|name\s*[=:])\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?/gi
+];
 /* Reply-side DLP. The model is untrusted output, so a prompt-injected or
    careless completion is never returned to a student or trainer verbatim. */
 const BLOCKED_REPLY = [
@@ -50,6 +66,14 @@ function boundText(value, limit) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, limit);
+}
+
+function sanitizeQuestion(value) {
+  let text = boundText(value, MAX_QUESTION_CHARS);
+  SENSITIVE_INPUT.forEach(function (pattern) {
+    text = text.replace(pattern, '[redacted]');
+  });
+  return boundText(text.replace(/[<>]/g, ''), MAX_QUESTION_CHARS);
 }
 
 async function academicStudent(student, studentId) {
@@ -107,10 +131,12 @@ function fallbackReply(role) {
  * @param {'student'|'trainer'} role
  * @param {string} question raw question from the browser
  * @param {{student?:object, studentId?:string, sessionId?:string}} options
+ *        sessionId is used only by the caller for authorization; it is never
+ *        included in the model prompt.
  */
 async function reply(role, question, options) {
   const settings = options || {};
-  const text = boundText(question, MAX_QUESTION_CHARS);
+  const text = sanitizeQuestion(question);
   if (!text) {
     return { reply: 'Type a short question first.', source: 'validation' };
   }
@@ -125,8 +151,7 @@ async function reply(role, question, options) {
     grade: curriculum.grade || null,
     chapter: curriculum.currentTopic,
     language: curriculum.language,
-    scope: trainer ? 'trainer planning' : '1-on-1 student session',
-    sessionId: settings.sessionId || null
+    scope: trainer ? 'trainer planning' : '1-on-1 student session'
   });
 
   let raw = null;

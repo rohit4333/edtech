@@ -8,7 +8,10 @@ const PUBLIC_USER_KEYS = ['id', 'name', 'role'];
 const SESSION_USER_KEYS = [
   'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
   'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay',
-  'badges', 'trophyPoints'
+  'badges', 'trophyPoints',
+  /* Internal routing key only. /auth/me still uses PUBLIC_USER_KEYS, so this
+     link never reaches a browser identity payload. */
+  'childId'
 ];
 
 function pickKeys(user, keys) {
@@ -67,6 +70,9 @@ function canAccessSession(user, session) {
   if (user.role === 'founder') return true;
   if (user.role === 'trainer') return session.trainerId === user.id;
   if (user.role === 'student') return session.studentId === user.id;
+  /* Parent access is limited to sessions of their own child. This stays a
+     synchronous check so every existing session middleware keeps working. */
+  if (user.role === 'parent') return Boolean(user.childId && user.childId === session.studentId);
   return false;
 }
 

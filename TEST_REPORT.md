@@ -2,28 +2,80 @@
 
 **Date:** 26 November 2026
 **Branch:** `feat/student-rtc-control-permission` (working tree based on `main` at `9838d0a`)
-**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview with planner designer, founder settings drafts, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.
-**Mode:** Local/mock by default. No live database migration and no live paid transaction were performed.
+**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies and mastery self-practice, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview with planner designer, founder settings drafts, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare Workers AI chat assistants, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.
+**Mode:** Local/mock by default for automated and browser checks. One live Workers AI text call and one local Agora token generation were performed (evidence below). No live database migration, Supabase call, payment, capture or SMS was performed during this verification round.
 
 ## Result
 
-**PASS** — all 24 automated suites, syntax checks, migration dry run, dependency audit, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully.
+**PASS** — all 27 automated suites (including the new parent-chat suite), syntax checks, migration dry run, dependency audit, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully. The chat/practice additions are covered by the live evidence below; no full end-to-end browser live-chat success is claimed.
+
+## Live verification evidence
+
+Session `ses_de8f350eaffeqms9zk7fkKMzz3`. Direct provider checks after the chat/practice additions; these are separate checks, not a full browser live-chat run. No secret, full token or model reply text was logged.
+
+| Check | Model / surface | Result | Evidence and limitation |
+| --- | --- | --- | --- |
+| Workers AI text | `@cf/meta/llama-3.1-8b-instruct` | **PASS** | HTTP `200`, about `453 ms`, valid Cloudflare success envelope. The reply did not strict-parse on the first pass, so tolerant JSON extraction was hardened after the check. |
+| Requested vision | `@cf/llava-hf/llava-v1.6b-34b` | **FAIL** | HTTP `400` `No route for that URI` — not available on this account. The configured fallback path is triggered correctly. |
+| Fallback vision | `@cf/meta/llama-3.2-11b-vision-instruct` | **BLOCKED** | HTTP `403` `Model Agreement` — a one-time Meta license acceptance (`agree`) is required and was **not** submitted on the user's behalf. Live image chat stays unavailable until that is explicitly accepted. |
+| Agora token, local generation | Demo session with fresh two-sided network checks | **PASS** | Token generated OK; the full token was not printed. No Agora webhook was proven. |
+| Supabase | Service-role adapter | **SKIPPED** | Credentials absent/empty; no call made. No practice or chat audit row was written live. |
+| Razorpay | Orders / webhook | **SKIPPED** | Credentials absent/empty; no order, capture or payment made. |
+| Twilio | WhatsApp parent assistant | **SKIPPED** | Credentials absent/empty; no message sent. |
+| Migration | `0001`–`0004` reviewed SQL | **SKIPPED** | Credentials absent/empty; no live migration applied. |
+
+Backend fixes made in response to the live check:
+
+- Workers AI model slugs (for example `@cf/meta/llama-3.1-8b-instruct`) now stay literal in REST paths instead of being URL-encoded; encoding produced `No route for that URI`. Applied in `worker.js` and `server/services/chatWorkerService.js`.
+- A LLaVA `No route for that URI` HTTP `400` now counts as model-not-found and triggers the configured vision fallback.
+- `safeParseJSON()` in `worker-core.mjs` now extracts the first balanced JSON object from chatty model output, respecting strings and escapes, before falling back to strict parsing.
+- Input sanitizers in `worker-core.mjs` and `server/services/chatAssistantService.js` now redact explicitly named people, free-text hints, answer keys and session ids before any model prompt; chat text is pinned to `@cf/meta/llama-3.1-8b-instruct` in both the Worker and local bridge.
+- Severe trainer complaints deterministically route to `founder@mathify.app` even when a model reply omits the address.
+- The eighth self-practice batch stays answerable: offered count no longer marks the topic complete before all ten answers are saved. The API's `unlimited` flag was replaced with the honest 80-question `topicLimit`/`topicRemaining` contract.
+
+Limitations: no deployed Worker end-to-end browser chat was exercised; the text provider call and local Agora token generation were verified separately. Live image chat is gated until the user accepts the Meta model agreement. The local automated suites cover the new Worker, mastery and parent-chat contracts deterministically; their final counts are recorded below.
+
+## Simulation fixes and recheck evidence
+
+Three role agents (trainer, student and founder perspectives) found and we fixed the student `batchLabel` shadowing bug, the final 80th-question batch being disabled before answers, the favicon 404 on dashboard surfaces, incomplete trainer payout copy, generated quiz drafts blocked by `explanation: null`, and legacy tutor prompts carrying `sessionId`.
+
+Before the parent-chat suite was added, the full 26-suite run exited `0`: payoutService 31, attendancePolicy 10, leaveService 23, masteryGating 31, quizGenerator 21, quizPromptInjection 10, cloudflareClient 87, curriculumAuthoring 107, curriculumContext 116, aiCurriculumIntegration 36, studentSerializer 19, privacyBoundary 154, chatAssistant 38, chatWorker 80, masteryPractice 365, curriculumPersistence 25, navContract 78, slotService 15, presenceService 17, apiSmoke passed, scaffoldedUI 12, liveReadiness 64, livePersistence 33, liveOperations 20, rtcControls 42, engagementControls 66. The final 27-suite run recorded below has `cloudflareClient` at 91 and `privacyBoundary` at 159 after the later hardening.
+
+- **API cap simulation after fixes:** 8 batches = 80 questions; the final batch reported `topicComplete=false` when offered and `true` after all ten answers; a 9th request returned `409 TOPIC_PRACTICE_COMPLETE` with the encouraging rest message.
+- **In-app browser recheck after the `batchLabel` fix:** `Start 10 questions` rendered 10 questions and status `Ready · Baseline · 10 / 80 topic questions`; after answering all 10, the card showed `Batch 01 · 10 / 10 answered · Baseline` and `Batch complete`; `Fetch another 10 · 15% harder ↓` produced `Ready · +15% harder · 20 / 80 topic questions`; the wallet rendered `9 sessions left`; 0 console errors.
+- **Static/copy recheck:** `GET /favicon.ico` returns `200 image/svg+xml`; the trainer static payout copy contains `₹300–₹400 per completed 1-on-1 session`, `48-hour notice`, bonuses and `founder@mathify.app`.
+
+## Approved roadmap recorded
+
+- Founder-managed trainer access/pay/allotment.
+- Student self-registration, payment and self-set credentials.
+- Parent ↔ trainer chat with notifications — now built as a private human thread with per-recipient unread counts, mark-read, regex DLP and founder-only masked flags; no new SQL migration.
+
+## Parent ↔ trainer chat completion evidence
+
+Backend and frontend agents completed parent↔trainer chat. The static allowlist in `server/app.js` was updated to expose the new `parent/` surface; this change was made after those agents reported.
+
+- **Local API smoke on port 4001:** parent login OK; trainer login OK; a safe parent message was delivered; trainer unread incremented and then cleared via mark-read; the trainer reply was visible to the parent; a blocked phone attempt returned `422 CONTENT_BLOCKED`; the blocked message was absent from both inboxes and the realtime log; a founder flag was recorded with a masked preview only; parent/trainer flag reads returned `403`; student thread read returned `403`.
+- **Parent browser smoke:** the parent page rendered footer links and the inbox; a safe message rendered as `You · parent`; a blocked phone send left the message count unchanged, cleared the composer, showed the neutral notice and did not put raw digits in the DOM. The expected network `422` appears in the parent console; no raw contact detail is rendered.
+- **Trainer browser smoke:** the compact Parent messages panel rendered, showed the parent message and a trainer reply rendered as `You · trainer`; 0 console errors. The dynamic payout note now includes ₹300–₹400, 48-hour/mutual-leave/fine wording, bonuses and founder escalation.
 
 ## Commands and results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Full automated suite | `npm test` from `server/` | Exit `0`. All 24 suites passed. |
+| Full automated suite | `npm test --prefix server` | Exit `0`. All 27 suites passed; `server/package.json` contains 27 `node tests/*.test.js` entries including `parentChat.test.js`. |
 | Engagement controls suite | `node tests/engagementControls.test.js` | `66 assertions passed`. |
-| Live-readiness suite | `node tests/liveReadiness.test.js` | `62 assertions passed`. |
-| Live persistence suite | `node tests/livePersistence.test.js` | `29 assertions passed`. |
-| Live operations suite | `node tests/liveOperations.test.js` | `19 assertions passed`. |
+| Live-readiness suite | `node tests/liveReadiness.test.js` | `64 assertions passed`. |
+| Live persistence suite | `node tests/livePersistence.test.js` | `33 assertions passed`. |
+| Live operations suite | `node tests/liveOperations.test.js` | `20 assertions passed`. |
 | RTC controls suite | `node tests/rtcControls.test.js` | `42 assertions passed`. |
 | API smoke | Included in `npm test` | `apiSmoke: passed`. |
+| Parent chat suite | Included in `npm test` | `parentChat: 331 assertions passed`. |
 | UI scaffold contract | Included in `npm test` | `scaffoldedUI: 12 assertions passed`. |
-| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66834 bytes `sha256:5d72306998ee`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 1992 bytes `sha256:01cce962350e`. Checksums reflect working-tree bytes; migrations are unchanged in git. |
-| JS syntax | `node --check` on every changed JS file | All 9 changed/new JS files passed. |
-| Whitespace | `git diff --check` | Clean (exit `0`); only CRLF normalisation warnings on two route files. |
+| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66834 bytes `sha256:5d72306998ee`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 1992 bytes `sha256:01cce962350e`; `0004_ai_chat_logs.sql` 3117 bytes `sha256:3d50d91a1cc6`. Checksums reflect working-tree bytes; no migration was applied. |
+| Chat audit migration review | `0004_ai_chat_logs.sql` | Reviewed in `server/migrations/README.md`: founder-only `app_metadata` RLS, service-role writes, no anon/authenticated grants, no image bytes. Dry-run checksum recorded above; no live apply. |
+| JS syntax | `node --check` on every changed/new JS and MJS file | All changed/new files passed, including `worker-core.mjs` and `worker.js`. |
+| Whitespace | `git diff --check` | Clean (exit `0`, no output). |
 | Dependency audit | `npm audit --omit=dev --json` | `0 vulnerabilities` after upgrading `zod` and `nodemailer` and committing the lockfile change. |
 | HTTP surface smoke | Express origin on port 4173 | Reviewed pages/assets returned `200`; server source, `.env`, `.git`, and migration files remain `404`. |
 | Browser smoke | In-app Chromium, 12 surfaces | `0` console errors and `0` failed requests on every surface. |
@@ -47,24 +99,29 @@ All suites are registered in `server/package.json`:
 - `masteryGating`: 31 assertions
 - `quizGenerator`: 21 assertions
 - `quizPromptInjection`: 10 assertions
-- `cloudflareClient`: 84 assertions
+- `cloudflareClient`: 91 assertions
 - `curriculumAuthoring`: 107 assertions
 - `curriculumContext`: 116 assertions
 - `aiCurriculumIntegration`: 36 assertions
 - `studentSerializer`: 19 assertions
-- `privacyBoundary`: 154 assertions
-- `chatAssistant`: 35 assertions
+- `privacyBoundary`: 159 assertions
+- `chatAssistant`: 38 assertions
+- `chatWorker`: 80 assertions
+- `masteryPractice`: 365 assertions
 - `curriculumPersistence`: 25 assertions
 - `navContract`: 78 assertions
 - `slotService`: 15 assertions
 - `presenceService`: 17 assertions
 - `apiSmoke`: passed
+- `parentChat`: 331 assertions
 - `scaffoldedUI`: 12 assertions
-- `liveReadiness`: 62 assertions
-- `livePersistence`: 29 assertions
-- `liveOperations`: 19 assertions
+- `liveReadiness`: 64 assertions
+- `livePersistence`: 33 assertions
+- `liveOperations`: 20 assertions
 - `rtcControls`: 42 assertions
 - `engagementControls`: 66 assertions
+
+All 27 suites passed with exit `0` in the final integration run. The **Live verification evidence** table above is the authoritative record for the separate provider calls; no deployed Worker end-to-end browser chat is claimed.
 
 Expected non-fatal console output during tests:
 
@@ -182,15 +239,15 @@ The pasted assessment was checked against the current code, excluding demo crede
 ## Deliberate non-actions
 
 - No Supabase migration was applied. Apply still requires human review plus both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`. One demo founder user row was inserted and verified in `public.users` at the user’s request; this is data, not a schema migration.
-- No live Cloudflare call was made because the current `.env` token must be rotated first.
-- No real Razorpay capture, Agora recording webhook, or Twilio message was sent from tests. Test notification credentials were cleared before HTTP checks.
+- One live Cloudflare Workers AI text call was made (see evidence above); no secret, full token or reply text was logged. Requested vision is unavailable on this account and fallback vision is blocked by the Meta model agreement, so no live image chat succeeded.
+- No Supabase call, Razorpay order/capture, Twilio message, Agora webhook or migration apply was made during this verification round; credentials were absent/empty. Test notification credentials were cleared before HTTP checks.
 - The Agora Join control was not activated during browser smoke: it would load the remote SDK and request camera/microphone access. Its token contract and the connection gate are covered by server tests instead.
 - The browser cannot remotely flip another user's physical camera/microphone. Revoked enforcement runs in the student tab through local Agora tracks plus server-owned state/events; a denied device, stopped track or offline tab is reported honestly rather than shown as on.
 
 ## Remaining launch gates
 
 1. Rotate the exposed Cloudflare API token, Supabase secret key, and Agora Primary Certificate; replace values in gitignored `server/.env` without sharing them in chat.
-2. After rotation, make one live Cloudflare Workers AI call and verify production env validation on the chosen host.
+2. Workers AI text is already verified (HTTP `200`). Accept the one-time Meta model agreement (`agree`) explicitly if image chat is required; until then live image chat remains blocked. Verify production env validation on the chosen host.
 3. Obtain explicit approval before applying reviewed Supabase migrations, then verify all deployed tables have RLS enabled, policies read `app_metadata`, the raw event outbox has no authenticated grant, and live-created sessions carry `rtc.channel`.
 4. Decide whether founder settings drafts should become a reviewed, persisted deployment source; until then they remain runtime drafts and planner exports remain local authoring output.
 5. Provide OCR access or extracted text for PDF pages 5–17 before quoting them verbatim.

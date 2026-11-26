@@ -26,8 +26,19 @@ function moderateDraft(draft) {
     return { ok: false, reasons: ['draft is not an object'] };
   }
 
+  /* Generated drafts legitimately carry empty trainer-side slots. A null or
+     empty value is not trainer data and must not block approval; a populated
+     trainer-only field still is rejected. */
+  const hasValue = function (value) {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return Boolean(value.trim());
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  };
   const keys = Object.keys(draft);
-  const forbiddenKey = keys.find(function (key) { return TRAINER_ONLY.test(key); });
+  const forbiddenKey = keys.find(function (key) {
+    return TRAINER_ONLY.test(key) && hasValue(draft[key]);
+  });
   if (forbiddenKey) reasons.push('trainer-only field: ' + forbiddenKey);
 
   const text = textFrom(draft, new WeakSet(), 0);

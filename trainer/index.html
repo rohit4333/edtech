@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="../shared/leave-calendar.css">
 <link rel="stylesheet" href="schedule.css">
 <link rel="stylesheet" href="responsive.css">
+<link rel="stylesheet" href="parent-chat.css">
 <style>
   .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
   .score-link svg,.day-link svg,.block-head svg,.save-note svg,.swipe-hint svg,
@@ -28,6 +29,17 @@
     padding:12px 14px;border:1px solid var(--ink);border-radius:6px;background:var(--paper);
     font:500 11px/1.5 var(--mono);color:var(--ink)
   }
+  .ai-modes{
+    display:flex;gap:6px;padding:9px 15px;
+    border-bottom:1px solid var(--line-soft);background:var(--card);
+  }
+  .ai-modes button{
+    padding:4px 10px;border:1px solid var(--line);border-radius:var(--r-full);
+    font:500 8px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+    transition:border-color .18s ease,color .18s ease,background .18s ease;
+  }
+  .ai-modes button:hover{border-color:var(--ink);color:var(--ink)}
+  .ai-modes button.active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
   [hidden]{display:none !important}
 </style>
 </head>
@@ -323,7 +335,7 @@
             <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
             <span id="payoutTrendNote">Completed sessions · fines, bonus and MVT excluded from daily points.</span>
           </div>
-          <p class="payout-policy" id="payoutPolicyNote">₹300–400 per completed session · 2+ days notice by either side is mutual leave · later trainer cancellation costs one session pay · no-shows unpaid.</p>
+          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app.</p>
         </div>
       </section>
 
@@ -383,6 +395,36 @@
             <span class="status s-today">Due Thu</span>
             <button class="btn btn-ghost btn-sm" data-ask="Outline Friday's lesson plan on ratios for Class 6–7.">Open planner</button>
           </article>
+        </div>
+      </section>
+
+      <!-- ---------- parent messages (private 1-on-1) ---------- -->
+      <section class="block pc-block" id="parent-messages" aria-labelledby="pc-title">
+        <div class="block-head">
+          <span class="mono" id="pc-title">Parent messages</span>
+          <span class="count pc-unread" id="pcUnreadBadge" hidden>0</span>
+          <span class="link pc-link">Private · 1-on-1</span>
+        </div>
+        <div class="pc-card">
+          <div class="pc-head">
+            <span class="avatar" aria-hidden="true">IV</span>
+            <span class="pc-peer">
+              <b id="pcStudentName">Ishaan Verma</b>
+              <span id="pcMeta">Private thread with parent · 1-on-1</span>
+            </span>
+            <span class="mono pc-state" id="pcStatus">Private</span>
+          </div>
+          <ol class="pc-messages" id="pcMessageList" aria-live="polite" aria-label="Messages with the parent of your 1-on-1 student"></ol>
+          <p class="pc-empty" id="pcEmpty" hidden>No parent messages yet.</p>
+          <form class="pc-compose" id="pcComposer">
+            <label class="pc-sr-only" for="pcInput">Reply to the parent about your 1-on-1 student</label>
+            <input type="text" id="pcInput" maxlength="2000" placeholder="Reply to the parent…" autocomplete="off" required>
+            <button type="submit" class="btn btn-sm pc-send" id="pcSend">Send</button>
+          </form>
+          <div class="pc-notice-row" id="pcNoticeRow" hidden>
+            <p class="pc-notice" id="pcNotice" role="status" aria-live="polite"></p>
+            <button type="button" class="pc-retry" id="pcRetry" hidden>Try again</button>
+          </div>
         </div>
       </section>
 
@@ -562,23 +604,27 @@
   </button>
 </nav>
 
-<!-- ===================== copilot ===================== -->
-<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open Mathify copilot">
+<!-- ===================== trainer assistant ===================== -->
+<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open Mathify assistant">
   <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
 </button>
 
-<aside class="ai" id="aiPanel" hidden aria-label="Mathify copilot">
+<aside class="ai" id="aiPanel" hidden aria-label="Mathify trainer assistant">
   <div class="ai-head">
     <span class="mark" aria-hidden="true">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
     </span>
     <span>
-      <b>Mathify copilot</b>
-      <span class="st">Plans · grading · parent notes</span>
+      <b id="aiTitle">Mathify copilot</b>
+      <span class="st" id="aiStatus">Plans · grading · parent notes</span>
     </span>
-    <button class="x" id="aiClose" aria-label="Close copilot">
+    <button class="x" id="aiClose" aria-label="Close assistant">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
     </button>
+  </div>
+  <div class="ai-modes" role="group" aria-label="Assistant mode">
+    <button type="button" class="active" data-chat-mode="copilot" aria-pressed="true">Copilot</button>
+    <button type="button" data-chat-mode="support" aria-pressed="false">Trainer Desk</button>
   </div>
   <div class="ai-body" id="aiBody">
     <p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>
@@ -625,6 +671,7 @@
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="schedule.js" defer></script>
 <script src="app.js" defer></script>
+<script src="parentChat.js" defer></script>
 <script type="module" src="agora.js"></script>
 
 </body>

@@ -2,7 +2,7 @@
 
 This repository contains the Mathify dashboard website and its API layer. Live teaching is strictly **1-on-1**; there are no group classes.
 
-> **Branch note:** the live-readiness work is on `main`; this branch, `feat/student-rtc-control-permission`, adds trainer-controlled student media access, a two-sided connection gate and reward trophies. The commands below assume this codebase state, not the older Phase 1 snapshot.
+> **Branch note:** the live-readiness work is on `main`; this branch, `feat/student-rtc-control-permission`, adds trainer-controlled student media access, a two-sided connection gate, reward trophies, two Cloudflare Workers AI chat assistants, server-held mastery self-practice and a private parent ↔ trainer chat with DLP founder flags. The commands below assume this codebase state, not the older Phase 1 snapshot.
 
 > **Full project guide:** [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) explains what, why, how, where and when for every part of Mathify.
 
@@ -13,20 +13,25 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 | `index.html` | Public landing page — 1-on-1 tutoring, tutor profile and demo. |
 | `apps.html` | Suite hub linking the live dashboards. |
 | `home/index.html` | Redirect to the root public home. |
-| `student/index.html` | Student dashboard — Mastery, sessions, recordings, reward trophies and wallet. |
-| `trainer/index.html` | Trainer console — attendance, timeline, attention queue and live-call panel. |
+| `student/index.html` | Student dashboard — Mastery with self-practice, sessions, recordings, reward trophies, wallet and Study Buddy chat. |
+| `trainer/index.html` | Trainer console — attendance, timeline, attention queue, live-call panel, Trainer Desk support chat and parent-thread unread badge. |
+| `parent/index.html` | Parent desk — private 1-on-1 human thread with the child's trainer, unread count and DLP-safe send feedback. |
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
 | `lms/` | LMS surface (partial) with local planner designer. |
 | `founder/` | Founder settings drafts — policy, mastery and trainer policy; money widgets are read-only. |
 | `server/` | Express API, mock DB, auth/RBAC, quizzer, Agora, Cloudflare Workers AI and Razorpay seams. |
+| `worker-core.mjs`, `worker.js`, `wrangler.toml` | Cloudflare Workers AI chat Worker plus a platform-free shared prompt/validation core. |
 
 ## Current state
 
-- 24 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
+- 27 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js`, `parentChat.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
 - `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `migrate`, `seed` and `reminders`.
-- `server/db/schema.sql` plus ordered `0001_baseline.sql`, `0002_student_curriculum.sql` and `0003_live_persistence.sql`, checked by a dry-run/checksum runner. No live migration has been applied.
+- `server/db/schema.sql` plus ordered `0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql` and `0004_ai_chat_logs.sql`, checked by a dry-run/checksum runner. No live migration has been applied.
 - Default runtime is the in-memory mock store. `DATABASE_MODE=supabase` selects the completed service-role adapter in `server/db/supabase.js`; production never silently falls back to demo identities.
-- AI is Cloudflare Workers AI only (no DeepSeek/OpenAI). AI drafts pass a trainer-only/personal-data moderation gate before review. Agora RTC/RTM tokens are real and server-signed; the contact booking API stores validated requests and notifies configured channels.
+- AI is Cloudflare Workers AI only (no DeepSeek/OpenAI). Curriculum drafts pass a trainer-only/personal-data moderation gate before review; the two dashboard chats run through a Cloudflare Worker using a shared prompt core. No browser code receives Cloudflare or Supabase secrets. Agora RTC/RTM tokens are real and server-signed; the contact booking API stores validated requests and notifies configured channels.
+- Trainer Desk answers payout (₹300–₹400 per 1-on-1 session), the 48-hour notice rule, fines and bonuses, and routes severe complaints to `founder@mathify.app`. Study Buddy gives Socratic hints and visual analogies only, never a final answer; it accepts PNG/JPG/WEBP/GIF images up to 1 MB.
+- Mastery self-practice offers 10 questions per batch and another 10 on demand, ramping difficulty 15% per batch, with a hard cap of 80 questions per topic (8 batches) and no cross-topic cap. Answer keys stay in service-only `practice_batches` records; the browser receives prompts, options and a private boolean only.
+- A private **parent ↔ trainer** human chat is available to the new demo parent for their own child (`usr_student_001`) and to trainers only for assigned students; the founder can audit all threads. Messages are 1-on-1, carry per-recipient unread counts and mark-read, and are never AI. Regex DLP blocks email, URL/`www`, phone/`+country`/10-digit numbers, `@handle`s and social platform names: a blocked message is not delivered, echoed, stored or published to realtime; instead a founder-only flag records actor id/role, reason code, masked preview and timestamp, and the sender gets `422 CONTENT_BLOCKED`. No new SQL migration is needed — messages, unread state and flags live in the existing service-only `mathify_records` store, and browser Data API roles have no access.
 - The `lms/` surface is partial: course, module, review and planner designer are usable; pack import and publish remain disabled. Founder settings are runtime drafts; money fields are read-only and deployment policy stays file-backed until reviewed.
 
 ## Run locally
@@ -49,7 +54,7 @@ cd server
 npm run migrate
 ```
 
-`npm run migrate` is a dry run and contacts no database. Applying is blocked until both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply` are set deliberately; see `server/migrations/README.md`. No live migration has been applied.
+`npm run migrate` is a dry run and contacts no database; the ordered plan now includes `0004_ai_chat_logs.sql`. Applying is blocked until both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply` are set deliberately; see `server/migrations/README.md`. No live migration has been applied.
 
 ## Realtime and live mode
 
@@ -63,6 +68,22 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 - A 1:1 call cannot start until **both** verified participants pass a fresh connection check: at least `15 Mbps` download, `10 Mbps` upload and under `250 ms` latency. Results expire after 15 minutes. `Check speed` is a manual control beside Join; Join stays disabled until both people are ready, and the RTC token endpoint fails closed with `NETWORK_BELOW_MINIMUM`. Raw measurements are peer-private; events carry only pass/fail and readiness.
 - Trainers can award fixed-catalog reward badges during a session. The server owns label and points; the student dashboard renders them as **trophies** with a running point total. Badge notifications carry no trainer identity or notes.
 
+## AI chat and mastery self-practice
+
+- **Mathify Trainer Desk** is a professional internal support bot inside the trainer dashboard. It answers payout (₹300–₹400 per 1-on-1 session), the 48-hour notice rule, fines and bonuses from verified policy; severe complaints go to `founder@mathify.app`.
+- **Mathify Study Buddy** is the student-dashboard companion. Text and maths images (PNG/JPG/WEBP/GIF, max 1 MB) produce Socratic questions and visual analogies only — never a final answer, worked solution or correct option — and it ignores faces, names and backgrounds in an image.
+- `worker-core.mjs` holds the shared prompts, sanitizers and validation with no platform APIs; `worker.js` and `wrangler.toml` deploy it as a Cloudflare Worker. Express bridges `/api/chat/trainer-support` and `/api/chat/student-doubt`. `CHAT_WORKER_URL` is optional: when unset, the same core runs locally through the Cloudflare REST endpoint. Secrets stay in Worker/Express environment variables, never in the browser.
+- Text model: `@cf/meta/llama-3.1-8b-instruct`. Vision: `@cf/llava-hf/llava-v1.6b-34b` with fallback `@cf/meta/llama-3.2-11b-vision-instruct` — Cloudflare's public catalogue documents the Llava 1.5 and Llama 3.2 vision entries, so the requested 34b model is pinned and the documented fallback keeps vision working if it is unavailable.
+- Audit tables `trainer_support_logs` and `student_doubt_logs` come from `0004_ai_chat_logs.sql`: founder-only RLS via `app_metadata`, no anon/authenticated Data API grants, service-role writes, no image bytes stored.
+- Live status: the text model passed a direct Workers AI call (HTTP `200`); the requested 34b vision model returned HTTP `400` `No route for that URI` on this account, and the fallback returned HTTP `403` `Model Agreement`. **Live image chat is gated until the user explicitly accepts the one-time Meta model agreement.** No end-to-end browser live-chat run, Supabase call, payment, SMS or live migration is claimed; see `TEST_REPORT.md`.
+- Self-practice lives in `server/services/masteryPracticeService.js` behind `/api/student/practice/batch`, `/api/student/practice/batch/:id` and `/api/student/practice/batch/:id/answer`. After a topic's 80th question the student gets an encouraging rest message; other topics remain available.
+
+## Roadmap — approved self-serve operations
+
+- **Founder-controlled trainer access/pay/allotment (approved, roadmap):** the founder will grant trainer access, fix each trainer's pay rate and own the scheduled class allotment. Current money fields are intentionally read-only runtime drafts and trainer slots are trainer-managed.
+- **Student self-registration, payment and self-set credentials (approved, roadmap):** students will register, pay, and set their own login ID and password. Current demo identities are server-seeded; Razorpay pack crediting exists but account creation and student-chosen credentials are not built yet.
+- **Parent ↔ trainer chat (built):** the approved private thread with unread notifications is now live for the linked demo parent/trainer, with founder-only DLP flags. In-classroom chat, WhatsApp parent support and reminder/contact notifications remain separate channels.
+
 ## Demo logins
 
 | Role | Email | Password |
@@ -70,6 +91,7 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 | Founder | `founder@mathify.app` | `mathify-demo` |
 | Trainer | `trainer@mathify.app` | `mathify-demo` |
 | Student | `student@mathify.app` | `mathify-demo` |
+| Parent (linked to `usr_student_001`) | `parent@mathify.app` | `mathify-demo` |
 
 ## Design rules
 
@@ -77,6 +99,8 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 - Coral buttons use ink text.
 - Poppins UI, mono eyebrows/counters, hairlines, small radii.
 - Trainer instructions, quiz answer keys and correctness are never sent to students before reveal.
+- AI chat receives no name, contact detail, session id, answer key, hint or trainer note; image bytes are decoded in memory only and are never logged or stored.
+- Self-practice answer keys stay server-side in service-only `practice_batches` records; trainer-only fields are never serialized to the browser.
 - Public pages keep the shared nav and legal footer links: pricing, terms, privacy, refund and contact.
 
 ## Separate repositories

@@ -81,6 +81,17 @@ function seedNumber(seed, shift, min, max) {
   return min + value;
 }
 
+/* Self-practice batches get a compounding difficulty multiplier. It scales the
+   numbers and reasoning load without changing the three curriculum levels. */
+function rampFactor(settings) {
+  const value = Number(settings && settings.difficultyRamp);
+  return Number.isFinite(value) && value > 1 ? Math.min(value, 8) : 1;
+}
+
+function scaled(value, ramp) {
+  return Math.max(1, Math.round(Number(value) * ramp));
+}
+
 function shuffled(options, seed) {
   const result = options.slice();
   let state = seed || 1;
@@ -94,7 +105,7 @@ function shuffled(options, seed) {
   return result;
 }
 
-function questionShape(prompt, options, correctAnswer, hint, objective, spec) {
+function questionShape(prompt, options, correctAnswer, hint, objective, spec, ramp) {
   const answerIndex = options.indexOf(correctAnswer);
   return {
     prompt: prompt,
@@ -102,18 +113,19 @@ function questionShape(prompt, options, correctAnswer, hint, objective, spec) {
     answerIndex: answerIndex,
     correctAnswer: correctAnswer,
     hint: hint,
-    explanation: null,
     source: 'fallback',
     templateId: objective.id,
     difficultyLevel: spec.level,
+    difficultyRamp: ramp,
     status: 'draft'
   };
 }
 
-function buildEquivalentRatioQuestion(objective, spec, seed) {
-  const a = seedNumber(seed, 0, 2, 5);
-  const b = seedNumber(seed, 5, 3, 7);
-  const scale = spec.level === 1 ? 2 : spec.level === 2 ? 3 : 4;
+function buildEquivalentRatioQuestion(objective, spec, seed, ramp) {
+  const a = scaled(seedNumber(seed, 0, 2, 5), ramp);
+  const b = scaled(seedNumber(seed, 5, 3, 7), ramp);
+  const baseScale = spec.level === 1 ? 2 : spec.level === 2 ? 3 : 4;
+  const scale = Math.max(baseScale, Math.round(baseScale * ramp));
   const correctAnswer = a * scale + ' : ' + b * scale;
   const options = shuffled([
     correctAnswer,
@@ -134,14 +146,15 @@ function buildEquivalentRatioQuestion(objective, spec, seed) {
     correctAnswer,
     'Multiply both parts by the same number.',
     objective,
-    spec
+    spec,
+    ramp
   );
 }
 
-function buildPartValueQuestion(objective, spec, seed) {
-  const firstPart = seedNumber(seed, 0, 2, 4);
-  const secondPart = firstPart + seedNumber(seed, 4, 1, 3);
-  const unit = seedNumber(seed, 8, 3, 7);
+function buildPartValueQuestion(objective, spec, seed, ramp) {
+  const firstPart = scaled(seedNumber(seed, 0, 2, 4), ramp);
+  const secondPart = firstPart + scaled(seedNumber(seed, 4, 1, 3), ramp);
+  const unit = scaled(seedNumber(seed, 8, 3, 7), ramp);
   const shorter = firstPart * unit;
   const longer = secondPart * unit;
   const total = shorter + longer;
@@ -167,28 +180,30 @@ function buildPartValueQuestion(objective, spec, seed) {
       ? 'Find the value of one part from the total first.'
       : 'Find the value of one part, then scale the requested part.',
     objective,
-    spec
+    spec,
+    ramp
   );
 }
 
-function buildFallbackQuestion(templateId, usedPrompts, level) {
+function buildFallbackQuestion(templateId, usedPrompts, level, settings) {
   const objective = resolveObjective(templateId);
   const spec = difficultySpec(level);
   const used = Array.isArray(usedPrompts) ? usedPrompts : [];
+  const ramp = rampFactor(settings);
   const baseSeed = hash(objective.id + '|' + spec.level);
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const seed = (baseSeed + attempt * 7919) >>> 0;
     const question = objective.id === 'ratio_equivalent_check'
-      ? buildEquivalentRatioQuestion(objective, spec, seed)
-      : buildPartValueQuestion(objective, spec, seed);
+      ? buildEquivalentRatioQuestion(objective, spec, seed, ramp)
+      : buildPartValueQuestion(objective, spec, seed, ramp);
     if (used.indexOf(question.prompt) === -1) return question;
   }
 
   const lastSeed = (baseSeed + 99991) >>> 0;
   return objective.id === 'ratio_equivalent_check'
-    ? buildEquivalentRatioQuestion(objective, spec, lastSeed)
-    : buildPartValueQuestion(objective, spec, lastSeed);
+    ? buildEquivalentRatioQuestion(objective, spec, lastSeed, ramp)
+    : buildPartValueQuestion(objective, spec, lastSeed, ramp);
 }
 
 /* Backward-compatible aliases for older callers. */

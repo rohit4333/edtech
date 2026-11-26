@@ -72,7 +72,10 @@ router.get('/demo', function (req, res) {
     accounts: [
       { role: 'founder' },
       { role: 'trainer' },
-      { role: 'student' }
+      { role: 'student' },
+      /* Parent demo sign-in uses the same password; no contact detail is
+         included in this public list. */
+      { role: 'parent' }
     ]
   });
 });

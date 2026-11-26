@@ -721,6 +721,38 @@
   }
   .mastery .row .mono{font-size:8.5px;letter-spacing:.1em;color:var(--muted)}
 
+  /* ---------- mastery self practice ---------- */
+  .practice-slot{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .practice-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .practice-head .mono{margin:0;font-size:8px;letter-spacing:.12em;color:var(--faint)}
+  .practice-list{
+    display:flex;flex-direction:column;gap:10px;
+    margin-top:12px;max-height:420px;overflow:auto;padding-right:2px;
+  }
+  .practice-q{padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper)}
+  .practice-q .q-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .practice-q .q-top .mono{margin:0;font-size:8px;letter-spacing:.12em;color:var(--faint)}
+  .practice-q p{margin:8px 0 10px;font-size:11.5px;line-height:1.5;color:var(--ink)}
+  .practice-options{display:grid;gap:6px}
+  .practice-options button{
+    width:100%;padding:8px 10px;text-align:left;
+    border:1px solid var(--line);border-radius:4px;background:var(--card);
+    font:inherit;font-size:11px;line-height:1.45;color:var(--muted);
+    transition:border-color .18s ease,color .18s ease;
+  }
+  .practice-options button:hover:not(:disabled){border-color:var(--ink);color:var(--ink)}
+  .practice-options button:disabled{cursor:default}
+  .practice-options button[data-result="correct"]{border-color:var(--ink);background:var(--cream);color:var(--ink)}
+  .practice-options button[data-result="wrong"]{border-color:var(--coral);color:var(--coral-deep)}
+  .practice-feedback{margin-top:8px;font:500 8px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .practice-more{margin-top:12px;width:100%}
+  .practice-rest{
+    margin-top:12px;padding:11px 12px;
+    border:1px solid var(--line);border-left:2px solid var(--coral-deep);
+    border-radius:var(--r-sm);background:var(--paper);
+    font-size:11.5px;line-height:1.5;color:var(--muted);
+  }
+
   /* ---------- reward trophies ---------- */
   .trophies{
     margin-top:22px;
@@ -977,6 +1009,32 @@
   }
   .ai-form button:hover{background:var(--coral);color:var(--ink)}
   .ai-form button svg{width:15px;height:15px}
+  .ai-attach{
+    flex:none;
+    display:grid;place-items:center;
+    width:36px;height:36px;
+    border:1px solid var(--line);
+    border-radius:50%;
+    background:var(--paper);
+    color:var(--muted);
+    cursor:pointer;
+    transition:border-color .18s ease,color .18s ease;
+  }
+  .ai-attach:hover{border-color:var(--ink);color:var(--ink)}
+  .ai-attach svg{width:16px;height:16px}
+  .ai-attach-row{padding:0 11px 10px;background:var(--card)}
+  .attach-chip{
+    display:inline-flex;align-items:center;gap:8px;
+    max-width:100%;padding:5px 6px 5px 10px;
+    border:1px solid var(--line);border-radius:var(--r-full);
+    font:500 9px/1.2 var(--mono);letter-spacing:.04em;color:var(--muted);
+  }
+  .attach-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .attach-chip button{
+    display:grid;place-items:center;width:18px;height:18px;
+    border-radius:50%;color:var(--faint);font-size:14px;line-height:1;
+  }
+  .attach-chip button:hover{background:var(--cream);color:var(--ink)}
 
   /* ---------- loading state ---------- */
   @keyframes shimmer{
@@ -1258,7 +1316,7 @@
       <div class="help">
         <span class="mono">Tutor</span>
         <p>Stuck on a step? Ask for a hint, not the answer.</p>
-        <button class="help-btn" data-open-ai>Ask the tutor <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+        <button class="help-btn" data-open-ai>Ask Study Buddy <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
       </div>
       <div class="user">
         <span class="avatar" aria-hidden="true">IV</span>
@@ -1494,12 +1552,21 @@
 
         <article class="mastery" id="mastery-practice">
           <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-mastery"/></svg></span>
-          <span class="mono">Daily practice</span>
+          <span class="mono">Self practice</span>
           <h3>Mastery</h3>
-          <p>A 15-minute set tuned to your last three sessions.</p>
+          <p>Ten questions at a time, tuned to your recent work — up to 80 per topic, with every round +15% harder.</p>
           <div class="row">
-            <span class="mono">12 questions · 15 min</span>
-            <button class="btn btn-ghost btn-sm" data-session-action="practice">Start set</button>
+            <span class="mono">10 at a time · 80 per topic · +15% each round</span>
+            <button class="btn btn-ghost btn-sm" data-session-action="practice">Start 10 questions</button>
+          </div>
+          <div class="practice-slot" id="practiceSlot" hidden>
+            <div class="practice-head">
+              <span class="mono" id="practiceCounter">Batch 01 · 0 / 10 answered</span>
+              <span class="mono" id="practiceStatus">Ready</span>
+            </div>
+            <div class="practice-list" id="practiceList"></div>
+            <button class="btn btn-ghost btn-sm practice-more" id="practiceMore" type="button" hidden>Fetch another 10 · 15% harder ↓</button>
+            <p class="practice-rest" id="practiceRest" role="status" aria-live="polite" hidden></p>
           </div>
         </article>
 
@@ -1517,6 +1584,18 @@
         <div class="trophy-list" id="trophyList" aria-live="polite">
           <p class="trophy-empty">Your trainer’s badges will appear here as trophies.</p>
         </div>
+      </section>
+
+      <!-- ---------- wallet ---------- -->
+      <section class="trophies" id="wallet" aria-labelledby="walletTitle">
+        <div class="trophies-head">
+          <div>
+            <span class="mono">Wallet</span>
+            <h3 id="walletTitle">Your session pack</h3>
+          </div>
+          <span class="trophy-points" id="walletSessions">— sessions</span>
+        </div>
+        <p class="ptm" id="walletNote">Credits are added after a verified payment. Self-serve top-up is on the roadmap.</p>
       </section>
 
       <!-- ---------- batch ---------- -->
@@ -1619,35 +1698,41 @@
   </button>
 </nav>
 
-<!-- ===================== tutor ===================== -->
-<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open tutor">
+<!-- ===================== study buddy ===================== -->
+<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open Study Buddy">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-spark"/></svg>
 </button>
 
-<aside class="ai" id="aiPanel" hidden aria-label="Mathify tutor">
+<aside class="ai" id="aiPanel" hidden aria-label="Mathify Study Buddy">
   <div class="ai-head">
     <span class="mark" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><use href="#i-spark"/></svg>
     </span>
     <span>
-      <b>Mathify tutor</b>
-      <span class="st">Always on · hints, not answers</span>
+      <b>Mathify Study Buddy</b>
+      <span class="st">Hints · visual analogies · emojis</span>
     </span>
-    <button class="x" id="aiClose" aria-label="Close tutor">
+    <button class="x" id="aiClose" aria-label="Close Study Buddy">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg>
     </button>
   </div>
   <div class="ai-body" id="aiBody">
-    <p class="msg bot">You&rsquo;re 3 days into Practice set 04. Want a hint for the first equation?</p>
+    <p class="msg bot">Hi! I&rsquo;m your Study Buddy 📐 Drop a question or a photo of your working, and we&rsquo;ll figure out the first step together.</p>
     <div class="ai-chips">
-      <button type="button">Explain step 2</button>
-      <button type="button">Summarise lesson 12</button>
+      <button type="button">Give me a hint 😊</button>
+      <button type="button">Explain this like a story</button>
+      <button type="button">What should I try first?</button>
     </div>
-    <p class="msg me">Explain step 2</p>
-    <p class="msg bot">Move the 7 across first, then divide both sides by 3. Try that and tell me what you get.</p>
+  </div>
+  <div class="ai-attach-row" id="aiAttachRow" hidden>
+    <span class="attach-chip"><span id="aiAttachName">Image ready</span><button type="button" id="aiAttachClear" aria-label="Remove attached image">&times;</button></span>
   </div>
   <form class="ai-form" id="aiForm">
-    <input type="text" id="aiInput" placeholder="Ask about your studies…" aria-label="Ask the tutor">
+    <label class="ai-attach" title="Attach a maths image" aria-label="Attach a maths image">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8.8" cy="10" r="1.5"/><path d="m4.5 17 4.3-4 3.4 3 2.7-2.5 4.6 4"/></svg>
+      <input type="file" id="aiImage" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    </label>
+    <input type="text" id="aiInput" placeholder="Ask about your studies…" aria-label="Ask the Study Buddy">
     <button type="submit" aria-label="Send">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-send"/></svg>
     </button>
@@ -1657,7 +1742,7 @@
 <style>
   /* stroke defaults for sprite icons */
   .ic,.nav .ic,.icon-btn svg,.search svg,.tabs svg,.fab svg,.thumb .ic,.task .go svg,.block-head .link svg,
-  .help-btn svg,.next-foot svg,.rec-link svg,.strip .close svg,.ai-head svg,.ai-form svg{
+  .help-btn svg,.next-foot svg,.rec-link svg,.strip .close svg,.ai-head svg,.ai-form svg,.ai-attach svg{
     fill:none;
     stroke:currentColor;
     stroke-width:1.6;

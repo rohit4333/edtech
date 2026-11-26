@@ -184,7 +184,6 @@ function normalizeQuestion(raw, index, level, templateId) {
     answerIndex: answerIndex,
     correctAnswer: correctAnswer,
     hint: raw.hint.trim(),
-    explanation: null,
     source: 'ai_draft',
     templateId: objective.id,
     difficultyLevel: level,
@@ -211,10 +210,13 @@ function buildFallbackQuiz(topic, currentMasteryScore, options) {
   const count = clamp(Number(settings.count) || DEFAULT_COUNT, 1, MAX_COUNT);
   const used = (settings.usedPrompts || []).slice();
   const templateId = settings.templateId || settings.objectiveId || null;
+  const ramp = configuredNumber(settings.difficultyRamp, 1);
   const questions = [];
 
   for (let index = 0; index < count; index += 1) {
-    const question = templates.buildFallbackQuestion(templateId, used, level);
+    const question = templates.buildFallbackQuestion(templateId, used, level, {
+      difficultyRamp: ramp
+    });
     question.id = questionId(index);
     questions.push(question);
     used.push(question.prompt);
