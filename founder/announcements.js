@@ -11,7 +11,7 @@
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.classroom.token.founder';
-  var LOGIN_PAGE = 'login.html?role=founder';
+  var LOGIN_PAGE = '/login.html?role=founder';
 
   function $(id) { return document.getElementById(id); }
 

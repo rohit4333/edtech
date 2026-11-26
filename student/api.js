@@ -6,7 +6,7 @@
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.student.token';
   var ROLE = 'student';
-  var LOGIN_PAGE = 'login.html?role=' + ROLE;
+  var LOGIN_PAGE = '/login.html?role=' + ROLE;
   var memoryToken = null;
 
   function readToken() {

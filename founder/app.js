@@ -11,7 +11,7 @@
   var TOKEN_KEY = 'mathify.classroom.token.founder';
   var LOCAL_KEY = 'mathify.founder.settings.v1';
   var ROLE = 'founder';
-  var LOGIN_PAGE = 'login.html?role=' + ROLE;
+  var LOGIN_PAGE = '/login.html?role=' + ROLE;
 
   var FALLBACK_POLICY = {
     quiz: { unlockThreshold: 80, scoringBands: { easy: { min: 0, max: 40 }, medium: { min: 41, max: 79 }, hard: { min: 80, max: 100 } } },

@@ -13,7 +13,7 @@
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.parent.token';
   var ROLE = 'parent';
-  var LOGIN_PAGE = 'login.html?role=' + ROLE;
+  var LOGIN_PAGE = '/login.html?role=' + ROLE;
   var LIMIT = 2000;
   var POLL_MS = 30000;
   var UNAVAILABLE = 'Messages are unavailable right now';

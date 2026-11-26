@@ -61,8 +61,8 @@ ok(appsHtml.indexOf('login.html?role=student') !== -1 &&
   'parent/app.js', 'founder/app.js', 'trainer/parentChat.js'
 ].forEach(function (client) {
   const source = read(client);
-  ok(source.indexOf('login.html?role=') !== -1,
-    client + ' redirects unauthenticated viewers to sign in');
+  ok(source.indexOf("'/login.html?role=") !== -1,
+    client + ' redirects unauthenticated viewers to the root sign-in page');
   ok(source.indexOf('/auth/demo') === -1 && !/mathify-demo/.test(source),
     client + ' contains no silent demo login');
 });

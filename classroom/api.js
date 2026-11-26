@@ -126,7 +126,7 @@
     try { window.localStorage.removeItem(TOKEN_KEY); } catch (error) { /* private mode */ }
     memoryToken = null;
     var next = window.location.pathname + window.location.search;
-    var target = 'login.html?role=' + encodeURIComponent(role) +
+    var target = '/login.html?role=' + encodeURIComponent(role) +
       '&next=' + encodeURIComponent(next);
     if (window.location.replace) window.location.replace(target);
     else window.location.href = target;

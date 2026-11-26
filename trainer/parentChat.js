@@ -13,7 +13,7 @@
 
   var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.trainer.token';
-  var LOGIN_PAGE = 'login.html?role=trainer';
+  var LOGIN_PAGE = '/login.html?role=trainer';
   var POLL_MS = 30000;
   var UNAVAILABLE = 'Messages are unavailable right now';
   var BLOCKED = 'That message could not be sent. Please keep chat on Mathify and leave out phone numbers, social handles, links and personal contact details.';
