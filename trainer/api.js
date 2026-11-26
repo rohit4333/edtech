@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var BASE = window.MATHIFY_API_BASE || 'http://localhost:4000/api';
+  var BASE = window.MATHIFY_API_BASE || '/api';
   var TOKEN_KEY = 'mathify.trainer.token';
   var DEMO_LOGINS = {
     founder: 'founder@mathify.app',

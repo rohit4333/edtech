@@ -125,6 +125,10 @@
   tabs.forEach(function (tab) {
     tab.addEventListener('click', function () {
       activate(tabs, tab);
+      var target = document.getElementById(tab.dataset.tabTarget);
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
 
@@ -289,6 +293,123 @@
       mount: '#leaveCalendar',
       role: 'student',
       request: api.request
+    });
+  }
+
+  /* ---------- actionable controls ---------- */
+  var noticeEl = document.createElement('div');
+  noticeEl.className = 'study-notice';
+  noticeEl.setAttribute('role', 'status');
+  noticeEl.hidden = true;
+  document.body.appendChild(noticeEl);
+
+  function showNotice(text, persistent) {
+    noticeEl.textContent = text;
+    noticeEl.hidden = false;
+    if (!persistent) window.setTimeout(function () { noticeEl.hidden = true; }, 4200);
+  }
+
+  function activeSessionId() {
+    return window.MATHIFY_SESSION_ID || params.get('sessionId') || 'ses_math_001';
+  }
+
+  function openClassroom() {
+    window.location.href = '../classroom/index.html?sessionId=' +
+      encodeURIComponent(activeSessionId()) + '&state=' + encodeURIComponent(state === 'ended' ? 'ended' : 'live');
+  }
+
+  function checkDevices() {
+    var devices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    if (!devices) {
+      showNotice('Device check is unavailable in this browser. The classroom will request camera and mic access when you join.');
+      return;
+    }
+    devices({ video: true, audio: true }).then(function (stream) {
+      stream.getTracks().forEach(function (track) { track.stop(); });
+      showNotice('Camera and microphone are ready.');
+    }).catch(function () {
+      showNotice('Camera or microphone access was blocked. Allow access in your browser before joining.');
+    });
+  }
+
+  var sessionActions = {
+    join: openClassroom,
+    device: checkDevices,
+    recording: function () {
+      window.location.href = '../lms/index.html#recordings';
+    },
+    practice: function () {
+      window.location.href = '../lms/index.html?practice=1';
+    },
+    schedule: function () {
+      var target = document.getElementById('schedule');
+      if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  document.querySelectorAll('[data-session-action]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var action = sessionActions[button.dataset.sessionAction];
+      if (action) action();
+    });
+  });
+
+  /* ---------- search, notifications, profile ---------- */
+  var searchInput = document.getElementById('searchInput');
+  var searchHits = [];
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      searchHits.forEach(function (node) { node.classList.remove('study-search-hit'); });
+      searchHits = [];
+      var term = searchInput.value.trim().toLowerCase();
+      if (term.length < 2) return;
+      var walker = document.createTreeWalker(document.getElementById('main'), NodeFilter.SHOW_TEXT);
+      var node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.toLowerCase().indexOf(term) === -1) continue;
+        var element = node.parentElement;
+        if (!element || element.tagName === 'SCRIPT' || element.tagName === 'STYLE') continue;
+        element.classList.add('study-search-hit');
+        searchHits.push(element);
+      }
+      if (searchHits.length && searchHits[0].scrollIntoView) {
+        searchHits[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+
+  var mobileSearchBtn = document.getElementById('mobileSearchBtn');
+  if (mobileSearchBtn && searchInput) {
+    mobileSearchBtn.addEventListener('click', function () { searchInput.focus(); });
+  }
+
+  function bindPopover(buttonId, panelId) {
+    var button = document.getElementById(buttonId);
+    var panel = document.getElementById(panelId);
+    if (!button || !panel) return;
+    button.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = panel.hidden;
+      ['notificationsPanel', 'profilePanel'].forEach(function (id) {
+        var other = document.getElementById(id);
+        if (other && other !== panel) other.hidden = true;
+      });
+      panel.hidden = !open;
+      button.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (!panel.hidden && !panel.contains(event.target) && event.target !== button) {
+        panel.hidden = true;
+        button.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+  bindPopover('notificationsBtn', 'notificationsPanel');
+  bindPopover('profileBtn', 'profilePanel');
+
+  if (api) {
+    api.ensureAuth().catch(function () {
+      showNotice('Offline preview · live student data is unavailable. Retry when the API is reachable.', true);
     });
   }
 

@@ -23,6 +23,12 @@
     stroke-linecap:round;
     stroke-linejoin:round;
   }
+  .api-banner{
+    position:fixed;left:18px;bottom:76px;z-index:120;max-width:min(440px,calc(100vw - 36px));
+    padding:12px 14px;border:1px solid var(--ink);border-radius:6px;background:var(--paper);
+    font:500 11px/1.5 var(--mono);color:var(--ink)
+  }
+  [hidden]{display:none !important}
 </style>
 </head>
 <body>
@@ -165,15 +171,15 @@
         <button class="batch" id="batchBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchMenu">
           <span class="swatch" aria-hidden="true">M</span>
           <span class="txt">
-            <span class="k">Batch</span>
-            <span class="v" id="batchLabel">Class 6–7 · Mathematics</span>
+            <span class="k">Course</span>
+            <span class="v" id="batchLabel">Mathematics · Ratios</span>
           </span>
           <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg>
         </button>
-        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch batch" hidden>
-          <li role="none"><button role="option" aria-selected="true" data-value="Class 6–7 · Mathematics">Class 6–7 · Mathematics</button></li>
-          <li role="none"><button role="option" aria-selected="false" data-value="Class 8 · Mathematics">Class 8 · Mathematics</button></li>
-          <li role="none"><button role="option" aria-selected="false" data-value="Class 9 · Geometry">Class 9 · Geometry</button></li>
+        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch course" hidden>
+          <li role="none"><button role="option" aria-selected="true" data-value="Mathematics · Ratios">Mathematics · Ratios</button></li>
+          <li role="none"><button role="option" aria-selected="false" data-value="Mathematics · Fractions">Mathematics · Fractions</button></li>
+          <li role="none"><button role="option" aria-selected="false" data-value="Mathematics · Geometry">Mathematics · Geometry</button></li>
         </ul>
       </div>
 
@@ -186,7 +192,7 @@
         <button class="icon-btn mobile-search" id="mobileSearch" aria-label="Search students and sessions">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
         </button>
-        <button class="icon-btn" aria-label="Notifications, 3 unread" data-toast="3 notifications: 2 parent replies and 1 quiz batch.">
+        <button class="icon-btn" aria-label="Notifications, 3 unread" data-toast="3 notifications: 2 parent replies and 1 quiz update.">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
           <span class="badge" aria-hidden="true"></span>
         </button>
@@ -203,7 +209,7 @@
           <p class="sub"><span id="subSessions">3 sessions today</span> <span class="dot-sep" aria-hidden="true"></span> <span id="subStudents">1 student next</span> <span class="dot-sep dot-alert" aria-hidden="true"></span> <span id="subAttention">3 items need attention</span></p>
         </div>
         <div class="head-actions">
-          <button class="btn btn-ghost btn-sm" data-toast="Announcements are part of the LMS.">
+          <button class="btn btn-ghost btn-sm" data-ask="Draft a short announcement for Ishaan's next 1-on-1 maths session.">
             <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg>
             New announcement
           </button>
@@ -211,7 +217,7 @@
       </div>
 
       <!-- ---------- hero ---------- -->
-      <section class="hero" aria-label="Next session and today's schedule">
+      <section class="hero" id="next-session" aria-label="Next session and today's schedule">
 
         <article class="next">
           <div class="next-top">
@@ -274,7 +280,7 @@
         <article class="metric">
           <div class="metric-top"><span class="mono">Attendance</span><span class="delta">+4%</span></div>
           <p class="metric-value num"><span id="metricAttendance">92</span><small>%</small></p>
-          <p class="metric-cap" id="capAttendance">Last 30 days · all batches</p>
+          <p class="metric-cap" id="capAttendance">Last 30 days · all 1-on-1 sessions</p>
           <div class="bar" role="img" aria-label="Attendance"><i id="attendanceBar" style="width:92%"></i></div>
         </article>
         <article class="metric">
@@ -299,7 +305,7 @@
         <div class="block-head">
           <span class="mono" id="payout-trend-title">Payout trend</span>
           <span class="chip-count" id="payoutTrendPeriod">November 2026</span>
-          <a class="link" href="#payout-trend-title">Statement <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+          <a class="link" href="#payoutPolicyNote">Policy <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
         </div>
         <div class="trend-body">
           <div class="trend-headline">
@@ -344,7 +350,7 @@
         <div class="block-head">
           <span class="mono" id="attention-title">Needs attention</span>
           <span class="count" id="attentionCount">03</span>
-          <a class="link" href="#attention-title">View all <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
+          <span class="link">All items shown</span>
         </div>
 
         <div class="queue" id="attentionQueue">
@@ -355,7 +361,7 @@
               <span class="meta">Oldest 2 days · about 12 minutes to mark</span>
             </span>
             <span class="status s-today">Due today</span>
-            <button class="btn btn-ghost btn-sm" data-toast="Opening 6 submissions in the review queue.">Review</button>
+            <button class="btn btn-ghost btn-sm" data-ask="Help me review the six quiz submissions for Module 3.">Review</button>
           </article>
 
           <article class="queue-row">
@@ -372,7 +378,7 @@
             <span class="tag">Planning</span>
             <span class="body">
               <span class="title">Friday&rsquo;s lesson plan isn&rsquo;t published</span>
-              <span class="meta">Class 6–7 · Lesson 15 · students can&rsquo;t see the agenda yet</span>
+              <span class="meta">Ishaan Verma · Lesson 15 · agenda not shared yet</span>
             </span>
             <span class="status s-today">Due Thu</span>
             <button class="btn btn-ghost btn-sm" data-ask="Outline Friday's lesson plan on ratios for Class 6–7.">Open planner</button>
@@ -475,7 +481,7 @@
 
         <article class="roster-card">
           <div class="roster-head">
-            <div><span class="mono">Students</span><span class="count">31</span></div>
+            <div><span class="mono">Students</span><span class="count">5</span></div>
             <a class="roster-link" href="#register">View all <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
           </div>
           <div class="roster-cols"><span>Student</span><span>Att.</span><span>TPS</span></div>
@@ -512,7 +518,7 @@
             </li>
           </ul>
           <div class="roster-foot">
-            <span class="mono">Showing 5 of 31</span>
+            <span class="mono">5 active 1-on-1 students</span>
             <a href="#register">Open roster <span aria-hidden="true">›</span></a>
           </div>
         </article>
@@ -534,23 +540,23 @@
 
 <!-- ===================== mobile tabs ===================== -->
 <nav class="tabs" aria-label="Primary">
-  <button class="active" data-tab aria-current="page">
+  <button class="active" data-tab data-tab-target="main" aria-current="page">
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg>
     <span>Today</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="next-session">
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
     <span>Sessions</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="register">
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg>
     <span>Students</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="register">
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-register"/></svg>
     <span>Register</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="payout-trend-title">
     <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg>
     <span>Insights</span>
   </button>
@@ -575,7 +581,7 @@
     </button>
   </div>
   <div class="ai-body" id="aiBody">
-    <p class="msg bot">Your 4:30 is planned. Want a version for the four students who missed Monday, or a parent note for Aarav?</p>
+    <p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>
     <div class="ai-chips">
       <button type="button">Differentiate today&rsquo;s set</button>
       <button type="button">Draft a parent note</button>
@@ -597,7 +603,7 @@
   <div class="search-card" role="dialog" aria-modal="true" aria-label="Search Mathify">
     <label class="search-field">
       <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
-      <input id="searchMobile" type="search" placeholder="Search students, sessions" autocomplete="off" aria-label="Search students, sessions and batches">
+      <input id="searchMobile" type="search" placeholder="Search students, sessions" autocomplete="off" aria-label="Search students and 1-on-1 sessions">
       <button type="button" class="esc" id="searchClose" aria-label="Close search">
         <span class="esc-txt">Esc</span>
         <svg class="esc-x" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>

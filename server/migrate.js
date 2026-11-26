@@ -67,12 +67,27 @@ function buildSql(migrations) {
   ];
   migrations.forEach(function (migration) {
     parts.push('-- ' + migration.name + ' sha256:' + migration.checksum);
-    parts.push(migration.sql);
+    parts.push('do $mathify$ begin');
     parts.push(
-      "insert into " + MARKER_TABLE + " (filename, checksum) values ('" +
-      migration.name + "', '" + migration.checksum + "') " +
-      "on conflict (filename) do update set checksum = excluded.checksum;"
+      '  if exists (select 1 from ' + MARKER_TABLE + ' where filename = \'' +
+      migration.name + '\') then'
     );
+    parts.push(
+      '    if (select checksum from ' + MARKER_TABLE + ' where filename = \'' +
+      migration.name + '\') <> \'' + migration.checksum + '\' then'
+    );
+    parts.push(
+      '      raise exception \'Migration checksum changed: ' + migration.name + '\';'
+    );
+    parts.push('    end if;');
+    parts.push('  else');
+    parts.push('    ' + migration.sql.split('\n').join('\n    '));
+    parts.push(
+      '    insert into ' + MARKER_TABLE + ' (filename, checksum) values (\'' +
+      migration.name + '\', \'' + migration.checksum + '\');'
+    );
+    parts.push('  end if;');
+    parts.push('end $mathify$;');
   });
   parts.push('commit;');
   return parts.join('\n') + '\n';
@@ -97,10 +112,29 @@ function apply(migrations) {
     return 0;
   }
 
-  const result = spawnSync('psql', [url, '-v', 'ON_ERROR_STOP=1', '-f', '-'], {
+  let parsed;
+  try { parsed = new URL(url); } catch (error) {
+    console.error('[migrate] DATABASE_URL is not a valid PostgreSQL URL.');
+    return 1;
+  }
+  const args = ['-v', 'ON_ERROR_STOP=1', '-f', '-'];
+  if (parsed.hostname) args.push('-h', decodeURIComponent(parsed.hostname));
+  if (parsed.port) args.push('-p', parsed.port);
+  if (parsed.username) args.push('-U', decodeURIComponent(parsed.username));
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+  if (database) args.push('-d', database);
+
+  const childEnv = Object.assign({}, process.env, {
+    PGPASSWORD: decodeURIComponent(parsed.password || '')
+  });
+  parsed.searchParams.forEach(function (value, key) {
+    childEnv['PG' + key.toUpperCase().replace(/[^A-Z0-9]/g, '_')] = value;
+  });
+
+  const result = spawnSync('psql', args, {
     input: buildSql(migrations),
     encoding: 'utf8',
-    env: process.env
+    env: childEnv
   });
   if (result.error) {
     console.error('[migrate] psql is unavailable: ' + result.error.message);

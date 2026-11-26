@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
+const config = require('../config');
 const realtime = require('../realtime');
 const whatsappAi = require('../services/whatsappAiService');
 const notifications = require('../services/notificationService');
@@ -22,11 +23,11 @@ function twiml(message) {
 }
 
 /* Twilio verifies with HMAC-SHA1 over the configured URL plus sorted form params.
-   Verification is skipped only when TWILIO_AUTH_TOKEN / TWILIO_WEBHOOK_URL are absent (local demo). */
+   Verification is skipped only in local mock mode; live mode fails closed. */
 function verifyTwilioSignature(req) {
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const webhookUrl = process.env.TWILIO_WEBHOOK_URL;
-  if (!authToken || !webhookUrl) return true;
+  if (!authToken || !webhookUrl) return !config.isProduction;
 
   const signature = req.headers['x-twilio-signature'];
   if (!signature) return false;
@@ -46,9 +47,17 @@ function verifyTwilioSignature(req) {
 }
 
 router.post('/recording', function (req, res) {
-  const configuredSecret = process.env.RECORDING_WEBHOOK_SECRET;
-  if (configuredSecret && req.headers['x-webhook-secret'] !== configuredSecret) {
-    return res.status(401).json({ error: 'INVALID_WEBHOOK_SECRET' });
+  const configuredSecret = String(process.env.RECORDING_WEBHOOK_SECRET || '').trim();
+  if (!configuredSecret) {
+    if (config.isProduction) {
+      return res.status(503).json({ error: 'WEBHOOK_NOT_CONFIGURED' });
+    }
+  } else {
+    const provided = Buffer.from(String(req.headers['x-webhook-secret'] || ''));
+    const expected = Buffer.from(configuredSecret);
+    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+      return res.status(401).json({ error: 'INVALID_WEBHOOK_SECRET' });
+    }
   }
 
   const body = req.body || {};

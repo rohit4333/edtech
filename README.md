@@ -17,23 +17,16 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 ## Run locally
 
-Open the static surfaces directly, or serve the repository root:
+One command installs the API dependencies and serves the UI and API from the same origin:
 
 ```powershell
-python -m http.server 8000
-```
-
-Then visit `http://localhost:8000/`.
-
-To run the API:
-
-```powershell
-cd server
-npm install
+npm install --prefix server
 npm start
 ```
 
-The API listens on `http://localhost:4000/api` by default. Copy `server/.env.example` to `server/.env` before adding credentials; `.env` is git-ignored.
+Open `http://localhost:4000/`. The Express app serves the reviewed HTML/CSS/JS surfaces and the API at `/api`; server source, migrations and `.env` files are never exposed. For a separate frontend origin, set `window.MATHIFY_API_BASE` to the API root before the app scripts load.
+
+Copy `server/.env.example` to `server/.env` before adding credentials; `.env` is git-ignored. The default port is `4000`.
 
 Review the ordered SQL plan with:
 

@@ -150,6 +150,24 @@
       return request(sessionPath(sessionId) + '/events?since=' + encodeURIComponent(since || 0))
         .then(function (data) { return data.events || []; });
     },
+    sendChat: function (sessionId, text) {
+      return request(sessionPath(sessionId) + '/chat', {
+        method: 'POST',
+        body: { text: text }
+      }).then(function (data) { return data.message; });
+    },
+    shareBoard: function (sessionId, shared) {
+      return request(sessionPath(sessionId) + '/board/share', {
+        method: 'POST',
+        body: { shared: shared !== false }
+      });
+    },
+    notifyParent: function (sessionId, note) {
+      return request(sessionPath(sessionId) + '/notify-parent', {
+        method: 'POST',
+        body: { note: note || '' }
+      });
+    },
     endSession: function (sessionId, body) {
       return request(sessionPath(sessionId) + '/end', { method: 'POST', body: body || {} });
     },

@@ -9,7 +9,7 @@
  * provider-free JSON string (or null when a safe fallback is allowed).
  */
 
-require('dotenv').config();
+const config = require('../config');
 
 const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -87,7 +87,7 @@ function warnMissing() {
 async function generateAIResponse(systemPrompt, userPrompt, options) {
   const current = settings();
   const callOptions = options || {};
-  const allowFallback = callOptions.allowFallback !== false;
+  const allowFallback = callOptions.allowFallback !== false && !config.isProduction;
   const jsonOnly = callOptions.jsonOnly !== false;
   const systemContent = String(systemPrompt || '') + (jsonOnly
     ? '\n\n' + JSON_ONLY_INSTRUCTION

@@ -30,7 +30,7 @@
 
   function apiBase() {
     return (window.mathifyTrainerApi && window.mathifyTrainerApi.base) ||
-      window.MATHIFY_API_BASE || 'http://localhost:4000/api';
+      window.MATHIFY_API_BASE || '/api';
   }
 
   function status(message) {
@@ -123,9 +123,9 @@
       '<div class="mc-body">',
       '<div class="mc-stage"><div id="remote-video"></div><canvas id="ink-canvas"></canvas><div id="local-video"></div></div>',
       '<div class="mc-fields">',
-      '<label>Channel<input id="mc-channel" value="', params().get('channel') || 'mathify-ses_math_001', '"></label>',
-      '<label>Trainer UID<input id="mc-uid" type="number" min="0" value="', params().get('uid') || '1001', '"></label>',
-      '<label>Student UID<input id="mc-peer" type="number" min="0" value="', params().get('peerUid') || '2002', '"></label>',
+      '<label>Channel<input id="mc-channel" value="" readonly></label>',
+      '<label>Trainer UID<input id="mc-uid" type="number" min="0" value="" readonly></label>',
+      '<label>Student UID<input id="mc-peer" type="number" min="0" value="" readonly></label>',
       '</div>',
       '<div class="mc-actions">',
       '<button type="button" id="mc-join" class="coral">Join</button>',
@@ -304,12 +304,9 @@
   }
 
   function join() {
-    state.channelName = document.getElementById('mc-channel').value.trim();
-    state.uid = Number(document.getElementById('mc-uid').value);
-    state.peerUid = document.getElementById('mc-peer').value.trim();
-
-    if (!state.channelName || !Number.isInteger(state.uid)) {
-      status('Enter a channel and trainer UID.');
+    var activeSessionId = sessionId();
+    if (!activeSessionId) {
+      status('Open a session before joining a call.');
       return Promise.resolve(null);
     }
 
@@ -323,12 +320,21 @@
       var AgoraRTM = modules[1].default || modules[1];
 
       status('Fetching token…');
-      return apiRequest('/agora/token?channelName=' + encodeURIComponent(state.channelName) +
-        '&uid=' + encodeURIComponent(state.uid))
+      return apiRequest('/agora/token?sessionId=' + encodeURIComponent(activeSessionId))
         .then(function (data) {
           if (!data || !data.rtcToken) throw new Error('Token endpoint did not return a token.');
           state.appId = data.appId;
+          state.channelName = data.channelName;
+          state.uid = data.uid;
+          state.peerUid = data.peerUid !== undefined ? String(data.peerUid) : '';
           state.rtcToken = data.rtcToken;
+
+          var channelField = document.getElementById('mc-channel');
+          var uidField = document.getElementById('mc-uid');
+          var peerField = document.getElementById('mc-peer');
+          if (channelField) channelField.value = state.channelName;
+          if (uidField) uidField.value = state.uid;
+          if (peerField) peerField.value = state.peerUid;
 
           state.client = state.AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
           wireRtcEvents();

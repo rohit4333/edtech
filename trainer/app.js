@@ -9,6 +9,7 @@
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
   var TZ = window.MATHIFY_TZ || 'Asia/Kolkata';
+  var activeSessionId = window.MATHIFY_SESSION_ID || null;
 
   function parts(value) {
     if (!value) return null;
@@ -439,6 +440,10 @@
   $$('.tabs button[data-tab]').forEach(function (button) {
     button.addEventListener('click', function () {
       setActive('.tabs button[data-tab]', button);
+      var target = document.getElementById(button.dataset.tabTarget);
+      if (target && typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
 
@@ -447,7 +452,7 @@
     link.addEventListener('click', function (event) {
       event.preventDefault();
       if (!link.hasAttribute('data-toast') && !link.hasAttribute('data-ask')) {
-        toast('This link is a placeholder in the prototype.');
+        toast('This control is not available in the live 1-on-1 console.');
       }
     });
   });
@@ -463,7 +468,9 @@
   }
 
   $('#startClass') && $('#startClass').addEventListener('click', function (event) {
-    flash(event.currentTarget, 'Classroom opens at 4:20 PM. Room B-2.');
+    var id = activeSessionId || 'ses_math_001';
+    flash(event.currentTarget, 'Opening the 1-on-1 classroom…');
+    window.location.href = '../classroom/index.html?sessionId=' + encodeURIComponent(id);
   });
 
   $$('[data-toast]').forEach(function (el) {
@@ -630,21 +637,32 @@
       }
     });
 
+    function runSearch(query) {
+      var term = String(query || '').trim().toLowerCase();
+      if (!term) return;
+      var matches = 0;
+      $$('#registerBody tr, #timeline li, #attentionQueue .queue-row').forEach(function (row) {
+        var found = row.textContent.toLowerCase().indexOf(term) !== -1;
+        row.hidden = Boolean(term) && !found;
+        if (found) matches += 1;
+      });
+      closeSearch();
+      toast(matches ? matches + ' matching student/session row(s) for “' + query + '”.' :
+        'No student or session matches “' + query + '”.');
+    }
+
     $$('.search-tags button').forEach(function (tag) {
       tag.addEventListener('click', function () {
-        if (!searchMobile) return;
-        searchMobile.value = tag.textContent.trim();
-        searchMobile.focus();
+        var query = tag.textContent.trim();
+        if (searchMobile) searchMobile.value = query;
+        runSearch(query);
       });
     });
 
     searchMobile && searchMobile.addEventListener('keydown', function (event) {
       if (event.key !== 'Enter') return;
       event.preventDefault();
-      var query = searchMobile.value.trim();
-      if (!query) return;
-      closeSearch();
-      toast('Search for “' + query + '” is a prototype.');
+      runSearch(searchMobile.value);
     });
   }
 
@@ -977,6 +995,7 @@
 
     var next = dashboard.nextSession;
     if (next) {
+      if (next.id) activeSessionId = next.id;
       setText('#nextTime', fmtTime(next.startsAt) + ' · live 1:1');
       setText('#nextTopic', next.title);
       setText('#nextMeta', '1:1 · ' + (next.student ? next.student.name : 'Student') + ' · ' + next.code);
@@ -1015,7 +1034,12 @@
       renderDashboard(results[0], results[1], results[2], results[3], results[4]);
     }).catch(function (error) {
       document.body.setAttribute('data-api', 'fallback');
-      if (window.console && console.warn) console.warn('Mathify API unavailable; trainer console is showing prototype data.', error);
+      var banner = document.createElement('div');
+      banner.className = 'api-banner';
+      banner.setAttribute('role', 'status');
+      banner.textContent = 'Offline preview · live trainer data is unavailable. Retry when the API is reachable.';
+      document.body.appendChild(banner);
+      if (window.console && console.warn) console.warn('Mathify API unavailable; trainer console is showing sample data.', error);
     });
   }
 

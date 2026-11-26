@@ -33,22 +33,32 @@ async function agoraRequest(url, options) {
 }
 
 function storageConfig(channelName) {
+  let storage;
   if (process.env.AGORA_RECORDING_STORAGE_CONFIG) {
     try {
-      return JSON.parse(process.env.AGORA_RECORDING_STORAGE_CONFIG);
+      storage = JSON.parse(process.env.AGORA_RECORDING_STORAGE_CONFIG);
     } catch (error) {
-      throw new Error('AGORA_RECORDING_STORAGE_CONFIG is not valid JSON.');
+      throw Object.assign(new Error('AGORA_RECORDING_STORAGE_CONFIG is not valid JSON.'), {
+        code: 'INVALID_STORAGE_CONFIG'
+      });
     }
+  } else {
+    storage = {
+      vendor: Number(process.env.AGORA_RECORDING_VENDOR || 0),
+      region: Number(process.env.AGORA_RECORDING_REGION || 0),
+      bucket: process.env.AGORA_RECORDING_BUCKET || '',
+      accessKey: process.env.AGORA_RECORDING_ACCESS_KEY || '',
+      secretKey: process.env.AGORA_RECORDING_SECRET_KEY || '',
+      fileNamePrefix: ['mathify', channelName]
+    };
   }
 
-  return {
-    vendor: Number(process.env.AGORA_RECORDING_VENDOR || 0),
-    region: Number(process.env.AGORA_RECORDING_REGION || 0),
-    bucket: process.env.AGORA_RECORDING_BUCKET || '',
-    accessKey: process.env.AGORA_RECORDING_ACCESS_KEY || '',
-    secretKey: process.env.AGORA_RECORDING_SECRET_KEY || '',
-    fileNamePrefix: ['mathify', channelName]
-  };
+  if (!storage.bucket || !storage.accessKey || !storage.secretKey) {
+    throw Object.assign(new Error('Agora recording storage is not configured.'), {
+      code: 'INVALID_STORAGE_CONFIG', status: 503
+    });
+  }
+  return storage;
 }
 
 async function startRecording(input) {

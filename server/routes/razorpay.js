@@ -75,17 +75,24 @@ router.post('/webhook', async function (req, res) {
     return res.json({ received: true, ignored: true, reason: 'ALREADY_CREDITED' });
   }
 
+  /* Credit only against the order this server created. Payment notes and
+     order notes supplied by a client are never trusted for identity or value. */
   const savedOrder = payment.orderId ? db.findRazorpayOrder(payment.orderId) : null;
-  const studentId = payment.notes.studentId || (savedOrder && savedOrder.studentId);
-  const sessions = Number(payment.notes.sessions || (savedOrder && savedOrder.sessions)) ||
-    service.MONTHLY_PACK.sessions;
-
-  if (!studentId) {
-    return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
+  if (!savedOrder) {
+    return res.json({ received: true, ignored: true, reason: 'ORDER_NOT_FOUND' });
+  }
+  if (savedOrder.status === 'credited') {
+    return res.json({ received: true, ignored: true, reason: 'ALREADY_CREDITED' });
   }
 
-  if (payment.amount !== service.MONTHLY_PACK.amount ||
-      payment.currency !== service.MONTHLY_PACK.currency) {
+  const studentId = savedOrder.studentId;
+  const sessions = Number(savedOrder.sessions);
+
+  if (!studentId || !Number.isInteger(sessions) || sessions < 1) {
+    return res.json({ received: true, ignored: true, reason: 'INVALID_ORDER' });
+  }
+
+  if (payment.amount !== savedOrder.amount || payment.currency !== savedOrder.currency) {
     return res.json({ received: true, ignored: true, reason: 'PACK_MISMATCH' });
   }
 
@@ -108,6 +115,11 @@ router.post('/webhook', async function (req, res) {
   if (!student) {
     return res.json({ received: true, ignored: true, reason: 'STUDENT_NOT_FOUND' });
   }
+  db.saveRazorpayOrder(Object.assign({}, savedOrder, {
+    status: 'credited',
+    paymentId: payment.id,
+    creditedAt: new Date().toISOString()
+  }));
 
   realtime.publish(studentId, 'pack.credited', {
     paymentId: payment.id,

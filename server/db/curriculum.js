@@ -162,6 +162,9 @@ function selectAdapter(override) {
   const wantsSupabase = (override || config.databaseMode) === 'supabase';
   if (wantsSupabase && supabase.available()) return supabase;
   if (wantsSupabase) {
+    if (config.isProduction) {
+      throw new Error('Supabase credentials are required when DATABASE_MODE=supabase in production.');
+    }
     warn('Supabase credentials missing; using the in-memory curriculum adapter.');
   }
   return memory;

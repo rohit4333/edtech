@@ -30,7 +30,7 @@
   var studentView = params.get('view') === 'student' || user.role === 'student';
   var isTrainer = (user.role === 'trainer' || user.role === 'founder') && !studentView;
 
-  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || null;
+  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
   var accessToken = window.MATHIFY_SUPABASE_ACCESS_TOKEN || null;
   var realtimeLink = null;
   var strokeId = null;
@@ -1374,6 +1374,8 @@
     } else if (event.event === 'quiz.assistance.granted' && studentView) {
       /* The event carries no hint text. Fetch the granted hint from the safe state. */
       syncStudentQuestion();
+    } else if (event.event === 'board.shared' && studentView) {
+      toast(event.payload && event.payload.shared ? 'Your trainer shared the board with you.' : 'Board sharing stopped.');
     } else if (event.event === 'session.ended') {
       document.body.classList.add('is-ended');
       var word = $('#liveWord');

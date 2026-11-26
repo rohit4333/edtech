@@ -263,7 +263,13 @@ function deleteTrainerSlot(trainerId, slotId) {
   return true;
 }
 
+function recordContactRequest(request) {
+  store.contactRequests.push(copy(request));
+  return copy(request);
+}
+
 module.exports = {
+  recordContactRequest,
   findUserByEmail,
   findUserById,
   listUsers,

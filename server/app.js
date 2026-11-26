@@ -2,6 +2,7 @@ const config = require('./config');
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const auth = require('./middleware/auth');
 const realtime = require('./realtime');
 
@@ -15,12 +16,11 @@ const adminRoutes = require('./routes/admin');
 const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
 const leaveRoutes = require('./routes/leaves');
+const contactRoutes = require('./routes/contact');
 
 const app = express();
-const configuredOrigin = config.corsOrigin;
-
 app.use(cors({
-  origin: configuredOrigin === '*' ? '*' : configuredOrigin.split(',').map(function (value) { return value.trim(); })
+  origin: config.corsOrigins()
 }));
 /* Razorpay and Agora sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
@@ -60,9 +60,51 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/leaves', leaveRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), function (req, res) {
   return res.json({ mode: realtime.mode, events: realtime.recent(req.query.limit) });
+});
+
+/* Serve the Mathify surfaces from the same origin as the API. Only reviewed
+   browser assets are exposed: server source, migrations, .env and .git are
+   never reachable through this static mount. */
+const webRoot = path.resolve(__dirname, '..');
+const publicFiles = new Set([
+  'index.html', 'apps.html', 'pricing.html', 'terms.html',
+  'privacy.html', 'refund.html', 'contact.html', 'public.css'
+]);
+const publicDirs = new Set(['assets', 'classroom', 'home', 'lms', 'shared', 'student', 'trainer']);
+const staticFiles = express.static(webRoot, {
+  dotfiles: 'deny',
+  fallthrough: true,
+  index: 'index.html'
+});
+
+app.use(function (req, res, next) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+
+  let pathname;
+  try {
+    pathname = decodeURIComponent(req.path).replace(/\\/g, '/');
+  } catch (error) {
+    return next();
+  }
+  const segments = pathname.split('/').filter(Boolean);
+
+  if (!segments.length) {
+    return res.sendFile(path.join(webRoot, 'index.html'));
+  }
+  if (segments.some(function (segment) { return segment.charAt(0) === '.'; })) {
+    return next();
+  }
+  if (segments.length === 1 && publicFiles.has(segments[0])) {
+    return staticFiles(req, res, next);
+  }
+  if (publicDirs.has(segments[0])) {
+    return staticFiles(req, res, next);
+  }
+  return next();
 });
 
 app.use(function (req, res) {

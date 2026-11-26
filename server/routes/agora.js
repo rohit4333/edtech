@@ -1,89 +1,64 @@
-/* Agora RTC + RTM token route. The App Certificate stays on the server. */
+/* Agora RTC + RTM token and recording routes. The App Certificate stays on
+   the server. Session identity, channel, uid and peer are server-owned. */
 const express = require('express');
 const crypto = require('crypto');
-const { RtcTokenBuilder, RtmTokenBuilder, RtcRole } = require('agora-token');
 const db = require('../db');
 const auth = require('../middleware/auth');
+const tokenService = require('../services/agoraTokenService');
 const recordingService = require('../services/agoraRecordingService');
 const presenceService = require('../services/presenceService');
 
 const router = express.Router();
-const TOKEN_TTL_SECONDS = 3600;
 
-function rtmToken(appId, appCertificate, uid) {
-  if (!RtmTokenBuilder || typeof RtmTokenBuilder.buildToken !== 'function') return null;
-  try {
-    return RtmTokenBuilder.buildToken(appId, appCertificate, String(uid), TOKEN_TTL_SECONDS);
-  } catch (error) {
-    return null;
+function sessionFromRequest(req, res, next) {
+  const id = String((req.query && req.query.sessionId) ||
+    (req.body && req.body.sessionId) || '').trim();
+  if (!id) {
+    return res.status(400).json({ error: 'MISSING_SESSION', message: 'sessionId is required.' });
   }
+  const session = db.findSession(id);
+  if (!session) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session does not exist.' });
+  }
+  if (!auth.canAccessSession(req.user, session)) {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'You are not part of this session.' });
+  }
+  req.sessionRecord = session;
+  return next();
 }
 
-router.get('/token', auth.requireAuth, function (req, res) {
-  const appId = String(process.env.AGORA_APP_ID || '').trim();
-  const appCertificate = String(process.env.AGORA_APP_CERTIFICATE || '').trim();
-  const channelName = String(req.query.channelName || '').trim();
-  const uid = Number(req.query.uid);
-
-  if (!channelName) {
-    return res.status(400).json({
-      error: 'MISSING_CHANNEL',
-      message: 'channelName is required.'
-    });
+function requireCallOwner(req, res, next) {
+  if (req.user.role !== 'trainer' && req.user.role !== 'founder') {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'Only a trainer can control this call.' });
   }
+  return next();
+}
 
-  if (!Number.isInteger(uid) || uid < 0 || uid > 4294967295) {
-    return res.status(400).json({
-      error: 'INVALID_UID',
-      message: 'uid must be an integer between 0 and 4294967295.'
-    });
-  }
-
-  if (!appId || !appCertificate) {
-    return res.status(503).json({
-      error: 'AGORA_NOT_CONFIGURED',
-      message: 'Set AGORA_APP_ID and AGORA_APP_CERTIFICATE to issue tokens.'
-    });
-  }
-
-  const expiresAt = Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS;
-
+router.get('/token', auth.requireAuth, sessionFromRequest, function (req, res) {
   try {
-    const token = RtcTokenBuilder.buildTokenWithUid(
-      appId,
-      appCertificate,
-      channelName,
-      uid,
-      RtcRole.PUBLISHER,
-      TOKEN_TTL_SECONDS,
-      TOKEN_TTL_SECONDS
-    );
-
-    return res.json({
-      token,
-      rtcToken: token,
-      rtmToken: rtmToken(appId, appCertificate, uid),
-      appId,
-      channelName,
-      uid,
-      role: 'publisher',
-      expiresAt,
-      expiresInSeconds: TOKEN_TTL_SECONDS
-    });
+    return res.json(tokenService.issueSessionToken(req.sessionRecord, req.user));
   } catch (error) {
-    return res.status(500).json({
-      error: 'TOKEN_GENERATION_FAILED',
-      message: 'The Agora token could not be generated.'
+    return res.status(error.status || 500).json({
+      error: error.code || 'TOKEN_GENERATION_FAILED',
+      message: error.message
     });
   }
 });
 
-router.post('/recording/start', auth.requireAuth, async function (req, res) {
+router.post('/recording/start', auth.requireAuth, requireCallOwner, sessionFromRequest, async function (req, res) {
   try {
-    const recording = await recordingService.startRecording(req.body || {});
+    const issued = tokenService.issueSessionToken(req.sessionRecord, req.user);
+    const recording = await recordingService.startRecording({
+      sessionId: req.sessionRecord.id,
+      sessionRecord: req.sessionRecord,
+      user: req.user,
+      channelName: issued.channelName,
+      uid: issued.uid,
+      token: issued.rtcToken
+    });
     return res.json({ recording: recording });
   } catch (error) {
-    const status = error.code === 'INVALID_PAYLOAD' ? 400 : 502;
+    const status = error.code === 'INVALID_PAYLOAD' ? 400 : (error.status || 502);
     return res.status(status).json({
       error: error.code || 'RECORDING_START_FAILED',
       message: error.message
@@ -91,12 +66,20 @@ router.post('/recording/start', auth.requireAuth, async function (req, res) {
   }
 });
 
-router.post('/recording/stop', auth.requireAuth, async function (req, res) {
+router.post('/recording/stop', auth.requireAuth, requireCallOwner, sessionFromRequest, async function (req, res) {
   try {
-    const recording = await recordingService.stopRecording(req.body || {});
+    const recordingId = String((req.body || {}).recordingId || '').trim();
+    const existing = recordingId ? db.findRecording(recordingId) : null;
+    if (!existing) {
+      return res.status(404).json({ error: 'RECORDING_NOT_FOUND', message: 'Recording not found.' });
+    }
+    if (existing.sessionId !== req.sessionRecord.id) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Recording belongs to another session.' });
+    }
+    const recording = await recordingService.stopRecording({ recordingId: recordingId });
     return res.json({ recording: recording });
   } catch (error) {
-    const status = error.code === 'RECORDING_NOT_FOUND' ? 404 : 502;
+    const status = error.code === 'RECORDING_NOT_FOUND' ? 404 : (error.status || 502);
     return res.status(status).json({
       error: error.code || 'RECORDING_STOP_FAILED',
       message: error.message

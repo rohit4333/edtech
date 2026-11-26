@@ -1,5 +1,7 @@
 const config = require('./config');
 
+config.assertProductionConfig();
+
 const app = require('./app');
 const port = config.port;
 

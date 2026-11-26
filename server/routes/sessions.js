@@ -1,11 +1,13 @@
 const express = require('express');
 const db = require('../db');
+const config = require('../config');
 const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
-const agora = require('../realtime/agora');
+const agoraTokens = require('../services/agoraTokenService');
 const masteryGating = require('../services/masteryGating');
 const presenceService = require('../services/presenceService');
+const notifications = require('../services/notificationService');
 const appPolicy = require('../config/policy.json');
 
 const router = express.Router();
@@ -18,7 +20,14 @@ router.get('/:sessionId/state', function (req, res) {
 });
 
 router.post('/:sessionId/rtc-token', function (req, res) {
-  return res.json({ rtc: agora.issueRtcToken(req.sessionRecord, req.user) });
+  try {
+    return res.json({ rtc: agoraTokens.issueSessionToken(req.sessionRecord, req.user) });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.code || 'RTC_TOKEN_FAILED',
+      message: error.message
+    });
+  }
 });
 
 /* Browser-safe session events. This is the fallback transport when Supabase
@@ -27,7 +36,8 @@ router.post('/:sessionId/rtc-token', function (req, res) {
 const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
-  'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed'
+  'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
+  'chat.sent', 'board.shared'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
@@ -57,6 +67,53 @@ router.get('/:sessionId/events', function (req, res) {
       };
     });
   return res.json({ sessionId: req.sessionRecord.id, mode: realtime.mode, events: events });
+});
+
+/* Session chat. Only the two verified participants can reach this route, and
+   the sender identity is derived from the JWT. No trainer-only fields travel
+   through the event stream. */
+router.post('/:sessionId/chat', function (req, res) {
+  const text = String((req.body || {}).text || '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+  if (!text) {
+    return res.status(400).json({ error: 'EMPTY_MESSAGE', message: 'Enter a message before sending.' });
+  }
+
+  const message = {
+    id: 'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    from: req.user.role === 'student' ? 'student' : 'trainer',
+    text: text,
+    at: new Date().toISOString()
+  };
+  return realtime.publish(req.sessionRecord.id, 'chat.sent', message).then(function (event) {
+    return res.status(201).json({ message: message, seq: event.seq });
+  });
+});
+
+/* Board sharing is a state notification only. Ink data stays on the trusted
+   canvas/realtime path; this event carries no drawing content. */
+router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const shared = (req.body || {}).shared !== false;
+  return realtime.publish(req.sessionRecord.id, 'board.shared', { shared: shared }).then(function (event) {
+    return res.json({ ok: true, shared: shared, seq: event.seq });
+  });
+});
+
+/* Parent recap handoff. Delivery channels are optional; the always-safe reply
+   tells the trainer whether a configured channel actually accepted the note. */
+router.post('/:sessionId/notify-parent', auth.requireRole('trainer', 'founder'), async function (req, res) {
+  const body = req.body || {};
+  const note = String(body.note || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1000);
+  const result = await notifications.notifyParentRecap({
+    sessionId: req.sessionRecord.id,
+    studentName: req.sessionRecord.studentName || 'the student',
+    trainerName: req.user.name || 'your trainer',
+    note: note
+  });
+  return res.json({ ok: true, delivery: result });
 });
 
 /* Automated presence. Role always comes from the JWT, never the request body. */
@@ -104,9 +161,24 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
   const recordingUrl = typeof body.recordingUrl === 'string' &&
     /^https?:\/\//i.test(body.recordingUrl.trim())
     ? body.recordingUrl.trim().slice(0, 500) : null;
-  const scoreOverride = Object.prototype.hasOwnProperty.call(body, 'currentQuizScore')
-    ? body.currentQuizScore
-    : serializers.readiness(session);
+  const hasScoreOverride = Object.prototype.hasOwnProperty.call(body, 'currentQuizScore');
+  if (hasScoreOverride) {
+    if (typeof body.currentQuizScore !== 'number' || !Number.isFinite(body.currentQuizScore) ||
+        body.currentQuizScore < 0 || body.currentQuizScore > 100) {
+      return res.status(400).json({
+        error: 'INVALID_SCORE',
+        message: 'currentQuizScore must be a number from 0 to 100.'
+      });
+    }
+    if (config.isProduction && !String(body.overrideReason || '').trim()) {
+      return res.status(400).json({
+        error: 'OVERRIDE_REASON_REQUIRED',
+        message: 'A trainer override requires an audit reason in production.'
+      });
+    }
+  }
+  const scoreOverride = hasScoreOverride ? body.currentQuizScore : serializers.readiness(session);
+  const scoreSource = hasScoreOverride ? 'trainer-override' : 'recorded-attempts';
   const topicId = session.topicId || session.title || 'general-mathematics';
   const currentLevel = masteryGating.levelFromSession(session);
   const pendingCheck = masteryGating.pendingParallelCheck(session);
@@ -135,6 +207,8 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), function 
     current.endsAt = endedAt;
     current.quiz.status = current.quiz.status === 'live' ? 'ended' : current.quiz.status;
     current.masteryGating = gating;
+    current.scoreSource = scoreSource;
+    if (hasScoreOverride) current.overrideReason = String(body.overrideReason || '').slice(0, 500);
     current.currentLevel = currentLevel;
     current.reteachRequired = gating.reteachRequired;
     current.unlockedNext = gating.unlockedNext;

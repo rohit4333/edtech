@@ -1,8 +1,8 @@
 /* Phase 1 mock store. Shape mirrors db/schema.sql so the swap to Supabase is mechanical. */
-const crypto = require('crypto');
+const password = require('../auth/password');
 
 const demoPassword = process.env.DEMO_PASSWORD || 'mathify-demo';
-const passwordHash = crypto.createHash('sha256').update(demoPassword).digest('hex');
+const demoCredential = password.hashPassword(demoPassword);
 
 function user(id, name, email, role, extra) {
   return Object.assign({
@@ -10,7 +10,8 @@ function user(id, name, email, role, extra) {
     name,
     email,
     role,
-    passwordHash,
+    passwordSalt: demoCredential.salt,
+    passwordHash: demoCredential.hash,
     status: 'active',
     createdAt: '2026-01-12T08:00:00.000Z'
   }, extra || {});
@@ -277,6 +278,7 @@ const packs = [];
 const whatsappMessages = [];
 const supportEscalations = [];
 const leaveRequests = [];
+const contactRequests = [];
 const presenceEvents = [];
 const presenceSnapshots = [];
 /* Academic-only curriculum profile. Mirrors public.student_curriculum from
@@ -324,6 +326,7 @@ module.exports = {
   whatsappMessages: whatsappMessages,
   supportEscalations: supportEscalations,
   leaveRequests: leaveRequests,
+  contactRequests: contactRequests,
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
   studentCurriculum: studentCurriculum,

@@ -1,0 +1,15 @@
+{
+  "name": "mathify-learning-os",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mathify Learning OS — UI surfaces and Express API served from one origin.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "npm --prefix server test",
+    "migrate": "npm --prefix server run migrate"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

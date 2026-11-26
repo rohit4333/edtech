@@ -83,7 +83,6 @@ function capturedPayment(event) {
     amount: Number(payment.amount),
     currency: String(payment.currency || '').toUpperCase(),
     status: String(payment.status || ''),
-    notes: Object.assign({}, (order && order.notes) || {}, payment.notes || {}),
     capturedAt: payment.captured_at ? new Date(payment.captured_at * 1000).toISOString() : null
   };
 }

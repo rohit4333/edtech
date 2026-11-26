@@ -26,7 +26,12 @@ async function main() {
     const text = await response.text();
     let body;
     try { body = JSON.parse(text); } catch (error) { body = text; }
-    return { status: response.status, body: body, text: text };
+    return {
+      status: response.status,
+      body: body,
+      text: text,
+      headers: Object.fromEntries(response.headers.entries())
+    };
   }
 
   function request(method, path, body, token) {
@@ -51,6 +56,24 @@ async function main() {
     assert.strictEqual(publicConfig.status, 200);
     assert.strictEqual(publicConfig.body.supabase.secretKey, undefined);
     assert.strictEqual(/secretKey|SUPABASE_SECRET/.test(publicConfig.text), false);
+
+    /* One origin serves the reviewed UI while hiding server and git files. */
+    const homePage = await call('/');
+    assert.strictEqual(homePage.status, 200);
+    assert.ok(/text\/html/.test(homePage.headers['content-type'] || ''));
+    assert.ok(homePage.text.indexOf('Mathify') !== -1);
+    const pricingPage = await call('/pricing.html');
+    assert.strictEqual(pricingPage.status, 200);
+    const studentPage = await call('/student/index.html');
+    assert.strictEqual(studentPage.status, 200);
+    const studentClient = await call('/student/api.js');
+    assert.strictEqual(studentClient.status, 200);
+    assert.ok(studentClient.text.indexOf("window.MATHIFY_API_BASE || '/api'") !== -1);
+    assert.strictEqual(studentClient.text.indexOf('http://localhost:4000'), -1);
+    const serverSource = await call('/server/app.js');
+    assert.strictEqual(serverSource.status, 404);
+    const gitConfig = await call('/.git/config');
+    assert.strictEqual(gitConfig.status, 404);
 
     const anonymous = await call('/api/auth/me');
     assert.strictEqual(anonymous.status, 401);

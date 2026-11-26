@@ -695,6 +695,14 @@ svg { display: block; }
 }
 .field textarea { min-height: 118px; resize: vertical; }
 .form-card .btn { width: 100%; }
+.booking-status {
+  min-height: 18px;
+  margin: 12px 0 0;
+  font: 500 11px/1.5 var(--mono);
+  color: var(--muted);
+}
+.booking-status[data-tone="success"] { color: #186b3d; }
+.booking-status[data-tone="error"] { color: #b3261e; }
 
 /* ------------------------------------------------------------------- footer */
 .site-foot {

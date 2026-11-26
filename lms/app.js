@@ -64,6 +64,7 @@
     filter: 'all',
     query: '',
     density: 'grid',
+    sort: 'edited',
     selectedId: 'ratios',
     assetFilter: 'all',
     openModules: {},
@@ -131,7 +132,25 @@
   }
 
   function visibleCourses() {
-    return courses.filter(matches);
+    var list = courses.filter(matches);
+    var direction = state.sort === 'title' || state.sort === 'level' ? 1 : -1;
+    return list.sort(function (a, b) {
+      var left = state.sort === 'title' ? a.title : state.sort === 'level' ? a.level : a.edited;
+      var right = state.sort === 'title' ? b.title : state.sort === 'level' ? b.level : b.edited;
+      var keyA = state.sort === 'edited' ? new Date(left).getTime() || 0 : String(left).toLowerCase();
+      var keyB = state.sort === 'edited' ? new Date(right).getTime() || 0 : String(right).toLowerCase();
+      return keyA < keyB ? -direction : keyA > keyB ? direction : 0;
+    });
+  }
+
+  function setFilter(key) {
+    state.filter = key;
+    document.querySelectorAll('[data-filter]').forEach(function (button) {
+      var active = button.getAttribute('data-filter') === key;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+    renderCourses();
   }
 
   function toast(message) {
@@ -155,6 +174,33 @@
     });
     var total = $('courseCount');
     if (total) total.textContent = pad(visibleCourses().length);
+  }
+
+  function renderHealth() {
+    var assets = courses.reduce(function (sum, course) { return sum + Number(course.assets || 0); }, 0);
+    var modules = courses.reduce(function (sum, course) { return sum + Number(course.modules || 0); }, 0);
+    var reviewCount = courses.filter(function (course) { return course.status === 'review'; }).length;
+    var total = courses.length || 1;
+    var ready = Math.round((1 - reviewCount / total) * 100);
+    var big = document.querySelector('#libraryHealth .health-big b');
+    var caption = document.querySelector('#libraryHealth .health-card p, #libraryHealth p');
+    var bar = document.querySelector('#libraryHealth .health-bar i');
+    var cap = document.querySelector('#libraryHealth .health-cap');
+    var navCount = document.querySelector('[data-filter-jump="review"] .nav-count');
+    if (big) big.textContent = assets;
+    if (caption) caption.textContent = 'Across ' + courses.length + ' courses and ' + modules +
+      ' modules. ' + reviewCount + ' course' + (reviewCount === 1 ? '' : 's') + ' need a second look.';
+    if (bar) bar.style.width = ready + '%';
+    if (cap) cap.textContent = ready + '% publish-ready';
+    if (navCount) navCount.textContent = String(reviewCount);
+    var headCourses = $('headCourses');
+    var headModules = $('headModules');
+    var headAssets = $('headAssets');
+    var headReview = $('headReview');
+    if (headCourses) headCourses.textContent = courses.length + ' course' + (courses.length === 1 ? '' : 's');
+    if (headModules) headModules.textContent = modules + ' modules';
+    if (headAssets) headAssets.textContent = assets + ' typed assets';
+    if (headReview) headReview.textContent = reviewCount + ' need review';
   }
 
   function buildCard(course) {
@@ -219,11 +265,13 @@
     var assets = [];
     for (var i = 0; i < count; i += 1) {
       var kind = ASSET_TYPES[(index + i) % ASSET_TYPES.length];
+      var label = kind.label + ' · ' + MODULE_TITLES[(index + i) % MODULE_TITLES.length];
+      var overrides = course.assetOverrides || {};
       assets.push({
-        label: kind.label + ' · ' + MODULE_TITLES[(index + i) % MODULE_TITLES.length],
+        label: label,
         type: kind.type,
         icon: kind.icon,
-        state: (index + i) % 5 === 0 ? 'review' : 'ready'
+        state: overrides[label] || ((index + i) % 5 === 0 ? 'review' : 'ready')
       });
     }
     return {
@@ -245,7 +293,36 @@
     copy.title = 'Copy course outline';
     copy.appendChild(icon('i-copy'));
     copy.addEventListener('click', function () {
-      toast('Outline copy is part of the full product.');
+      var lines = [
+        course.code + ' · ' + course.title,
+        course.level + ' · ' + course.modules + ' modules · ' + course.assets + ' typed assets',
+        course.blurb,
+        '',
+        'Modules'
+      ];
+      for (var index = 0; index < Math.min(course.modules, 9); index += 1) {
+        lines.push(pad(index + 1) + '. ' + moduleData(course, index).title);
+      }
+      var text = lines.join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          toast('Course outline copied.');
+        }).catch(function () {
+          toast('Copy was blocked by the browser; select the outline text manually.');
+        });
+        return;
+      }
+      var field = document.createElement('textarea');
+      field.value = text;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      var copied = false;
+      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+      document.body.removeChild(field);
+      toast(copied ? 'Course outline copied.' : 'Copy is unavailable in this browser.');
     });
     actions.appendChild(copy);
     head.appendChild(actions);
@@ -254,7 +331,9 @@
     var titleRow = el('div', 'detail-title-row');
     titleRow.appendChild(el('span', 'detail-mark', course.code.split('-').pop().slice(0, 2)));
     var titleCopy = el('div');
-    titleCopy.appendChild(el('h2', null, course.title));
+    var heading = el('h2', null, course.title);
+    if (!inSheet) heading.id = 'detailTitle';
+    titleCopy.appendChild(heading);
     titleCopy.appendChild(el('p', null, course.level + ' · ' + pad(course.modules) + ' modules'));
     titleRow.appendChild(titleCopy);
     inner.appendChild(titleRow);
@@ -297,7 +376,21 @@
     add.type = 'button';
     add.appendChild(icon('i-plus'));
     add.appendChild(el('span', null, 'Add module'));
-    add.addEventListener('click', function () { toast('Module authoring is part of the full product.'); });
+    add.addEventListener('click', function () {
+      course.modules += 1;
+      course.custom = true;
+      course.edited = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      state.openModules[(inSheet ? 'sheet:' : 'panel:') + course.id + ':' + (course.modules - 1)] = true;
+      persistCustom();
+      renderCourses();
+      var target = inSheet ? $('sheetDetailContent') : $('detailContent');
+      if (target) {
+        target.innerHTML = '';
+        target.appendChild(buildDetail(course, inSheet));
+      }
+      renderHealth();
+      toast('Module ' + pad(course.modules) + ' added to ' + course.title + '.');
+    });
     blockHead.appendChild(add);
     inner.appendChild(blockHead);
 
@@ -366,9 +459,25 @@
       row.appendChild(el('i', 'asset-dot ' + asset.state));
       var more = el('button', 'asset-btn');
       more.type = 'button';
-      more.setAttribute('aria-label', 'Asset options');
+      more.setAttribute('aria-label', asset.state === 'review'
+        ? 'Mark ' + asset.label + ' ready' : 'Send ' + asset.label + ' for review');
+      more.title = more.getAttribute('aria-label');
       more.appendChild(icon('i-more'));
-      more.addEventListener('click', function () { toast('Asset actions are part of the full product.'); });
+      more.addEventListener('click', function () {
+        course.assetOverrides = course.assetOverrides || {};
+        var next = asset.state === 'review' ? 'ready' : 'review';
+        course.assetOverrides[asset.label] = next;
+        asset.state = next;
+        course.custom = true;
+        persistCustom();
+        renderHealth();
+        toast(asset.label + (next === 'review' ? ' sent for review.' : ' marked ready.'));
+        var target = inSheet ? $('sheetDetailContent') : $('detailContent');
+        if (target) {
+          target.innerHTML = '';
+          target.appendChild(buildDetail(course, inSheet));
+        }
+      });
       row.appendChild(more);
       assets.appendChild(row);
     });
@@ -514,6 +623,7 @@
       button.setAttribute('aria-selected', String(active));
     });
     selectCourse(course.id);
+    renderHealth();
     toast('Course created with one empty module.');
   }
 
@@ -549,6 +659,48 @@
         renderCourses();
       });
     });
+
+    var sortBtn = $('sortBtn');
+    if (sortBtn) {
+      var labels = { edited: 'Last edited', title: 'Course name', level: 'Level' };
+      var orders = ['edited', 'title', 'level'];
+      sortBtn.addEventListener('click', function () {
+        state.sort = orders[(orders.indexOf(state.sort) + 1) % orders.length];
+        sortBtn.firstChild.textContent = labels[state.sort] + ' ';
+        renderCourses();
+        toast('Courses sorted by ' + labels[state.sort].toLowerCase() + '.');
+      });
+    }
+
+    document.querySelectorAll('[data-filter-jump]').forEach(function (link) {
+      link.addEventListener('click', function () {
+        setFilter(link.getAttribute('data-filter-jump'));
+      });
+    });
+
+    function bindPopover(buttonId, panelId) {
+      var button = $(buttonId);
+      var panel = $(panelId);
+      if (!button || !panel) return;
+      button.addEventListener('click', function (event) {
+        event.stopPropagation();
+        var open = panel.hidden;
+        ['lmsNotificationsPanel', 'lmsProfilePanel'].forEach(function (id) {
+          var other = $(id);
+          if (other && other !== panel) other.hidden = true;
+        });
+        panel.hidden = !open;
+        button.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', function (event) {
+        if (!panel.hidden && !panel.contains(event.target) && event.target !== button) {
+          panel.hidden = true;
+          button.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+    bindPopover('lmsNotificationsBtn', 'lmsNotificationsPanel');
+    bindPopover('lmsProfileBtn', 'lmsProfilePanel');
 
     var clear = $('clearFilters');
     if (clear) {
@@ -623,6 +775,12 @@
           if (item === tab) item.setAttribute('aria-current', 'page');
           else item.removeAttribute('aria-current');
         });
+        var filter = tab.getAttribute('data-filter-jump');
+        if (filter) setFilter(filter);
+        var target = document.getElementById(tab.getAttribute('data-tab-target'));
+        if (target && typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       });
     });
 
@@ -643,4 +801,5 @@
   bind();
   renderCourses();
   renderDetail();
+  renderHealth();
 }());

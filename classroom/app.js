@@ -25,7 +25,7 @@
 
   /* -------------------------------------------------- session context + api */
   var params = new URLSearchParams(window.location.search);
-  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || null;
+  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
   var classroomApi = window.mathifyClassroomApi || null;
   var studentName = 'Student';
 
@@ -128,22 +128,72 @@
     if (count) count.hidden = true;
   }
 
+  var chatCursor = 0;
+  var seenChatIds = Object.create(null);
+
+  function chatTime(at) {
+    var d = at ? new Date(at) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
+    var h = d.getHours();
+    var m = d.getMinutes();
+    return ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  function appendChat(message, own) {
+    if (!message || !message.text) return;
+    if (message.id && seenChatIds[message.id]) return;
+    if (message.id) seenChatIds[message.id] = true;
+    messages.push({
+      id: message.id,
+      who: own ? 'You' : (message.from === 'student' ? studentName : 'Trainer'),
+      text: message.text,
+      time: message.time || chatTime(message.at),
+      me: Boolean(own)
+    });
+    renderChat();
+  }
+
   $$('[data-chat-form]').forEach(function (form) {
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       var input = $('input', form);
       var value = input ? input.value.trim() : '';
       if (!value) return;
-      messages.push({ who: 'You', text: value, time: nowTime(), me: true });
-      renderChat();
-      $$('[data-chat-form] input').forEach(function (field) { field.value = ''; });
-      clearUnread();
-      var status = $('#chatStatus');
-      if (status) status.textContent = 'Message sent to ' + studentName + '.';
+      if (input) input.value = '';
+      if (!sessionId || !classroomApi || typeof classroomApi.sendChat !== 'function') {
+        appendChat({ text: value, from: 'trainer', at: new Date().toISOString() }, true);
+        toast('Local preview · message saved in this browser only.');
+        return;
+      }
+      classroomApi.sendChat(sessionId, value).then(function (message) {
+        appendChat(message, true);
+        clearUnread();
+        var status = $('#chatStatus');
+        if (status) status.textContent = 'Message sent to ' + studentName + '.';
+      }).catch(function (error) {
+        if (input) input.value = value;
+        toast('Message could not be sent: ' + error.message);
+      });
       input && input.focus();
     });
     $('input', form) && $('input', form).addEventListener('focus', clearUnread);
   });
+
+  function pollChat() {
+    if (!sessionId || !classroomApi || typeof classroomApi.getSessionEvents !== 'function') return;
+    classroomApi.getSessionEvents(sessionId, chatCursor).then(function (events) {
+      events.forEach(function (event) {
+        chatCursor = Math.max(chatCursor, Number(event.seq) || 0);
+        if (event.event !== 'chat.sent') return;
+        var payload = event.payload || {};
+        appendChat(payload, classroomApi.role === payload.from);
+      });
+    }).catch(function () { /* Local preview keeps the visible log usable. */ });
+  }
+  if (sessionId) {
+    pollChat();
+    setInterval(pollChat, 3000);
+  }
 
   renderChat();
 
@@ -791,6 +841,114 @@
   });
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(function () { fitCanvas(); });
+  }
+
+  /* -------------------------------------------------- concrete quick actions */
+  function copyText(text, successMessage) {
+    if (!text) { toast('Nothing available to copy yet.'); return Promise.resolve(false); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () {
+        toast(successMessage);
+        return true;
+      }).catch(function () {
+        toast('Copy was blocked by the browser.');
+        return false;
+      });
+    }
+    var field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.position = 'fixed';
+    field.style.opacity = '0';
+    document.body.appendChild(field);
+    field.select();
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+    document.body.removeChild(field);
+    toast(copied ? successMessage : 'Copy is unavailable in this browser.');
+    return Promise.resolve(copied);
+  }
+
+  var copySessionLink = $('#copySessionLink');
+  if (copySessionLink) {
+    copySessionLink.addEventListener('click', function () {
+      var base = window.location.origin + window.location.pathname;
+      var link = sessionId
+        ? base + '?sessionId=' + encodeURIComponent(sessionId) + '&view=student'
+        : base + '?view=student';
+      copyText(link, 'Student session link copied.');
+    });
+  }
+
+  var copyRecordingLink = $('#copyRecordingLink');
+  if (copyRecordingLink) {
+    copyRecordingLink.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.getSessionState !== 'function') {
+        toast('Recording link is available when a live session is connected.');
+        return;
+      }
+      classroomApi.getSessionState(sessionId).then(function (state) {
+        copyText(state && state.recordingUrl, 'Recording link copied.');
+      }).catch(function (error) {
+        toast('Recording link is not ready yet: ' + error.message);
+      });
+    });
+  }
+
+  var notifyParentBtn = $('#notifyParentBtn');
+  if (notifyParentBtn) {
+    notifyParentBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.notifyParent !== 'function') {
+        toast('Parent handoff needs a connected session.');
+        return;
+      }
+      notifyParentBtn.disabled = true;
+      classroomApi.notifyParent(sessionId, 'Your child is in a live 1-on-1 maths session.')
+        .then(function (data) {
+          var delivery = (data && data.delivery) || {};
+          var sent = Boolean((delivery.slack && delivery.slack.sent) || (delivery.email && delivery.email.sent));
+          toast(sent ? 'Parent recap sent.' : 'Recap prepared · parent messaging is not configured in this preview.');
+        })
+        .catch(function (error) { toast('Parent recap failed: ' + error.message); })
+        .then(function () { notifyParentBtn.disabled = false; });
+    });
+  }
+
+  var shareBoardBtn = $('#shareBoardBtn');
+  var boardShared = false;
+  if (shareBoardBtn) {
+    shareBoardBtn.addEventListener('click', function () {
+      boardShared = !boardShared;
+      if (!sessionId || !classroomApi || typeof classroomApi.shareBoard !== 'function') {
+        toast(boardShared ? 'Board sharing is on for this local preview.' : 'Board sharing stopped.');
+        return;
+      }
+      classroomApi.shareBoard(sessionId, boardShared).then(function () {
+        toast(boardShared ? 'Board shared with ' + studentName + '.' : 'Board sharing stopped.');
+      }).catch(function (error) {
+        boardShared = !boardShared;
+        toast('Board sharing failed: ' + error.message);
+      });
+    });
+  }
+
+  var saveBoardBtn = $('#saveBoardBtn');
+  if (saveBoardBtn && canvas) {
+    saveBoardBtn.addEventListener('click', function () {
+      if (typeof canvas.toBlob !== 'function') { toast('Board export is unavailable in this browser.'); return; }
+      canvas.toBlob(function (blob) {
+        if (!blob) { toast('Board export failed.'); return; }
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = 'mathify-board-' + (sessionId || 'session') + '.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast('Board saved as an image.');
+      }, 'image/png');
+    });
   }
 
   /* Shared hooks for the 1:1 session layer in session.js. */

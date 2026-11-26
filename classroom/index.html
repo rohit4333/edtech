@@ -544,7 +544,7 @@
         <p class="plan-note"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg>Pace is 4 minutes behind plan. The extra bar-model example is worth it — trim the quiz to one question.</p>
       </div>
       <footer class="sheet-foot">
-        <button class="btn btn-light btn-sm" type="button" data-toast="The full lesson plan lives in Curriculum.">Open full plan</button>
+        <a class="btn btn-light btn-sm" href="../lms/index.html">Open full plan</a>
         <button class="btn btn-coral btn-sm" type="button" data-close-sheet>Back to session</button>
       </footer>
     </section>
@@ -574,7 +574,7 @@
           <div class="person">
             <span class="av">IV</span>
             <div><b>Unit rates</b><span>Slowest bar · assign 6 questions before the next session</span></div>
-            <button class="mini-btn" type="button" data-toast="Practice set assigned to Ishaan.">Assign</button>
+            <a class="mini-btn" href="../lms/index.html?practice=1">Assign</a>
           </div>
         </div>
 
@@ -585,7 +585,7 @@
       </div>
       <footer class="sheet-foot">
         <button class="btn btn-light btn-sm" type="button" data-close-sheet>Close</button>
-        <button class="btn btn-coral btn-sm" type="button" data-toast="A 6-question set was assigned to Ishaan.">Assign practice</button>
+        <a class="btn btn-coral btn-sm" href="../lms/index.html?practice=1">Assign practice</a>
       </footer>
     </section>
 
@@ -625,7 +625,7 @@
       <div class="sheet-body">
         <div class="people-top">
           <span class="people-note">1:1 session · no group class.</span>
-          <button class="mini-btn" type="button" data-toast="Session link copied for Ishaan.">Copy link</button>
+          <button class="mini-btn" type="button" id="copySessionLink">Copy link</button>
         </div>
         <ul class="people-list">
           <li class="you"><span class="av">AR</span><div><b>Ananya Rao <em>You</em></b><span>Host · microphone on</span></div><span class="p-status live">On mic</span></li>
@@ -634,7 +634,7 @@
       </div>
       <footer class="sheet-foot">
         <button class="btn btn-light btn-sm" type="button" data-close-sheet>Done</button>
-        <button class="btn btn-coral btn-sm" type="button" data-toast="Parent notified that Ishaan is in session.">Notify parent</button>
+        <button class="btn btn-coral btn-sm" type="button" id="notifyParentBtn">Notify parent</button>
       </footer>
     </section>
 
@@ -691,9 +691,9 @@
         </div>
         <div class="quick-actions trainer-only">
           <span class="block-label">Room</span>
-          <button type="button" data-toast="The board is now shared with Ishaan.">Share board</button>
-          <button type="button" data-toast="Ishaan’s microphone is muted.">Mute student</button>
-          <button type="button" data-toast="A copy of the board was saved to Lesson 15.">Save board</button>
+          <button type="button" id="shareBoardBtn">Share board</button>
+          <button type="button" disabled title="Remote microphone control happens in the live Agora room.">Mute student</button>
+          <button type="button" id="saveBoardBtn">Save board</button>
         </div>
       </div>
       <footer class="sheet-foot">
@@ -723,7 +723,7 @@
         <div class="rec-link trainer-only">
           <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
           <div><b>Recording</b><span id="recordingNote">Link is ready to share with <span data-student-name>Student</span>’s parent.</span></div>
-          <button class="mini-btn" type="button" data-toast="Recording link copied.">Copy link</button>
+          <button class="mini-btn" type="button" id="copyRecordingLink">Copy link</button>
         </div>
       </div>
       <footer class="sheet-foot">

@@ -1208,10 +1208,10 @@
       <a href="#recordings" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg><span>Recordings</span>
       </a>
-      <a href="#mastery" data-nav>
+      <a href="#mastery-practice" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mastery"/></svg><span>Mastery</span>
       </a>
-      <a href="#reports" data-nav>
+      <a href="#overview" data-nav>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-report"/></svg><span>Reports</span>
       </a>
       <a href="#schedule" data-nav>
@@ -1246,14 +1246,14 @@
         <button class="batch" id="batchBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchMenu">
           <span class="swatch" aria-hidden="true">M</span>
           <span class="txt">
-            <span class="k">Batch</span>
-            <span class="v" id="batchLabel">Class 6–7 · Mathematics</span>
+            <span class="k">Course</span>
+            <span class="v" id="batchLabel">Mathematics · Module 4</span>
           </span>
           <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg>
         </button>
-        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch batch" hidden>
-          <li role="none"><button role="option" aria-selected="true" data-value="Class 6–7 · Mathematics">Class 6–7 · Mathematics</button></li>
-          <li role="none"><button role="option" aria-selected="false" data-value="Class 6–7 · Speed Math">Class 6–7 · Speed Math</button></li>
+        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch course" hidden>
+          <li role="none"><button role="option" aria-selected="true" data-value="Mathematics · Module 4">Mathematics · Module 4</button></li>
+          <li role="none"><button role="option" aria-selected="false" data-value="Mathematics · Module 5">Mathematics · Module 5</button></li>
         </ul>
       </div>
 
@@ -1263,14 +1263,24 @@
           <input id="searchInput" type="search" placeholder="Search lessons, quizzes" aria-label="Search lessons and quizzes">
           <kbd>⌘K</kbd>
         </label>
-        <button class="icon-btn mobile-search" aria-label="Search">
+        <button class="icon-btn mobile-search" id="mobileSearchBtn" aria-label="Search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
         </button>
-        <button class="icon-btn" aria-label="Notifications, 2 unread">
+        <button class="icon-btn" id="notificationsBtn" aria-label="Notifications, 2 unread" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
           <span class="badge" aria-hidden="true"></span>
         </button>
-        <button class="avatar avatar-btn" aria-label="Profile: Ishaan Verma">IV</button>
+        <button class="avatar avatar-btn" id="profileBtn" aria-label="Profile: Ishaan Verma" aria-expanded="false">IV</button>
+        <div class="top-popover" id="notificationsPanel" hidden>
+          <span class="mono">Notifications</span>
+          <p>Your practice set is due today.</p>
+          <p>Next 1-on-1 session: Thursday, 4:30 PM.</p>
+        </div>
+        <div class="top-popover" id="profilePanel" hidden>
+          <span class="mono">Ishaan Verma</span>
+          <p>Class 7 · Mathematics</p>
+          <a href="../privacy.html">Privacy &amp; data</a>
+        </div>
       </div>
     </header>
 
@@ -1283,7 +1293,7 @@
       </div>
 
       <!-- ---------- hero ---------- -->
-      <section class="hero" id="reports" aria-label="Next session and week summary">
+      <section class="hero" id="overview" aria-label="Next session and week summary">
 
         <article class="next">
           <div class="next-top">
@@ -1310,7 +1320,7 @@
           </div>
 
           <div class="next-mid only-live" hidden>
-            <p class="next-time num">In progress <span>· 34 students in the room</span></p>
+            <p class="next-time num">In progress <span>· just you and your trainer</span></p>
             <h2 class="next-topic">Fractions, decimals &amp; percentages</h2>
             <p class="next-meta">
               <span class="mini-avatar" aria-hidden="true">AR</span>
@@ -1327,7 +1337,7 @@
           </div>
 
           <div class="next-mid only-ended" hidden>
-            <p class="next-time num">Ended 5:30 PM <span>· 60 min · 31 attended</span></p>
+            <p class="next-time num">Ended 5:30 PM <span>· 60 min · 1-on-1 session complete</span></p>
             <h2 class="next-topic">Fractions, decimals &amp; percentages</h2>
             <p class="next-meta">
               <span class="mini-avatar" aria-hidden="true">AR</span>
@@ -1338,13 +1348,13 @@
           </div>
 
           <div class="next-foot">
-            <button class="btn btn-coral only-soon">Join class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            <button class="btn btn-light only-soon">Device check</button>
-            <button class="btn btn-coral only-live" hidden>Join live class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            <button class="btn btn-light only-live" hidden>Device check</button>
-            <button class="btn btn-coral only-ended" hidden>Watch recording <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            <button class="btn btn-light only-ended" hidden>Practice set</button>
-            <button class="btn btn-coral only-empty" hidden>View schedule</button>
+            <button class="btn btn-coral only-soon" data-session-action="join">Join class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button class="btn btn-light only-soon" data-session-action="device">Device check</button>
+            <button class="btn btn-coral only-live" hidden data-session-action="join">Join live class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button class="btn btn-light only-live" hidden data-session-action="device">Device check</button>
+            <button class="btn btn-coral only-ended" hidden data-session-action="recording">Watch recording <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button class="btn btn-light only-ended" hidden data-session-action="practice">Practice set</button>
+            <button class="btn btn-coral only-empty" hidden data-session-action="schedule">View schedule</button>
 
             <span class="next-note only-soon">Room opens 10 min before</span>
             <span class="next-note only-live" hidden>Camera optional · mic recommended</span>
@@ -1357,7 +1367,7 @@
           <div class="stat">
             <div class="stat-top"><span class="mono">Attendance</span><span class="delta">+3%</span></div>
             <p class="value num">87<small>%</small></p>
-            <p class="cap">13 of 15 sessions · current batch</p>
+            <p class="cap">13 of 15 personal sessions · this plan</p>
             <div class="bar" role="img" aria-label="87 percent attendance"><i style="width:87%"></i></div>
           </div>
           <div class="stat">
@@ -1442,21 +1452,21 @@
           </span>
         </a>
 
-        <article class="mastery">
+        <article class="mastery" id="mastery-practice">
           <span class="glyph" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-mastery"/></svg></span>
           <span class="mono">Daily practice</span>
           <h3>Mastery</h3>
           <p>A 15-minute set tuned to your last three sessions.</p>
           <div class="row">
             <span class="mono">12 questions · 15 min</span>
-            <button class="btn btn-ghost btn-sm">Start set</button>
+            <button class="btn btn-ghost btn-sm" data-session-action="practice">Start set</button>
           </div>
         </article>
 
       </section>
 
       <!-- ---------- batch ---------- -->
-      <section class="batch-card" aria-label="Your batch">
+      <section class="batch-card" aria-label="Your 1-on-1 plan">
         <div class="bcell">
           <span class="mono">Teacher</span>
           <div class="teacher">
@@ -1475,7 +1485,7 @@
         <div class="bcell">
           <span class="mono">Attendance</span>
           <div class="att">
-            <div class="big"><b class="num">87%</b><span>13 of 15 sessions</span></div>
+            <div class="big"><b class="num">87%</b><span>13 of 15 personal sessions</span></div>
             <div class="bar" role="img" aria-label="87 percent attendance"><i style="width:87%"></i></div>
           </div>
         </div>
@@ -1533,23 +1543,23 @@
 
 <!-- ===================== mobile tabs ===================== -->
 <nav class="tabs" aria-label="Primary">
-  <button class="active" data-tab>
+  <button class="active" data-tab data-tab-target="main">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-home"/></svg>
     <span>Home</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="recordings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-play"/></svg>
     <span>Recordings</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="mastery-practice">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-mastery"/></svg>
     <span>Mastery</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="overview">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-report"/></svg>
     <span>Reports</span>
   </button>
-  <button data-tab>
+  <button data-tab data-tab-target="schedule">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-calendar"/></svg>
     <span>Schedule</span>
   </button>
@@ -1600,6 +1610,21 @@
     stroke-linecap:round;
     stroke-linejoin:round;
   }
+  .topbar .right{position:relative}
+  .top-popover{
+    position:absolute;top:52px;right:0;z-index:80;width:260px;padding:14px;
+    border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);
+    font-size:12px;line-height:1.5;box-shadow:0 12px 28px rgba(14,20,32,.1)
+  }
+  .top-popover p{margin:8px 0 0;color:var(--muted)}
+  .top-popover a{display:inline-block;margin-top:10px;border-bottom:1px solid var(--coral)}
+  .study-notice{
+    position:fixed;left:18px;bottom:76px;z-index:90;max-width:min(420px,calc(100vw - 36px));
+    padding:12px 14px;border:1px solid var(--ink);border-radius:var(--r-sm);
+    background:var(--paper);font:500 11px/1.5 var(--mono)
+  }
+  .study-notice[hidden]{display:none}
+  .study-search-hit{outline:2px solid var(--coral);outline-offset:3px}
 </style>
 
 <script src="api.js" defer></script>
