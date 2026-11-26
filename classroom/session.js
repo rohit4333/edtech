@@ -44,6 +44,14 @@
     return api.api || window.mathifyClassroomApi || null;
   }
 
+  /* Quiz and whiteboard transitions never switch local media off; they simply
+     reaffirm the state the participant already chose. This covers mobile tab
+     suspension and browser quirks without overriding an intentional mute. */
+  function reaffirmCallMedia() {
+    var call = api.agora || window.mathifyClassroomAgora;
+    if (call && typeof call.reaffirmMedia === 'function') call.reaffirmMedia();
+  }
+
   /* classroom/api.js owns token acquisition. When it is present, every session
      call goes through ensureAuth() so a page without an injected token still
      authenticates with the role-correct demo account. */
@@ -1016,6 +1024,7 @@
     closeSheet();
     initRealtime();
     document.body.classList.add('quiz-live');
+    reaffirmCallMedia();
     if (studentInk) studentInk.hidden = false;
     clearQuizInk(true);
     requestAnimationFrame(fitStudentInk);
@@ -1052,6 +1061,7 @@
     quizState.pollTimer = null;
     document.body.classList.remove('quiz-live');
     document.body.classList.remove('quiz-reteach');
+    reaffirmCallMedia();
     setTrainerActions();
     quizStage.hidden = true;
     closeScratchOverlay();
@@ -1354,6 +1364,7 @@
     if (quizState.revealed) return;
 
     quizState.revealed = true;
+    reaffirmCallMedia();
     lockOptions(true);
     setQuizPhase('revealed');
     if (studentView) {
@@ -1376,6 +1387,26 @@
       syncStudentQuestion();
     } else if (event.event === 'board.shared' && studentView) {
       toast(event.payload && event.payload.shared ? 'Your trainer shared the board with you.' : 'Board sharing stopped.');
+    } else if (event.event === 'rtc.media.control.changed') {
+      if (api.applyMediaPermission) api.applyMediaPermission(event.payload || {});
+      reaffirmCallMedia();
+    } else if (event.event === 'network.check.completed') {
+      /* The event is only a signal. The full, role-safe connection state is
+         read back from the server so both peers see accurate status. */
+      var client = classroomApi();
+      if (sessionId && client && typeof client.getSessionState === 'function') {
+        client.getSessionState(sessionId).then(function (state) {
+          if (api.applyNetworkState && state && state.network) api.applyNetworkState(state.network);
+        }).catch(function () {});
+      } else if (api.applyNetworkState) {
+        api.applyNetworkState(event.payload || {});
+      }
+      if (studentView && event.payload) {
+        toast(event.payload.ok ? 'Connection check passed.' : 'Connection check failed. Please improve your internet.');
+      }
+    } else if (event.event === 'badge.awarded' && studentView) {
+      var badge = event.payload || {};
+      toast((badge.label || 'Badge') + ' earned · ' + (badge.points || 0) + ' reward points.');
     } else if (event.event === 'session.ended') {
       document.body.classList.add('is-ended');
       var word = $('#liveWord');
@@ -1733,6 +1764,9 @@
     sendPresence(false);
     presenceInterval = window.setInterval(function () { sendPresence(false); }, 20000);
     window.addEventListener('pagehide', function () { sendPresence(true); });
+    /* Media control, connection and reward events must reach a participant
+       even when no quiz is running. Open the safe event channel on load. */
+    initRealtime();
   }
 
   /* Expose quiz controls for QA and future real-time wiring. */

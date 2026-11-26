@@ -1,30 +1,34 @@
 # Mathify test report
 
 **Date:** 26 November 2026
-**Branch:** `feat/mathify-phase-3-curriculum`
-**Scope:** Full Mathify stack — public site, shared assets, student desk, trainer console, 1:1 classroom with live Agora wiring, curriculum LMS, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, DX/DevOps extras.
+**Branch:** `feat/student-rtc-control-permission` (based on `main` at `b2bf372`)
+**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, trainer-owned student media permissions, two-sided connection precondition, curriculum LMS, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, DX/DevOps extras.
 **Mode:** Local/mock by default. No live database migration and no live paid transaction were performed.
 
 ## Result
 
-**PASS** — all 22 automated suites, syntax checks, migration dry run, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully.
+**PASS** — all 23 automated suites, syntax checks, migration dry run, HTTP/browser smoke checks, and in-app browser click-throughs completed successfully.
 
 ## Commands and results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Full automated suite | `npm test` from `server/` | Exit `0`. All 22 suites passed. |
-| Live-readiness suite | `node tests/liveReadiness.test.js` | `61 assertions passed`. |
+| Full automated suite | `npm test` from `server/` | Exit `0`. All 23 suites passed. |
+| Live-readiness suite | `node tests/liveReadiness.test.js` | `62 assertions passed`. |
 | Live persistence suite | `node tests/livePersistence.test.js` | `25 assertions passed`. |
 | Live operations suite | `node tests/liveOperations.test.js` | `14 assertions passed`. |
+| RTC controls suite | `node tests/rtcControls.test.js` | `42 assertions passed`. |
 | API smoke | Included in `npm test` | `apiSmoke: passed`. |
 | UI scaffold contract | Included in `npm test` | `scaffoldedUI: 12 assertions passed`. |
-| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 65388 bytes `sha256:02581afb164a`; `0002_student_curriculum.sql` 3995 bytes `sha256:390a1dc4412e`; `0003_live_persistence.sql` 2779 bytes `sha256:e4c427d6a806`. |
-| JS syntax | `node --check` on every changed JS file | All 22 changed files passed. |
-| Whitespace | `git diff --check` | Clean; Windows LF→CRLF warnings only. |
-| HTTP surface smoke | Express origin on port 4000 | Reviewed pages/assets returned `200`; server source, `.env`, `.git`, and migration files remain `404`. |
+| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66763 bytes `sha256:82e6768ba8a2`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 2840 bytes `sha256:99e665c198c1`. Checksums reflect CRLF working-tree bytes; migration files are unchanged in git. |
+| JS syntax | `node --check` on every changed JS file | All 16 changed/new JS files passed. |
+| Whitespace | `git diff --check` | Clean (exit `0`). |
+| HTTP surface smoke | Express origin on port 4173 | Reviewed pages/assets returned `200`; server source, `.env`, `.git`, and migration files remain `404`. |
 | Browser smoke | In-app Chromium, 12 surfaces | `0` console errors and `0` failed requests on every surface. |
-| Classroom live-call panel | `?sessionId=ses_math_001` | Join enabled, status **“Ready for a private 1:1 call. Join when you are.”**, server-signed token API exposed, no SDK/network call until Join. |
+| Classroom live-call panel | `?sessionId=ses_math_001` | `Check speed` and Join controls present; Join disabled with “Check speed” label until both people pass; mic/camera on by default; server-signed token API exposed; no SDK/network call until Join. |
+| Trainer media Access button | Trainer classroom view | `Access on` toggled to `Access off` and back; force flags and version advanced server-side; no console errors. |
+| Student media lock | Student classroom view | After revoke: mic/camera on and disabled, Access button absent, version advanced; after grant: controls re-enabled; both events arrived via the safe channel with no quiz running; `0` console errors. |
+| Student reward trophies | `student/index.html` | Trophy section, list and point total rendered from the dashboard (`25 pts`, 2 seeded trophies in mock mode); `0` console errors. |
 | Student recording chapters | `student/index.html` | Three timestamped chapter buttons rendered (`0:00`, `7:00`, `15:30`); 8 session actions wired. |
 
 ## Automated suite breakdown
@@ -50,9 +54,10 @@ All suites are registered in `server/package.json`:
 - `presenceService`: 17 assertions
 - `apiSmoke`: passed
 - `scaffoldedUI`: 12 assertions
-- `liveReadiness`: 61 assertions
+- `liveReadiness`: 62 assertions
 - `livePersistence`: 25 assertions
 - `liveOperations`: 14 assertions
+- `rtcControls`: 42 assertions
 
 Expected non-fatal console output during tests:
 
@@ -99,13 +104,26 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - Recording chapter timestamps reach the student dashboard serializer.
 - Mock seeding exits cleanly without contacting a database.
 
+`server/tests/rtcControls.test.js` verifies:
+
+- Students have media controls by default; no track is forced on without an explicit trainer revoke.
+- A student cannot change the permission flag; trainer/founder revoke sets `forceMicOn` and `forceCameraOn` and advances the version; grant clears both.
+- The student state and the `rtc.media.control.changed` event carry only allowlisted, scrubbed keys — no correctness, hint, trainer note or answer-key fields.
+- The connection gate blocks token issuance before any check, after one failed side, and after only one passing side; the Agora channel/uid still come from the server once both pass.
+- Connection events expose pass/fail and readiness only — no raw download/upload measurements.
+- Public config advertises the 15/10 Mbps floor and the badge catalog.
+- Students cannot award badges; unknown or invented badge ids are rejected; trainer picks a badge while policy owns label/points; the dashboard exposes only safe trophy fields and accumulated points.
+- Browser contracts: force-on happens before lock, media is reaffirmed on quiz/focus/keep-alive, the safe event channel opens on session load, and the student dashboard renders trophies.
+
 ## Browser click-through results
 
 - All 12 public and app surfaces: nav contract intact; 0 console errors and 0 failed requests.
 - `contact.html`: booking form posts to `/api/contact`; visible status changed to **“Request received. We will contact you shortly.”** with no console errors.
 - `lms/index.html`: course count `6`, `detailTitle` present; Review filter reduced list to `1`; Add module increased count `44 → 45` and showed a confirmation; sort changed label to **“Course name”**; no console errors.
-- `classroom/index.html`: chat message submitted successfully through the session API and appeared in the shared log; with `sessionId=ses_math_001` the live video panel became ready with Join enabled; no console errors.
-- `student/index.html`: search highlighted `3` matches, notifications popover opened, `8` session actions wired, recording chapter buttons carry real timestamps, mobile tabs carry real targets; no console errors.
+- `classroom/index.html`: chat message submitted successfully through the session API and appeared in the shared log; with `sessionId=ses_math_001` the call bar shows `Check speed` and Join stays disabled with the “Check speed” label; mic/camera are on by default; no console errors.
+- Trainer **Access** click-through: `Access on → Access off → Access on` matched the server permission version and force flags; the student tab received both changes through the safe event channel with no quiz running; no console errors.
+- Student classroom view (`?view=student`): after revoke the mic/camera buttons were on and disabled and the Access button was absent; after grant both re-enabled; no console errors.
+- `student/index.html`: reward trophies rendered from the dashboard with a point total; search highlighted `3` matches, notifications popover opened, `8` session actions wired, recording chapter buttons carry real timestamps, mobile tabs carry real targets; no console errors.
 - `trainer/index.html`: search returned `1 matching student/session row`, `5` mobile tabs carry real targets, Start Class is wired; no console errors.
 
 ## Deliberate non-actions
@@ -113,7 +131,8 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - No Supabase migration was applied. Apply still requires human review plus both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`.
 - No live Cloudflare call was made because the current `.env` token must be rotated first.
 - No real Razorpay capture, Agora recording webhook, or Twilio message was sent from tests. Test notification credentials were cleared before HTTP checks.
-- The Agora Join control was not activated during browser smoke: it would load the remote SDK and request camera/microphone access. Its token contract is covered by server tests instead.
+- The Agora Join control was not activated during browser smoke: it would load the remote SDK and request camera/microphone access. Its token contract and the connection gate are covered by server tests instead.
+- The browser cannot remotely flip another user's physical camera/microphone. Revoked enforcement runs in the student tab through local Agora tracks plus server-owned state/events; a denied device, stopped track or offline tab is reported honestly rather than shown as on.
 
 ## Remaining launch gates
 

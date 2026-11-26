@@ -8,6 +8,9 @@ const agoraTokens = require('../services/agoraTokenService');
 const masteryGating = require('../services/masteryGating');
 const presenceService = require('../services/presenceService');
 const notifications = require('../services/notificationService');
+const mediaPermission = require('../services/mediaPermissionService');
+const networkQuality = require('../services/networkQualityService');
+const badges = require('../services/badgeService');
 const appPolicy = require('../config/policy.json');
 
 const router = express.Router();
@@ -21,6 +24,13 @@ router.get('/:sessionId/state', function (req, res) {
 
 router.post('/:sessionId/rtc-token', function (req, res) {
   try {
+    /* Both verified participants must pass a fresh connection check. A browser
+       cannot opt out, downgrade the threshold or start a call for its peer. */
+    if (!networkQuality.bothReady(req.sessionRecord)) {
+      throw Object.assign(new Error(
+        'Both people must pass the connection speed check before the class can start.'
+      ), { code: 'NETWORK_BELOW_MINIMUM', status: 409 });
+    }
     return res.json({ rtc: agoraTokens.issueSessionToken(req.sessionRecord, req.user) });
   } catch (error) {
     return res.status(error.status || 500).json({
@@ -37,7 +47,8 @@ const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
-  'chat.sent', 'board.shared'
+  'chat.sent', 'board.shared', 'rtc.media.control.changed', 'network.check.completed',
+  'badge.awarded'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
@@ -100,6 +111,90 @@ router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), f
   return realtime.publish(req.sessionRecord.id, 'board.shared', { shared: shared }).then(function (event) {
     return res.json({ ok: true, shared: shared, seq: event.seq });
   });
+});
+
+/* Trainer-owned student media controls. The student can never set this flag;
+   revoking it marks audio and camera as forced on before the client locks the
+   buttons. */
+router.post('/:sessionId/media-permission', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const allowed = (req.body || {}).studentCanToggleMedia;
+  if (typeof allowed !== 'boolean') {
+    return res.status(400).json({
+      error: 'INVALID_MEDIA_PERMISSION',
+      message: 'studentCanToggleMedia must be true or false.'
+    });
+  }
+  const next = mediaPermission.setPermission(req.sessionRecord.mediaPermissions, allowed);
+  const updated = db.updateSession(req.sessionRecord.id, function (session) {
+    session.mediaPermissions = next;
+    return session;
+  });
+  if (!updated) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  return realtime.publish(updated.id, 'rtc.media.control.changed', mediaPermission.eventPayload(next))
+    .then(function (event) {
+      return res.json({ ok: true, mediaPermissions: next, seq: event.seq });
+    });
+});
+
+/* Both participants report their own connection result. The role is derived
+   from the JWT, so a student cannot submit a passing trainer measurement. */
+router.post('/:sessionId/network-check', function (req, res) {
+  const validation = networkQuality.validateMeasurement(req.body || {});
+  if (!validation.ok) {
+    return res.status(400).json({ error: 'INVALID_NETWORK_CHECK', message: validation.error });
+  }
+  const role = networkQuality.roleFor(req.user);
+  const result = networkQuality.evaluate(validation.value);
+  const updated = db.updateSession(req.sessionRecord.id, function (session) {
+    session.networkChecks = Object.assign({}, session.networkChecks || {});
+    session.networkChecks[role] = result;
+    return session;
+  });
+  if (!updated) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  return realtime.publish(
+    updated.id,
+    'network.check.completed',
+    networkQuality.eventPayload(updated, role, result)
+  ).then(function (event) {
+    return res.json({
+      ok: result.ok,
+      network: networkQuality.stateFor(updated, req.user),
+      seq: event.seq
+    });
+  });
+});
+
+/* Fixed-catalog reward badges. The trainer picks a badge id; label and points
+   come from policy. The student record receives only safe trophy fields. */
+router.post('/:sessionId/badges', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const record = badges.award((req.body || {}).badgeId, req.sessionRecord.id, req.user.id);
+  if (!record) {
+    return res.status(400).json({
+      error: 'UNKNOWN_BADGE',
+      message: 'Choose one of the approved reward badges.'
+    });
+  }
+  const trophy = badges.forStudent({ badges: [record] })[0];
+  const updatedSession = db.updateSession(req.sessionRecord.id, function (session) {
+    session.badges = (Array.isArray(session.badges) ? session.badges : []).concat([record]);
+    return session;
+  });
+  if (!updatedSession) {
+    return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+  }
+  db.updateUser(req.sessionRecord.studentId, function (student) {
+    student.badges = (Array.isArray(student.badges) ? student.badges : []).concat([record]);
+    student.trophyPoints = badges.pointsFor(student);
+    return student;
+  });
+  return realtime.publish(req.sessionRecord.id, 'badge.awarded', badges.eventPayload(record))
+    .then(function (event) {
+      return res.status(201).json({ ok: true, badge: trophy, seq: event.seq });
+    });
 });
 
 /* Parent recap handoff. Delivery channels are optional; the always-safe reply

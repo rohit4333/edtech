@@ -339,7 +339,8 @@
           </div>
         </div>
         <div class="pip-call-bar" role="group" aria-label="Live call controls">
-          <button class="pip-call-btn is-primary" id="agoraJoinBtn" type="button">Join</button>
+          <button class="pip-call-btn" id="networkCheckBtn" type="button" title="Check connection speed before class">Check speed</button>
+          <button class="pip-call-btn is-primary" id="agoraJoinBtn" type="button" title="Run the connection speed check before class">Join</button>
           <button class="pip-call-btn" id="agoraLeaveBtn" type="button" disabled>Leave</button>
         </div>
         <p class="pip-call-status" id="agoraCallStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
@@ -415,6 +416,9 @@
       </button>
       <button class="ctl is-off" id="camBtn" type="button" aria-pressed="true" aria-label="Turn on camera" title="Turn on camera">
         <svg class="icon" aria-hidden="true"><use href="#i-cam-off"/></svg>
+      </button>
+      <button class="ctl ctl-access trainer-only is-on" id="studentMediaAccessBtn" type="button" aria-pressed="true" aria-label="Revoke student audio and video controls" title="Student can mute and switch off the camera · click to lock">
+        <span data-media-access-label>Access on</span>
       </button>
       <button class="ctl" id="shareBtn" type="button" aria-pressed="false" aria-label="Share board" title="Share board">
         <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
@@ -702,6 +706,18 @@
           <button type="button" id="shareBoardBtn">Share board</button>
           <button type="button" disabled title="Remote microphone control happens in the live Agora room.">Mute student</button>
           <button type="button" id="saveBoardBtn">Save board</button>
+          <span class="block-label">Rewards</span>
+          <div class="badge-award">
+            <label class="visually-hidden" for="badgeSelect">Choose a reward badge</label>
+            <select id="badgeSelect">
+              <option value="focus_star">Focus Star · 10 pts</option>
+              <option value="sharp_thinking">Sharp Thinking · 20 pts</option>
+              <option value="steady_progress">Steady Progress · 15 pts</option>
+              <option value="kind_partner">Kind Partner · 10 pts</option>
+              <option value="concept_master">Concept Master · 25 pts</option>
+            </select>
+            <button type="button" id="awardBadgeBtn">Award badge</button>
+          </div>
         </div>
       </div>
       <footer class="sheet-foot">
@@ -748,6 +764,7 @@
 
 <script src="api.js"></script>
 <script src="agora.js"></script>
+<script src="networkCheck.js"></script>
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>

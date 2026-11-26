@@ -32,7 +32,28 @@ const users = [
     mastery: 72,
     streak: 12,
     batch: 'Ratios · Chapter 4',
-    sessionsRemaining: 9
+    sessionsRemaining: 9,
+    badges: [
+      {
+        id: 'badge_seed_focus',
+        badgeId: 'focus_star',
+        label: 'Focus Star',
+        points: 10,
+        icon: 'star',
+        sessionId: 'ses_math_000',
+        awardedAt: '2026-11-22T17:20:00.000Z'
+      },
+      {
+        id: 'badge_seed_progress',
+        badgeId: 'steady_progress',
+        label: 'Steady Progress',
+        points: 15,
+        icon: 'step',
+        sessionId: 'ses_math_000',
+        awardedAt: '2026-11-22T17:21:00.000Z'
+      }
+    ],
+    trophyPoints: 25
   })
 ];
 

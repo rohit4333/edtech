@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`feat/mathify-phase-3-curriculum`, being merged to `main`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter and a DB-backed session event outbox. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration has been applied.
+This codebase state (`main` plus `feat/student-rtc-control-permission`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate and reward trophies. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. Agora RTC/RTM tokens are real and server-signed, AI is Cloudflare Workers AI only (no DeepSeek/OpenAI), and the ordered SQL plan is reviewed by a dry-run/checksum runner. No live migration has been applied.
 
 ## Run
 
@@ -88,7 +88,7 @@ The trainer balance is 8 session leaves per calendar month. A student-initiated 
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/student/dashboard` | Next session, streak, Mastery, recordings |
+| `GET` | `/api/student/dashboard` | Next session, streak, Mastery, recordings, safe trophy list and points |
 | `GET` | `/api/student/sessions/:sessionId` | Sanitized lesson + quiz; no notes or answer key |
 | `POST` | `/api/student/sessions/:sessionId/quiz/answers` | Save answer only; no correctness or explanation |
 
@@ -99,8 +99,21 @@ The trainer balance is 8 session leaves per calendar month. A student-initiated 
 | `GET` | `/api/sessions/:sessionId/state` | Role-aware live state and permissions |
 | `GET` | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads |
 | `POST` | `/api/sessions/:sessionId/chat` | Participant-only chat; sender identity from the JWT |
-| `POST` | `/api/sessions/:sessionId/rtc-token` | Real server-signed Agora RTC/RTM token; channel, uid and peer derived server-side |
+| `POST` | `/api/sessions/:sessionId/rtc-token` | Real server-signed Agora RTC/RTM token; channel, uid and peer derived server-side; blocked with `NETWORK_BELOW_MINIMUM` until both people pass the connection check |
+| `POST` | `/api/sessions/:sessionId/media-permission` | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking |
+| `POST` | `/api/sessions/:sessionId/network-check` | Verified participant reports their own speed; role comes from the JWT, never the body |
+| `POST` | `/api/sessions/:sessionId/badges` | Trainer/founder only: award a fixed-catalog badge; label and points come from policy |
 | `POST` | `/api/sessions/:sessionId/end` | Trainer-only end + recap + recording link |
+
+### Public connection probe and policy
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/network/probe?bytes=<n>` | Cache-busted, no-store download payload for the classroom speed test; no identity or secrets |
+| `POST` | `/api/network/probe` | No-store upload echo point; body size is clamped to the configured probe size |
+| `GET` | `/api/public/config` | Browser-safe policy: Supabase publishable config, realtime mode, connection thresholds and the badge catalog |
+
+Connection policy lives in `server/config/policy.json` under `networkCheck` (`15` down, `10` up, `250 ms`, `15` minute freshness). `rtc.media.control.changed`, `network.check.completed` and `badge.awarded` are allowlisted, scrubbed session events. Extra state (`mediaPermissions`, `networkChecks`, `badges`, `trophyPoints`) is stored in the service-only `mathify_records` JSONB store in live mode, so it persists without a schema migration.
 
 ### Quizzer state flow
 
@@ -119,7 +132,7 @@ draft → answering → awaiting_reveal → revealed → answering → … → c
 
 Realtime events:
 
-`quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`.
+`quiz.launched`, `quiz.answer.saved`, `quiz.answer.revealed`, `quiz.question.changed`, `quiz.reteach.started`, `quiz.check.added`, `quiz.completed`, `quiz.draft.approved`, `rtc.media.control.changed`, `network.check.completed`, `badge.awarded`.
 
 In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` wires `/state`, `/events` and a live Agora call panel whose channel, uid and token always come from the server.
 
@@ -162,7 +175,7 @@ whiteboard/Wacom activity are the only shared signals.
 | `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
 | `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
-| `GET` | `/api/public/config` | Browser-safe Supabase URL and publishable key only |
+| `GET` | `/api/public/config` | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
 
 ### Cloudflare Workers AI, Agora, Razorpay
 

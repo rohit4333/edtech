@@ -29,6 +29,24 @@
   var classroomApi = window.mathifyClassroomApi || null;
   var studentName = 'Student';
 
+  /* Students start with camera/audio controls available. Only an explicit
+     trainer revoke locks them, and that transition forces both tracks on. */
+  var mediaPermission = {
+    studentCanToggleMedia: true,
+    forceMicOn: false,
+    forceCameraOn: false,
+    version: 0
+  };
+  var networkState = null;
+  var viewerRole = (window.MATHIFY_USER && window.MATHIFY_USER.role) ||
+    (classroomApi && classroomApi.role) || 'trainer';
+  if (params.get('view') === 'student' || params.get('role') === 'student') viewerRole = 'student';
+
+  function isStudentViewer() {
+    return params.get('view') === 'student' || params.get('role') === 'student' ||
+      viewerRole === 'student';
+  }
+
   function applyStudentName(value) {
     var next = String(value || '').trim();
     if (!next) return;
@@ -44,8 +62,11 @@
         state.participants.student.name;
       applyStudentName(name);
       if (state && state.viewerRole) {
+        viewerRole = state.viewerRole;
         window.MATHIFY_USER = window.MATHIFY_USER || { role: state.viewerRole };
       }
+      if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
+      if (state && state.network) applyNetworkState(state.network);
       return true;
     }).catch(function (error) {
       console.warn('[mathify] Session context unavailable:', error.message);
@@ -396,6 +417,7 @@
   var camBtn = $('#camBtn');
   var shareBtn = $('#shareBtn');
   var selfTile = $('#selfTile');
+  var accessBtn = $('#studentMediaAccessBtn');
 
   function setIcon(button, id) {
     var use = button && button.querySelector('use');
@@ -405,13 +427,17 @@
   function callModule() { return window.mathifyClassroomAgora; }
 
   var micOn = true;
-  micBtn && micBtn.addEventListener('click', function () {
-    micOn = !micOn;
-    micBtn.classList.toggle('is-off', !micOn);
-    micBtn.setAttribute('aria-pressed', String(!micOn));
-    micBtn.setAttribute('aria-label', micOn ? 'Mute microphone' : 'Unmute microphone');
-    micBtn.title = micOn ? 'Mute microphone' : 'Unmute microphone';
-    setIcon(micBtn, micOn ? '#i-mic' : '#i-mic-off');
+  var camOn = true;
+
+  function setMicVisual(on) {
+    micOn = Boolean(on);
+    if (micBtn) {
+      micBtn.classList.toggle('is-off', !micOn);
+      micBtn.setAttribute('aria-pressed', String(!micOn));
+      micBtn.setAttribute('aria-label', micOn ? 'Mute microphone' : 'Unmute microphone');
+      micBtn.title = micOn ? 'Mute microphone' : 'Unmute microphone';
+      setIcon(micBtn, micOn ? '#i-mic' : '#i-mic-off');
+    }
     var mic = selfTile && $('.t-mic', selfTile);
     if (mic) {
       mic.classList.toggle('is-muted', !micOn);
@@ -421,26 +447,155 @@
       dockMic.classList.toggle('is-muted', !micOn);
       setIcon(dockMic, micOn ? '#i-mic' : '#i-mic-off');
     });
+  }
+
+  function setCameraVisual(on) {
+    camOn = Boolean(on);
+    if (camBtn) {
+      camBtn.classList.toggle('is-off', !camOn);
+      camBtn.setAttribute('aria-pressed', String(!camOn));
+      camBtn.setAttribute('aria-label', camOn ? 'Turn off camera' : 'Turn on camera');
+      camBtn.title = camOn ? 'Turn off camera' : 'Turn on camera';
+      setIcon(camBtn, camOn ? '#i-cam' : '#i-cam-off');
+    }
+    selfTile && selfTile.classList.toggle('cam-on', camOn);
+    $$('.dock-trainer').forEach(function (dockTile) {
+      dockTile.classList.toggle('cam-on', camOn);
+    });
+  }
+
+  function mediaAllowed() {
+    return !isStudentViewer() || mediaPermission.studentCanToggleMedia === true;
+  }
+
+  function rejectLockedControl() {
+    toast('Your trainer has locked audio and video controls.');
+  }
+
+  micBtn && micBtn.addEventListener('click', function () {
+    if (!mediaAllowed() || micBtn.disabled) { rejectLockedControl(); return; }
+    setMicVisual(!micOn);
     var micCall = callModule();
     if (micCall && typeof micCall.setMicEnabled === 'function') micCall.setMicEnabled(micOn);
     toast(micOn ? 'Microphone on.' : 'Microphone muted.');
   });
 
-  var camOn = false;
   camBtn && camBtn.addEventListener('click', function () {
-    camOn = !camOn;
-    camBtn.classList.toggle('is-off', !camOn);
-    camBtn.setAttribute('aria-pressed', String(!camOn));
-    camBtn.setAttribute('aria-label', camOn ? 'Turn off camera' : 'Turn on camera');
-    camBtn.title = camOn ? 'Turn off camera' : 'Turn on camera';
-    setIcon(camBtn, camOn ? '#i-cam' : '#i-cam-off');
-    selfTile && selfTile.classList.toggle('cam-on', camOn);
-    $$('.dock-trainer').forEach(function (dockTile) {
-      dockTile.classList.toggle('cam-on', camOn);
-    });
+    if (!mediaAllowed() || camBtn.disabled) { rejectLockedControl(); return; }
+    setCameraVisual(!camOn);
     var camCall = callModule();
     if (camCall && typeof camCall.setCameraEnabled === 'function') camCall.setCameraEnabled(camOn);
     toast(camOn ? 'Camera on.' : 'Camera off.');
+  });
+
+  function setMediaButtonsLocked(locked) {
+    [micBtn, camBtn].forEach(function (button) {
+      if (!button) return;
+      button.disabled = Boolean(locked);
+      button.setAttribute('aria-disabled', String(Boolean(locked)));
+      button.title = locked
+        ? 'Locked by your trainer · audio and camera stay on'
+        : (button === micBtn ? 'Mute microphone' : 'Turn off camera');
+    });
+  }
+
+  function forceStudentMediaOn() {
+    var call = callModule();
+    var result = call && typeof call.forceMediaOn === 'function'
+      ? call.forceMediaOn()
+      : { micApplied: false, cameraApplied: false, joined: false };
+    setMicVisual(true);
+    setCameraVisual(true);
+    return result;
+  }
+
+  function applyAccessButton() {
+    if (!accessBtn) return;
+    var allowed = mediaPermission.studentCanToggleMedia === true;
+    accessBtn.classList.toggle('is-on', allowed);
+    accessBtn.setAttribute('aria-pressed', String(allowed));
+    accessBtn.setAttribute('aria-label', allowed
+      ? 'Revoke student audio and video controls'
+      : 'Allow student audio and video controls');
+    accessBtn.title = allowed
+      ? 'Student can mute and switch camera off · click to lock'
+      : 'Student controls locked · click to allow';
+    var label = $('[data-media-access-label]', accessBtn);
+    if (label) label.textContent = allowed ? 'Access on' : 'Access off';
+  }
+
+  /* Force-on always runs before the lock. The honest status distinguishes a
+     track that was enabled from a browser that has not granted the device yet. */
+  function applyMediaPermission(value) {
+    if (!value || typeof value !== 'object') return Promise.resolve(false);
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(mediaPermission.version) || 0);
+    if (incoming && incoming < current) return Promise.resolve(false);
+
+    var allowed = value.studentCanToggleMedia !== false;
+    mediaPermission = {
+      studentCanToggleMedia: allowed,
+      forceMicOn: value.forceMicOn === true,
+      forceCameraOn: value.forceCameraOn === true,
+      version: incoming || current
+    };
+    applyAccessButton();
+
+    if (!isStudentViewer()) return Promise.resolve(true);
+    if (!allowed) {
+      var applied = forceStudentMediaOn();
+      setMediaButtonsLocked(true);
+      var lockedCall = callModule();
+      if (lockedCall && typeof lockedCall.setMediaControlsLocked === 'function') {
+        lockedCall.setMediaControlsLocked(true);
+      }
+      var message = applied.joined
+        ? (applied.micApplied && applied.cameraApplied
+          ? 'Trainer locked media controls. Microphone and camera are on.'
+          : 'Trainer locked media controls. Allow camera and microphone access in your browser.')
+        : 'Trainer locked media controls. Microphone and camera will start on when you join.';
+      if (lockedCall && typeof lockedCall.setStatus === 'function') lockedCall.setStatus(message);
+      toast('Your trainer locked audio and video controls.');
+    } else {
+      setMediaButtonsLocked(false);
+      var openCall = callModule();
+      if (openCall && typeof openCall.setMediaControlsLocked === 'function') {
+        openCall.setMediaControlsLocked(false);
+      }
+    }
+    return Promise.resolve(true);
+  }
+
+  function applyNetworkState(value) {
+    if (!value || typeof value !== 'object') return;
+    networkState = value;
+    var ready = value.canStartCall === true;
+    var reason = ready ? '' : 'Both people must pass the connection speed check before class.';
+    var call = callModule();
+    if (call && typeof call.setNetworkReady === 'function') call.setNetworkReady(ready, reason);
+    if (window.mathifyNetworkCheck && typeof window.mathifyNetworkCheck.describe === 'function' &&
+        call && typeof call.setStatus === 'function') {
+      call.setStatus(window.mathifyNetworkCheck.describe(value));
+    }
+  }
+
+  accessBtn && accessBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.setMediaPermission !== 'function') {
+      toast('Student media access needs a live session.');
+      return;
+    }
+    var next = mediaPermission.studentCanToggleMedia !== true;
+    accessBtn.disabled = true;
+    classroomApi.setMediaPermission(sessionId, next).then(function (permission) {
+      applyMediaPermission(permission);
+      toast(next
+        ? 'Student may now mute and switch off the camera.'
+        : 'Student controls locked; audio and camera stay on.');
+    }).catch(function (error) {
+      toast('Media access update failed: ' + error.message);
+    }).then(function () {
+      accessBtn.disabled = false;
+    });
   });
 
   var sharing = false;
@@ -835,14 +990,30 @@
   loadSessionContext();
 
   /* Live 1:1 call. The existing floating PiP is the call surface; the SDK is
-     loaded only on Join, and channel/uid/token always come from the server. */
+     loaded only on Join, and channel/uid/token always come from the server.
+     Students start unlocked; an explicit trainer revoke forces tracks on. */
+  applyMediaPermission(mediaPermission);
+  setMicVisual(true);
+  setCameraVisual(true);
+
   var classroomCall = window.mathifyClassroomAgora;
   if (classroomCall && typeof classroomCall.init === 'function') {
     classroomCall.init({
       sessionId: sessionId,
       statusNode: $('#agoraCallStatus'),
       micEnabled: micOn,
-      cameraEnabled: camOn
+      cameraEnabled: camOn,
+      networkReady: false,
+      networkReason: 'Run the connection speed check before class.'
+    });
+  }
+  if (networkState) applyNetworkState(networkState);
+  if (window.mathifyNetworkCheck && typeof window.mathifyNetworkCheck.init === 'function') {
+    window.mathifyNetworkCheck.init({
+      sessionId: sessionId,
+      api: classroomApi,
+      button: $('#networkCheckBtn'),
+      onState: applyNetworkState
     });
   }
 
@@ -954,6 +1125,39 @@
     });
   }
 
+  /* Trainer-issued rewards. The catalog comes from public policy; the server
+     validates the id and owns the label, point value and student trophy list. */
+  var badgeSelect = $('#badgeSelect');
+  var awardBadgeBtn = $('#awardBadgeBtn');
+  if (classroomApi && typeof classroomApi.getPublicConfig === 'function') {
+    classroomApi.getPublicConfig().then(function (config) {
+      if (!badgeSelect || !Array.isArray(config.badges)) return;
+      badgeSelect.innerHTML = '';
+      config.badges.forEach(function (badge) {
+        var option = document.createElement('option');
+        option.value = badge.id;
+        option.textContent = badge.label + ' · ' + badge.points + ' pts';
+        badgeSelect.appendChild(option);
+      });
+    }).catch(function () { /* static options remain usable */ });
+  }
+  awardBadgeBtn && awardBadgeBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.awardBadge !== 'function') {
+      toast('Badges can be awarded in a live session.');
+      return;
+    }
+    var badgeId = badgeSelect && badgeSelect.value;
+    if (!badgeId) { toast('Choose a badge first.'); return; }
+    awardBadgeBtn.disabled = true;
+    classroomApi.awardBadge(sessionId, badgeId).then(function (badge) {
+      toast(badge.label + ' awarded · ' + badge.points + ' reward points.');
+    }).catch(function (error) {
+      toast('Badge award failed: ' + error.message);
+    }).then(function () {
+      awardBadgeBtn.disabled = false;
+    });
+  });
+
   var saveBoardBtn = $('#saveBoardBtn');
   if (saveBoardBtn && canvas) {
     saveBoardBtn.addEventListener('click', function () {
@@ -985,7 +1189,11 @@
     api: classroomApi,
     agora: window.mathifyClassroomAgora,
     studentName: function () { return studentName; },
-    setStudentName: applyStudentName
+    setStudentName: applyStudentName,
+    applyMediaPermission: applyMediaPermission,
+    mediaPermission: function () { return mediaPermission; },
+    applyNetworkState: applyNetworkState,
+    networkState: function () { return networkState; }
   };
 
 })();

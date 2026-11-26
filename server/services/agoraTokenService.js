@@ -2,6 +2,7 @@
    derived from the session + verified role; browser input is never trusted. */
 const crypto = require('crypto');
 const { RtcTokenBuilder, RtmTokenBuilder, RtcRole } = require('agora-token');
+const networkQuality = require('./networkQualityService');
 
 const TOKEN_TTL_SECONDS = 3600;
 
@@ -36,6 +37,11 @@ function issueSessionToken(session, user) {
     throw Object.assign(new Error('This session has no Agora channel.'), {
       code: 'SESSION_CHANNEL_MISSING', status: 409
     });
+  }
+  if (!networkQuality.bothReady(session)) {
+    throw Object.assign(new Error(
+      'Both people must pass the connection speed check before the class can start.'
+    ), { code: 'NETWORK_BELOW_MINIMUM', status: 409 });
   }
 
   const channel = String(session.rtc.channel);

@@ -36,6 +36,21 @@
     "trainerPayRequiresPresence": true,
     "sourcePriority": ["agora_webhook", "heartbeat"]
   },
+  "networkCheck": {
+    "minDownloadMbps": 15,
+    "minUploadMbps": 10,
+    "maxLatencyMs": 250,
+    "maxAgeMinutes": 15,
+    "probeBytes": 524288,
+    "note": "A 1:1 video class stays closed until both verified participants pass a fresh connection check. 15 Mbps down, 10 Mbps up and <=250 ms latency are the minimum floors for a smooth lesson; a passing result expires after 15 minutes."
+  },
+  "badges": [
+    { "id": "focus_star", "label": "Focus Star", "points": 10, "icon": "star" },
+    { "id": "sharp_thinking", "label": "Sharp Thinking", "points": 20, "icon": "spark" },
+    { "id": "steady_progress", "label": "Steady Progress", "points": 15, "icon": "step" },
+    { "id": "kind_partner", "label": "Kind Partner", "points": 10, "icon": "heart" },
+    { "id": "concept_master", "label": "Concept Master", "points": 25, "icon": "trophy" }
+  ],
   "masteryGating": {
     "unlockThreshold": 80,
     "keepSameTopicBelowThreshold": true,

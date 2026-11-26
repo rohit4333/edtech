@@ -479,6 +479,17 @@
   transition:border-color .15s ease,color .15s ease;
 }
 .quick-actions button:hover{border-color:rgba(253,250,243,.4);color:var(--paper)}
+.badge-award{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.badge-award select{
+  height:26px;
+  max-width:180px;
+  padding:0 8px;
+  border:1px solid rgba(253,250,243,.16);
+  border-radius:var(--r-xs);
+  background:rgba(14,20,32,.72);
+  color:rgba(253,250,243,.78);
+  font:500 9px/1 var(--sans);
+}
 
 /* -------------------------------------------------------------------- end */
 .end-summary{

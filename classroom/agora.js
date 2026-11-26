@@ -26,9 +26,14 @@
     peerUid: null,
     micEnabled: true,
     cameraEnabled: false,
+    controlsLocked: false,
+    networkReady: false,
+    networkReason: 'Run the connection speed check before class.',
     peerLabel: '',
     handlers: null
   };
+
+  var keepAliveTimer = null;
 
   var api = {
     init: init,
@@ -37,6 +42,11 @@
     leave: leave,
     setMicEnabled: setMicEnabled,
     setCameraEnabled: setCameraEnabled,
+    forceMediaOn: forceMediaOn,
+    setMediaControlsLocked: setMediaControlsLocked,
+    setNetworkReady: setNetworkReady,
+    reaffirmMedia: reaffirmMedia,
+    setStatus: status,
     getState: getState
   };
 
@@ -83,8 +93,11 @@
     var nodes = state.nodes;
     if (!nodes) return;
     if (nodes.joinBtn) {
-      nodes.joinBtn.disabled = state.destroyed || state.joined || state.joining || !state.sessionId;
-      nodes.joinBtn.textContent = state.joining ? 'Joining…' : 'Join';
+      nodes.joinBtn.disabled = state.destroyed || state.joined || state.joining ||
+        !state.sessionId || !state.networkReady;
+      nodes.joinBtn.textContent = state.joining ? 'Joining…'
+        : (state.networkReady ? 'Join' : 'Check speed');
+      nodes.joinBtn.title = state.networkReady ? 'Join the private 1:1 call' : state.networkReason;
     }
     if (nodes.leaveBtn) nodes.leaveBtn.disabled = !state.joined && !state.joining;
   }
@@ -108,9 +121,11 @@
     if (node && state.peerLabel) node.textContent = state.peerLabel;
   }
 
+  /* Returns the actual applied result. A missing or closed track is never
+     reported as a successful force-on; the caller shows a degraded status. */
   function safeSetEnabled(track, enabled) {
-    if (!track || typeof track.setEnabled !== 'function') return;
-    try { track.setEnabled(Boolean(enabled)); } catch (error) { /* track may be closed */ }
+    if (!track || typeof track.setEnabled !== 'function') return false;
+    try { track.setEnabled(Boolean(enabled)); return true; } catch (error) { return false; }
   }
 
   function stopTrack(track) {
@@ -126,15 +141,55 @@
   }
 
   function setMicEnabled(enabled) {
+    if (state.controlsLocked && !enabled) return false;
     state.micEnabled = Boolean(enabled);
-    safeSetEnabled(state.localTracks[0], state.micEnabled);
-    return state.micEnabled;
+    return safeSetEnabled(state.localTracks[0], state.micEnabled);
   }
 
   function setCameraEnabled(enabled) {
+    if (state.controlsLocked && !enabled) return false;
     state.cameraEnabled = Boolean(enabled);
-    safeSetEnabled(state.localTracks[1], state.cameraEnabled);
-    return state.cameraEnabled;
+    return safeSetEnabled(state.localTracks[1], state.cameraEnabled);
+  }
+
+  /* Ordered revoke transition: call this BEFORE setMediaControlsLocked(true). */
+  function forceMediaOn() {
+    var micApplied = safeSetEnabled(state.localTracks[0], true);
+    var cameraApplied = safeSetEnabled(state.localTracks[1], true);
+    state.micEnabled = true;
+    state.cameraEnabled = true;
+    return {
+      micApplied: micApplied,
+      cameraApplied: cameraApplied,
+      micTrackPresent: Boolean(state.localTracks[0]),
+      cameraTrackPresent: Boolean(state.localTracks[1]),
+      joined: state.joined
+    };
+  }
+
+  function setMediaControlsLocked(locked) {
+    state.controlsLocked = Boolean(locked);
+    return state.controlsLocked;
+  }
+
+  function setNetworkReady(ready, reason) {
+    state.networkReady = Boolean(ready);
+    state.networkReason = reason || (state.networkReady
+      ? 'Join the private 1:1 call.'
+      : 'Run the connection speed check before class.');
+    syncButtons();
+    return state.networkReady;
+  }
+
+  /* Reaffirms the desired state without overriding an intentional mute/off.
+     Called on quiz/whiteboard transitions, tab focus and a light keep-alive so
+     a mobile browser suspension cannot silently leave a camera or mic off. */
+  function reaffirmMedia() {
+    if (!state.joined || !state.localTracks.length) return false;
+    var changed = false;
+    if (state.micEnabled && safeSetEnabled(state.localTracks[0], true)) changed = true;
+    if (state.cameraEnabled && safeSetEnabled(state.localTracks[1], true)) changed = true;
+    return changed;
   }
 
   function makeError(code, message) {
@@ -154,6 +209,9 @@
     }
     if (code === 'AGORA_NOT_CONFIGURED' || httpStatus === 503) {
       return 'Live video is not configured on this server yet.';
+    }
+    if (code === 'NETWORK_BELOW_MINIMUM') {
+      return 'The class cannot start until both people pass the connection speed check.';
     }
     if (code === 'SESSION_CHANNEL_MISSING' || httpStatus === 409) {
       return 'This session has no video channel yet.';
@@ -221,6 +279,10 @@
   function forceCleanup() {
     var client = state.client;
     var leaveDone = Promise.resolve();
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = null;
+    }
 
     state.localTracks.forEach(stopTrack);
     state.localTracks = [];
@@ -250,6 +312,10 @@
     if (state.joined || state.joining) return Promise.resolve(state.joined);
     if (!state.sessionId) {
       status('Open a session before joining a call.');
+      return Promise.resolve(false);
+    }
+    if (!state.networkReady) {
+      status(state.networkReason);
       return Promise.resolve(false);
     }
     var classroomApi = window.mathifyClassroomApi;
@@ -311,6 +377,9 @@
             }
             state.joined = true;
             state.joining = false;
+            if (!keepAliveTimer) {
+              keepAliveTimer = setInterval(function () { reaffirmMedia(); }, 5000);
+            }
             labelPeer();
             syncButtons();
             setLive('Live', 'on');
@@ -349,12 +418,16 @@
       leave: function () { leave(); },
       unload: function () {
         if (state.joined || state.joining || state.localTracks.length) forceCleanup();
+      },
+      visible: function () {
+        if (!document.hidden && state.joined) reaffirmMedia();
       }
     };
     if (nodes.joinBtn) nodes.joinBtn.addEventListener('click', state.handlers.join);
     if (nodes.leaveBtn) nodes.leaveBtn.addEventListener('click', state.handlers.leave);
     window.addEventListener('pagehide', state.handlers.unload);
     window.addEventListener('beforeunload', state.handlers.unload);
+    document.addEventListener('visibilitychange', state.handlers.visible);
   }
 
   function unbind() {
@@ -366,6 +439,7 @@
     }
     window.removeEventListener('pagehide', handlers.unload);
     window.removeEventListener('beforeunload', handlers.unload);
+    if (handlers.visible) document.removeEventListener('visibilitychange', handlers.visible);
     state.handlers = null;
   }
 
@@ -376,6 +450,8 @@
     state.statusNode = opts.statusNode || document.getElementById('agoraCallStatus') || null;
     if (typeof opts.micEnabled === 'boolean') state.micEnabled = opts.micEnabled;
     if (typeof opts.cameraEnabled === 'boolean') state.cameraEnabled = opts.cameraEnabled;
+    if (typeof opts.networkReady === 'boolean') state.networkReady = opts.networkReady;
+    if (typeof opts.networkReason === 'string') state.networkReason = opts.networkReason;
     state.destroyed = false;
     state.nodes = findNodes();
     bind();
@@ -412,7 +488,10 @@
       uid: state.uid,
       peerUid: state.peerUid,
       micEnabled: state.micEnabled,
-      cameraEnabled: state.cameraEnabled
+      cameraEnabled: state.cameraEnabled,
+      controlsLocked: state.controlsLocked,
+      networkReady: state.networkReady,
+      networkReason: state.networkReason
     };
   }
 

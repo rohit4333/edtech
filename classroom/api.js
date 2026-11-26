@@ -156,6 +156,20 @@
       return request(sessionPath(sessionId) + '/rtc-token', { method: 'POST' })
         .then(function (data) { return data && data.rtc; });
     },
+    /* Trainer-only. The server derives the session and rejects a student call. */
+    setMediaPermission: function (sessionId, studentCanToggleMedia) {
+      return request(sessionPath(sessionId) + '/media-permission', {
+        method: 'POST',
+        body: { studentCanToggleMedia: studentCanToggleMedia !== false }
+      }).then(function (data) { return data && data.mediaPermissions; });
+    },
+    /* Each verified participant reports only their own measurement. */
+    reportNetworkCheck: function (sessionId, measurement) {
+      return request(sessionPath(sessionId) + '/network-check', {
+        method: 'POST',
+        body: measurement || {}
+      }).then(function (data) { return data && data.network; });
+    },
     sendChat: function (sessionId, text) {
       return request(sessionPath(sessionId) + '/chat', {
         method: 'POST',
@@ -167,6 +181,15 @@
         method: 'POST',
         body: { shared: shared !== false }
       });
+    },
+    awardBadge: function (sessionId, badgeId) {
+      return request(sessionPath(sessionId) + '/badges', {
+        method: 'POST',
+        body: { badgeId: badgeId }
+      }).then(function (data) { return data && data.badge; });
+    },
+    getPublicConfig: function () {
+      return request('/public/config');
     },
     notifyParent: function (sessionId, note) {
       return request(sessionPath(sessionId) + '/notify-parent', {

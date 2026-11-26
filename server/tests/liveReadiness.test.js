@@ -112,6 +112,14 @@ async function main() {
     /* Agora identity is derived from the verified session, never the browser. */
     process.env.AGORA_APP_ID = 'test-app-id';
     process.env.AGORA_APP_CERTIFICATE = 'test-app-certificate';
+    const trainerNetwork = await request('POST', '/api/sessions/ses_math_001/network-check', {
+      downloadMbps: 40, uploadMbps: 25, latencyMs: 60
+    }, trainer);
+    const studentNetwork = await request('POST', '/api/sessions/ses_math_001/network-check', {
+      downloadMbps: 35, uploadMbps: 20, latencyMs: 75
+    }, student);
+    check(trainerNetwork.status === 200 && studentNetwork.status === 200,
+      'both participants can report a passing connection');
     const trainerRtc = await request('POST', '/api/sessions/ses_math_001/rtc-token', {
       channel: 'attacker-channel', uid: 1, peerUid: 2, role: 'subscriber'
     }, trainer);

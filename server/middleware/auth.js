@@ -7,7 +7,8 @@ const PUBLIC_USER_KEYS = ['id', 'name', 'role'];
 /* Business fields the Express handlers need for the signed-in user only. */
 const SESSION_USER_KEYS = [
   'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
-  'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay'
+  'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay',
+  'badges', 'trophyPoints'
 ];
 
 function pickKeys(user, keys) {

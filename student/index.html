@@ -721,6 +721,36 @@
   }
   .mastery .row .mono{font-size:8.5px;letter-spacing:.1em;color:var(--muted)}
 
+  /* ---------- reward trophies ---------- */
+  .trophies{
+    margin-top:22px;
+    padding:18px 22px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--r-md);
+  }
+  .trophies-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .trophies-head .mono{font-size:8.5px;letter-spacing:.16em;color:var(--faint);text-transform:uppercase}
+  .trophies-head h3{font-size:14.5px;font-weight:500;letter-spacing:-.012em}
+  .trophy-points{font-family:var(--mono);font-size:10px;color:var(--coral-deep)}
+  .trophy-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .trophy{
+    display:flex;align-items:center;gap:8px;
+    min-width:0;padding:8px 11px;
+    border:1px solid var(--line);
+    border-radius:var(--r-xs);
+    background:var(--paper);
+  }
+  .trophy .glyph{
+    display:grid;place-items:center;
+    width:26px;height:26px;flex:none;
+    border:1px solid rgba(14,20,32,.16);border-radius:50%;color:var(--ink);
+  }
+  .trophy .glyph svg{width:13px;height:13px}
+  .trophy b{display:block;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trophy span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--muted)}
+  .trophy-empty{margin-top:10px;font-size:11.5px;color:var(--muted)}
+
   /* ---------- batch card ---------- */
   .batch-card{
     display:grid;
@@ -1186,6 +1216,9 @@
   <symbol id="i-spark" viewBox="0 0 24 24">
     <path d="M12 3.4 13.7 9l5.6 1.7-5.6 1.7L12 18l-1.7-5.6L4.7 10.7 10.3 9Z"/>
   </symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24">
+    <path d="M7 4h10v5a5 5 0 0 1-10 0ZM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v3m-4 3h8"/>
+  </symbol>
   <symbol id="i-x" viewBox="0 0 24 24">
     <path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>
   </symbol>
@@ -1470,6 +1503,20 @@
           </div>
         </article>
 
+      </section>
+
+      <!-- ---------- reward trophies ---------- -->
+      <section class="trophies" id="trophies" aria-labelledby="trophiesTitle">
+        <div class="trophies-head">
+          <div>
+            <span class="mono">Rewards</span>
+            <h3 id="trophiesTitle">Trophies from your trainer</h3>
+          </div>
+          <span class="trophy-points" id="trophyPoints">0 pts</span>
+        </div>
+        <div class="trophy-list" id="trophyList" aria-live="polite">
+          <p class="trophy-empty">Your trainer’s badges will appear here as trophies.</p>
+        </div>
       </section>
 
       <!-- ---------- batch ---------- -->

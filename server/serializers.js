@@ -2,6 +2,9 @@
 const db = require('./db');
 const payoutService = require('./services/payoutService');
 const attendancePolicy = require('./services/attendancePolicy');
+const mediaPermission = require('./services/mediaPermissionService');
+const networkQuality = require('./services/networkQualityService');
+const badgeService = require('./services/badgeService');
 const appPolicy = require('./config/policy.json');
 
 /* Explicit student boundary: hidden trainer guidance is never serialized. */
@@ -340,6 +343,7 @@ function toStudentSession(session, options) {
 
 function toSessionState(session, user) {
   const trainerView = user && (user.role === 'trainer' || user.role === 'founder');
+  const media = mediaPermission.normalize(session.mediaPermissions);
   const state = {
     id: session.id,
     status: session.status,
@@ -360,8 +364,17 @@ function toSessionState(session, user) {
       canViewTrainerInstructions: trainerView,
       canViewAnswerKey: trainerView,
       canEditPlanner: trainerView,
-      canDraw: true
-    }
+      canDraw: true,
+      canToggleMedia: trainerView || media.studentCanToggleMedia,
+      canStudentToggleMedia: media.studentCanToggleMedia
+    },
+    mediaPermissions: {
+      studentCanToggleMedia: media.studentCanToggleMedia,
+      forceMicOn: media.forceMicOn,
+      forceCameraOn: media.forceCameraOn,
+      version: media.version
+    },
+    network: networkQuality.stateFor(session, user)
   };
   return state;
 }
@@ -721,6 +734,8 @@ function toStudentDashboard(user, sessions) {
         }
       : null,
     recordings: recordings,
+    badges: badgeService.forStudent(user),
+    trophyPoints: badgeService.pointsFor(user),
     masteryPractice: [
       { id: 'mastery_ratios', title: 'Ratios', progress: user.mastery, status: 'in-progress' },
       { id: 'mastery_fractions', title: 'Fractions', progress: 68, status: 'in-progress' }

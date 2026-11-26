@@ -370,8 +370,47 @@
       openChapter(button.getAttribute('data-chapter-seconds'));
     });
   });
-  if (api && chapterHost && typeof api.request === 'function') {
+  var trophyList = document.getElementById('trophyList');
+  var trophyPoints = document.getElementById('trophyPoints');
+  function renderTrophies(dashboard) {
+    if (!trophyList) return;
+    var badges = (dashboard && dashboard.badges) || [];
+    var points = dashboard && dashboard.trophyPoints !== undefined
+      ? dashboard.trophyPoints
+      : badges.reduce(function (total, item) { return total + (Number(item.points) || 0); }, 0);
+    if (trophyPoints) trophyPoints.textContent = points + ' pts';
+    trophyList.innerHTML = '';
+    if (!badges.length) {
+      var empty = document.createElement('p');
+      empty.className = 'trophy-empty';
+      empty.textContent = 'Your trainer’s badges will appear here as trophies.';
+      trophyList.appendChild(empty);
+      return;
+    }
+    badges.slice(-12).forEach(function (badge) {
+      var item = document.createElement('div');
+      item.className = 'trophy';
+      item.setAttribute('data-badge-id', String(badge.badgeId || badge.id || ''));
+      var glyph = document.createElement('span');
+      glyph.className = 'glyph';
+      glyph.setAttribute('aria-hidden', 'true');
+      glyph.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-trophy"/></svg>';
+      var copy = document.createElement('span');
+      var title = document.createElement('b');
+      title.textContent = String(badge.label || 'Badge');
+      var meta = document.createElement('span');
+      meta.textContent = (Number(badge.points) || 0) + ' reward pts';
+      copy.appendChild(title);
+      copy.appendChild(meta);
+      item.appendChild(glyph);
+      item.appendChild(copy);
+      trophyList.appendChild(item);
+    });
+  }
+
+  if (api && typeof api.request === 'function') {
     api.request('/student/dashboard').then(function (data) {
+      renderTrophies(data && data.dashboard);
       var recordings = data && data.dashboard && data.dashboard.recordings;
       if (!Array.isArray(recordings) || !recordings.length) return;
       var recording = recordings[0];

@@ -19,6 +19,9 @@ const agoraRoutes = require('./routes/agora');
 const razorpayRoutes = require('./routes/razorpay');
 const leaveRoutes = require('./routes/leaves');
 const contactRoutes = require('./routes/contact');
+const networkRoutes = require('./routes/network');
+const networkQuality = require('./services/networkQualityService');
+const badgeService = require('./services/badgeService');
 
 const app = express();
 
@@ -26,6 +29,8 @@ const app = express();
    signature checks. Login throttling lives in routes/auth.js. */
 const webhookThrottle = rateLimit.createLimiter({ name: 'webhook', windowMs: 60000, max: 120 });
 const contactThrottle = rateLimit.createLimiter({ name: 'contact', windowMs: 60000, max: 20 });
+const probeThrottle = rateLimit.createLimiter({ name: 'network-probe', windowMs: 60000, max: 40 });
+app.use('/api/network', probeThrottle);
 app.use('/api/razorpay/webhook', webhookThrottle);
 app.use('/api/agora/webhook', webhookThrottle);
 app.use('/api/webhooks/recording', webhookThrottle);
@@ -58,7 +63,9 @@ app.get('/api/public/config', function (req, res) {
       publishableKey: config.supabase.publishableKey,
       realtimeEnabled: Boolean(config.supabase.url && config.supabase.publishableKey)
     },
-    realtimeMode: realtime.mode
+    realtimeMode: realtime.mode,
+    network: networkQuality.settings(),
+    badges: badgeService.catalog()
   });
 });
 
@@ -70,6 +77,7 @@ app.use('/api/policy', policyRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agora', agoraRoutes);
+app.use('/api/network', networkRoutes);
 app.use('/api/razorpay', razorpayRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/contact', contactRoutes);
