@@ -81,6 +81,18 @@ ok(/No payment is taken here/.test(contact), 'contact form says no payment is ta
 ok(!/card-number|cardNumber|paymentMethod|razorpay/i.test(contact),
   'contact form collects no payment fields');
 
+/* The landing demo form uses a full IANA timezone dropdown. */
+const landingHtml = read('index.html');
+const landingScript = read('landing.js');
+ok(landingHtml.indexOf('<select id="demoTimezone" name="timezone"') !== -1,
+  'landing demo timezone is a select field');
+ok(landingScript.indexOf("Intl.supportedValuesOf('timeZone')") !== -1,
+  'landing demo timezone uses the browser IANA zone list');
+ok(landingScript.indexOf("'Africa/Abidjan'") !== -1 &&
+  landingScript.indexOf("'Asia/Calcutta'") !== -1 &&
+  landingScript.indexOf("'UTC'") !== -1,
+  'landing demo timezone has an embedded IANA fallback');
+
 /* Founder settings are honest drafts with locked money widgets. */
 const founderHtml = read('founder/index.html');
 const founderScript = read('founder/app.js');
