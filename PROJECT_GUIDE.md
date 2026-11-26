@@ -97,11 +97,12 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Student desk | `student/index.html`, `student/app.js`, `student/api.js` | Dashboard rendering, trophy list, recording chapters. |
 | Trainer console | `trainer/` | Attendance, timeline, payouts, session actions. |
 | Classroom | `classroom/index.html`, `app.js`, `session.js`, `agora.js`, `api.js`, `networkCheck.js`, `engagement.js`, `engagement.css`, `realtime.js`, `room.css`, `panels.css` | Live room, quiz/board state, call controls, connection preflight, Student Control, celebrations/reactions, safe event bridge. |
-| LMS | `lms/` | Partial course library. |
-| App entry | `server/index.js`, `server/app.js`, `server/config.js` | Boot, production guard, routes, static serving. |
+| LMS | `lms/` | Partial course library with local planner designer and schema/privacy validation. |
+| Founder workspace | `founder/index.html`, `founder/app.js`, `founder/founder.css` | Runtime policy/mastery/trainer-policy drafts; money widgets are read-only. |
+| App entry | `server/index.js`, `server/app.js`, `server/config.js` | Boot, production guard, routes, reviewed static allowlist. |
 | Auth | `server/auth/`, `server/middleware/auth.js` | Passwords, JWT, `sessionUser`/`publicUser` key allowlists, RBAC, session access. |
-| Routes | `server/routes/` | Auth, trainer, student, sessions, policy, webhooks, admin, agora, razorpay, leaves, contact, network. |
-| Services | `server/services/` | Agora tokens, Cloudflare client, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions. |
+| Routes | `server/routes/` | Auth, trainer, student, sessions, policy, webhooks, admin (founder settings), agora, razorpay, leaves, contact, network. |
+| Services | `server/services/` | Agora tokens, Cloudflare client, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions, founder settings. |
 | Data | `server/db/index.js`, `mock.js`, `supabase.js`, `schema.sql` | Facade, demo store, service-role adapter, canonical schema. |
 | Migrations | `server/migrations/0001…0003`, `server/migrate.js` | Ordered SQL, checksum guards, dry-run runner. |
 | Tests | `server/tests/*.test.js` | 24 suites; see `TEST_REPORT.md`. |
@@ -241,7 +242,7 @@ Browser surface
 
 ### 5.9 Testing and delivery
 
-- 24 suites cover services, serializers, privacy, nav, API smoke, live readiness, persistence, operations, RTC controls and engagement controls.
+- 24 suites cover services, serializers, privacy, nav/static surfaces, API smoke, live readiness, persistence, operations, RTC controls, engagement controls, founder settings and planner designer contracts.
 - Plain `node` + `assert` is intentional: no Jest/Vitest dependency, deterministic local runs.
 - CI runs on `.github/workflows/ci.yml`; `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json` cover container/deploy shapes.
 
@@ -312,8 +313,8 @@ Browser smoke should show: mic/camera on by default, Join disabled until **Check
 | PDF pages 5–17 | Not OCR'd; verbatim policy numbers (e.g. “Score 60”, “8% unlock”) cannot be confirmed yet. Current policy values are the documented source of truth. |
 | Alerting (Sentry/Pino sinks) | Structured logging exists; external alerting is future work. |
 | Distributed rate limiting | In-process limiter is fine for one instance; shared store needed for multi-replica. |
-| Founder-editable settings screens | Pending. |
-| Planner designer v1 | Pending. |
+| Founder-editable settings screens | Live as reviewed runtime drafts. Money fields are read-only; file-backed deployment policy still needs explicit approval. |
+| Planner designer v1 | Live as local authoring/export. Publish and pack import remain disabled. |
 | Agora Join in browser smoke | Not clicked: it would request real camera/mic. Token and gate contracts are covered by tests. |
 
 A stale external review claimed the project lacks a schema, tests, CI, realtime wiring and uses DeepSeek. None of that matches the current code; it appears to describe an older Phase-1 snapshot. Do not use it as a to-do list.

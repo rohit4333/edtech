@@ -176,6 +176,9 @@ whiteboard/Wacom activity are the only shared signals.
 | `POST` | `/api/webhooks/recording` | Store vendor recording URL and notify |
 | `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
 | `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
+| `GET` | `/api/admin/settings` | Founder-only runtime settings draft with read-only money widgets |
+| `PATCH` | `/api/admin/settings` | Founder-only allowlisted section patch; money/network keys return `FIELD_READ_ONLY` |
+| `DELETE` | `/api/admin/settings` | Reset runtime draft to file-backed defaults |
 | `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
 | `GET` | `/api/public/config` | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
 
@@ -263,7 +266,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Configurable policy
 
-`config/policy.json` leaves quiz scoring bands and teaching-score bands unset until the conflicting founder-doc values are confirmed. The 80% mastery unlock threshold and payout rules are configured:
+`config/policy.json` is the file-backed source of truth. Teaching-score scale, bands and target stay `null` until the conflicting founder-doc values are confirmed; the 80% mastery unlock threshold and payout rules are configured:
 
 - 300–400 INR base pay per completed session
 - 6 hours / 6 sessions daily cap; under 3 hours is flagged for payroll review
@@ -277,7 +280,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Twenty-two Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js` and `apiSmoke.test.js`.
+Twenty-four Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. `TEST_REPORT.md` at the repository root has the full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `engagementControls.test.js` and `apiSmoke.test.js`.
 
 ## Migrations
 
@@ -285,7 +288,7 @@ Twenty-two Node suites run with plain `node` + `assert` via `npm test` (from thi
 
 ## Remaining work
 
-1. Finish the partial LMS surface and mirror the remaining mock stores onto normalized relations.
-2. Add founder-editable policy/mastery/trainer-policy settings screens and planner designer v1.
+1. Finish the partial LMS surface (publish and pack import) and mirror the remaining mock stores onto normalized relations.
+2. Decide whether founder settings drafts should become a reviewed persistence source; planner exports remain local authoring output until then.
 3. Rotate exposed credentials and make one live Cloudflare Workers AI call before launch.
 4. OCR PDF pages 5–17 before quoting them verbatim.

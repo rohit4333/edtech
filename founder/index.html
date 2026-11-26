@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Founder settings</title>
+<meta name="description" content="Founder workspace for policy, mastery and trainer policy drafts. Money fields stay read-only.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="founder.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <a class="brand" href="../index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+  <span class="crumb mono">Founder · workspace settings</span>
+  <a class="top-link" href="../apps.html">All surfaces ↗</a>
+</header>
+
+<div class="shell">
+  <aside class="rail" aria-label="Settings sections">
+    <p class="rail-title mono">Settings</p>
+    <nav class="nav" aria-label="Founder settings">
+      <a class="active" href="#overview" data-nav aria-current="page">Overview</a>
+      <a href="#policy" data-nav>Class policy</a>
+      <a href="#mastery" data-nav>Mastery</a>
+      <a href="#trainer-policy" data-nav>Trainer policy</a>
+      <a href="#money-readonly" data-nav>Money <span aria-hidden="true">🔒</span></a>
+    </nav>
+    <div class="rail-note">
+      <span class="mono">Founder rule</span>
+      <p>Never get emotional about money transactions.</p>
+    </div>
+    <a class="rail-back" href="../apps.html">Back to surfaces</a>
+  </aside>
+
+  <main class="page" id="main">
+    <section class="intro" id="overview" aria-labelledby="pageTitle">
+      <p class="eyebrow">Founder controls · runtime draft</p>
+      <h1 id="pageTitle">Set the rules once. Teach one learner at a time<em>.</em></h1>
+      <p class="lede">Edit policy, mastery and trainer planning rules. Drafts are validated before they are saved; money and payout widgets are intentionally read-only.</p>
+      <p class="status" id="settingsStatus" role="status" aria-live="polite">Loading settings…</p>
+    </section>
+
+    <section class="setting-card" id="policy" aria-labelledby="policyTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">01 · Policy</span>
+          <h2 id="policyTitle">Class policy</h2>
+          <p id="policyNote">Lesson pacing and scoring bands.</p>
+        </div>
+        <span class="tag">Editable draft</span>
+      </div>
+      <div class="field-grid" id="policyFields"></div>
+    </section>
+
+    <section class="setting-card" id="mastery" aria-labelledby="masteryTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">02 · Mastery</span>
+          <h2 id="masteryTitle">Mastery gates</h2>
+          <p id="masteryNote">Progression rules stay on one topic until the gate is cleared.</p>
+        </div>
+        <span class="tag">Editable draft</span>
+      </div>
+      <div class="field-grid" id="masteryFields"></div>
+    </section>
+
+    <section class="setting-card" id="trainer-policy" aria-labelledby="trainerTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">03 · Trainer policy</span>
+          <h2 id="trainerTitle">Trainer planning rules</h2>
+          <p id="trainerNote">Presence windows and slot capacity. Pay percentages stay locked.</p>
+        </div>
+        <span class="tag">Editable draft</span>
+      </div>
+      <div class="field-grid" id="trainerPolicyFields"></div>
+    </section>
+
+    <section class="setting-card locked" id="money-readonly" aria-labelledby="moneyTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">04 · Money · read-only</span>
+          <h2 id="moneyTitle">Payouts and packs</h2>
+          <p>Shown for context only. These values are never editable from a founder screen.</p>
+        </div>
+        <span class="tag locked-tag">Locked</span>
+      </div>
+      <div class="money-grid" id="moneyFields"></div>
+      <p class="money-rule">Never get emotional about money transactions.</p>
+    </section>
+
+    <div class="save-bar">
+      <button class="btn btn-ghost" type="button" id="resetSettingsBtn">Reset draft</button>
+      <button class="btn btn-coral" type="button" id="saveSettingsBtn">Save draft</button>
+    </div>
+
+    <footer class="foot">
+      <a href="../pricing.html">Pricing</a>
+      <a href="../terms.html">Terms</a>
+      <a href="../privacy.html">Privacy</a>
+      <a href="../refund.html">Refund</a>
+      <a href="../contact.html">Contact</a>
+      <span class="foot-c">Founder workspace · runtime settings draft</span>
+      <span>© 2026 Mathify</span>
+    </footer>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

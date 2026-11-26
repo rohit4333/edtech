@@ -16,17 +16,18 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 | `student/index.html` | Student dashboard — Mastery, sessions, recordings, reward trophies and wallet. |
 | `trainer/index.html` | Trainer console — attendance, timeline, attention queue and live-call panel. |
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
-| `lms/` | LMS surface (partial). |
+| `lms/` | LMS surface (partial) with local planner designer. |
+| `founder/` | Founder settings drafts — policy, mastery and trainer policy; money widgets are read-only. |
 | `server/` | Express API, mock DB, auth/RBAC, quizzer, Agora, Cloudflare Workers AI and Razorpay seams. |
 
 ## Current state
 
-- 23 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
+- 24 Node test suites, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; full results are in `TEST_REPORT.md`.
 - `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `migrate`, `seed` and `reminders`.
 - `server/db/schema.sql` plus ordered `0001_baseline.sql`, `0002_student_curriculum.sql` and `0003_live_persistence.sql`, checked by a dry-run/checksum runner. No live migration has been applied.
 - Default runtime is the in-memory mock store. `DATABASE_MODE=supabase` selects the completed service-role adapter in `server/db/supabase.js`; production never silently falls back to demo identities.
 - AI is Cloudflare Workers AI only (no DeepSeek/OpenAI). AI drafts pass a trainer-only/personal-data moderation gate before review. Agora RTC/RTM tokens are real and server-signed; the contact booking API stores validated requests and notifies configured channels.
-- The `lms/` surface is partial.
+- The `lms/` surface is partial: course, module, review and planner designer are usable; pack import and publish remain disabled. Founder settings are runtime drafts; money fields are read-only and deployment policy stays file-backed until reviewed.
 
 ## Run locally
 

@@ -507,10 +507,13 @@
     if (!layer) return;
     layer.hidden = false;
     document.body.classList.add('sheet-open');
-    ['course', 'new'].forEach(function (key) {
+    ['course', 'new', 'planner'].forEach(function (key) {
       var node = $('sheet-' + key);
       if (node) node.hidden = key !== name;
     });
+    if (name === 'planner' && window.mathifyPlanner && window.mathifyPlanner.render) {
+      window.mathifyPlanner.render();
+    }
     if (name === 'course' && course) {
       var target = $('sheetDetailContent');
       if (target) {
@@ -719,6 +722,8 @@
 
     var newCourse = $('newCourseBtn');
     if (newCourse) newCourse.addEventListener('click', function () { openSheet('new'); });
+    var plannerButton = $('plannerBtn');
+    if (plannerButton) plannerButton.addEventListener('click', function () { openSheet('planner'); });
     var form = $('newCourseForm');
     if (form) form.addEventListener('submit', createCourse);
 

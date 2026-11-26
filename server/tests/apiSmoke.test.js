@@ -66,6 +66,9 @@ async function main() {
     assert.strictEqual(pricingPage.status, 200);
     const studentPage = await call('/student/index.html');
     assert.strictEqual(studentPage.status, 200);
+    const founderPage = await call('/founder/index.html');
+    assert.strictEqual(founderPage.status, 200);
+    assert.ok(founderPage.text.indexOf('Founder settings') !== -1);
     const studentClient = await call('/student/api.js');
     assert.strictEqual(studentClient.status, 200);
     assert.ok(studentClient.text.indexOf("window.MATHIFY_API_BASE || '/api'") !== -1);
@@ -116,6 +119,32 @@ async function main() {
     const me = await request('GET', '/api/auth/me', undefined, trainer);
     assert.strictEqual(me.status, 200);
     assert.strictEqual(me.body.user.role, 'trainer');
+
+    /* Founder settings drafts are founder-only; money and network contracts
+       cannot be promoted into editable fields by a crafted request. */
+    const founderSettings = await request('GET', '/api/admin/settings', undefined, founder);
+    assert.strictEqual(founderSettings.status, 200);
+    assert.strictEqual(founderSettings.body.storage, 'runtime');
+    assert.strictEqual(founderSettings.body.readOnlyMoney.every(function (item) { return item.readOnly === true; }), true);
+    const settingsAsStudent = await request('GET', '/api/admin/settings', undefined, student);
+    assert.strictEqual(settingsAsStudent.status, 403);
+    const moneyPatch = await request('PATCH', '/api/admin/settings', {
+      section: 'policy', values: { 'payout.rateRange': [1, 1] }
+    }, founder);
+    assert.strictEqual(moneyPatch.status, 400);
+    assert.strictEqual(moneyPatch.body.error, 'FIELD_READ_ONLY');
+    const networkPatch = await request('PATCH', '/api/admin/settings', {
+      section: 'trainerPolicy', values: { 'networkCheck.minDownloadMbps': 1 }
+    }, founder);
+    assert.strictEqual(networkPatch.status, 400);
+    const masteryPatch = await request('PATCH', '/api/admin/settings', {
+      section: 'mastery', values: { 'masteryGating.unlockThreshold': 85 }
+    }, founder);
+    assert.strictEqual(masteryPatch.status, 200);
+    assert.strictEqual(masteryPatch.body.policy.masteryGating.unlockThreshold, 85);
+    const settingsReset = await request('DELETE', '/api/admin/settings', undefined, founder);
+    assert.strictEqual(settingsReset.status, 200);
+    assert.strictEqual(settingsReset.body.policy.masteryGating.unlockThreshold, 80);
 
     /* AI chat endpoints are role-scoped and fall back honestly without creds. */
     const tutorReply = await request('POST', '/api/student/tutor/query', {

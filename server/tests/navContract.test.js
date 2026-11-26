@@ -25,6 +25,7 @@ const REQUIRED = ['pricing.html', 'terms.html', 'privacy.html', 'refund.html', '
   'student/index.html',
   'trainer/index.html',
   'lms/index.html',
+  'founder/index.html',
   'apps.html',
   'classroom/index.html'
 ].forEach(function (surface) {
@@ -48,6 +49,38 @@ ok(/No payment is taken here/.test(contact), 'contact form says no payment is ta
 ok(!/card-number|cardNumber|paymentMethod|razorpay/i.test(contact),
   'contact form collects no payment fields');
 
+/* Founder settings are honest drafts with locked money widgets. */
+const founderHtml = read('founder/index.html');
+const founderScript = read('founder/app.js');
+ok(founderHtml.indexOf('id="money-readonly"') !== -1, 'founder surface has a read-only money section');
+ok(founderHtml.indexOf('Never get emotional about money transactions.') !== -1,
+  'founder surface keeps the money rule visible');
+ok(founderScript.indexOf('copy.readOnly = true') !== -1,
+  'money fields are marked read-only in the founder client');
+ok(founderScript.indexOf('data-section="money"') === -1,
+  'no founder input is bound to a money section');
+
+/* Planner designer v1 keeps trainer notes out of the student payload. */
+const lmsHtml = read('lms/index.html');
+const plannerScript = read('lms/planner.js');
+ok(lmsHtml.indexOf('id="plannerBtn"') !== -1 && lmsHtml.indexOf('id="sheet-planner"') !== -1,
+  'LMS exposes the planner designer sheet');
+ok(/Number\(item\.sketch\.minHeight\)\s*>=\s*220/.test(plannerScript), 'planner enforces a 220px sketch floor');
+ok(/expandable\s*!==\s*true/.test(plannerScript), 'planner requires expandable sketch spaces');
+ok(plannerScript.indexOf('function buildStudentPayload') !== -1,
+  'planner builds a separate student payload');
+const studentSerializer = plannerScript.slice(
+  plannerScript.indexOf('function studentBlocks()'),
+  plannerScript.indexOf('function buildStudentPayload()')
+);
+ok(studentSerializer.indexOf('safe.sketch = {') !== -1 &&
+  studentSerializer.indexOf('prompt_for_trainer') === -1,
+  'student sketch view excludes the trainer drawing prompt');
+ok(plannerScript.indexOf('quizPrompt.indexOf(String(item.trainerInstructions).trim())') !== -1,
+  'planner checks the quiz prompt against trainer instructions');
+ok(read('apps.html').indexOf('modules, review and the planner designer are usable') !== -1,
+  'apps hub labels the planner designer as usable');
+
 /* Public nav is exact and ordered. */
 const publicNav = read('index.html').match(/<nav class="nav-links"[\s\S]*?<\/nav>/)[0];
 const publicHrefs = (publicNav.match(/href="[^"]+"/g) || []).map(function (value) {
@@ -60,7 +93,7 @@ assert.deepStrictEqual(publicHrefs, [
 checks.push('public nav is the exact seven-item list');
 
 /* Dashboard navigation resolves to a real section or a real page. */
-['student/index.html', 'trainer/index.html'].forEach(function (surface) {
+['student/index.html', 'trainer/index.html', 'founder/index.html'].forEach(function (surface) {
   const html = read(surface);
   ok(html.indexOf('href="#"') === -1, surface + ' has no dead-end links');
   ok(html.indexOf('Batch pause') === -1, surface + ' has no Batch pause dead end');

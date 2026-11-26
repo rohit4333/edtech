@@ -2,7 +2,7 @@
 
 **Date:** 26 November 2026
 **Branch:** `feat/student-rtc-control-permission` (working tree based on `main` at `9838d0a`)
-**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.
+**Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview with planner designer, founder settings drafts, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare-only AI, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.
 **Mode:** Local/mock by default. No live database migration and no live paid transaction were performed.
 
 ## Result
@@ -16,18 +16,21 @@
 | Full automated suite | `npm test` from `server/` | Exit `0`. All 24 suites passed. |
 | Engagement controls suite | `node tests/engagementControls.test.js` | `66 assertions passed`. |
 | Live-readiness suite | `node tests/liveReadiness.test.js` | `62 assertions passed`. |
-| Live persistence suite | `node tests/livePersistence.test.js` | `25 assertions passed`. |
-| Live operations suite | `node tests/liveOperations.test.js` | `14 assertions passed`. |
+| Live persistence suite | `node tests/livePersistence.test.js` | `29 assertions passed`. |
+| Live operations suite | `node tests/liveOperations.test.js` | `19 assertions passed`. |
 | RTC controls suite | `node tests/rtcControls.test.js` | `42 assertions passed`. |
 | API smoke | Included in `npm test` | `apiSmoke: passed`. |
 | UI scaffold contract | Included in `npm test` | `scaffoldedUI: 12 assertions passed`. |
-| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66763 bytes `sha256:82e6768ba8a2`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 2840 bytes `sha256:99e665c198c1`. Checksums reflect CRLF working-tree bytes; migration files are unchanged in git. |
-| JS syntax | `node --check` on every changed JS file | All 19 changed/new JS files passed. |
-| Whitespace | `git diff --check` | Clean (exit `0`); only CRLF normalisation warnings on four CSS/service files. |
+| Migration dry run | `npm run migrate --silent` | No database contacted. `0001_baseline.sql` 66834 bytes `sha256:5d72306998ee`; `0002_student_curriculum.sql` 4088 bytes `sha256:aff8a4359641`; `0003_live_persistence.sql` 1992 bytes `sha256:01cce962350e`. Checksums reflect working-tree bytes; migrations are unchanged in git. |
+| JS syntax | `node --check` on every changed JS file | All 9 changed/new JS files passed. |
+| Whitespace | `git diff --check` | Clean (exit `0`); only CRLF normalisation warnings on two route files. |
 | Dependency audit | `npm audit --omit=dev --json` | `0 vulnerabilities` after upgrading `zod` and `nodemailer` and committing the lockfile change. |
 | HTTP surface smoke | Express origin on port 4173 | Reviewed pages/assets returned `200`; server source, `.env`, `.git`, and migration files remain `404`. |
 | Browser smoke | In-app Chromium, 12 surfaces | `0` console errors and `0` failed requests on every surface. |
 | Lighthouse recheck | `apps.html`, `contact.html`, `lms/index.html` on port 4100 | Accessibility, best practices and SEO all `1`; `[]` failures after preview/booking-copy changes. |
+| Founder settings browser E2E | `founder/index.html` on port 4200 | Server draft loaded; 18 editable fields and 12 read-only money rows; `0` money inputs; save changed mastery `80 → 85` on the API; reset returned it to `80`; `0` console errors. |
+| Planner designer browser E2E | `lms/index.html` on port 4200 | Sheet opened with 7 seeded blocks and three 240px expandable sketches; default validation passed; pasting trainer instructions into the student quiz prompt was rejected; reset restored a clean draft; student JSON contained no trainer field names; `0` console errors. |
+| New-surface Lighthouse | `founder/index.html`, `lms/index.html` on port 4200 | Accessibility, best practices and SEO all `1`; `[]` failures. |
 | Classroom live-call panel | `?sessionId=ses_math_001` | `Check speed` and Join controls present; Join disabled with “Check speed” label until both people pass; mic/camera on by default; server-signed token API exposed; no SDK/network call until Join. |
 | Trainer media Access button | Trainer classroom view | `Access on` toggled to `Access off` and back; force flags and version advanced server-side; no console errors. |
 | Student media lock | Student classroom view | After revoke: mic/camera on and disabled, Access button absent, version advanced; after grant: controls re-enabled; both events arrived via the safe channel with no quiz running; `0` console errors. |
@@ -44,22 +47,22 @@ All suites are registered in `server/package.json`:
 - `masteryGating`: 31 assertions
 - `quizGenerator`: 21 assertions
 - `quizPromptInjection`: 10 assertions
-- `cloudflareClient`: 81 assertions
+- `cloudflareClient`: 84 assertions
 - `curriculumAuthoring`: 107 assertions
 - `curriculumContext`: 116 assertions
 - `aiCurriculumIntegration`: 36 assertions
 - `studentSerializer`: 19 assertions
-- `privacyBoundary`: 149 assertions
-- `chatAssistant`: 26 assertions
+- `privacyBoundary`: 154 assertions
+- `chatAssistant`: 35 assertions
 - `curriculumPersistence`: 25 assertions
-- `navContract`: 53 assertions
+- `navContract`: 78 assertions
 - `slotService`: 15 assertions
 - `presenceService`: 17 assertions
 - `apiSmoke`: passed
 - `scaffoldedUI`: 12 assertions
 - `liveReadiness`: 62 assertions
-- `livePersistence`: 25 assertions
-- `liveOperations`: 14 assertions
+- `livePersistence`: 29 assertions
+- `liveOperations`: 19 assertions
 - `rtcControls`: 42 assertions
 - `engagementControls`: 66 assertions
 
@@ -152,6 +155,17 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - A reaction arriving while a celebration was visible stayed hidden until the celebration cleared, then rendered; the two layers were never visible at the same time.
 - Reduced-motion / sound / screen-share contracts and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
 
+## Founder settings and planner designer (port 4200)
+
+- `founder/index.html` is now served by the reviewed Express static allowlist; a regression assertion covers the surface and the forbidden `server/` path remains `404`.
+- `GET /api/admin/settings` is founder-only. Student access returns `403`; PATCH rejects money keys with `FIELD_READ_ONLY` and rejects network-floor contract fields. A valid mastery patch and reset were verified through the UI and API.
+- The founder client renders 18 allowlisted editable fields, 12 locked money rows and `0` money inputs. Pay, bonuses, fines, no-show amounts, packs and pay percentages are shown as read-only output; `Never get emotional about money transactions.` is visible in the rail and the money panel.
+- Edits are labelled as runtime drafts: the browser saves locally when the API is unavailable and says so; deployment remains file-backed until reviewed. No server file is written by a founder save.
+- `lms/index.html` now exposes a planner designer sheet. Its seeded draft has 7 blocks, includes analogy/story/sketch_space, and uses 240px expandable sketch spaces with trainer drawing prompts.
+- Designer validation enforces non-empty trainer instructions and misconception watch lists, a caption/image prompt for analogies, a sketch after each text/image/story block, `>=220px` sketch height, `expandable === true`, and a quiz prompt that does not restate trainer instructions.
+- The student copy builder emits only `id`, `type`, `content` and sketch geometry. `trainerInstructions`, `misconception_watch` and `prompt_for_trainer` were absent from the generated student JSON in the browser check.
+- Browser checks on both new surfaces produced `0` console errors; Lighthouse scored `1/1/1` on accessibility, best practices and SEO.
+
 ## Security assessment disposition
 
 The pasted assessment was checked against the current code, excluding demo credentials. Eight priorities were reconciled:
@@ -178,5 +192,5 @@ The pasted assessment was checked against the current code, excluding demo crede
 1. Rotate the exposed Cloudflare API token, Supabase secret key, and Agora Primary Certificate; replace values in gitignored `server/.env` without sharing them in chat.
 2. After rotation, make one live Cloudflare Workers AI call and verify production env validation on the chosen host.
 3. Obtain explicit approval before applying reviewed Supabase migrations, then verify all deployed tables have RLS enabled, policies read `app_metadata`, the raw event outbox has no authenticated grant, and live-created sessions carry `rtc.channel`.
-4. Finish founder-editable policy/mastery/trainer-policy settings screens and planner designer v1 if they are required for the launch scope.
+4. Decide whether founder settings drafts should become a reviewed, persisted deployment source; until then they remain runtime drafts and planner exports remain local authoring output.
 5. Provide OCR access or extracted text for PDF pages 5–17 before quoting them verbatim.

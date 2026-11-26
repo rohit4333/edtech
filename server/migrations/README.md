@@ -39,7 +39,7 @@ to the Data API automatically, so the academic columns are explicitly granted to
 
 `server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
 check the transaction wrapper, checksum drift guards, service-only grants and
-outbox shape. They are part of 22 Node suites run with plain `node` + `assert`
+outbox shape. They are part of 24 Node suites run with plain `node` + `assert`
 (no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`.
 
 **No live migration has been applied.** Review the SQL above before setting the

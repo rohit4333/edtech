@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="library.css">
 <link rel="stylesheet" href="detail.css">
 <link rel="stylesheet" href="responsive.css">
+<link rel="stylesheet" href="planner.css">
 <style>
   .ic,.icon-btn svg,.context svg,.search svg,.filter-search svg,.tabs svg,
   .course-card svg,.detail svg,.sheet svg,.search-overlay svg,.asset-btn svg,
@@ -141,7 +142,7 @@
     </header>
 
     <main class="page" id="main">
-      <p class="preview-banner" role="status"><b>Curriculum preview.</b> The course library is partial: course, module and review flows are usable; pack import, planner designer and publish controls are not yet enabled.</p>
+      <p class="preview-banner" role="status"><b>Curriculum preview.</b> The course library is partial: course, module, review and planner designer are usable; pack import and publish controls are not yet enabled.</p>
 
       <div class="page-head">
         <div>
@@ -156,6 +157,7 @@
         </div>
         <div class="head-actions">
           <button class="btn btn-ghost btn-sm" id="importPackBtn" disabled title="Import packs are not enabled in this workspace.">Import pack</button>
+          <button class="btn btn-ghost btn-sm" id="plannerBtn">Planner designer</button>
           <button class="btn btn-coral btn-sm" id="newCourseBtn" data-sheet="newCourse">New course</button>
         </div>
       </div>
@@ -274,6 +276,17 @@
         </footer>
       </form>
     </section>
+
+    <section class="sheet sheet-planner" id="sheet-planner" role="dialog" aria-modal="true" aria-labelledby="plannerSheetTitle" hidden>
+      <header class="sheet-head">
+        <div>
+          <span class="mono">Planner designer · v1 preview</span>
+          <h2 id="plannerSheetTitle">Draft a lesson without leaking trainer notes.</h2>
+        </div>
+        <button class="sheet-x" type="button" data-close-sheet aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
+      </header>
+      <div id="plannerSheetContent"></div>
+    </section>
   </div>
 </div>
 
@@ -298,5 +311,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="app.js"></script>
+<script src="planner.js"></script>
 </body>
 </html>

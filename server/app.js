@@ -96,7 +96,7 @@ const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
   'privacy.html', 'refund.html', 'contact.html', 'public.css'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'home', 'lms', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'shared', 'student', 'trainer']);
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,
