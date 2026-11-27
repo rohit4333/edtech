@@ -39,6 +39,49 @@ body:not(.view-student) .student-only{display:none !important}
   background:var(--paper);color:var(--ink);font:inherit;font-size:11px;cursor:pointer;
 }
 
+/* Front desk: the actions a trainer reaches for mid-lesson stay visible in the
+   session rail instead of being buried inside the permissions sheet. */
+.trainer-front-card{border-color:rgba(255,91,46,.28)}
+.front-rows{display:grid;gap:6px}
+.trainer-front-card .control-row{min-height:46px;padding:7px 8px;gap:8px;border-radius:6px}
+.trainer-front-card .control-row b{font-size:11.5px}
+.trainer-front-card .control-row small{font-size:10px}
+.trainer-front-card .control-state{min-width:48px;padding:3px 6px;font-size:9px}
+.trainer-front-card .badge-award{justify-content:flex-end;gap:4px}
+.trainer-front-card .badge-award select{max-width:126px;height:28px;font-size:10px}
+.trainer-front-card .badge-award button{height:28px;padding:0 7px;font-size:10px}
+
+/* The side rail folds away on tablets and phones, but these four actions must
+   never fold away with it. Keep the same single DOM card and dock it above the
+   footer as a compact horizontal strip. */
+@media (max-width:1240px){
+  .side{display:contents}
+  .side > .side-card:not(.trainer-front-card){display:none}
+  .trainer-front-card{
+    position:fixed;left:14px;right:14px;bottom:calc(74px + env(safe-area-inset-bottom));
+    z-index:30;margin:0;padding:6px 8px;border-radius:8px;
+    box-shadow:0 12px 34px -16px rgba(14,20,32,.45)
+  }
+  .trainer-front-card .side-head{display:none}
+  .front-rows{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+  .front-rows > .control-row{flex:0 0 214px;min-height:44px;margin:0;padding:6px 8px}
+  .front-rows > .control-row small{display:none}
+  .front-rows .badge-award{flex-wrap:nowrap;gap:4px}
+  .front-rows .badge-award select{max-width:104px}
+}
+@media (max-width:640px){
+  .trainer-front-card{
+    left:8px;right:8px;bottom:calc(126px + env(safe-area-inset-bottom));padding:5px 6px
+  }
+  .front-rows > .control-row{flex-basis:178px;gap:5px}
+  .front-rows .badge-award select{max-width:86px}
+  .front-rows .control-state{min-width:38px;padding:3px 4px}
+}
+@media (max-width:380px){
+  .front-rows > .control-row{flex-basis:164px}
+  .front-rows .badge-award select{max-width:74px}
+}
+
 .engagement-bar{
   display:flex;flex-wrap:wrap;align-items:center;gap:8px;
   margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft);

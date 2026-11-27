@@ -1706,9 +1706,12 @@
     pip.classList.toggle('is-compact', pip.offsetWidth < 210);
   }
 
-  if (pipHead && pip) {
-    pipHead.addEventListener('pointerdown', function (event) {
-      if (event.target.closest('button')) return;
+  /* The visible header is intentionally hidden so the deck contains only the
+     two video feeds. The whole deck is therefore the drag surface. */
+  var pipDragTarget = pip || pipHead;
+  if (pipDragTarget && pip) {
+    pipDragTarget.addEventListener('pointerdown', function (event) {
+      if (event.target.closest && event.target.closest('button')) return;
       event.preventDefault();
       var rect = pip.getBoundingClientRect();
       pipDrag = {
@@ -1717,10 +1720,10 @@
         dy: event.clientY - rect.top
       };
       pip.classList.add('is-dragging');
-      try { pipHead.setPointerCapture(event.pointerId); } catch (e) {}
+      try { pipDragTarget.setPointerCapture(event.pointerId); } catch (e) {}
     });
 
-    pipHead.addEventListener('pointermove', function (event) {
+    pipDragTarget.addEventListener('pointermove', function (event) {
       if (!pipDrag || event.pointerId !== pipDrag.id) return;
       var host = pip.parentElement.getBoundingClientRect();
       var left = event.clientX - host.left - pipDrag.dx;
@@ -1733,10 +1736,10 @@
       if (!pipDrag || (event && event.pointerId !== pipDrag.id)) return;
       pipDrag = null;
       pip.classList.remove('is-dragging');
-      if (event) { try { pipHead.releasePointerCapture(event.pointerId); } catch (e) {} }
+      if (event) { try { pipDragTarget.releasePointerCapture(event.pointerId); } catch (e) {} }
     }
-    pipHead.addEventListener('pointerup', stopPipDrag);
-    pipHead.addEventListener('pointercancel', stopPipDrag);
+    pipDragTarget.addEventListener('pointerup', stopPipDrag);
+    pipDragTarget.addEventListener('pointercancel', stopPipDrag);
   }
 
   if (pipResize && pip) {

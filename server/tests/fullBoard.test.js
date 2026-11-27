@@ -198,6 +198,7 @@ async function main() {
     const callCss = readAsset('classroom/call.css');
     const classroom = readAsset('classroom/index.html');
     const classroomApp = readAsset('classroom/app.js');
+    const sessionJs = readAsset('classroom/session.js');
     ok(tokens.indexOf('--ink-cross:') !== -1 &&
       room.indexOf('cursor:var(--ink-cross,crosshair)') !== -1 &&
       room.indexOf('cursor:none') === -1 &&
@@ -227,7 +228,12 @@ async function main() {
       upperDeck.indexOf('class="board-action-label">Share<') !== -1 &&
       upperDeck.indexOf('class="board-action-label">Close<') !== -1 &&
       upperDeck.indexOf('class="board-action-label">End<') !== -1,
-    'share and close are grouped, clearly labelled controls in the upper deck');
+    'share, close and end are grouped, clearly labelled desk controls');
+    ok(fullBoardCss.indexOf('body.board-open .top #callJoinBtn') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .invite') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #endBtn') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-top-rule{display:none !important}') !== -1,
+    'call, session pack, end and dividers disappear from the full-screen board');
     ok(fullBoardCss.indexOf('.top .btn svg,\n.top .full-board-toggle svg{display:none}') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .board-action-label') !== -1,
     'the session desk keeps readable labels while the board uses compact labels');
@@ -236,10 +242,32 @@ async function main() {
     'the redundant back and board-toggle links are hidden on the board');
     ok(/function close\(\)[\s\S]{0,360}if \(trainer && sharing\) setSharing\(false, false\)/.test(fullBoardJs),
       'closing the board stops sharing so the student desk returns');
-    ['line', 'arrow', 'rectangle', 'circle', 'triangle'].forEach(function (shape) {
+    [
+      'line', 'arrow', 'rectangle', 'circle', 'triangle', 'square',
+      'diamond', 'pentagon', 'hexagon', 'star', 'parallelogram',
+      'double-arrow', 'dashed', 'dotted'
+    ].forEach(function (shape) {
       ok(classroom.indexOf('data-board-tool="' + shape + '"') !== -1,
         'the maths board offers a ' + shape + ' tool');
     });
+    ok(classroom.indexOf('data-tool-group="shapes"') !== -1 &&
+      classroom.indexOf('data-group-menu="shapes"') !== -1 &&
+      classroom.indexOf('data-tool-group="lines"') !== -1 &&
+      classroom.indexOf('data-group-menu="lines"') !== -1 &&
+      fullBoardJs.indexOf('function closeToolGroups') !== -1,
+    'shapes and lines live behind two expandable tool icons');
+    ok(classroom.indexOf('data-board-tool="highlighter"') !== -1 &&
+      classroom.indexOf('data-board-tool="laser"') !== -1 &&
+      classroom.indexOf('data-board-tool="marker"') === -1 &&
+      fullBoardJs.indexOf('function drawLaser') !== -1 &&
+      fullBoardJs.indexOf('var laserItems') !== -1 &&
+      fullBoardJs.indexOf("active.tool === 'laser'") !== -1,
+    'the marker is replaced by a highlighter and a temporary laser pen');
+    ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
+      fullBoardCss.indexOf('bottom:12px;left:auto;z-index:215') !== -1 &&
+      fullBoardCss.indexOf('top:16px;left:16px;bottom:auto;transform:none') !== -1 &&
+      fullBoardCss.indexOf('bottom:76px;z-index:225') !== -1,
+    'board controls sit lower-right and the palette docks at the upper-left');
     ['ink', 'coral', 'teal', 'amber', 'blue'].forEach(function (color) {
       ok(classroom.indexOf('data-board-color="' + color + '"') !== -1,
         'the maths board offers the ' + color + ' ink');
@@ -247,6 +275,47 @@ async function main() {
     ok(classroom.indexOf('id="fullBoardRedo"') !== -1 &&
       fullBoardJs.indexOf('redoStack') !== -1,
     'undo and redo are icon-only board controls');
+    ok(classroom.indexOf('data-board-tool="select"') !== -1 &&
+      classroom.indexOf('data-board-tool="hand"') !== -1 &&
+      classroom.indexOf('id="fullBoardDelete"') === -1 &&
+      fullBoardCss.indexOf('.full-board.tool-hand') !== -1,
+    'the board has a select tool and a hand pan tool, with no delete icon');
+    ok(fullBoardJs.indexOf('function selectAll') !== -1 &&
+      fullBoardJs.indexOf('function deleteSelection') !== -1 &&
+      fullBoardJs.indexOf("key === 'a'") !== -1 &&
+      fullBoardJs.indexOf("key === 'delete'") !== -1 &&
+      fullBoardJs.indexOf("key === 'escape'") !== -1,
+    'Ctrl+A, Delete/Backspace and Escape drive the board selection');
+    ok(fullBoardJs.indexOf('var panDrag') !== -1 &&
+      fullBoardJs.indexOf("tool === 'hand'") !== -1 &&
+      fullBoardJs.indexOf('ctx.translate(pan.x, pan.y)') !== -1,
+    'the hand tool pans the edge-to-edge board by dragging');
+    ok(fullBoardCss.indexOf('body.board-open.view-student .top') !== -1 &&
+      fullBoardCss.indexOf('body.board-open.view-student .call-pip') !== -1 &&
+      fullBoardCss.indexOf('body.board-open.view-student .full-board-tools') !== -1 &&
+      fullBoardCss.indexOf('body.board-open.view-student .engagement-bar') !== -1,
+    'the student board hides the header, camera deck, tool dock and reactions');
+    ok(fullBoardJs.indexOf('function setZoom') !== -1 &&
+      fullBoardJs.indexOf("key === '='") !== -1 &&
+      fullBoardJs.indexOf("key === '-'") !== -1 &&
+      fullBoardJs.indexOf("key === '0'") !== -1 &&
+      fullBoardJs.indexOf('transform-origin:center center') === -1 &&
+      fullBoardCss.indexOf('transform-origin:center center') !== -1,
+    'Ctrl+plus, Ctrl+minus and Ctrl+0 zoom the whiteboard canvas');
+    ok(classroomApp.indexOf('function setDeskZoom') !== -1 &&
+      classroomApp.indexOf("event.code === 'NumpadAdd'") !== -1 &&
+      classroomApp.indexOf("shortcutKey === '0'") !== -1,
+    'the desk whiteboard supports the same keyboard zoom controls');
+    ok(fullBoardJs.indexOf('function resizeHandleAt') !== -1 &&
+      fullBoardJs.indexOf('function resizeCursor') !== -1 &&
+      fullBoardJs.indexOf('var resizeDrag') !== -1 &&
+      fullBoardJs.indexOf("['top-left', bounds.left, bounds.top]") !== -1 &&
+      fullBoardJs.indexOf("['top-right', bounds.right, bounds.top]") !== -1 &&
+      fullBoardJs.indexOf("['bottom-left', bounds.left, bounds.bottom]") !== -1 &&
+      fullBoardJs.indexOf("['bottom-right', bounds.right, bounds.bottom]") !== -1 &&
+      fullBoardJs.indexOf('image.w = width') !== -1 &&
+      fullBoardJs.indexOf('inner.x = limit') !== -1,
+    'selected images can be dragged and resized from all four corner grips');
     ok(fullBoardJs.indexOf("overlay.querySelector('.full-board-tools')") !== -1 &&
       fullBoardJs.indexOf('paletteDrag') !== -1 &&
       fullBoardJs.indexOf("classList.add('is-dragging')") !== -1,
@@ -283,6 +352,12 @@ async function main() {
       callCss.indexOf('.observer-floating,') !== -1 &&
       classroom.indexOf('id="observerNotice"') > pipEnd,
     'camera chrome and observer notices stay outside the two video feeds');
+    ok(pipMarkup.indexOf('id="pipResize"') !== -1 &&
+      pipMarkup.indexOf('aria-label="Resize video window"') !== -1 &&
+      callCss.indexOf('.call-pip .pip-resize{') !== -1 &&
+      sessionJs.indexOf('var pipDragTarget = pip || pipHead') !== -1 &&
+      sessionJs.indexOf("pipResize.addEventListener('pointerdown'") !== -1,
+    'the camera deck is movable from anywhere and resizable from its corner grip');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

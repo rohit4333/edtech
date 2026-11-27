@@ -46,16 +46,18 @@ function main() {
 
   const bootstrap = read('webapp/register.js');
   check(/rel = 'manifest'/.test(bootstrap) &&
-    /navigator\.serviceWorker\.register\(SW, \{ scope: '\/' \}\)/.test(bootstrap),
-  'the shared bootstrap registers the manifest and root-scoped worker');
+    /navigator\.serviceWorker\.register\(SW, \{ scope: '\/'/.test(bootstrap) &&
+    /updateViaCache: 'none'/.test(bootstrap),
+  'the shared bootstrap registers the manifest and a fresh root-scoped worker');
   check(/beforeinstallprompt/.test(bootstrap) && /userChoice/.test(bootstrap),
     'install is user-initiated and never forced');
 
   const app = read('server/app.js');
   check(/\/webapp\/register\.js/.test(app) && /sendWebAppHtml\(/.test(app),
     'the server injects one web-app bootstrap into reviewed HTML pages');
-  check(/Service-Worker-Allowed/.test(app) && /application\/manifest\+json/.test(app),
-    'the service worker and manifest are served with the correct headers');
+  check(/Service-Worker-Allowed/.test(app) && /application\/manifest\+json/.test(app) &&
+    /res\.set\('Cache-Control', 'no-cache'\)/.test(app),
+  'the service worker and manifest are served with fresh, correct headers');
   check(/publicFiles\.has/.test(app) && /'webapp'/.test(app),
     'web app assets are allowlisted next to the existing public directories');
 

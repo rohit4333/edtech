@@ -5,7 +5,7 @@
  * so auth, pay, presence, attendance and provider data are never cached. */
 'use strict';
 
-var CACHE = 'mathify-webapp-v1';
+var CACHE = 'mathify-webapp-v6';
 var OFFLINE = '/webapp/offline.html';
 var SHELL = [
   '/',
@@ -30,6 +30,11 @@ var SHELL = [
   '/rm/index.html',
   '/classroom/index.html',
   '/classroom/connect.html',
+  '/classroom/app.js',
+  '/classroom/session.js',
+  '/classroom/call.css',
+  '/classroom/room.css',
+  '/classroom/engagement.css',
   '/webapp/register.js',
   '/webapp/manifest.webmanifest',
   '/webapp/icon-192.png',

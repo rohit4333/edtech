@@ -94,7 +94,28 @@
   backdrop-filter:none;-webkit-backdrop-filter:none
 }
 .call-pip .pip-head,
-.call-pip .pip-resize{display:none !important}
+.call-pip .pip-call-bar{display:none !important}
+/* The camera deck stays a pure two-feed visual, but it is a real window: the
+   whole deck is the drag surface and an unobtrusive corner grip resizes it. */
+.call-pip{cursor:grab;user-select:none;-webkit-user-select:none}
+.call-pip:active{cursor:grabbing}
+.call-pip .pip-resize{
+  display:grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  padding:0;
+  border:0;
+  border-bottom-right-radius:8px;
+  color:rgba(253,250,243,.55);
+  background:rgba(12,18,29,.72);
+  font:600 10px/1 var(--mono);
+  opacity:.5;
+  transition:opacity .12s ease,background-color .12s ease;
+}
+.call-pip:hover .pip-resize,
+.call-pip:focus-within .pip-resize,
+.call-pip.is-resizing .pip-resize{opacity:1;background:rgba(12,18,29,.94);color:var(--paper)}
 .call-pip .pip-body{flex:1;height:100%;padding:0;gap:2px}
 .call-pip .dock-tile{border-radius:8px}
 .call-runtime{display:none}

@@ -295,6 +295,7 @@ function sendWebAppHtml(filePath, req, res, next) {
 
 app.get('/sw.js', function (req, res, next) {
   res.set('Service-Worker-Allowed', '/');
+  res.set('Cache-Control', 'no-cache');
   return res.type('application/javascript').sendFile(path.join(webRoot, 'sw.js'), function (error) {
     if (error) return next(error);
   });

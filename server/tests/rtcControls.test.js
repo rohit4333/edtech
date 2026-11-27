@@ -200,9 +200,14 @@ async function main() {
     const livekit = read('classroom/livekit.js');
     const sessionLayer = read('classroom/session.js');
     const classroomHtml = read('classroom/index.html');
+    const trainerHtml = read('trainer/index.html');
     const studentHtml = read('student/index.html');
     const studentApp = read('student/app.js');
 
+    check(!/livekit-client@/.test(trainerHtml) &&
+      trainerHtml.indexOf('src="livekit.js"') === -1 &&
+      trainerHtml.indexOf('mathify-call-toggle') === -1,
+    'the trainer desk has no second live-call panel or duplicated SDK');
     const observerRoleAt = livekit.indexOf("rtc.role === 'subscriber'");
     const observerGuardAt = livekit.indexOf(
       'if (state.observer || !state.room || !state.room.localParticipant) return Promise.resolve(false);');

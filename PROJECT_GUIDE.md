@@ -244,6 +244,12 @@ edit SQL → npm run migrate (dry run, checksums printed) → human review →
 DATABASE_URL + MATHIFY_MIGRATE_CONFIRM=apply → apply
 ```
 
+### 4.11 Teaching whiteboard
+
+- The full-screen board (`shared/fullBoard.js`, `shared/fullBoard.css`, `classroom/index.html`) gives a selected image four corner grips; each corner resizes from the opposite pinned corner with aspect ratio preserved, while dragging still moves the item. No delete icon remains: Delete/Backspace deletes the selection, Ctrl+A selects all, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo, and Escape clears selection. Ctrl+plus / Ctrl+minus zoom and Ctrl+0 resets on the shared and desk boards.
+- Sharing shows the student a clean white surface only — header, camera deck, tool dock, reactions and status are hidden — until the trainer closes the share and returns them to the desk. The palette docks upper-left and stays trainer-draggable; the board control panel docks lower-right.
+- The floating dock replaces Marker with Highlighter (wide, translucent ink) and Laser pen (temporary red glow that fades, never saved or shared as permanent ink). The expandable Shapes icon holds square, rectangle, circle, triangle, diamond, pentagon, hexagon, star and parallelogram; Lines holds straight line, arrow, double arrow, dashed line and dotted line. Keys: P pen, M highlighter, E eraser, V select, H hand, R laser; menus expand on click. The camera deck remains a draggable/resizable two-feed tile and dashboard controls remain Share, Close, End and Call.
+
 ---
 
 ## 5. HOW — architecture
@@ -285,7 +291,7 @@ Browser surface
 
 - LiveKit JWTs are signed server-side from the verified session; browser-provided `roomName`/`participantName` may only confirm or label the join, never choose the room or identity.
 - Both real participants publish (`canPublish: true`); a founder observer gets a subscribe-only grant. A revoked student keeps publish capability while the client-side media controls are locked, because tracks must be forced on before the buttons are disabled.
-- `classroom/livekit.js` and `trainer/livekit.js` keep local track state, publish with `enableCameraAndMicrophone()`, attach subscribed tracks to the existing video containers, and detach/remove them on `TrackUnsubscribed` and `Disconnected`.
+- `classroom/livekit.js` owns the only live-call client. Trainers and students join from the classroom header after the camera check; the trainer desk has no second call panel or duplicated media logic.
 - `NETWORK_BELOW_MINIMUM` maps to a friendly in-app message.
 - AI tutor dispatch is optional and trainer-initiated only; it is deduplicated through `listDispatch`, never runs in mock mode or for observers, and carries no PII or answer keys. Recording uses server-owned LiveKit Egress: the trainer starts/stops by session id, the room and object key are derived server-side, and missing storage fails closed with `RECORDING_NOT_CONFIGURED`.
 - `POST /api/webhooks/livekit` verifies the LiveKit webhook JWT and exact raw-body `sha256`, derives the session only from `mathify-<sessionId>`, and ignores founder observers. `egress_ended` with `fileResults` writes the private object key and marks the recording `stopped`; failed or aborted Egress without a file is `failed` and never watchable. The internal `livekit_join`/`livekit_leave` presence labels record verified LiveKit events.

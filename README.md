@@ -25,7 +25,7 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 | `apps.html` | Suite hub linking the live dashboards. |
 | `home/index.html` | Redirect to the root public home. |
 | `student/index.html` | Student dashboard — Mastery with self-practice, sessions, recordings, reward trophies, wallet and Study Buddy chat. |
-| `trainer/index.html` | Trainer console — attendance, timeline, attention queue, live-call panel, Trainer Desk support chat and parent-thread unread badge. |
+| `trainer/index.html` | Trainer console — attendance, timeline, attention queue, Trainer Desk support chat and parent-thread unread badge. Live classes start from the camera check and open in the classroom. |
 | `parent/index.html` | Parent desk — private 1-on-1 human thread with the child's trainer, unread count and DLP-safe send feedback. |
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
 | `lms/` | LMS surface (partial) with local planner designer. |
@@ -86,6 +86,12 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 - Quiz and whiteboard transitions, tab focus and a light in-call keep-alive reaffirm the chosen media state on every device type — laptop/PC, Android/iPad tablet and Android/iOS phone. A silent mobile suspension cannot leave a camera or mic off mid-lesson.
 - A 1:1 call cannot start until **both** verified participants pass a fresh connection check: at least `15 Mbps` download, `10 Mbps` upload and under `250 ms` latency. Results expire after 15 minutes. `Check speed` is a manual control beside Join; Join stays disabled until both people are ready, and the LiveKit token endpoint fails closed with `NETWORK_BELOW_MINIMUM`. Raw measurements are peer-private; events carry only pass/fail and readiness.
 - Trainers can award fixed-catalog reward badges during a session. The server owns label and points; the student dashboard renders them as **trophies** with a running point total. Badge notifications carry no trainer identity or notes.
+
+### Teaching whiteboard
+
+- The full-screen board (`shared/fullBoard.js`, `shared/fullBoard.css`, `classroom/index.html`) shows four corner grips on a selected image: each corner resizes from the opposite pinned corner while preserving aspect ratio, and dragging still moves the item. There is no delete icon; Delete/Backspace deletes the selection, Ctrl+A selects all, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo, and Escape clears selection. Ctrl+plus / Ctrl+minus zoom and Ctrl+0 resets on both the shared and desk boards.
+- The student's shared board is a clean white surface only — header, camera deck, tool dock, reactions and status are hidden; the trainer closes the share to return the student to the desk. The palette docks upper-left and remains trainer-draggable; board controls dock lower-right.
+- The floating dock replaces the single Marker with a Highlighter (wide, translucent ink) and a Laser pen (temporary red glowing trail that fades, not saved or shared as permanent ink). Shapes expand on click to square, rectangle, circle, triangle, diamond, pentagon, hexagon, star and parallelogram; lines expand to straight line, arrow, double arrow, dashed line and dotted line. Keys: P pen, M highlighter, E eraser, V select, H hand, R laser; shape/line menus open on click. The camera deck stays a draggable/resizable two-feed tile, and dashboard controls remain Share, Close, End and Call.
 
 ## AI chat and mastery self-practice
 

@@ -1225,6 +1225,7 @@
   var drawing = false;
   var activePointer = null;
   var savedTimer = null;
+  var deskZoom = 1;
 
   function layer() { return layers[page]; }
 
@@ -1345,6 +1346,14 @@
       btn.classList.toggle('is-on', on);
       btn.setAttribute('aria-pressed', String(on));
     });
+  }
+
+  function setDeskZoom(next) {
+    var value = Math.min(2, Math.max(0.6, Math.round(next * 10) / 10));
+    if (value === deskZoom) return;
+    deskZoom = value;
+    if (paper) paper.style.zoom = String(deskZoom);
+    toast('Whiteboard zoom ' + Math.round(deskZoom * 100) + '% · Ctrl+0 resets.');
   }
 
   function setPage(next) {
@@ -1499,9 +1508,26 @@
     if (sheetLayer && !sheetLayer.hidden) return;
     if (document.body.classList.contains('quiz-live')) return;
 
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    var shortcutKey = (event.key || '').toLowerCase();
+    var command = event.ctrlKey || event.metaKey;
+    if (command && (shortcutKey === '=' || shortcutKey === '+' || event.code === 'NumpadAdd')) {
       event.preventDefault();
-      if (event.shiftKey) redo();
+      setDeskZoom(deskZoom + 0.1);
+      return;
+    }
+    if (command && (shortcutKey === '-' || shortcutKey === '_' || event.code === 'NumpadSubtract')) {
+      event.preventDefault();
+      setDeskZoom(deskZoom - 0.1);
+      return;
+    }
+    if (command && shortcutKey === '0') {
+      event.preventDefault();
+      setDeskZoom(1);
+      return;
+    }
+    if (command && (shortcutKey === 'z' || shortcutKey === 'y')) {
+      event.preventDefault();
+      if (shortcutKey === 'y' || event.shiftKey) redo();
       else undo();
       return;
     }

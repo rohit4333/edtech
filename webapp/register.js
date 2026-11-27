@@ -131,7 +131,7 @@
       ['localhost', '127.0.0.1'].indexOf(window.location.hostname) !== -1;
     if (!secure) return;
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register(SW, { scope: '/' }).catch(function () {
+      navigator.serviceWorker.register(SW, { scope: '/', updateViaCache: 'none' }).catch(function () {
         /* The site stays fully usable online without a worker. */
       });
     });

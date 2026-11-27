@@ -257,11 +257,30 @@ async function main() {
     const livekit = read('classroom/livekit.js');
 
     check(html.indexOf('id="sheet-student-control"') >= 0 &&
-      html.indexOf('Student Control') >= 0, 'Student Control is one dedicated section');
-    ['scMediaBtn', 'scMuteMicBtn', 'scCameraOffBtn', 'scReactBtn', 'scApplauseBtn',
-      'shareBoardBtn', 'badgeSelect', 'sendKudosBtn'].forEach(function (id) {
+      html.indexOf('Student Control') >= 0, 'Student Control is one dedicated permissions section');
+    ['scMediaBtn', 'scMuteMicBtn', 'scCameraOffBtn', 'scReactBtn', 'scApplauseBtn'].forEach(function (id) {
       check(html.indexOf('id="' + id + '"') >= 0, id + ' lives inside Student Control');
     });
+
+    const frontStart = html.indexOf('id="trainerFrontCard"');
+    const frontEnd = html.indexOf('</section>', frontStart);
+    const frontDesk = html.slice(frontStart, frontEnd);
+    ['shareBoardBtn', 'badgeSelect', 'awardBadgeBtn', 'sendKudosBtn', 'openProgressBtn'].forEach(function (id) {
+      check(frontDesk.indexOf('id="' + id + '"') >= 0, id + ' is visible on the front trainer desk');
+    });
+    const sheetStart = html.indexOf('id="sheet-student-control"');
+    const sheetEnd = html.indexOf('</section>', sheetStart);
+    const controlSheet = html.slice(sheetStart, sheetEnd);
+    check(['shareBoardBtn', 'badgeSelect', 'awardBadgeBtn', 'sendKudosBtn'].every(function (id) {
+      return controlSheet.indexOf('id="' + id + '"') === -1;
+    }) && controlSheet.indexOf('Quick links') === -1 &&
+      controlSheet.indexOf('Open quiz controls') === -1 &&
+      controlSheet.indexOf('End session') === -1,
+    'recognition actions and ambiguous quick links are no longer buried in Student Control');
+    check(/\.side\{display:contents\}/.test(css) &&
+      /\.trainer-front-card\{[^}]*position:fixed/.test(css) &&
+      /@media \(max-width:1240px\)/.test(css),
+    'the front desk stays docked when the side rail folds away on tablets and phones');
     check(html.indexOf('aria-label="Applaud your trainer"') >= 0 &&
       html.indexOf('data-reaction="💡"') >= 0, 'kid emoji and applause controls are present');
     check(/id="celebrationLayer"[^>]*hidden/.test(html) &&
