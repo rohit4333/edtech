@@ -243,6 +243,16 @@ function recordPayment(payment) {
   return copy(payment);
 }
 
+/* Purchased packs for a child, newest first. Used by the renewal reminder to
+   tell a fresh enrollment/renewal from a family that still needs a nudge. */
+function listPacksForStudent(studentId) {
+  return copy(store.packs.filter(function (pack) {
+    return pack && pack.studentId === studentId;
+  }).sort(function (left, right) {
+    return String(right.purchasedAt || '').localeCompare(String(left.purchasedAt || ''));
+  }));
+}
+
 function addSessions(studentId, sessions, payment) {
   const user = store.users.find(function (item) { return item.id === studentId; });
   if (!user) return null;
@@ -883,6 +893,7 @@ const mockApi = {
   uncreditOrderIfCredited,
   recordPayment,
   addSessions,
+  listPacksForStudent,
   findWhatsappMessage,
   claimWhatsappMessage,
   recordWhatsappMessage,

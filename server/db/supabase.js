@@ -273,6 +273,18 @@ function listAllSessions() {
   return listRecords('sessions');
 }
 
+/* Packs live in the service-only records table; a parent cannot read them
+   through the Data API. */
+function listPacksForStudent(studentId) {
+  return listRecords('packs').then(function (rows) {
+    return rows.filter(function (pack) {
+      return pack && pack.studentId === studentId;
+    }).sort(function (left, right) {
+      return String(right.purchasedAt || '').localeCompare(String(left.purchasedAt || ''));
+    });
+  });
+}
+
 function listSessionsForUser(user) {
   return listAllSessions().then(function (sessions) {
     return sessions.filter(function (session) {
@@ -971,6 +983,7 @@ module.exports = {
   insertUser,
   listSessionsForUser,
   listAllSessions,
+  listPacksForStudent,
   findSession,
   updateSession,
   updateUser,

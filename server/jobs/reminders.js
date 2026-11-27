@@ -73,6 +73,30 @@ async function release(key) {
   else sent.delete(key);
 }
 
+/* Attach the batch identity to a session before any reminder is rendered.
+   Older sessions may predate batchCode, so the stored batch is the fallback. */
+async function withBatch(session, db) {
+  if (!session) return session;
+  if (session.batchCode && session.batchId) return session;
+  let batch = null;
+  try {
+    if (session.batchId || session.batchCode) {
+      batch = await db.findBatch(session.batchId || session.batchCode);
+    }
+    if (!batch && session.studentId && typeof db.findBatchForStudent === 'function') {
+      batch = await db.findBatchForStudent(session.studentId);
+    }
+  } catch (caught) {
+    logger.warn('reminders', { event: 'batch_lookup_failed', sessionId: session.id });
+    return session;
+  }
+  if (!batch) return session;
+  return Object.assign({}, session, {
+    batchId: session.batchId || batch.id,
+    batchCode: session.batchCode || batch.code
+  });
+}
+
 async function checkReminders() {
   const db = require('../db');
   if (typeof db.listAllSessions !== 'function') {
@@ -110,7 +134,7 @@ async function checkReminders() {
 
       const recipient = await recipientFor(session);
       const delivery = await notificationService.sendSessionReminder({
-        session: session,
+        session: await withBatch(session, db),
         recipient: recipient,
         when: bucket
       });
@@ -341,6 +365,7 @@ async function checkJoinReminders() {
     if (!session || !session.id || session.status === 'ended') continue;
     const bucket = bucketFor(session, now);
     if (bucket !== '15m' && bucket !== '2m') continue;
+    const reminderSession = await withBatch(session, db);
 
     const trainer = session.trainerId
       ? await db.findUserById(session.trainerId)
@@ -359,7 +384,7 @@ async function checkJoinReminders() {
           },
           function () {
             return notifications.sendJoinEmail({
-              session: session, recipient: trainer, role: 'trainer', when: '15m'
+              session: reminderSession, recipient: trainer, role: 'trainer', when: '15m'
             }).then(function (email) { return { email: email }; });
           }
         );
@@ -380,7 +405,7 @@ async function checkJoinReminders() {
           },
           function () {
             return notifications.sendJoinEmail({
-              session: Object.assign({}, session, {
+              session: Object.assign({}, reminderSession, {
                 studentName: student && student.name ? student.name : 'your child',
                 studentTimezone: student && student.timezone ? student.timezone : session.studentTimezone
               }),
@@ -423,7 +448,7 @@ async function checkJoinReminders() {
         role: 'trainer', when: '2m', title: session.title, startsAt: session.startsAt
       },
       function () {
-        return notifications.sendTrainerUrgentReminder({ session: session, trainer: trainer });
+        return notifications.sendTrainerUrgentReminder({ session: reminderSession, trainer: trainer });
       }
     );
     if (ok) sentCount += 1;
@@ -432,14 +457,30 @@ async function checkJoinReminders() {
   return sentCount;
 }
 
+/* Low-balance parent renewal mail runs on the same cron tick. The service owns
+   its own dedupe claims and skips families that already renewed. */
+async function checkRenewalReminders() {
+  try {
+    const renewal = require('../services/renewalService');
+    return await renewal.check(Date.now());
+  } catch (caught) {
+    logger.error('reminders', {
+      event: 'renewal_check_failed',
+      error: caught && caught.message ? caught.message : 'unknown'
+    });
+    return 0;
+  }
+}
+
 async function runOnce() {
   const results = await Promise.all([
-    checkReminders(), checkAttentionQueue(), checkJoinReminders()
+    checkReminders(), checkAttentionQueue(), checkJoinReminders(), checkRenewalReminders()
   ]);
   return {
     remindersSent: results[0],
     attentionDigestsSent: results[1],
-    joinRemindersSent: results[2]
+    joinRemindersSent: results[2],
+    renewalRemindersSent: results[3]
   };
 }
 
@@ -449,7 +490,8 @@ function tick() {
 
   runOnce()
     .then(function (summary) {
-      if (summary.remindersSent || summary.attentionDigestsSent || summary.joinRemindersSent) {
+      if (summary.remindersSent || summary.attentionDigestsSent ||
+          summary.joinRemindersSent || summary.renewalRemindersSent) {
         logger.info('reminders', { event: 'tick_complete', summary: summary });
       }
     })

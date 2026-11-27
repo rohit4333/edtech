@@ -20,6 +20,16 @@ function clean(value, max) {
     .slice(0, max || 500);
 }
 
+/* One human-facing batch identifier for mail: the readable enrollment name,
+   with the stable record id alongside it when both are available. */
+function batchLabel(session) {
+  const data = session || {};
+  const code = clean(data.batchCode, 80);
+  const id = clean(data.batchId, 80);
+  if (!code && !id) return '';
+  return code && id && code !== id ? code + ' (' + id + ')' : (code || id);
+}
+
 function htmlFromLines(lines) {
   return '<div style="font-family:Poppins,Arial,sans-serif;color:#0E1420">' +
     '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.5">' +
@@ -253,6 +263,7 @@ async function sendSessionReminder(info) {
     'MATHIFY SESSION REMINDER · ' + when.toUpperCase(),
     'Student: ' + clean(recipient.name || 'Student', 120),
     'Session: ' + clean(session.id || '—', 80),
+    'Batch ID: ' + (batchLabel(session) || '—'),
     'Title: ' + clean(session.title || '1-on-1 maths session', 160),
     'Starts: ' + clean(session.startsAt || session.scheduledAt || 'See dashboard', 80),
     'Contact: ' + clean(recipient.email || recipient.phone || 'On file', 160)
@@ -368,6 +379,7 @@ async function sendJoinEmail(message) {
       '',
       studentName + '’s 1:1 maths class starts in 15 minutes.',
       'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+      'Batch ID: ' + (batchLabel(session) || '—'),
       'Starts (your time): ' + startLabel(session, recipient),
       '',
       'The shared classroom opens 10 minutes before the start. Use the button below to be ready on time.'
@@ -377,6 +389,7 @@ async function sendJoinEmail(message) {
       '',
       'Your 1:1 maths class with ' + studentName + ' starts in 15 minutes.',
       'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+      'Batch ID: ' + (batchLabel(session) || '—'),
       'Starts (your time): ' + startLabel(session, recipient),
       '',
       'The room opens 10 minutes before the start. Join early so the class clock and pay are not affected.'
@@ -421,6 +434,7 @@ async function sendTrainerUrgentReminder(info) {
     '',
     'Your class starts in about 2 minutes and you have not joined yet.',
     'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+    'Batch ID: ' + (batchLabel(session) || '—'),
     'Starts (your time): ' + startLabel(session, trainer),
     '',
     'Join now to avoid a late-join penalty. ' + lateJoinWarning()
@@ -435,6 +449,73 @@ async function sendTrainerUrgentReminder(info) {
   };
 }
 
+/* Low-balance renewal mail. The parent is told the exact remaining classes,
+   the batch ID and where to renew. Delivery never claims success without
+   Resend, and the code never includes a password or payment detail. */
+async function sendRenewalEmail(info) {
+  const data = info || {};
+  const parent = data.parent || {};
+  const student = data.student || {};
+  const to = clean(parent.email, 200);
+  if (!to || !EMAIL.test(to)) return { sent: false, reason: 'no_recipient' };
+
+  const balance = Math.max(0, Number(data.balance) || 0);
+  const noun = balance === 1 ? 'class' : 'classes';
+  const batch = clean(data.batchCode, 80);
+  const lines = [
+    'MATHIFY · SUBSCRIPTION RENEWAL REMINDER',
+    'Hello ' + clean(parent.name || 'Parent', 80) + ',',
+    '',
+    clean(student.name || 'Your child', 120) + ' has ' + balance + ' ' + noun + ' left in the current pack.',
+    'Renew the subscription now so the classes continue without a break.',
+    'Batch ID: ' + (batch || '—')
+  ];
+  const origin = config.resetOrigin();
+  if (origin) lines.push('', 'Parent desk: ' + origin.replace(/\/$/, '') + '/parent/index.html');
+
+  const subject = 'Renew your Mathify subscription · ' + balance + ' ' + noun + ' left';
+  return sendTextEmail(to, subject, lines, false);
+}
+
+/* A batch is handed to a trainer in one step. Whether the slots are a demo or
+   a regular class, the trainer always receives the batch ID by email. Delivery
+   stays fail-closed when Resend is not configured. */
+async function sendTrainerAssignmentEmail(info) {
+  const data = info || {};
+  const trainer = data.trainer || {};
+  const batch = data.batch || {};
+  const to = clean(trainer.email, 200);
+  if (!to || !EMAIL.test(to)) return { sent: false, reason: 'no_recipient' };
+
+  const isDemo = data.isDemo !== false;
+  const code = clean(batch.code || batch.id || '—', 80);
+  const lines = [
+    'MATHIFY · BATCH ASSIGNED',
+    'Hello ' + clean(trainer.name || 'Trainer', 80) + ',',
+    '',
+    'A batch has been assigned to you.',
+    'Batch ID: ' + code,
+    'Batch record: ' + clean(batch.id || '—', 120),
+    'Student: ' + clean(data.studentName ||
+      (batch.student && batch.student.name) || 'your student', 120),
+    'Class type: ' + (isDemo ? 'Demo session' : 'Regular class')
+  ];
+  const slots = Array.isArray(data.slots) ? data.slots : [];
+  if (slots.length) {
+    lines.push('', 'Scheduled slots: ' + slots.length);
+    slots.slice(0, 6).forEach(function (slot, index) {
+      const raw = slot && (slot.startsAt || slot.scheduledAt || slot.start);
+      lines.push((index + 1) + '. ' + (raw ? clean(raw, 80) : 'See your dashboard'));
+    });
+  }
+  const origin = config.resetOrigin();
+  if (origin) lines.push('', 'Trainer desk: ' + origin.replace(/\/$/, '') + '/trainer/today');
+
+  const subject = 'Mathify batch ' + code + ' assigned · ' +
+    (isDemo ? 'demo session' : 'regular class');
+  return sendTextEmail(to, subject, lines, false);
+}
+
 module.exports = {
   sendSlackAlert,
   sendEmailAlert,
@@ -446,5 +527,7 @@ module.exports = {
   sendSessionReminder,
   sendJoinEmail,
   sendTrainerUrgentReminder,
+  sendTrainerAssignmentEmail,
+  sendRenewalEmail,
   sendAttentionDigest
 };

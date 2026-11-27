@@ -11,6 +11,8 @@ const db = require('../db');
 const trainerAccess = require('./trainerAccessService');
 const timezoneService = require('./timezoneService');
 const demoService = require('./demoService');
+const batchNaming = require('./batchNamingService');
+const notifications = require('./notificationService');
 
 const DEFAULT_DURATION_MINUTES = 50;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
@@ -38,6 +40,86 @@ function fail(codeValue, message, status) {
   error.code = codeValue;
   error.status = status;
   return error;
+}
+
+/* Every session in a renamed batch carries the human-facing code, so later
+   reminders and dashboards do not show the old opaque demo code. */
+function renameSessions(batchId, code) {
+  return Promise.resolve(db.listAllSessions()).then(function (sessions) {
+    const rows = Array.isArray(sessions) ? sessions.filter(function (session) {
+      return session && session.batchId === batchId;
+    }) : [];
+    return rows.reduce(function (chain, session) {
+      return chain.then(function () {
+        return Promise.resolve(db.updateSession(session.id, function (current) {
+          return current ? Object.assign({}, current, { batchCode: code }) : current;
+        }));
+      });
+    }, Promise.resolve());
+  });
+}
+
+function renameRequest(studentId, batchId, code) {
+  return Promise.resolve(db.findContactRequestForStudent(studentId)).then(function (request) {
+    if (!request) return null;
+    return Promise.resolve(db.updateContactRequest(request.id, {
+      batchId: batchId,
+      batchCode: code
+    }));
+  });
+}
+
+/* Called when a credited pack moves the child into regular classes. The name is
+   derived from server-held registration data and is assigned once, so a retry
+   or a later allotment never renames an established batch. */
+function nameForRegularClasses(studentId) {
+  return serialize(function () {
+    return Promise.resolve(db.findBatchForStudent(studentId)).then(function (batch) {
+      if (!batch) return null;
+      if (batch.regularClassCode) {
+        return { code: batch.regularClassCode, batch: batch, reused: true };
+      }
+      return Promise.all([
+        Promise.resolve(db.findUserById(studentId)),
+        Promise.resolve(db.findContactRequestForStudent(studentId))
+      ]).then(function (rows) {
+        const student = rows[0] || {};
+        const request = rows[1] || {};
+        return batchNaming.buildCode({
+          batchId: batch.id,
+          studentId: studentId,
+          country: request.country || student.country,
+          region: request.region || student.region,
+          timezone: request.timezone || student.timezone || batch.studentTimezone,
+          curriculum: request.curriculum || request.curriculumLabel || student.curriculum
+        }).then(function (code) {
+          const previousCode = batch.code;
+          const namedAt = new Date().toISOString();
+          const stored = Object.assign({}, batch, {
+            code: code,
+            previousCode: previousCode,
+            regularClassCode: code,
+            regularClassNamedAt: namedAt
+          });
+          return Promise.resolve(db.saveBatch(stored)).then(function () {
+            return renameSessions(batch.id, code);
+          }).then(function () {
+            return renameRequest(studentId, batch.id, code);
+          }).then(function () {
+            return Promise.resolve(db.appendSessionEvent(batch.id, 'batch.named', {
+              actorRole: 'system',
+              at: namedAt,
+              reason: 'regular_classes',
+              batchCode: code,
+              previousCode: previousCode
+            }));
+          }).then(function () {
+            return { code: code, batch: stored, reused: false };
+          });
+        });
+      });
+    });
+  });
 }
 
 function publicView(record, role) {
@@ -258,6 +340,40 @@ function finish(batch, trainer, trainerId, candidates, booked, create) {
           batchCode: stored.code,
           slots: slots.length
         })).then(function () {
+          /* The trainer is emailed on every allotment — demo session or regular
+             class — with the batch ID. Mail is best effort and never rolls back
+             a calendar booking that has already been saved. */
+          const demoStatus = demoRequest && String(demoRequest.status || '');
+          const isDemo = Boolean(demoStatus &&
+            ['booked', 'prepared', 'assigned'].indexOf(demoStatus) !== -1);
+          const assignmentKey = 'batch_assignment:' + batch.id + ':' + trainerId;
+          return Promise.resolve(db.claimReminder(assignmentKey, {
+            kind: 'trainer_assignment_email',
+            batchId: batch.id,
+            trainerId: trainerId
+          })).then(function (claim) {
+            if (!claim.claimed) return null;
+            return Promise.resolve(notifications.sendTrainerAssignmentEmail({
+              trainer: trainer,
+              batch: stored,
+              studentName: stored.student && stored.student.name,
+              isDemo: isDemo,
+              slots: slots
+            })).then(function (delivery) {
+              if (!delivery || !delivery.sent) {
+                return Promise.resolve(db.releaseReminderClaim(assignmentKey)).then(function () {
+                  return null;
+                });
+              }
+              return delivery;
+            }).catch(function (error) {
+              console.error('[batch] trainer assignment email failed:', error.message);
+              return Promise.resolve(db.releaseReminderClaim(assignmentKey)).then(function () {
+                return null;
+              });
+            });
+          });
+        }).then(function () {
           /* Parent notices and email are best effort: a mail outage must not roll
              back an already booked trainer calendar. */
           return Promise.resolve(demoService.onAllotted(stored, trainer))
@@ -291,6 +407,7 @@ module.exports = {
   allot: allot,
   forTrainer: forTrainer,
   forStudent: forStudent,
+  nameForRegularClasses: nameForRegularClasses,
   publicView: publicView,
   overlaps: overlaps,
   intervalOf: intervalOf

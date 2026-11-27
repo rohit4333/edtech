@@ -299,7 +299,7 @@ the full AI chain (`GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`,
 Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape hatch),
 `APP_ORIGIN`, `RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,
 `TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`.
-All email, including password resets, reminders and human handoffs, goes through Resend. At T−15 minutes parent and trainer receive a join email and the parent also gets an in-app notification; at T−2 minutes an absent trainer gets a second warning. Missing `RESEND_API_KEY`/`RESEND_FROM` returns `EMAIL_NOT_CONFIGURED`; no delivery is mocked.
+All email, including password resets, reminders and human handoffs, goes through Resend. At T−15 minutes parent and trainer receive a join email with the batch ID and the parent also gets an in-app notification; at T−2 minutes an absent trainer gets a second warning. Every batch allotment also emails the trainer with the batch ID, labelled as a demo session or a regular class. At 2 and 1 remaining classes the parent gets renewal emails, followed by up to two spaced reminders (four total); a recent enrollment or renewed pack cancels the sequence. Missing `RESEND_API_KEY`/`RESEND_FROM` returns `EMAIL_NOT_CONFIGURED`; no delivery is mocked.
 
 Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`.
 They are retained only for compatibility routes and local tests; Cloudflare Workers AI
@@ -354,7 +354,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Fifty-one Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
+Fifty-two Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `batchRenewalMail.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 

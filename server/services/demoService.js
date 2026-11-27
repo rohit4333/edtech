@@ -422,8 +422,20 @@ async function onEnrolled(studentId) {
       demoCredentialActive: false
     });
   }
+  /* Regular classes use a readable batch name built from the child's region and
+     board. Loaded lazily because batchService already imports this module. */
+  let named = null;
+  try {
+    const batchService = require('./batchService');
+    named = await Promise.resolve(batchService.nameForRegularClasses(studentId));
+  } catch (error) {
+    console.error('[demo] enrollment batch naming failed:', error.message);
+  }
+  const batchLabel = named && named.code
+    ? ' Your batch is ' + named.code + '.'
+    : '';
   await notice(current.studentId, 'enrolled', 'Classes are unlocked',
-    'Your pack is active. Your child now has regular class access.', current);
+    'Your pack is active. Your child now has regular class access.' + batchLabel, current);
   return publicView(current, 'founder');
 }
 

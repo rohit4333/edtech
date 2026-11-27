@@ -239,10 +239,23 @@ async function main() {
     equal((await signIn(FAMILY_EMAIL, sharedPassword, 'student')).status, 200,
       'the same booking password still opens the desk after the demo');
 
+    /* The real flow persists the allotted batch before a pack is credited. */
+    mock.batches.push(Object.assign({}, batch, {
+      code: 'TB-LIFE', student: { id: studentId, name: 'Test Child' }, status: 'allotted'
+    }));
     await demoService.onEnrolled(studentId);
     current = await db.findContactRequest(demoId);
     equal(current.status, 'enrolled', 'a credited pack enrolls the demo family');
     equal(current.classAccess, 'regular', 'enrollment restores regular class access');
+    const namedBatch = await db.findBatchForStudent(studentId);
+    ok(/^AE-CBSE-\d{4}$/.test(namedBatch.code),
+      'enrollment assigns a region + curriculum + digits batch name');
+    equal(current.batchCode, namedBatch.code,
+      'the demo record exposes the regular-class batch name');
+    const enrolledNotice = await db.listParentNotifications(studentId);
+    ok(enrolledNotice.some(function (row) {
+      return row.kind === 'enrolled' && row.message.indexOf(namedBatch.code) !== -1;
+    }), 'the parent notice names the new regular-class batch');
     const restored = await request('GET', '/api/student/sessions/ses_math_001',
       undefined, childLogin.body.token);
     ok(restored.status !== 403 || restored.body.error !== 'DEMO_COMPLETE',
@@ -334,6 +347,15 @@ async function main() {
       if (index !== -1) mock.users.splice(index, 1);
     });
     if (studentId) {
+      for (let index = mock.batches.length - 1; index >= 0; index -= 1) {
+        if (mock.batches[index].studentId === studentId) mock.batches.splice(index, 1);
+      }
+      for (let index = mock.sessions.length - 1; index >= 0; index -= 1) {
+        if (mock.sessions[index].studentId === studentId &&
+            String(mock.sessions[index].id || '').indexOf('ses_batch_') === 0) {
+          mock.sessions.splice(index, 1);
+        }
+      }
       for (let index = mock.parentNotifications.length - 1; index >= 0; index -= 1) {
         if (mock.parentNotifications[index].childId === studentId) {
           mock.parentNotifications.splice(index, 1);

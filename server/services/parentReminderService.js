@@ -58,6 +58,9 @@ async function forStudent(studentId, now, viewer) {
   }
 
   const sessions = await db.listAllSessions();
+  const batch = typeof db.findBatchForStudent === 'function'
+    ? await db.findBatchForStudent(childId)
+    : null;
   if (!Array.isArray(sessions)) {
     return { reminders: [], earlyJoinMinutes: earlyJoinMinutes, timezone: timezoneService.forUser(viewer) };
   }
@@ -83,6 +86,7 @@ async function forStudent(studentId, now, viewer) {
       id: session.id + ':reminder',
       sessionId: session.id,
       title: String(session.title || 'Mathify 1:1').slice(0, 160),
+      batchId: session.batchCode || (batch && batch.code) || session.batchId || null,
       startsAt: session.startsAt || session.scheduledAt || session.date,
       localStart: local ? local.text : null,
       timezone: zone,
