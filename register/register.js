@@ -19,6 +19,9 @@
   var submit = byId('registerSubmit');
   var toggle = byId('registerToggle');
   var password = byId('registerPassword');
+  var timezone = byId('registerTimezone');
+
+  if (window.MathifyTimezones) window.MathifyTimezones.populate(timezone);
 
   function say(node, message, tone) {
     if (!node) return;
@@ -55,7 +58,8 @@
       name: byId('registerName') ? byId('registerName').value : '',
       email: byId('registerEmail') ? byId('registerEmail').value : '',
       password: password ? password.value : '',
-      grade: byId('registerGrade') ? byId('registerGrade').value : ''
+      grade: byId('registerGrade') ? byId('registerGrade').value : '',
+      timezone: timezone ? timezone.value : ''
     };
     submit.disabled = true;
     say(status, 'Creating your account…', 'success');

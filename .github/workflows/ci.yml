@@ -62,10 +62,12 @@ jobs:
       SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       REMINDERS_ENABLED: 'true'
       REMINDER_CHECK_MS: '300000'
-      NODEMAILER_SERVICE: ${{ secrets.NODEMAILER_SERVICE || 'gmail' }}
-      NODEMAILER_EMAIL: ${{ secrets.NODEMAILER_EMAIL }}
-      NODEMAILER_PASSWORD: ${{ secrets.NODEMAILER_PASSWORD }}
+      REMINDER_RUN_ONCE: 'true'
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_FROM: ${{ secrets.RESEND_FROM }}
+      APP_ORIGIN: ${{ secrets.APP_ORIGIN }}
       ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      MATHIFY_TIMEZONE: ${{ secrets.MATHIFY_TIMEZONE || 'Asia/Kolkata' }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Check out repository

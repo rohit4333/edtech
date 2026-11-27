@@ -9,6 +9,7 @@
 const crypto = require('crypto');
 const db = require('../db');
 const trainerAccess = require('./trainerAccessService');
+const timezoneService = require('./timezoneService');
 
 const DEFAULT_DURATION_MINUTES = 50;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
@@ -190,32 +191,39 @@ function allot(batchRef, trainerId, slots) {
 }
 
 function writeSlots(batch, trainerId, candidates) {
-  return candidates.reduce(function (chain, candidate) {
-    return chain.then(function (bookings) {
-      const id = 'ses_batch_' + crypto.randomUUID();
-      const session = {
-        id: id,
-        trainerId: trainerId,
-        studentId: batch.studentId,
-        batchId: batch.id,
-        batchCode: batch.code,
-        batchSlotKey: candidate.key,
-        title: candidate.title,
-        status: 'scheduled',
-        startedAt: candidate.startsAt,
-        scheduledAt: candidate.startsAt,
-        durationMinutes: candidate.durationMinutes,
-        /* Server-derived and unique per session: parallel rooms can never
-           share an Agora channel or a webhook attribution. */
-        rtc: { provider: 'agora', channel: 'mathify_' + id },
-        createdAt: new Date().toISOString()
-      };
-      return Promise.resolve(db.insertSession(session)).then(function () {
-        bookings.push({ id: id, startsAt: candidate.startsAt, title: candidate.title });
-        return bookings;
+  /* The child's registered zone travels with the booking. Reminders and every
+     dashboard render the stored UTC instant in each viewer's own zone. */
+  return Promise.resolve(db.findUserById(batch.studentId)).then(function (student) {
+    const studentTimezone = timezoneService.forUser(student);
+    return candidates.reduce(function (chain, candidate) {
+      return chain.then(function (bookings) {
+        const id = 'ses_batch_' + crypto.randomUUID();
+        const session = {
+          id: id,
+          trainerId: trainerId,
+          studentId: batch.studentId,
+          batchId: batch.id,
+          batchCode: batch.code,
+          batchSlotKey: candidate.key,
+          title: candidate.title,
+          status: 'scheduled',
+          startedAt: candidate.startsAt,
+          scheduledAt: candidate.startsAt,
+          timezone: studentTimezone,
+          studentTimezone: studentTimezone,
+          durationMinutes: candidate.durationMinutes,
+          /* Server-derived and unique per session: parallel rooms can never
+             share an Agora channel or a webhook attribution. */
+          rtc: { provider: 'agora', channel: 'mathify_' + id },
+          createdAt: new Date().toISOString()
+        };
+        return Promise.resolve(db.insertSession(session)).then(function () {
+          bookings.push({ id: id, startsAt: candidate.startsAt, title: candidate.title });
+          return bookings;
+        });
       });
-    });
-  }, Promise.resolve([]));
+    }, Promise.resolve([]));
+  });
 }
 
 function finish(batch, trainer, trainerId, candidates, booked, create) {

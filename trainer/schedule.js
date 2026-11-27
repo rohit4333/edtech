@@ -47,6 +47,21 @@
     }).toUpperCase();
   }
 
+  function viewerZone() {
+    return window.MATHIFY_TZ || 'Asia/Kolkata';
+  }
+
+  function localTime(value) {
+    if (!value) return '';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: viewerZone(), hour: '2-digit', minute: '2-digit', hour12: true
+      }).format(date) + ' (' + viewerZone() + ')';
+    } catch (error) { return ''; }
+  }
+
   function el(tag, className, text) {
     var node = document.createElement(tag);
     if (className) node.className = className;
@@ -148,7 +163,7 @@
           (day.classes || []).forEach(function (item) {
             if (Number(String(item.time || '').slice(0, 2)) !== hour) return;
             var block = el('div', 'sc-class' + (item.status === 'live' ? ' is-live' : ''));
-            block.appendChild(el('b', null, item.time));
+            block.appendChild(el('b', null, localTime(item.startsAt) || item.time));
             block.appendChild(el('span', null, item.title || '1-on-1 session'));
             block.title = (item.startsAt || day.date) + ' · ' +
               (item.durationMinutes || 50) + ' min · ' + item.status +

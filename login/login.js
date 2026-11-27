@@ -144,6 +144,9 @@
       if (!data || !data.token || !user) throw new Error('SIGN_IN_UNAVAILABLE');
       var targetRole = ROLES[user.role] ? user.role : role;
       storeToken(data.token, targetRole);
+      if (user.timezone) {
+        try { window.localStorage.setItem('mathify.timezone', user.timezone); } catch (error) { /* private mode */ }
+      }
       status('Signed in. Opening your ' + ROLES[targetRole].label.toLowerCase() + '…', 'success');
       window.location.assign(next || ROLES[targetRole].destination);
     }).catch(function (error) {

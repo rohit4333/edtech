@@ -101,6 +101,13 @@
         </article>
       </section>
 
+      <!-- ---------- live class reminder ---------- -->
+      <section class="class-reminder" id="classReminder" hidden aria-live="polite" aria-label="Upcoming class">
+        <span class="mono" id="classReminderTag">Class starting soon</span>
+        <p id="classReminderText"></p>
+        <a class="btn btn-coral btn-sm" id="classReminderLink" hidden>Join classroom</a>
+      </section>
+
       <!-- ---------- safety notice ---------- -->
       <section class="notice" id="guidance" aria-labelledby="guidance-title">
         <span class="mono" id="guidance-title">Private 1-on-1 chat</span>
@@ -153,6 +160,7 @@
   </div>
 </div>
 
+<script src="../shared/viewerTimezone.js" defer></script>
 <script src="app.js" defer></script>
 <script src="../shared/sectionRouter.js" defer></script>
 </body>

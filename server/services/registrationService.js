@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const db = require('../db');
 const password = require('../auth/password');
+const timezoneService = require('./timezoneService');
 
 const ROLES = ['student', 'trainer', 'relationship_manager'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,6 +47,15 @@ async function register(input) {
     throw problem('INVALID_PASSWORD', 'Choose a password of at least 8 characters.', 422);
   }
 
+  /* The child's zone is the anchor for scheduled classes. A trainer and a
+     manager also register their own zone so every dashboard renders the same
+     absolute class instant in the viewer's local time. */
+  const suppliedZone = timezoneService.normalize(body.timezone);
+  if (body.timezone && !suppliedZone) {
+    throw problem('INVALID_TIMEZONE', 'Choose a valid timezone from the list.', 422);
+  }
+  const timezone = suppliedZone || timezoneService.DEFAULT_ZONE;
+
   const users = await Promise.resolve(db.listUsers());
   const taken = users.some(function (user) {
     if (text(user.email).toLowerCase() === email) return true;
@@ -67,7 +77,8 @@ async function register(input) {
     passwordSalt: secured.salt,
     passwordHash: secured.hash,
     registeredAt: new Date().toISOString(),
-    registeredVia: 'public'
+    registeredVia: 'public',
+    timezone: timezone
   }, role === 'trainer'
     ? { title: 'Mathify trainer', payPerSession: 350, maxHoursPerDay: 6, maxSessionsPerDay: 6 }
     : role === 'relationship_manager'

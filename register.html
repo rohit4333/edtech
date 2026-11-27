@@ -56,6 +56,13 @@
           <label for="registerGrade">Grade <span class="optional">optional</span></label>
           <input id="registerGrade" name="grade" maxlength="40" placeholder="7">
         </p>
+        <p class="field" id="timezoneField">
+          <label for="registerTimezone">Your timezone</label>
+          <select id="registerTimezone" name="timezone" required>
+            <option value="">Select your timezone</option>
+          </select>
+          <span class="optional">Used to show every class in your local time</span>
+        </p>
         <p class="field">
           <label for="registerName">Full name</label>
           <input id="registerName" name="name" autocomplete="name" maxlength="80" required placeholder="Your name">
@@ -96,6 +103,7 @@
   </div>
 </footer>
 
+<script src="shared/timezoneOptions.js" defer></script>
 <script src="register/register.js" defer></script>
 </body>
 </html>

@@ -27,6 +27,8 @@ const leaveRoutes = require('./routes/leaves');
 const contactRoutes = require('./routes/contact');
 const chatRoutes = require('./routes/chat');
 const parentChatRoutes = require('./routes/parentChat');
+const parentReminderRoutes = require('./routes/parentReminders');
+const livekitWebhookRoutes = require('./routes/livekitWebhooks');
 const rmRoutes = require('./routes/rm');
 const networkRoutes = require('./routes/network');
 const announcementRoutes = require('./routes/announcements');
@@ -56,6 +58,7 @@ app.use('/api/network', probeThrottle);
 app.use('/api/razorpay/webhook', webhookThrottle);
 app.use('/api/agora/webhook', webhookThrottle);
 app.use('/api/webhooks/recording', webhookThrottle);
+app.use('/api/webhooks/livekit', webhookThrottle);
 app.use('/api/contact', contactThrottle);
 
 app.use(cors({
@@ -64,6 +67,9 @@ app.use(cors({
 /* Razorpay and Agora sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/agora/webhook', express.raw({ type: 'application/json' }));
+/* LiveKit signs the exact request bytes, so this route must also be read as a
+   Buffer before the shared JSON parser touches it. */
+app.use('/api/webhooks/livekit', express.raw({ type: 'application/json', limit: '512kb' }));
 /* KYC images are uploaded as base64 JSON. Give this route its own larger
    limit while every other API body stays at 2 MB. */
 app.use('/api/trainer/onboarding/documents', express.json({ limit: '6mb' }));
@@ -119,6 +125,8 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/parent-chat', parentChatRoutes);
+app.use('/api/parent', parentReminderRoutes);
+app.use('/api/webhooks/livekit', livekitWebhookRoutes);
 app.use('/api/rm', rmRoutes);
 
 /* The app-level diagnostic log follows the same browser-safe rules as the

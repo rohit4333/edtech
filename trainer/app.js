@@ -8,7 +8,7 @@
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
-  var TZ = window.MATHIFY_TZ || 'Asia/Kolkata';
+  function TZ() { return window.MATHIFY_TZ || 'Asia/Kolkata'; }
   var activeSessionId = window.MATHIFY_SESSION_ID || null;
   var ACTIVE_LINK_MINUTES = 50;
   var dashboardSnapshot = null;
@@ -21,7 +21,7 @@
     var d = new Date(value);
     if (isNaN(d.getTime())) return null;
     var fmt = new Intl.DateTimeFormat('en-GB', {
-      timeZone: TZ,
+      timeZone: TZ(),
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
@@ -187,14 +187,14 @@
     if (!value) return '';
     var d = new Date(value);
     if (isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: TZ }).format(d);
+    return new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: TZ() }).format(d);
   }
 
   function dateLabel(value) {
     if (!value) return '';
     var d = new Date(value);
     if (isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: TZ }).format(d);
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: TZ() }).format(d);
   }
 
   function rateFor(cells, columns) {

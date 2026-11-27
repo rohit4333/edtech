@@ -23,7 +23,8 @@
     'trainerHeading', 'threadSub', 'childName', 'peerName', 'peerMeta', 'topThread',
     'profileBtn', 'profilePanel', 'profileName', 'logoutBtn',
     'unreadBadge', 'threadStatus', 'messageList', 'emptyState', 'composer',
-    'composerInput', 'charCount', 'sendBtn', 'noticeRow', 'notice', 'retryBtn', 'demoLogin'
+    'composerInput', 'charCount', 'sendBtn', 'noticeRow', 'notice', 'retryBtn', 'demoLogin',
+    'classReminder', 'classReminderTag', 'classReminderText', 'classReminderLink'
   ];
   var el = {};
   var memoryToken = null;
@@ -502,6 +503,52 @@
     if (typeof window.setInterval === 'function') window.setInterval(poll, POLL_MS);
   }
 
+  /* -------------------------------------------------- in-app class reminders */
+  var REMINDER_POLL_MS = 60000;
+
+  function safeJoinUrl(value) {
+    if (!value) return null;
+    try {
+      var parsed = new URL(value, window.location.href);
+      if (parsed.origin !== window.location.origin ||
+          parsed.pathname.indexOf('/classroom/') !== 0) return null;
+      return parsed.href;
+    } catch (error) { return null; }
+  }
+
+  function renderReminders(data) {
+    if (!el.classReminder) return;
+    var list = data && Array.isArray(data.reminders) ? data.reminders : [];
+    var next = list.find(function (item) { return item && item.joinUrl && safeJoinUrl(item.joinUrl); });
+    if (!next) {
+      el.classReminder.hidden = true;
+      if (el.classReminderLink) el.classReminderLink.removeAttribute('href');
+      return;
+    }
+    if (el.classReminderTag) {
+      el.classReminderTag.textContent = next.phase === 'starting'
+        ? 'Class starting now'
+        : next.phase === 'open' ? 'Classroom is open' : 'Class starting soon';
+    }
+    if (el.classReminderText) {
+      el.classReminderText.textContent = next.message +
+        (next.localStart ? ' Starts: ' + next.localStart + '.' : '');
+    }
+    if (el.classReminderLink) {
+      el.classReminderLink.href = safeJoinUrl(next.joinUrl);
+      el.classReminderLink.hidden = false;
+    }
+    el.classReminder.hidden = false;
+  }
+
+  function loadReminders() {
+    var token = readToken();
+    if (!token || !el.classReminder) return Promise.resolve(null);
+    return rawRequest('/parent/reminders', { method: 'GET' }, token)
+      .then(renderReminders)
+      .catch(function () { el.classReminder.hidden = true; });
+  }
+
   function init() {
     cacheDom();
     if (!el.messageList) return;
@@ -509,6 +556,11 @@
     renderBadge();
     bind();
     load();
+    loadReminders();
+    window.setInterval(loadReminders, REMINDER_POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') loadReminders();
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

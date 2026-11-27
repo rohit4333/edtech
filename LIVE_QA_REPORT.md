@@ -76,3 +76,15 @@ Evidence files: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-live-qa-fina
 ## Preservation checks
 
 TPFF wording `PATENT HOLDER • multiple RESEARCH PAPERS PUBLISHED`, the founder LinkedIn URL, the seven nav items, the five footer policy pages, `§§0–14` with `§1.5`, `§1.6` and `§14 COMPLETENESS COVERAGE ATTESTATION`, the quiz and Level 1/2/3 rules, and the two exact bot lines remain unchanged.
+
+## Class reminders, timezone and LiveKit webhooks
+
+- New automated coverage: `livekitWebhooks.test.js` (20 assertions) and `reminderTimezone.test.js` (19 assertions). `DATABASE_MODE=mock npm test` now runs **48 suites** with `EXIT=0`.
+- Signed webhook proof: the simulator posts a real HS256 JWT with a `sha256` body checksum to `POST /api/webhooks/livekit`. Valid events are accepted, tampered and unsigned events are refused with `401 INVALID_SIGNATURE`, replayed `event.id` values are deduplicated, unknown rooms are ignored, and participant identity/role is rechecked against the session before a presence event is written.
+- Webhook presence feeds the verified trainer join state used by the T-2-minute “join now to avoid penalty” warning. A founder observer is never counted as a participant. Egress events update the session’s recording status without a browser-supplied room or egress id.
+- Local simulator command: `npm run webhook:test -- --scenario full`. Temporary LiveKit Cloud URL shape: `https://<tunnel-or-domain>/api/webhooks/livekit`. The `wss://` LiveKit media URL is never used as a webhook URL.
+- Timezone proof: one absolute UTC instant is stored; India and Saudi viewers render different local times in their own registered IANA zone. Registration rejects invalid zones with `INVALID_TIMEZONE`, and the browser picker uses `Intl.supportedValuesOf('timeZone')` with a fallback list.
+- Parent in-app proof: `GET /api/parent/reminders` is parent-only, reloads `childId` from the database, never exposes another student’s class, and builds join links only from the validated server origin. With Resend unset, join email still returns the exact `EMAIL_NOT_CONFIGURED` reason; no delivery is claimed.
+- `.github/workflows/ci.yml` reminder cron now uses `RESEND_API_KEY`, `RESEND_FROM`, `APP_ORIGIN`, `ADMIN_EMAIL`, `MATHIFY_TIMEZONE` and `REMINDER_RUN_ONCE`; the old `NODEMAILER_*` variables were removed.
+- Safe credential entry: `npm run egress:setup` launches `server/scripts/setup-livekit-egress-env.ps1`, which prompts for S3/R2 settings with hidden access keys and writes quoted values into `server/.env` without printing them. `LIVEKIT_CATALOGUE_URL` and `LIVEKIT_WAREHOUSE_NAME` are stored only for reference; Mathify does not consume them.
+- Recording success is **still not claimed**: the live v7 URL shape is ready, but the S3/R2 values must be entered locally before `/api/livekit/recording/start` can return a real egress id instead of `503 RECORDING_NOT_CONFIGURED`.

@@ -3,13 +3,15 @@ const token = require('../auth/token');
 const trainerAccess = require('../services/trainerAccessService');
 
 /* Identity returned to the browser. Contact details are never part of it. */
-const PUBLIC_USER_KEYS = ['id', 'name', 'role'];
+/* Timezone is a display preference, not a contact detail: it is safe in the
+   signed-in identity and required to render class times in the viewer's zone. */
+const PUBLIC_USER_KEYS = ['id', 'name', 'role', 'timezone'];
 
 /* Business fields the Express handlers need for the signed-in user only. */
 const SESSION_USER_KEYS = [
   'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
   'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay',
-  'badges', 'trophyPoints',
+  'badges', 'trophyPoints', 'timezone',
   /* Internal routing key only. /auth/me still uses PUBLIC_USER_KEYS, so this
      link never reaches a browser identity payload. */
   'childId'

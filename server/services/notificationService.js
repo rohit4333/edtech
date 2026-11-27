@@ -6,6 +6,9 @@
  */
 
 const emailService = require('./emailService');
+const config = require('../config');
+const policy = require('../config/policy.json');
+const timezoneService = require('./timezoneService');
 
 function clean(value, max) {
   return String(value || '')
@@ -234,6 +237,132 @@ async function sendAttentionDigest(info) {
   return { email: email };
 }
 
+/* ---------------------------------------------------------- join reminders */
+
+/* Join links are built only from a validated server origin. A wildcard CORS
+   value or a missing APP_ORIGIN never becomes a clickable link. */
+function joinUrl(session) {
+  const origin = config.resetOrigin();
+  if (!origin || !session || !session.id) return null;
+  return origin + '/classroom/index.html?sessionId=' +
+    encodeURIComponent(String(session.id)) + '&state=live';
+}
+
+/* The same UTC instant, rendered in the recipient's registered zone. The
+   child's registration zone is the fallback for a shared family login. */
+function startLabel(session, recipient) {
+  const raw = session && (session.startsAt || session.scheduledAt || session.date);
+  if (!raw) return 'See your dashboard';
+  const zone = timezoneService.forUser(
+    recipient,
+    (session && (session.studentTimezone || session.timezone)) || process.env.MATHIFY_TIMEZONE
+  );
+  const formatted = timezoneService.format(raw, zone);
+  return formatted ? formatted.text : clean(raw, 80);
+}
+
+function joinEmailHtml(title, lines, url, buttonLabel) {
+  const esc = emailService.escapeHtml;
+  const button = url
+    ? '<p><a href="' + esc(url) + '" style="display:inline-block;background:#FF5B2E;' +
+      'color:#0E1420;padding:12px 18px;border-radius:6px;text-decoration:none;' +
+      'font-weight:600">' + esc(buttonLabel) + '</a></p>' +
+      '<p style="font-size:12px;color:#555">If the button does not work, copy this link: ' +
+      esc(url) + '</p>'
+    : '';
+  return '<div style="font-family:Poppins,Arial,sans-serif;color:#0E1420">' +
+    '<h2>' + esc(title) + '</h2>' +
+    '<pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.5">' +
+    esc(lines.join('\n')) + '</pre>' + button + '</div>';
+}
+
+async function sendJoinEmail(message) {
+  const data = message || {};
+  const recipient = data.recipient || {};
+  const session = data.session || {};
+  const role = data.role === 'parent' ? 'parent' : 'trainer';
+  const to = clean(recipient.email, 200);
+  if (!to) return { sent: false, reason: 'no_recipient' };
+  const url = joinUrl(session);
+  if (!url) return { sent: false, reason: 'origin_not_configured' };
+
+  const studentName = clean(session.studentName || recipient.studentName || 'your student', 120);
+  const title = role === 'parent'
+    ? 'Your child’s Mathify class starts in 15 minutes'
+    : 'Your Mathify class starts in 15 minutes';
+  const lines = role === 'parent'
+    ? [
+      'Hello ' + clean(recipient.name || 'Parent', 80) + ',',
+      '',
+      studentName + '’s 1:1 maths class starts in 15 minutes.',
+      'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+      'Starts (your time): ' + startLabel(session, recipient),
+      '',
+      'The shared classroom opens 10 minutes before the start. Use the button below to be ready on time.'
+    ]
+    : [
+      'Hi ' + clean(recipient.name || 'Trainer', 80) + ',',
+      '',
+      'Your 1:1 maths class with ' + studentName + ' starts in 15 minutes.',
+      'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+      'Starts (your time): ' + startLabel(session, recipient),
+      '',
+      'The room opens 10 minutes before the start. Join early so the class clock and pay are not affected.'
+    ];
+
+  const result = await emailService.sendMail({
+    to: to,
+    subject: title,
+    html: joinEmailHtml(title, lines, url, 'Join classroom')
+  });
+  return result.ok ? { sent: true, id: result.id } : { sent: false, reason: result.code };
+}
+
+/* Late-join wording is derived from the published policy so the warning never
+   overstates or invents a penalty. */
+function lateJoinWarning() {
+  const bands = (policy.payout && policy.payout.lateJoinBands) || [];
+  const half = bands.find(function (band) {
+    return Number(band.payFactor) > 0 && Number(band.payFactor) < 1;
+  });
+  const none = bands.find(function (band) { return Number(band.payFactor) === 0; });
+  if (!half && !none) return 'Joining late may reduce your session pay.';
+  const parts = [];
+  if (half) parts.push('joining ' + half.fromMinutes + '–' + half.toMinutes +
+    ' minutes late pays ' + Math.round(Number(half.payFactor) * 100) + '%');
+  if (none) parts.push('joining ' + none.fromMinutes + ' minutes or more late pays nothing');
+  return 'Joining late affects pay: ' + parts.join('; ') + '.';
+}
+
+async function sendTrainerUrgentReminder(info) {
+  const data = info || {};
+  const trainer = data.trainer || {};
+  const session = data.session || {};
+  const to = clean(trainer.email, 200);
+  if (!to) return { email: { sent: false, reason: 'no_recipient' } };
+  const url = joinUrl(session);
+  if (!url) return { email: { sent: false, reason: 'origin_not_configured' } };
+
+  const title = 'Join now — your Mathify slot is appearing';
+  const lines = [
+    'Hi ' + clean(trainer.name || 'Trainer', 80) + ',',
+    '',
+    'Your class starts in about 2 minutes and you have not joined yet.',
+    'Session: ' + clean(session.title || 'Mathify 1:1', 160),
+    'Starts (your time): ' + startLabel(session, trainer),
+    '',
+    'Join now to avoid a late-join penalty. ' + lateJoinWarning()
+  ];
+  const result = await emailService.sendMail({
+    to: to,
+    subject: title,
+    html: joinEmailHtml(title, lines, url, 'Join classroom now')
+  });
+  return {
+    email: result.ok ? { sent: true, id: result.id } : { sent: false, reason: result.code }
+  };
+}
+
 module.exports = {
   sendSlackAlert,
   sendEmailAlert,
@@ -241,5 +370,7 @@ module.exports = {
   notifyContactRequest,
   notifyParentRecap,
   sendSessionReminder,
+  sendJoinEmail,
+  sendTrainerUrgentReminder,
   sendAttentionDigest
 };
