@@ -194,7 +194,7 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - Celebration payloads carry no answer, correctness, hint, explanation, trainer note or instruction field; students cannot start celebrations; unknown triggers are rejected; `session_complete` randomizes inside the approved pool.
 - Kid reactions are limited to `💡 🤔 ✅ 👏`, trainer reactions include `🎯`, applause is explicitly addressed to the trainer, and all reaction/permission events are scrubbed before the safe channel.
 - Browser source contracts keep celebrations and reactions in separate layers, queue a reaction that arrives during a celebration instead of overlapping it, suppress celebrations during quiz mode, still render reactions during quiz mode, and apply a server quiz launch to the student tab.
-- Reduced motion keeps the static recognition badge and the always-on sound but drops animation; sound has no mute control and is volume-capped at `0.6`. Every emoji click renders a layered full-page celebration on both roles; engagement code never enables a camera or microphone.
+- Reduced motion keeps the static recognition badge and the always-on sound but drops animation; sound has no mute control and is volume-capped at `0.6`. Every emoji click renders a layered full-page celebration on both roles; engagement code never enables a camera or microphone. The live-gated deck was rendered on the trainer dashboard and camera page, while the classroom engagement strip was rendered on the planner and remained visible over the full whiteboard at tablet widths.
 
 ## Browser click-through results
 
@@ -216,7 +216,7 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - A server quiz launch put the student tab into quiz mode (`quiz-live`) and suppressed the shared celebration: `/celebrate` returned `fired:false`, `seq:null`, and no `shared.celebration` event or visible celebration layer followed.
 - A kid reaction during that active quiz still reached the safe event stream (`reaction.sent`, seq `13`) and rendered the separate reaction layer containing `💡`; it did not enable any camera or microphone track.
 - A reaction arriving while a celebration was visible stayed hidden until the celebration cleared, then rendered; the two layers were never visible at the same time.
-- Reduced-motion / always-on sound contracts, the icon-only trainer deck appearing on the camera page only after a live server state, its absence from the dashboard, and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
+- Reduced-motion / always-on sound contracts, the icon-only trainer deck appearing on the dashboard and camera page only after a live server state, its absence before start and on student surfaces, and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
 
 ## Founder settings and planner designer (port 4200)
 

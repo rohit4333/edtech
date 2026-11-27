@@ -257,3 +257,18 @@ body:not(.view-student) .student-only{display:none !important}
   .reaction-btn{min-width:34px;height:32px;padding:0 7px;font-size:15px}
   #reactionLayer{right:10px;bottom:10px}
 }
+
+/* On tablet-width screens the side rail folds its parent card away. The full
+   board keeps the same trainer engagement strip floating over the clean canvas
+   so celebrations stay actionable without adding a fourth top deck. */
+@media (max-width:1240px){
+  body.board-open .side > .room-card{
+    display:block;position:absolute;top:0;left:0;
+    width:0;height:0;overflow:visible;
+    margin:0;padding:0;border:0;background:transparent;box-shadow:none;
+    visibility:hidden;pointer-events:none
+  }
+  body.board-open .side > .room-card .engagement-bar{
+    visibility:visible;pointer-events:auto
+  }
+}

@@ -23,13 +23,14 @@ function main() {
   const deckJs = read('shared/rewardDeck.js');
   const deckCss = read('shared/rewardDeck.css');
   const boardCss = read('shared/fullBoard.css');
+  const engagementCss = read('classroom/engagement.css');
 
-  ok(trainerHtml.indexOf('rewardDeck.css') === -1 &&
-    trainerHtml.indexOf('rewardDeck.js') === -1,
-  'the trainer dashboard never loads the celebration deck');
+  ok(trainerHtml.indexOf('href="../shared/rewardDeck.css"') !== -1 &&
+    trainerHtml.indexOf('src="../shared/rewardDeck.js"') !== -1,
+  'the trainer dashboard loads the shared celebration deck');
   ok(connectHtml.indexOf('href="../shared/rewardDeck.css"') !== -1 &&
     connectHtml.indexOf('src="../shared/rewardDeck.js"') !== -1,
-  'the trainer camera check page loads the shared celebration deck');
+  'the trainer camera check page loads the same celebration deck');
   ok(trainerHtml.indexOf('id="cameraOnlyBtn"') !== -1 &&
     trainerHtml.indexOf('id="i-cam"') !== -1,
   'the dashboard has a camera-only return action');
@@ -39,14 +40,21 @@ function main() {
   ok(trainerApp.indexOf('window.MATHIFY_SESSION_ID = session.id') !== -1,
   'an active dashboard session exposes its id to the deck');
 
-  ok(deckJs.indexOf("declaredRole === 'student'") !== -1 &&
-    deckJs.indexOf('!connectPage || studentView') !== -1,
-  'the deck refuses student roles and every non-connect page');
+  ok(deckJs.indexOf("params.get('role') === 'student'") !== -1 &&
+    deckJs.indexOf('!trainerSurface || studentView') !== -1 &&
+    deckJs.indexOf('trainerDashboard = /(^|\\/)trainer\\//') !== -1 &&
+    deckJs.indexOf('!trainerCredential') !== -1,
+  'the deck refuses student roles, unauthenticated pages and every non-trainer page');
   ok(deckJs.indexOf("[data-celebration-style]')") !== -1,
   'the classroom keeps its own deck without a duplicate');
+  ok(engagementCss.indexOf('body.board-open .side > .room-card') !== -1 &&
+    engagementCss.indexOf('body.board-open .side > .room-card .engagement-bar') !== -1,
+  'the classroom engagement strip stays visible over the full board on tablet widths');
   ok(deckJs.indexOf("state.status === 'live'") !== -1 &&
-    deckJs.indexOf('connectPage && sessionLive && sessionId()') !== -1,
-  'the deck mounts only after the server confirms a live session');
+    deckJs.indexOf('trainerSurface && sessionLive && sessionId()') !== -1 &&
+    deckJs.indexOf("window.mathifyTrainerApi.getSessionState(id)") !== -1 &&
+    deckJs.indexOf("request('/sessions/' + encodeURIComponent(id) + '/state')") !== -1,
+  'the dashboard deck mounts only after the server confirms a live session');
   ok(deckJs.indexOf("aria-label', 'Celebration controls'") !== -1 &&
     deckJs.indexOf('>Rewards<') === -1 &&
     deckJs.indexOf('reward-deck-label') === -1,
@@ -71,9 +79,13 @@ function main() {
     deckCss.indexOf('pointer-events:none') !== -1 &&
     deckCss.indexOf('prefers-reduced-motion: reduce') !== -1,
   'the stage is a fixed, non-interactive surface with a static fallback');
-  ok(boardCss.indexOf('color:var(--ink);opacity:.22') !== -1 &&
-    boardCss.indexOf('pointer-events:none;user-select:none') !== -1,
-  'board watermarks are visibly quiet and never take a pointer');
+  var markBlock = boardCss.slice(boardCss.indexOf('.mathify-board-mark{'));
+  markBlock = markBlock.slice(0, markBlock.indexOf('}'));
+  var markOpacity = Number((markBlock.match(/opacity:\s*([\d.]+)/) || [])[1]);
+  ok(markBlock.indexOf('pointer-events:none;user-select:none') !== -1 &&
+    markOpacity >= 0.6 && markOpacity <= 0.85 &&
+    markBlock.indexOf('text-shadow:') !== -1,
+  'board watermarks are legible, haloed and never take a pointer');
 
   console.log('rewardDeck: ' + checks + ' assertions passed');
 }

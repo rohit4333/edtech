@@ -32,17 +32,28 @@
 .full-board.tool-hand .full-board-canvas-wrap canvas{cursor:grab}
 .full-board.tool-hand.is-panning .full-board-canvas-wrap canvas{cursor:grabbing}
 /* Every board a trainer or child sees carries the same quiet paper mark. It is
-   part of the canvas surface, not a deck or tool, and never takes a pointer. */
+   part of the canvas surface, not a deck or tool, and never takes a pointer.
+   It is deliberately legible: 22% ink read as blank paper, while a soft paper
+   halo keeps the mark readable over pen strokes without becoming a control. */
 .mathify-board-mark{
-  position:absolute;z-index:4;right:16px;bottom:12px;
+  position:absolute;z-index:4;right:18px;bottom:14px;
   pointer-events:none;user-select:none;
-  font:600 16px/1 var(--sans);letter-spacing:-.035em;
-  color:var(--ink);opacity:.22
+  display:block;
+  font:600 20px/1 var(--sans);letter-spacing:-.03em;
+  color:var(--ink);opacity:.68;
+  text-shadow:0 0 2px var(--paper),0 1px 6px rgba(253,250,243,.95)
 }
 .mathify-board-mark i{font-style:italic;font-weight:700;color:var(--coral-deep)}
 .student-ink,.scratch{position:relative}
-.student-ink .mathify-board-mark,
-.scratch .mathify-board-mark{right:14px;bottom:18px;font-size:13px;opacity:.2}
+.student-ink .mathify-board-mark{right:16px;bottom:16px;font-size:16px;opacity:.62}
+/* The temporary Wacom panel is ink-dark, so the same mark turns to paper there.
+   Bottom-left keeps it clear of the panel's Clear / Share actions. */
+.scratch .mathify-board-mark{
+  right:auto;left:14px;bottom:13px;font-size:16px;opacity:.82;
+  color:var(--paper);
+  text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.7)
+}
+.scratch .mathify-board-mark i{color:#FFB59C}
 .full-board-tools{
   position:absolute;z-index:3;
   display:flex;align-items:center;gap:5px;flex-wrap:nowrap;

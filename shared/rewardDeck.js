@@ -1,25 +1,37 @@
 /* ==========================================================================
-   MATHIFY — trainer celebration deck for the camera check page
-   The trainer dashboard never loads this deck. On the connect page it appears
-   only after the server confirms the session is live, never during the
-   pre-session camera check. The 1:1 classroom owns its own engagement bar.
-   Every click animates locally first, then sends an allowlisted event. Sound is
-   always on and volume-capped; there is no mute toggle.
+   MATHIFY — trainer celebration deck for live session pages
+   The trainer dashboard and camera check page load this deck, but it mounts
+   only after the server confirms the session is live. It never mounts before
+   the session starts or on student surfaces. The 1:1 classroom owns its own
+   engagement bar. Every click animates locally first, then sends an allowlisted
+   event. Sound is always on and volume-capped; there is no mute toggle.
    ========================================================================== */
 (function () {
   'use strict';
 
   var params = new URLSearchParams(window.location.search);
-  var declaredRole = params.get('role') ||
-    (window.MATHIFY_USER && window.MATHIFY_USER.role) || '';
   var connectPage = document.body.classList.contains('connect-page') ||
     /\/connect\.html$/.test(window.location.pathname);
-  var studentView = params.get('view') === 'student' || declaredRole === 'student' ||
+  var trainerDashboard = /(^|\/)trainer\//.test(window.location.pathname);
+  var trainerSurface = connectPage || trainerDashboard;
+  var studentView = params.get('view') === 'student' || params.get('role') === 'student' ||
+    (window.MATHIFY_USER && window.MATHIFY_USER.role === 'student') ||
     /(^|\/)student\//.test(window.location.pathname);
+  var trainerCredential = false;
+  try {
+    trainerCredential = Boolean(
+      window.localStorage.getItem('mathify.trainer.token') ||
+      window.localStorage.getItem('mathify.classroom.token.trainer') ||
+      window.localStorage.getItem('mathify.classroom.token.founder')
+    );
+  } catch (error) { /* private mode; role params still work */ }
+  var declaredRole = params.get('role') ||
+    (window.MATHIFY_USER && window.MATHIFY_USER.role) ||
+    (trainerCredential ? 'trainer' : '');
   var sessionLive = false;
 
-  if (!connectPage || studentView ||
-      !(declaredRole === 'trainer' || declaredRole === 'founder')) return;
+  if (!trainerSurface || studentView ||
+      !(declaredRole === 'trainer' || declaredRole === 'founder') || !trainerCredential) return;
   /* The 1:1 classroom already owns a richer engagement bar. Never double it. */
   if (document.querySelector('[data-celebration-style]')) return;
 
@@ -191,7 +203,7 @@
   }
 
   function canMount() {
-    return Boolean(connectPage && sessionLive && sessionId());
+    return Boolean(trainerSurface && sessionLive && sessionId());
   }
 
   function mount() {
@@ -248,28 +260,45 @@
     return false;
   }
 
+  function applyState(state) {
+    sessionLive = Boolean(state && state.status === 'live');
+    ensureMounted();
+  }
+
+  function failClosed() {
+    /* A state read error must never enable the deck. */
+    sessionLive = false;
+    ensureMounted();
+  }
+
   function loadSessionState() {
     var id = sessionId();
-    if (!id || !window.mathifyClassroomApi ||
-        typeof window.mathifyClassroomApi.getSessionState !== 'function') return;
-    window.mathifyClassroomApi.getSessionState(id).then(function (state) {
-      sessionLive = Boolean(state && state.status === 'live');
-      ensureMounted();
-    }).catch(function () {
-      /* Fail closed: a state read error must never enable the deck. */
-      sessionLive = false;
-      ensureMounted();
-    });
+    if (!id) return;
+    if (connectPage && window.mathifyClassroomApi &&
+        typeof window.mathifyClassroomApi.getSessionState === 'function') {
+      window.mathifyClassroomApi.getSessionState(id).then(applyState).catch(failClosed);
+      return;
+    }
+    if (window.mathifyTrainerApi && typeof window.mathifyTrainerApi.getSessionState === 'function') {
+      window.mathifyTrainerApi.getSessionState(id).then(applyState).catch(failClosed);
+      return;
+    }
+    if (window.mathifyTrainerApi && typeof window.mathifyTrainerApi.request === 'function') {
+      window.mathifyTrainerApi.request('/sessions/' + encodeURIComponent(id) + '/state')
+        .then(function (data) { applyState(data && data.state); })
+        .catch(failClosed);
+    }
   }
 
   loadSessionState();
-  window.setInterval(loadSessionState, 4000);
+  window.setInterval(loadSessionState, 2000);
 
   window.mathifyRewardDeck = {
     mount: mount,
     fireStyle: fireStyle,
     fireReaction: fireReaction,
     preference: function () { return stylePreference; },
-    isMounted: function () { return Boolean(deck); }
+    isMounted: function () { return Boolean(deck); },
+    isLive: function () { return sessionLive; }
   };
 })();
