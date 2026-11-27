@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mathify — One App</title>
+  <meta name="description" content="One phone-first Mathify app for students, parents and relationship managers.">
+  <link rel="stylesheet" href="../assets/poppins.css">
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="unified.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <a class="brand" href="/index.html" aria-label="Mathify home"><span>Mathify</span><i>.</i></a>
+    <span class="desk" id="deskLabel">One app</span>
+    <button type="button" class="ghost" id="logout" hidden>Sign out</button>
+  </header>
+
+  <nav class="tabs" id="tabs" aria-label="App sections" hidden></nav>
+
+  <main id="main">
+    <section class="card" id="signedOut">
+      <p class="eyebrow">ONE APP</p>
+      <h1>Your place, on your phone.</h1>
+      <p class="lede">Sign in with the credentials for your desk. The app shows only what that role is allowed to see.</p>
+      <div class="choices">
+        <a class="choice" href="/login.html?role=student&amp;next=/app/home%3Fdesk%3Dstudent"><b>Student</b><span>Practice, recordings, points and help</span></a>
+        <a class="choice" href="/login.html?role=parent&amp;next=/app/parent/inbox%3Fdesk%3Dparent"><b>Parent</b><span>Messages, reminders and guidance</span></a>
+        <a class="choice" href="/login.html?role=rm&amp;next=/app/rm/dashboard%3Fdesk%3Drm"><b>Manager</b><span>Grants, people and classes</span></a>
+      </div>
+    </section>
+
+    <section id="appView" hidden></section>
+  </main>
+
+  <script src="../shared/sessionKeepalive.js"></script>
+  <script src="../student/api.js"></script>
+  <script src="shell.js"></script>
+</body>
+</html>

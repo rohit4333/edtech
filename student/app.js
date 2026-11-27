@@ -384,8 +384,21 @@
   }
 
   function openClassroom() {
+    /* The role and view are explicit: a copied student link must never open a
+       trainer-shaped room when the same browser also holds a trainer token. */
     window.location.href = '../classroom/index.html?sessionId=' +
-      encodeURIComponent(activeSessionId()) + '&state=' + encodeURIComponent(state === 'ended' ? 'ended' : 'live');
+      encodeURIComponent(activeSessionId()) + '&role=student&view=student&state=' +
+      encodeURIComponent(state === 'ended' ? 'ended' : 'live');
+  }
+
+  function watchRecording() {
+    if (!api || typeof api.request !== 'function') return;
+    api.request('/recordings/' + encodeURIComponent(activeSessionId()) + '/url')
+      .then(function (data) {
+        if (data && data.url) window.location.href = data.url;
+        else showNotice('That recording is not ready yet.');
+      })
+      .catch(function () { showNotice('A private link could not be created. Please retry.'); });
   }
 
   function checkDevices() {
@@ -405,9 +418,7 @@
   var sessionActions = {
     join: openClassroom,
     device: checkDevices,
-    recording: function () {
-      window.location.href = '../lms/index.html#recordings';
-    },
+    recording: watchRecording,
     practice: function () {
       openPractice();
     },

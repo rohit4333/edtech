@@ -25,8 +25,8 @@
       tokenKeys: ['mathify.trainer.token', 'mathify.classroom.token.trainer']
     },
     founder: {
-      label: 'Founder console',
-      destination: 'founder/index.html',
+      label: 'Founder admin app',
+      destination: 'founder-admin/index.html',
       demoEmail: 'founder@mathify.app',
       tokenKeys: ['mathify.classroom.token.founder']
     },
@@ -58,7 +58,7 @@
     if (typeof value !== 'string' || !value) return null;
     if (value.indexOf('//') !== -1 || value.indexOf('\\') !== -1 || value.indexOf(':') !== -1) return null;
     var clean = value.replace(/^\/+/, '');
-    if (/^(student|trainer|founder|parent|rm|classroom|lms|planner-agent)\/[\w\-./?=&%]*$/.test(clean)) return clean;
+    if (/^(app|founder-admin|student|trainer|founder|parent|rm|classroom|lms|planner-agent)\/[\w\-./?=&%]*$/.test(clean)) return clean;
     if (clean === 'apps.html' || clean === 'index.html') return clean;
     return null;
   }

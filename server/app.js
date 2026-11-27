@@ -6,6 +6,7 @@ const path = require('path');
 const auth = require('./middleware/auth');
 const db = require('./db');
 const realtime = require('./realtime');
+const tokenService = require('./auth/token');
 const logger = require('./services/logger');
 const rateLimit = require('./middleware/rateLimit');
 
@@ -204,7 +205,7 @@ const publicFiles = new Set([
   'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
   'landing.css', 'landing.js', 'login.html'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer', 'unified']);
 
 /* Each dashboard nav item is a real page URL. These routes serve the matching
    desk document; the shared section router then shows only that page's UI. */
@@ -237,12 +238,90 @@ const sectionPages = {
   '/parent/child': 'parent/index.html',
   '/parent/sessions': 'parent/index.html',
   '/parent/guidance': 'parent/index.html',
-  '/parent/policies': 'parent/index.html'
+  '/parent/policies': 'parent/index.html',
+  '/app/home': 'unified/index.html',
+  '/app/attendance': 'unified/index.html',
+  '/app/recordings': 'unified/index.html',
+  '/app/mastery': 'unified/index.html',
+  '/app/buddy': 'unified/index.html',
+  '/app/parent/inbox': 'unified/index.html',
+  '/app/parent/child': 'unified/index.html',
+  '/app/parent/sessions': 'unified/index.html',
+  '/app/parent/guidance': 'unified/index.html',
+  '/app/parent/policies': 'unified/index.html',
+  '/app/rm/dashboard': 'unified/index.html',
+  '/app/rm/trainers': 'unified/index.html',
+  '/app/rm/students': 'unified/index.html',
+  '/app/rm/penalties': 'unified/index.html',
+  '/app/rm/classes': 'unified/index.html',
+  '/founder-admin/overview': 'founder-admin/index.html',
+  '/founder-admin/policy': 'founder-admin/index.html',
+  '/founder-admin/mastery': 'founder-admin/index.html',
+  '/founder-admin/trainer-policy': 'founder-admin/index.html',
+  '/founder-admin/money': 'founder-admin/index.html',
+  '/founder-admin/announcements': 'founder-admin/index.html',
+  '/founder-admin/trainer-admin': 'founder-admin/index.html',
+  '/founder-admin/student-admin': 'founder-admin/index.html',
+  '/founder-admin/audit': 'founder-admin/index.html'
 };
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,
   index: 'index.html'
+});
+
+/* The founder desk is deliberately outside the unified app. It is served from
+   the reviewed founder assets under a separate gated entry: a short-lived
+   HttpOnly cookie set only after a verified founder sign-in. API RBAC still
+   authorizes every founder operation independently. */
+function readCookies(req) {
+  const result = {};
+  String(req.headers.cookie || '').split(';').forEach(function (part) {
+    const index = part.indexOf('=');
+    if (index === -1) return;
+    const key = part.slice(0, index).trim();
+    if (key) result[key] = part.slice(index + 1).trim();
+  });
+  return result;
+}
+
+async function requireFounderDesktop(req, res, next) {
+  const payload = tokenService.verify(readCookies(req).mathify_founder_gate, 'access');
+  if (!payload || payload.role !== 'founder') {
+    return res.status(403).json({
+      error: 'FOUNDER_DESK_REQUIRED',
+      message: 'Sign in as the founder to open the admin application.'
+    });
+  }
+  try {
+    const user = await db.findUserById(payload.sub);
+    if (!user || user.role !== 'founder' || user.status !== 'active' ||
+      Number(payload.ver || 0) !== Number(user.tokenVersion || 0)) {
+      return res.status(403).json({
+        error: 'FOUNDER_DESK_REQUIRED',
+        message: 'Sign in as the founder to open the admin application.'
+      });
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+const founderAdminFiles = new Set([
+  'app.js', 'announcements.js', 'adminDesk.js', 'founder.css', 'announcements.css'
+]);
+
+app.get(/^\/founder-admin(?:\/(.*))?$/, requireFounderDesktop, function (req, res, next) {
+  const requested = String(req.params[0] || '').replace(/^\/+/, '');
+  if (!requested || requested === 'index.html') {
+    return res.sendFile(path.join(webRoot, 'founder-admin', 'index.html'));
+  }
+  const file = path.basename(requested);
+  if (requested.indexOf('/') === -1 && founderAdminFiles.has(file)) {
+    return res.sendFile(path.join(webRoot, 'founder', file));
+  }
+  return next();
 });
 
 app.use(function (req, res, next) {

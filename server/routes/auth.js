@@ -127,8 +127,21 @@ router.post('/login', async function (req, res, next) {
       });
     }
 
+    const accessToken = tokenService.sign(user);
+    /* The founder admin app has a server-side static gate as well as API RBAC.
+       A short-lived HttpOnly cookie carries only that verified founder session;
+       browser localStorage remains the source for ordinary desk tokens. */
+    if (user.role === 'founder') {
+      res.cookie('mathify_founder_gate', accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.isProduction,
+        path: '/',
+        maxAge: tokenService.ttlSeconds * 1000
+      });
+    }
     return res.json({
-      token: tokenService.sign(user),
+      token: accessToken,
       /* The refresh token lets a desk silently renew its access token after a
          long break instead of dropping the family back to the sign-in page. */
       refreshToken: tokenService.signRefresh(user),
@@ -162,8 +175,18 @@ router.post('/refresh', async function (req, res, next) {
     if (user.role !== payload.role && !sharedLoginPair(user.role, payload.role)) {
       return res.status(403).json({ error: 'ROLE_DENIED', message: 'Those credentials cannot open this desk.' });
     }
+    const accessToken = tokenService.sign(user);
+    if (user.role === 'founder') {
+      res.cookie('mathify_founder_gate', accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.isProduction,
+        path: '/',
+        maxAge: tokenService.ttlSeconds * 1000
+      });
+    }
     return res.json({
-      token: tokenService.sign(user),
+      token: accessToken,
       refreshToken: presented,
       rememberSeconds: tokenService.rememberTtlSeconds,
       user: auth.publicUser(user)

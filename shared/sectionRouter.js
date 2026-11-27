@@ -28,6 +28,18 @@
     '/founder/student-admin': { desk: 'Founder administration', label: 'Student administration', id: 'student-admin' },
     '/founder/audit': { desk: 'Founder administration', label: 'Manager activity', id: 'audit-log' },
 
+    /* The separate founder admin app keeps the same sections under its own
+       gated entry path so it never shares a bundle with the unified desk. */
+    '/founder-admin/overview': { desk: 'Founder admin', label: 'Overview', id: 'overview' },
+    '/founder-admin/policy': { desk: 'Founder admin', label: 'Class policy', id: 'policy' },
+    '/founder-admin/mastery': { desk: 'Founder admin', label: 'Mastery', id: 'mastery' },
+    '/founder-admin/trainer-policy': { desk: 'Founder admin', label: 'Trainer policy', id: 'trainer-policy' },
+    '/founder-admin/money': { desk: 'Founder admin', label: 'Money', id: 'money-readonly' },
+    '/founder-admin/announcements': { desk: 'Founder admin', label: 'Announcements', id: 'announcements' },
+    '/founder-admin/trainer-admin': { desk: 'Founder admin', label: 'Trainer administration', id: 'trainer-admin' },
+    '/founder-admin/student-admin': { desk: 'Founder admin', label: 'Student administration', id: 'student-admin' },
+    '/founder-admin/audit': { desk: 'Founder admin', label: 'Manager activity', id: 'audit-log' },
+
     '/rm/dashboard': { desk: 'Relationship manager', label: 'Dashboard', id: 'dashboard' },
     '/rm/trainers': { desk: 'Relationship manager', label: 'Trainers', id: 'rm-trainers' },
     '/rm/students': { desk: 'Relationship manager', label: 'Students', id: 'rm-students' },
