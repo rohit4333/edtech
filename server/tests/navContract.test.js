@@ -293,6 +293,31 @@ ok(rmScript.indexOf("request('/admin/people/' + encodeURIComponent(id) + '/passw
 ok(rmScript.indexOf('trainersNeedingAction') !== -1,
   'manager desk tracks trainers still awaiting manager action');
 
+/* Staff registration and KYC are role-neutral. The public page uses one form
+   for trainer and manager, and the two onboarding desks expose the same field
+   contract; only the signed-in role changes. */
+const registerHtml = read('register.html');
+['value="trainer"', 'value="relationship_manager"'].forEach(function (option) {
+  ok(registerHtml.indexOf(option) !== -1, 'registration offers ' + option);
+});
+function onboardingIds(html) {
+  const start = html.indexOf('id="onboardingForm"');
+  const form = html.slice(start, html.indexOf('</form>', start));
+  const found = [];
+  const pattern = /<(?:input|textarea)\b[^>]*\bid="([^"]+)"/g;
+  let match = pattern.exec(form);
+  while (match) { found.push(match[1]); match = pattern.exec(form); }
+  return found;
+}
+const trainerIds = onboardingIds(read('trainer/index.html'));
+const managerIds = onboardingIds(rmHtml);
+ok(trainerIds.length && trainerIds.join(',') === managerIds.join(','),
+  'trainer and manager onboarding desks collect exactly the same fields');
+ok(['kycAadhaarFrontImage', 'kycAadhaarRearImage', 'kycPanFrontImage',
+  'kycPanRearImage', 'kycSignatureImage'].every(function (id) {
+  return trainerIds.indexOf(id) !== -1 && managerIds.indexOf(id) !== -1;
+}), 'trainer and manager require the same identity documents');
+
 /* The planner agent desk keeps the shared brand mark, a relative sign-out and
    an explicit founder-review boundary, and its assets are statically served. */
 const plannerAgentHtml = read('planner-agent/index.html');

@@ -90,6 +90,27 @@
             </div>
           </fieldset>
           <fieldset>
+            <legend>Profile shown to families <span>only these details are shared</span></legend>
+            <div class="onboarding-grid">
+              <label>Name shown to families
+                <input id="kycPublicName" name="publicName" maxlength="120" placeholder="Your teaching name">
+              </label>
+              <label>Years of experience
+                <input id="kycYearsExperience" name="yearsExperience" type="number" min="0" max="60" inputmode="numeric">
+              </label>
+              <label class="wide">Degrees &amp; qualifications
+                <textarea id="kycDegrees" name="degrees" rows="2" placeholder="B.Sc. Mathematics, M.Ed."></textarea>
+              </label>
+              <label class="wide">Achievements
+                <textarea id="kycAchievements" name="achievements" rows="3" placeholder="Award, publication or competition result"></textarea>
+              </label>
+              <label class="wide">Profile picture <span class="optional">optional</span>
+                <input id="kycProfilePicture" name="profilePicture" type="file" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <input type="hidden" id="kycProfilePictureData" name="profilePictureData">
+            </div>
+          </fieldset>
+          <fieldset>
             <legend>Bank details <span>you can edit these</span></legend>
             <div class="onboarding-grid">
               <label>Account holder name<input id="kycAccountHolder" name="accountHolderName"></label>

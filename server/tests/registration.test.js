@@ -72,7 +72,12 @@ async function main() {
     role: 'relationship_manager', name: 'Registered Manager', email: managerEmail, password: secret
   });
   equal(manager.user.role, RM_ROLE, 'a relationship manager can self-register');
-  equal(manager.user.status, 'pending', 'a self-registered manager waits for founder authorisation');
+  equal(manager.user.status, trainer.user.status,
+    'trainer and manager registration share the same pending status');
+  equal(manager.note, trainer.note,
+    'trainer and manager registration share the same KYC and approval instruction');
+  equal(manager.next, '/login.html?role=relationship_manager',
+    'manager registration keeps the verified role in its sign-in hint');
 
   await rejects(registration.register({
     role: 'founder', name: 'Fake Founder', email: unique('founder') + '@mathify.test', password: secret

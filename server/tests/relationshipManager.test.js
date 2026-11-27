@@ -84,7 +84,29 @@ async function main() {
     'RM_SALARY_LOCKED', 'a manager cannot set a salary');
 
   const pending = await createTrainer('Pending Trainer', 'pending');
-  await onboarding.submit(pending.id, KYC, 'trainer');
+  const trainerKyc = await onboarding.submit(pending.id, KYC, 'trainer');
+
+  /* A relationship manager registers and completes KYC through the same
+     service, with the same document set, lock rules and editable sections. */
+  const pendingManager = await db.insertUser({
+    id: unique('usr_rmself'), name: 'Pending Manager', email: unique('rmself') + '@mathify.test',
+    role: RM, status: 'pending', createdAt: new Date().toISOString()
+  });
+  const managerKyc = await onboarding.submit(pendingManager.id, KYC, RM);
+  equal(managerKyc.status, trainerKyc.status,
+    'manager and trainer KYC records enter the same review state');
+  equal(Object.keys(managerKyc.locked).sort().join(','),
+    Object.keys(trainerKyc.locked).sort().join(','),
+    'manager and trainer KYC lock the same identity and document fields');
+  equal(managerKyc.editable.join(','), trainerKyc.editable.join(','),
+    'manager and trainer KYC expose the same editable sections');
+  equal(managerKyc.documents.aadhaar.number, trainerKyc.documents.aadhaar.number,
+    'manager and trainer require the same Aadhaar card data');
+  equal(managerKyc.documents.pan.number, trainerKyc.documents.pan.number,
+    'manager and trainer require the same PAN card data');
+  ok(Boolean(managerKyc.documents.signature.image && trainerKyc.documents.signature.image),
+    'manager and trainer require the same signature document');
+
   const granted = await founderAdmin.grantAccess(pending.id, 'usr_rm_001', RM);
   equal(granted.person.status, 'active', 'a manager can grant a KYC-verified pending trainer');
   equal(granted.person.accessGrantedByRole, RM, 'the grant records the manager as actor role');
