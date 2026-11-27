@@ -35,6 +35,21 @@
   var inkPanel = document.getElementById('fullBoardInkPanel');
   var toolPalette = overlay.querySelector('.full-board-tools');
   var toolHandle = document.getElementById('fullBoardToolHandle');
+  var topRow = document.querySelector('.top .top-r');
+  var paletteHome = toolPalette && toolPalette.parentNode;
+
+  /* Both decks are one surface. The editing tools live inside the session deck
+     in either orientation; only the deck's axis and density change. */
+  function mountPalette() {
+    if (!toolPalette || !topRow) return;
+    toolPalette.classList.add('top-merged');
+    if (toolPalette.parentNode !== topRow) topRow.insertBefore(toolPalette, shareBtn || null);
+  }
+  function unmountPalette() {
+    if (!toolPalette) return;
+    toolPalette.classList.remove('top-merged');
+    if (paletteHome && toolPalette.parentNode !== paletteHome) paletteHome.appendChild(toolPalette);
+  }
 
   var params = new URLSearchParams(window.location.search);
   var client = window.mathifyClassroomApi || {};
@@ -743,16 +758,16 @@
   canvas.addEventListener('pointercancel', finish);
 
   function closeToolGroups() {
-    overlay.querySelectorAll('[data-group-menu]').forEach(function (menu) {
+    toolPalette.querySelectorAll('[data-group-menu]').forEach(function (menu) {
       menu.hidden = true;
     });
-    overlay.querySelectorAll('[data-tool-group]').forEach(function (button) {
+    toolPalette.querySelectorAll('[data-tool-group]').forEach(function (button) {
       button.setAttribute('aria-expanded', 'false');
     });
   }
 
   function setTool(name) {
-    var button = overlay.querySelector('[data-board-tool="' + name + '"]');
+    var button = toolPalette.querySelector('[data-board-tool="' + name + '"]');
     if (!button) return;
     closeToolGroups();
     /* Colour and thickness belong to the pen/highlighter only, so they live in
@@ -765,10 +780,10 @@
     canvas.style.cursor = '';
     overlay.classList.toggle('tool-hand', tool === 'hand');
     overlay.classList.toggle('tool-select', tool === 'select');
-    overlay.querySelectorAll('[data-board-tool]').forEach(function (item) {
+    toolPalette.querySelectorAll('[data-board-tool]').forEach(function (item) {
       item.setAttribute('aria-pressed', String(item === button));
     });
-    overlay.querySelectorAll('[data-tool-group]').forEach(function (groupButton) {
+    toolPalette.querySelectorAll('[data-tool-group]').forEach(function (groupButton) {
       var group = groupButton.getAttribute('data-tool-group');
       var active = group === 'shapes'
         ? SHAPE_TOOLS.indexOf(tool) !== -1
@@ -779,16 +794,16 @@
     redraw();
   }
 
-  overlay.querySelectorAll('[data-board-tool]').forEach(function (button) {
+  toolPalette.querySelectorAll('[data-board-tool]').forEach(function (button) {
     button.addEventListener('click', function () {
       setTool(button.getAttribute('data-board-tool'));
     });
   });
-  overlay.querySelectorAll('[data-tool-group]').forEach(function (button) {
+  toolPalette.querySelectorAll('[data-tool-group]').forEach(function (button) {
     button.addEventListener('click', function (event) {
       event.stopPropagation();
       var group = button.getAttribute('data-tool-group');
-      var menu = overlay.querySelector('[data-group-menu="' + group + '"]');
+      var menu = toolPalette.querySelector('[data-group-menu="' + group + '"]');
       if (!menu) return;
       var wasOpen = !menu.hidden;
       closeToolGroups();
@@ -798,30 +813,31 @@
       }
     });
   });
-  overlay.querySelectorAll('[data-board-color]').forEach(function (button) {
+  toolPalette.querySelectorAll('[data-board-color]').forEach(function (button) {
     button.addEventListener('click', function () {
       color = button.getAttribute('data-board-color');
-      overlay.querySelectorAll('[data-board-color]').forEach(function (item) {
+      toolPalette.querySelectorAll('[data-board-color]').forEach(function (item) {
         item.setAttribute('aria-pressed', String(item === button));
       });
     });
   });
-  overlay.querySelectorAll('[data-board-weight]').forEach(function (button) {
+  toolPalette.querySelectorAll('[data-board-weight]').forEach(function (button) {
     button.addEventListener('click', function () {
       weight = button.getAttribute('data-board-weight');
-      overlay.querySelectorAll('[data-board-weight]').forEach(function (item) {
+      toolPalette.querySelectorAll('[data-board-weight]').forEach(function (item) {
         item.setAttribute('aria-pressed', String(item === button));
       });
       say('Stroke thickness set to ' + weight + '.');
     });
   });
 
-  /* The dock starts at the top and toggles to the left edge and back. Right
+  /* The merged deck starts at the top and converts to a slim left rail. Right
      and bottom edges are deliberately not offered. */
   var dockEdge = 'top';
   function setDockEdge(edge) {
     if (!toolPalette || (edge !== 'top' && edge !== 'left')) return;
     dockEdge = edge;
+    document.body.classList.toggle('board-dock-left', edge === 'left');
     toolPalette.classList.toggle('dock-top', edge === 'top');
     toolPalette.classList.toggle('dock-left', edge === 'left');
     toolPalette.style.left = '';
@@ -833,10 +849,10 @@
     if (dockToggle) {
       dockToggle.setAttribute('aria-pressed', String(edge === 'left'));
       dockToggle.setAttribute('aria-label',
-        edge === 'top' ? 'Move tool dock to left edge' : 'Move tool dock to top edge');
-      dockToggle.title = edge === 'top' ? 'Dock: top · click for left' : 'Dock: left · click for top';
+        edge === 'top' ? 'Move session deck to left edge' : 'Move session deck to top edge');
+      dockToggle.title = edge === 'top' ? 'Deck: top · click for left' : 'Deck: left · click for top';
     }
-    say('Tool dock moved to the ' + edge + ' edge.');
+    say('Session deck moved to the ' + edge + ' edge.');
   }
   if (dockToggle) {
     dockToggle.addEventListener('click', function () {
@@ -848,7 +864,8 @@
      board. Pointer capture keeps the drag alive when the cursor leaves it. */
   var paletteDrag = null;
   function clampPalette() {
-    if (!toolPalette || overlay.hidden || !toolPalette.style.left || !toolPalette.style.top) return;
+    if (!toolPalette || overlay.hidden || toolPalette.classList.contains('top-merged') ||
+        !toolPalette.style.left || !toolPalette.style.top) return;
     var bounds = overlay.getBoundingClientRect();
     var size = toolPalette.getBoundingClientRect();
     var x = Math.min(Math.max(0, parseFloat(toolPalette.style.left) || 0),
@@ -860,7 +877,7 @@
   }
   if (toolPalette) {
     toolPalette.addEventListener('pointerdown', function (event) {
-      if (!trainer || overlay.hidden || event.button !== 0) return;
+      if (!trainer || overlay.hidden || toolPalette.classList.contains('top-merged') || event.button !== 0) return;
       if (event.target !== toolPalette && event.target !== toolHandle &&
           !(toolHandle && toolHandle.contains(event.target))) return;
       var size = toolPalette.getBoundingClientRect();
@@ -1200,6 +1217,8 @@
     overlay.classList.add('full');
     document.body.classList.add('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    mountPalette();
+    setDockEdge(dockEdge);
     setTool(tool);
     if (requestAnimationFrame) requestAnimationFrame(function () { fit(); clampPalette(); });
     else { fit(); clampPalette(); }
@@ -1213,7 +1232,8 @@
        a hidden whiteboard and their session desk never comes back. */
     if (trainer && sharing) setSharing(false, false);
     overlay.hidden = true;
-    document.body.classList.remove('board-open');
+    document.body.classList.remove('board-open', 'board-dock-left');
+    unmountPalette();
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
   }

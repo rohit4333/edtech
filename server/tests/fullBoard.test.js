@@ -215,15 +215,23 @@ async function main() {
     'the pointer relay is loaded on the verified classroom page');
 
     const fullBoardJs = readAsset('shared/fullBoard.js');
-    ok(/\.full-board-tools\.dock-top\{[^}]*top:16px[^}]*flex-direction:row/.test(fullBoardCss) &&
+    ok(/\.full-board-tools\.dock-top\{[^}]*top:44px[^}]*flex-direction:row/.test(fullBoardCss) &&
       /\.full-board-tools\.dock-left\{[^}]*left:16px[^}]*flex-direction:column/.test(fullBoardCss) &&
       /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss),
     'the canvas fills the viewport while the tools dock horizontally at the top by default');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
+      fullBoardCss.indexOf('position:fixed;top:0;right:0;bottom:auto;left:0;z-index:215') !== -1 &&
+      fullBoardCss.indexOf('width:100%;max-width:none;min-height:0;height:34px') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .top-r{margin-left:0;gap:6px;flex:1;min-width:0;overflow:visible}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .rec{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #fullBoardShare{margin-left:auto}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #fullBoardFullscreen{margin-right:0}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top-r .full-board-tools{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .net-meter{width:22px;height:26px;border-right:0}') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .brand') !== -1 &&
       fullBoardCss.indexOf('body.board-open .call-pip') !== -1 &&
       fullBoardCss.indexOf('body.board-open .engagement-bar') !== -1,
-    'session links, camera and reactions float above the board for both roles');
+    'the trainer deck spans the full width in a 34px strip with compact controls, camera and reactions');
     const topStart = classroom.indexOf('<header class="top">');
     const topEnd = classroom.indexOf('</header>', topStart);
     const upperDeck = classroom.slice(topStart, topEnd);
@@ -244,6 +252,16 @@ async function main() {
     ok(fullBoardCss.indexOf('.top .btn svg,\n.top .full-board-toggle svg{display:none}') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .board-action-label') !== -1,
     'the session desk keeps readable labels while the board uses compact labels');
+    ok(fullBoardCss.indexOf('.full-board-tools button[aria-pressed="true"]{\n  background:var(--tool,var(--ink))') !== -1 &&
+      fullBoardCss.indexOf('[data-board-tool="select"]{--tool:#7C3AED}') !== -1 &&
+      fullBoardCss.indexOf('[data-board-tool="pen"]{--tool:#FF5B2E}') !== -1 &&
+      fullBoardCss.indexOf('[data-board-tool="highlighter"]{--tool:#D97706}') !== -1 &&
+      fullBoardCss.indexOf('[data-board-tool="laser"]{--tool:#E11D48}') !== -1 &&
+      fullBoardCss.indexOf('[data-tool-group="shapes"]{--tool:#2563EB}') !== -1 &&
+      fullBoardCss.indexOf('[data-tool-group="lines"]{--tool:#4F46E5}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #fullBoardFullscreen{color:#E11D48}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #peopleBtn .av{background:#4F46E5}') !== -1,
+    'board tools and deck icons use refined semantic colours with tinted active states');
     ok(fullBoardCss.indexOf('body.board-open .top .back') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .full-board-toggle') !== -1,
     'the redundant back and board-toggle links are hidden on the board');
@@ -274,13 +292,20 @@ async function main() {
       fullBoardJs.indexOf('for (var i = 0; i < last; i += 1)') !== -1,
     'the marker is replaced by a highlighter and a laser pen that fades from the tail');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
-      fullBoardCss.indexOf('bottom:12px;left:auto;z-index:215') !== -1 &&
-      fullBoardCss.indexOf('.full-board-tools.dock-top{') !== -1 &&
-      fullBoardCss.indexOf('.full-board-tools.dock-left{') !== -1 &&
+      fullBoardCss.indexOf('top:0;right:0;bottom:auto;left:0;z-index:215') !== -1 &&
+      fullBoardCss.indexOf('height:34px') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top-r .full-board-tools{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open.board-dock-left .top{') !== -1 &&
+      fullBoardCss.indexOf('width:52px;height:auto;max-height:100vh') !== -1 &&
+      fullBoardCss.indexOf('body.board-open.board-dock-left .top .board-zoom-value,') !== -1 &&
       fullBoardCss.indexOf('dock-right') === -1 &&
       fullBoardCss.indexOf('dock-bottom') === -1 &&
-      fullBoardCss.indexOf('bottom:76px;z-index:225') !== -1,
-    'board controls sit lower-right and the palette docks only at top or left');
+      fullBoardCss.indexOf('bottom:76px;z-index:225') !== -1 &&
+      fullBoardJs.indexOf("document.body.classList.toggle('board-dock-left'") !== -1 &&
+      fullBoardJs.indexOf('function mountPalette') !== -1 &&
+      fullBoardJs.indexOf('topRow.insertBefore(toolPalette, shareBtn || null)') !== -1 &&
+      fullBoardJs.indexOf('unmountPalette()') !== -1,
+    'the session deck and editing tools share one surface that converts between a top strip and an icon-only left rail');
     [
       'ink', 'coral', 'teal', 'amber', 'blue', 'violet',
       'green', 'pink', 'orange', 'slate'
@@ -366,7 +391,7 @@ async function main() {
       topR.indexOf('id="peopleBtn"') < topR.indexOf('id="netMeter"'),
     'the deck keeps REC, Share/Close, session details and network meter in order');
     ok(fullBoardJs.indexOf("document.body.classList.add('board-open')") !== -1 &&
-      fullBoardJs.indexOf("document.body.classList.remove('board-open')") !== -1,
+      fullBoardJs.indexOf("document.body.classList.remove('board-open', 'board-dock-left')") !== -1,
     'opening and closing the board toggles the clean session layout');
     ok(fullBoardJs.indexOf("if (!document.fullscreenElement && !overlay.hidden) close();") !== -1,
     'native full-screen exit closes the board for trainer and student');
