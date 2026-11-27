@@ -26,6 +26,7 @@
       window.localStorage.removeItem(TOKEN_KEY);
       window.localStorage.removeItem(CLASSROOM_TOKEN_KEY);
     } catch (e) { /* private mode */ }
+    if (window.MathifySession) window.MathifySession.clear(ROLE);
   }
 
   function logout() {
@@ -58,13 +59,28 @@
     });
   }
 
+  /* An expired access token is renewed from the remembered sign-in instead of
+     dropping the child to the login page. A 403 (for example a completed demo
+     asking for class content) is surfaced to the UI, not treated as logout. */
+  function retryWithRefresh(path, opts, error) {
+    if (error.status !== 401) throw error;
+    if (!window.MathifySession) return Promise.reject(requireLogin());
+    return window.MathifySession.refresh(ROLE).then(function (fresh) {
+      if (!fresh) return Promise.reject(requireLogin());
+      writeToken(fresh);
+      return rawRequest(path, opts, fresh).catch(function (again) {
+        if (again.status === 401) return Promise.reject(requireLogin());
+        throw again;
+      });
+    });
+  }
+
   function request(path, options) {
     var opts = options || {};
     if (opts.skipAuth) return rawRequest(path, opts, null);
     return ensureAuth().then(function (tokenValue) {
       return rawRequest(path, opts, tokenValue).catch(function (error) {
-        if (error.status === 401 || error.status === 403) return Promise.reject(requireLogin());
-        throw error;
+        return retryWithRefresh(path, opts, error);
       });
     });
   }
@@ -76,6 +92,9 @@
       body: { email: email, password: password }
     }).then(function (data) {
       writeToken(data.token);
+      if (data.refreshToken && window.MathifySession) {
+        window.MathifySession.store(ROLE, data.refreshToken, data.token);
+      }
       return data;
     });
   }

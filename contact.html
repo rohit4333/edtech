@@ -53,15 +53,29 @@
       </article>
 
       <form class="form-card" id="bookingForm" novalidate>
-        <p class="field"><label for="name">Name</label><input id="name" name="name" type="text" autocomplete="name" required></p>
-        <p class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></p>
-        <p class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" autocomplete="tel"></p>
+        <p class="field"><label for="parentName">Parent / guardian name</label><input id="parentName" name="parentName" type="text" autocomplete="name" required></p>
+        <p class="field"><label for="childName">Child's name</label><input id="childName" name="childName" type="text" required></p>
+        <p class="field"><label for="bookingCurriculum">Child's school curriculum</label><select id="bookingCurriculum" name="curriculum" required><option value="">Select a curriculum</option></select></p>
+        <p class="field"><label for="bookingGrade">Grade in that curriculum</label><select id="bookingGrade" name="grade" required><option value="">Choose a curriculum first</option></select></p>
+        <p class="field"><label for="email">Email ID</label><input id="email" name="email" type="email" autocomplete="email" required></p>
+        <p class="field"><label for="phone">Mobile number</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></p>
+        <input id="bookingTimezone" name="timezone" type="hidden">
         <p class="field"><label for="message">Message</label><textarea id="message" name="message" required></textarea></p>
         <p class="contact-note">No payment is taken here. We contact you to confirm the 1-on-1 demo first.</p>
         <button class="btn" type="submit">Book Demo
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
         <p class="booking-status" id="bookingStatus" role="status" aria-live="polite"></p>
+        <div class="booking-credentials" id="bookingCredentials" hidden>
+          <div><span class="mono">Demo ID</span><b id="bookingDemoId">—</b></div>
+          <div><span class="mono">Login email</span><b id="bookingEmail">—</b></div>
+          <div><span class="mono">Shared password</span><b id="bookingPassword">—</b></div>
+          <p class="credential-note">Use this one password for both the child and parent desks. Keep it — it stays your login until you change it yourself in Profile → Password. <b>Check your email for more details.</b></p>
+          <div class="credential-links" id="credentialLinks" hidden>
+            <a id="childDeskLink" href="/student/home">Open child desk</a>
+            <a id="parentDeskLink" href="/parent/index.html">Open parent desk</a>
+          </div>
+        </div>
       </form>
     </div>
   </section>
@@ -82,6 +96,7 @@
 </footer>
 
 <script src="shared/public-nav.js" defer></script>
+<script src="shared/curriculumOptions.js" defer></script>
 <script src="shared/contact-form.js" defer></script>
 </body>
 </html>

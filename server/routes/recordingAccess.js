@@ -17,6 +17,7 @@ const throttle = rateLimit.createLimiter({
 });
 router.use(throttle);
 router.use(auth.requireAuth);
+router.use(auth.requireClassAccess);
 
 function isReady(recording) {
   return Boolean(recording && recording.objectKey && recording.status === 'stopped');

@@ -469,7 +469,38 @@
     });
   }
 
+  /* Demo requests are visible to both operating roles. A generated password
+     appears here exactly once and is never written back into the DOM table. */
+  function loadDemos() {
+    return request('/admin/demos').then(function (data) {
+      var body = byId('demoAdminRows');
+      if (!body) return;
+      body.textContent = '';
+      var rows = (data && data.demos) || [];
+      if (!rows.length) {
+        var empty = node('tr', null, null);
+        empty.appendChild(node('td', null, 'No demo requests yet.'));
+        empty.firstChild.colSpan = 5;
+        body.appendChild(empty);
+        return;
+      }
+      rows.forEach(function (demo) {
+        var row = node('tr', null, null);
+        [demo.demoId, demo.childName, (demo.curriculum || '—') + ' · ' + (demo.grade || '—'),
+          demo.trainerName || 'Pending assignment'
+        ].forEach(function (value) { row.appendChild(node('td', null, value)); });
+        var action = node('td', null, demo.credentialsIssued
+          ? 'Sent at booking · family-owned' : 'Pending booking');
+        row.appendChild(action);
+        body.appendChild(row);
+      });
+    }).catch(function (error) {
+      say(byId('demoAdminStatus'), error.message || 'Demo requests could not be loaded.', 'error');
+    });
+  }
+
   bind();
   loadPeople();
   loadAuditLog();
+  loadDemos();
 }());

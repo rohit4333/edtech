@@ -795,6 +795,21 @@ body {
 .booking-success h3 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -.035em; }
 .booking-success p { margin: 10px auto 0; max-width: 38ch; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .success-ref { font-family: var(--mono); font-size: 9px !important; letter-spacing: .08em; color: var(--faint) !important; }
+.booking-credentials {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(11, 163, 155, .05);
+  text-align: left;
+}
+.booking-credentials > div { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+.booking-credentials .mono { font-size: 9px; letter-spacing: .08em; color: var(--faint); }
+.booking-credentials b { font-size: 13px; overflow-wrap: anywhere; }
+.booking-credentials .credential-note { margin: 12px 0 0; font-size: 11px; line-height: 1.6; }
+.booking-credentials .credential-note b { font-size: 11px; color: var(--teal-ink); }
+.credential-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+.credential-links a { font-size: 11px; color: var(--teal-ink); border-bottom: 1px solid currentColor; }
 .booking-success .btn { margin-top: 22px; width: 100%; border-radius: 10px; }
 .text-button { margin-top: 16px; border-bottom: 1px solid var(--line); padding-bottom: 2px; color: var(--muted); font-size: 11px; cursor: pointer; }
 .text-button:hover { color: var(--ink); border-color: var(--ink); }

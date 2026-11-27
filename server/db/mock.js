@@ -328,6 +328,9 @@ const whatsappMessages = [];
 const supportEscalations = [];
 const leaveRequests = [];
 const contactRequests = [];
+/* Demo lifecycle notices are service-only parent inbox rows. They carry safe
+   display copy only: no password, no contact detail, no other child's data. */
+const parentNotifications = [];
 /* Cron delivery claims stay in-memory in mock mode; live mode uses the
    service-only reminder_claim records from db/supabase.js. */
 const reminderClaims = new Map();
@@ -341,6 +344,11 @@ const reactions = [];
 const parentChatMessages = [];
 const parentChatFlags = [];
 const parentChatReads = [];
+/* Immutable early-years planner generations and their version pointers. The
+   pointer is the only mutable record; generated JSON is never overwritten. */
+const weeklyPlannerCache = [];
+const weeklyPlannerArchive = [];
+const weeklyPlannerPointers = [];
 /* Academic-only curriculum profile. Mirrors public.student_curriculum from
    migrations/0002_student_curriculum.sql; no contact or identity fields. */
 const studentCurriculum = [
@@ -432,6 +440,7 @@ module.exports = {
   supportEscalations: supportEscalations,
   leaveRequests: leaveRequests,
   contactRequests: contactRequests,
+  parentNotifications: parentNotifications,
   reminderClaims: reminderClaims,
   presenceEvents: presenceEvents,
   presenceSnapshots: presenceSnapshots,
@@ -439,6 +448,9 @@ module.exports = {
   parentChatMessages: parentChatMessages,
   parentChatFlags: parentChatFlags,
   parentChatReads: parentChatReads,
+  weeklyPlannerCache: weeklyPlannerCache,
+  weeklyPlannerArchive: weeklyPlannerArchive,
+  weeklyPlannerPointers: weeklyPlannerPointers,
   studentCurriculum: studentCurriculum,
   trainerSlots: trainerSlots,
   batches: batches,

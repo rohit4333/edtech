@@ -470,7 +470,34 @@
     });
   }
 
+  function loadDemoRequests() {
+    return request('/admin/demos').then(function (data) {
+      var body = byId('rmDemoRows');
+      if (!body) return;
+      body.textContent = '';
+      var rows = (data && data.demos) || [];
+      if (!rows.length) {
+        var empty = node('tr', null, null);
+        empty.appendChild(node('td', null, 'No demo requests yet.')).colSpan = 5;
+        body.appendChild(empty);
+        return;
+      }
+      rows.forEach(function (demo) {
+        var row = node('tr', null, null);
+        [demo.demoId, demo.childName, (demo.curriculum || '—') + ' · ' + (demo.grade || '—'),
+          demo.trainerName || 'Pending assignment'
+        ].forEach(function (value) { row.appendChild(node('td', null, value)); });
+        row.appendChild(node('td', null, demo.credentialsIssued
+          ? 'Sent at booking · family-owned' : 'Pending booking'));
+        body.appendChild(row);
+      });
+    }).catch(function (error) {
+      say(byId('rmDemoStatus'), error.message || 'Demo requests could not be loaded.', 'error');
+    });
+  }
+
   if (!token()) requireLogin();
   bind();
   loadDashboard().then(loadPeople);
+  loadDemoRequests();
 }());

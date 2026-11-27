@@ -27,7 +27,9 @@ function findUserByEmail(email, roleHint) {
     const names = Array.isArray(user.loginAliases) ? user.loginAliases : [];
     return names.some(function (alias) { return String(alias).toLowerCase() === normalized; });
   });
-  const exact = store.users.find(function (user) { return user.email.toLowerCase() === normalized; });
+  const exact = store.users.find(function (user) {
+    return String(user.email || '').toLowerCase() === normalized;
+  });
   if (exact && (!roleHint || exact.role === roleHint)) return copy(exact);
   if (roleHint) {
     const preferred = aliases.find(function (user) { return user.role === roleHint; });
@@ -343,6 +345,13 @@ function findPasswordReset(tokenHash) {
   return found ? copy(found) : null;
 }
 
+function findPasswordResetByOtpHash(otpHash) {
+  const found = (store.passwordResets || []).find(function (row) {
+    return row.otpHash === otpHash;
+  });
+  return found ? copy(found) : null;
+}
+
 function savePasswordReset(record) {
   const key = String(record.tokenHash || '');
   const list = store.passwordResets || (store.passwordResets = []);
@@ -445,6 +454,62 @@ function deleteTrainerSlot(trainerId, slotId) {
 function recordContactRequest(request) {
   store.contactRequests.push(copy(request));
   return copy(request);
+}
+
+function findContactRequest(id) {
+  const found = store.contactRequests.find(function (row) { return row.id === id; });
+  return found ? copy(found) : null;
+}
+
+function findContactRequestForStudent(studentId) {
+  const found = store.contactRequests.find(function (row) { return row.studentId === studentId; });
+  return found ? copy(found) : null;
+}
+
+function listContactRequests(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit || 50)));
+  const rows = store.contactRequests.slice().sort(function (left, right) {
+    return String(right.receivedAt || '').localeCompare(String(left.receivedAt || ''));
+  });
+  return copy(rows.slice(0, size));
+}
+
+function updateContactRequest(id, patch) {
+  const found = store.contactRequests.find(function (row) { return row.id === id; });
+  if (!found) return null;
+  Object.assign(found, copy(patch) || {});
+  return copy(found);
+}
+
+/* Parent inbox. Every row is filtered by the server-derived child link. */
+function insertParentNotification(record) {
+  const stored = Object.assign({
+    id: 'pn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    createdAt: new Date().toISOString(),
+    readAt: null
+  }, copy(record) || {});
+  store.parentNotifications.push(stored);
+  return copy(stored);
+}
+
+function findParentNotification(id) {
+  const found = store.parentNotifications.find(function (row) { return row.id === id; });
+  return found ? copy(found) : null;
+}
+
+function listParentNotifications(childId) {
+  const rows = store.parentNotifications.filter(function (row) { return row.childId === childId; });
+  rows.sort(function (left, right) {
+    return String(right.createdAt || '').localeCompare(String(left.createdAt || ''));
+  });
+  return copy(rows);
+}
+
+function updateParentNotification(id, patch) {
+  const found = store.parentNotifications.find(function (row) { return row.id === id; });
+  if (!found) return null;
+  Object.assign(found, copy(patch) || {});
+  return copy(found);
 }
 
 /* Additional operations used by scheduling, reminders and the event outbox. */
@@ -715,6 +780,48 @@ function seedDemo() {
   return { users: store.users.length, sessions: store.sessions.length, mode: 'mock' };
 }
 
+/* ------------------------------------------------- early-years planner cache
+   Generated planner JSON is immutable: a key is claimed once and never
+   overwritten. Only the small version pointer moves when an admin regenerates. */
+function findWeeklyPlannerCache(cacheKey) {
+  const found = store.weeklyPlannerCache.find(function (item) { return item.cacheKey === cacheKey; });
+  return found ? copy(found) : null;
+}
+
+function insertWeeklyPlannerCache(record) {
+  const found = store.weeklyPlannerCache.find(function (item) { return item.cacheKey === record.cacheKey; });
+  if (found) return { claimed: false, record: copy(found) };
+  const stored = copy(record);
+  store.weeklyPlannerCache.push(stored);
+  return { claimed: true, record: copy(stored) };
+}
+
+function archiveWeeklyPlannerCache(record) {
+  const archiveKey = record.cacheKey + ':archived:' + String(record.archivedAt || new Date().toISOString());
+  const found = store.weeklyPlannerArchive.find(function (item) { return item.archiveKey === archiveKey; });
+  if (found) return { claimed: false, record: copy(found) };
+  const stored = copy(Object.assign({}, record, { archiveKey: archiveKey }));
+  store.weeklyPlannerArchive.push(stored);
+  return { claimed: true, record: copy(stored) };
+}
+
+function listWeeklyPlannerArchive() {
+  return copy(store.weeklyPlannerArchive);
+}
+
+function findWeeklyPlannerPointer(pointerKey) {
+  const found = store.weeklyPlannerPointers.find(function (item) { return item.pointerKey === pointerKey; });
+  return found ? copy(found) : null;
+}
+
+function saveWeeklyPlannerPointer(record) {
+  const stored = copy(record);
+  const index = store.weeklyPlannerPointers.findIndex(function (item) { return item.pointerKey === stored.pointerKey; });
+  if (index === -1) store.weeklyPlannerPointers.push(stored);
+  else store.weeklyPlannerPointers[index] = stored;
+  return copy(stored);
+}
+
 const mockApi = {
   listBatches,
   findBatch,
@@ -740,6 +847,14 @@ const mockApi = {
   listPracticeBatches,
   updatePracticeBatch,
   recordContactRequest,
+  findContactRequest,
+  findContactRequestForStudent,
+  listContactRequests,
+  updateContactRequest,
+  insertParentNotification,
+  findParentNotification,
+  listParentNotifications,
+  updateParentNotification,
   findUserByEmail,
   findUserById,
   insertUser,
@@ -778,6 +893,7 @@ const mockApi = {
   saveFounderPenalty,
   listFounderPenalties,
   findPasswordReset,
+  findPasswordResetByOtpHash,
   savePasswordReset,
   insertReaction,
   listReactions,
@@ -802,6 +918,12 @@ const mockApi = {
   insertParentChatFlag,
   findParentChatRead,
   saveParentChatRead,
+  findWeeklyPlannerCache,
+  insertWeeklyPlannerCache,
+  archiveWeeklyPlannerCache,
+  listWeeklyPlannerArchive,
+  findWeeklyPlannerPointer,
+  saveWeeklyPlannerPointer,
   seedDemo
 };
 

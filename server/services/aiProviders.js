@@ -107,10 +107,13 @@ async function callGemini(request) {
     });
   }
 
+  const generation = { max_output_tokens: Number(input.maxOutputTokens) || 2048 };
+  if (Number.isFinite(input.temperature)) generation.temperature = input.temperature;
+  if (Number.isFinite(input.seed)) generation.seed = Math.trunc(input.seed);
   const body = {
     model: current.model,
     input: content,
-    generation_config: { max_output_tokens: Number(input.maxOutputTokens) || 2048 }
+    generation_config: generation
   };
   if (input.system) body.system_instruction = String(input.system);
 
@@ -154,7 +157,8 @@ async function callGroq(request) {
     body: JSON.stringify({
       model: current.model,
       messages: messages,
-      temperature: 0.2,
+      temperature: Number.isFinite(input.temperature) ? input.temperature : 0.2,
+      seed: Number.isFinite(input.seed) ? Math.trunc(input.seed) : undefined,
       max_tokens: Number(input.maxOutputTokens) || 2048
     })
   }, current.timeoutMs, 'Groq');

@@ -12,6 +12,9 @@ const SESSION_USER_KEYS = [
   'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
   'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay',
   'badges', 'trophyPoints', 'timezone',
+  /* Demo lifecycle flags let a route refuse classes after the demo while still
+     allowing payments and policies through the same temporary login. */
+  'demoId', 'demoState', 'classAccess', 'demoAttendedAt',
   /* Internal routing key only. /auth/me still uses PUBLIC_USER_KEYS, so this
      link never reaches a browser identity payload. */
   'childId'
@@ -50,6 +53,11 @@ async function requireAuth(req, res, next) {
     /* Mock reads are synchronous; the live Supabase adapter is async. Awaiting
        both keeps identity loading identical in every database mode. */
     const user = await db.findUserById(payload.sub);
+    /* Password replacement increments tokenVersion on the account; every
+       previously issued access and refresh token stops working at once. */
+    if (user && Number(payload.ver || 0) !== Number(user.tokenVersion || 0)) {
+      return res.status(401).json({ error: 'SESSION_EXPIRED', message: 'Sign in again to continue.' });
+    }
     const pendingStaff = user && user.status === 'pending' &&
       (user.role === 'trainer' || user.role === 'relationship_manager');
     if (!user || (user.status !== 'active' && !pendingStaff)) {
@@ -107,6 +115,19 @@ function requireRole() {
     }
     return next();
   };
+}
+
+/* Demo credentials stay usable for payments and company policies after the
+   demo, but cannot take classes until a pack is credited. Accounts with no
+   demo lifecycle flag are ordinary class accounts and are unaffected. */
+function requireClassAccess(req, res, next) {
+  if (req.user && req.user.classAccess === 'post_demo') {
+    return res.status(403).json({
+      error: 'DEMO_COMPLETE',
+      message: 'Your demo is complete. Payments and policies are still available; choose a pack to continue classes.'
+    });
+  }
+  return next();
 }
 
 function canAccessSession(user, session) {
@@ -167,6 +188,7 @@ module.exports = {
   sessionUser,
   requireAuth,
   requireRole,
+  requireClassAccess,
   canAccessSession,
   canAccessRecording,
   loadSession

@@ -18,6 +18,10 @@ router.get('/dashboard', function (req, res, next) {
   }).catch(next);
 });
 
+/* The dashboard stays open so a post-demo family can still reach payments and
+   the demo card. Every class-content route below it needs an active class. */
+router.use(auth.requireClassAccess);
+
 router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
   /* Explicit boundary before serialization: trainer-only guidance is removed here,
      then toStudentSession strips it again as a second layer of defence. Hints are

@@ -45,6 +45,7 @@
     var identity = record.identity || {};
     var personal = record.personal || {};
     var bank = record.bank || {};
+    var shown = record.publicProfile || {};
     var docs = record.documents || {};
     var aadhaar = docs.aadhaar || {};
     var pan = docs.pan || {};
@@ -68,6 +69,10 @@
     setValue('kycIfsc', bank.ifscCode);
     setValue('kycBankName', bank.bankName);
     setValue('kycBranch', bank.branch);
+    setValue('kycPublicName', shown.fullName);
+    setValue('kycYearsExperience', shown.yearsExperience);
+    setValue('kycDegrees', (shown.degrees || []).join(', '));
+    setValue('kycAchievements', (shown.achievements || []).join('\n'));
     setValue('kycOtherLabel', additional.label === 'Additional document' ? '' : additional.label);
     setValue('kycOtherNumber', additional.number);
     setLocked(record);
@@ -100,8 +105,21 @@
     });
   }
 
+  function publicProfileBody() {
+    var picture = value('kycProfilePictureData');
+    if (picture.length > 1200000) picture = '';
+    return {
+      fullName: value('kycPublicName'),
+      yearsExperience: value('kycYearsExperience'),
+      degrees: value('kycDegrees'),
+      achievements: value('kycAchievements'),
+      profilePicture: picture
+    };
+  }
+
   function personalBody() {
     return {
+      publicProfile: publicProfileBody(),
       personal: {
         contactNumber: value('kycContact'),
         alternateContactNumber: value('kycAlternateContact'),
@@ -177,6 +195,26 @@
       if (button) button.disabled = false;
     });
   }
+
+  /* The family-facing picture is deliberately a separate, small image. It is
+     never uploaded to the private KYC bucket and is served through a role-scoped
+     endpoint only after a trainer is assigned. */
+  var pictureInput = el('kycProfilePicture');
+  if (pictureInput) pictureInput.addEventListener('change', function () {
+    var file = pictureInput.files && pictureInput.files[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      pictureInput.value = '';
+      status('Profile picture must be under 1 MB.', 'error');
+      return;
+    }
+    readFile(pictureInput).then(function (data) {
+      setValue('kycProfilePictureData', data || '');
+      if (data) status('Profile picture ready to save.', 'ok');
+    }).catch(function (error) {
+      status(error.message || 'Could not read the profile picture.', 'error');
+    });
+  });
 
   form.addEventListener('submit', submit);
   api.getOnboarding().then(function (record) {

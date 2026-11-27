@@ -10,6 +10,8 @@ const config = require('../config');
 const policy = require('../config/policy.json');
 const timezoneService = require('./timezoneService');
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function clean(value, max) {
   return String(value || '')
     .replace(/[\r\n]+/g, ' ')
@@ -103,12 +105,17 @@ async function notifyHumanHandoff(payload) {
 
 async function notifyContactRequest(input) {
   const request = input || {};
-  const subject = 'New Mathify booking request · ' + clean(request.name || 'Website visitor', 120);
+  const subject = 'New Mathify demo · ' + clean(request.parentName || request.name || 'Website visitor', 120);
   const lines = [
-    'MATHIFY BOOKING REQUEST',
-    'Name: ' + clean(request.name || '—', 120),
+    'MATHIFY DEMO REQUEST',
+    'Demo ID: ' + clean(request.demoId || request.id || '—', 80),
+    'Parent: ' + clean(request.parentName || request.name || '—', 120),
+    'Child: ' + clean(request.childName || '—', 120),
     'Email: ' + clean(request.email || '—', 160),
     'Phone: ' + clean(request.phone || '—', 60),
+    'Curriculum: ' + clean(request.curriculumLabel || request.curriculum || '—', 120),
+    'Grade: ' + clean(request.gradeLabel || request.grade || '—', 40),
+    'Timezone: ' + clean(request.timezone || '—', 80),
     'Message: "' + clean(request.message || '—', 800) + '"'
   ].join('\n');
 
@@ -134,6 +141,71 @@ async function notifyContactRequest(input) {
     slack: results[0].status === 'fulfilled' ? results[0].value : { sent: false, reason: 'failed' },
     email: results[1].status === 'fulfilled' ? results[1].value : { sent: false, reason: 'failed' }
   };
+}
+
+/* Demo lifecycle mail to the parent address supplied in the booking. Links use
+   only a validated server origin; a missing origin never becomes a URL. */
+async function sendDemoEmail(info) {
+  const data = info || {};
+  const to = clean(data.email, 200);
+  if (!to || !EMAIL.test(to)) return { sent: false, reason: 'no_recipient' };
+  const kind = ['credentials', 'assigned', 'complete'].indexOf(data.kind) === -1
+    ? 'assigned' : data.kind;
+  const lines = [
+    'MATHIFY DEMO · ' + kind.toUpperCase(),
+    'Hello ' + clean(data.parentName || 'Parent', 80) + ',',
+    '',
+    'Child: ' + clean(data.childName || 'your child', 120),
+    'Demo ID: ' + clean(data.demoId || '—', 80),
+    'Batch: ' + clean(data.batchCode || 'pending assignment', 40)
+  ];
+  if (data.trainerName) lines.push('Trainer: ' + clean(data.trainerName, 120));
+
+  if (kind === 'credentials') {
+    lines.push('', 'Your shared child/parent demo login:',
+      'Email: ' + to,
+      'Password: ' + clean(data.password || '—', 120));
+    if (data.studentLink) lines.push('Child desk: ' + clean(data.studentLink, 300));
+    if (data.parentLink) lines.push('Parent desk: ' + clean(data.parentLink, 300));
+    lines.push('', 'Keep this password. It stays your login until you change it yourself in ' +
+      'Profile → Password. The demo desk opens when a trainer is assigned. ' +
+      'After the demo it still opens payments and policies, but not classes.');
+    lines.push('', 'Check your dashboard any time for your demo ID, batch and trainer.');
+  } else if (kind === 'assigned') {
+    lines.push('', 'A trainer has been assigned and your demo login is ready. ' +
+      'Sign in with the password from the previous email.');
+    if (data.studentLink) lines.push('Child desk: ' + clean(data.studentLink, 300));
+    if (data.parentLink) lines.push('Parent desk: ' + clean(data.parentLink, 300));
+  } else {
+    lines.push('', 'Your demo is complete. The shared login now opens payments, ' +
+      'the fee structure and class policies only. Choose a pack to continue classes.');
+    if (data.parentLink) lines.push('Parent desk: ' + clean(data.parentLink, 300));
+  }
+  const subject = kind === 'credentials'
+    ? 'Your Mathify demo login and demo ID'
+    : kind === 'assigned'
+      ? 'Your Mathify trainer has been assigned'
+      : 'Your Mathify demo is complete';
+  return sendTextEmail(to, subject, lines, false);
+}
+
+/* Password changes are always confirmed by email. The message never contains
+   the old or new password, and delivery stays fail-closed without Resend. */
+async function sendPasswordChangedEmail(info) {
+  const data = info || {};
+  const to = clean(data.email, 200);
+  if (!to || !EMAIL.test(to)) return { sent: false, reason: 'no_recipient' };
+  const lines = [
+    'MATHIFY · PASSWORD CHANGED',
+    'Hello ' + clean(data.name || 'there', 80) + ',',
+    '',
+    'The password for your ' + clean(data.role || 'Mathify', 40) + ' account was changed just now.',
+    'If this was you, no further action is needed.',
+    'If you did not change it, contact Mathify support immediately.',
+    '',
+    'Your new password is never included in this email.'
+  ];
+  return sendTextEmail(to, 'Your Mathify password was changed', lines, false);
 }
 
 async function notifyParentRecap(info) {
@@ -368,6 +440,8 @@ module.exports = {
   sendEmailAlert,
   notifyHumanHandoff,
   notifyContactRequest,
+  sendDemoEmail,
+  sendPasswordChangedEmail,
   notifyParentRecap,
   sendSessionReminder,
   sendJoinEmail,

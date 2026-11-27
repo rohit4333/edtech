@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const db = require('../db');
 const trainerAccess = require('./trainerAccessService');
 const timezoneService = require('./timezoneService');
+const demoService = require('./demoService');
 
 const DEFAULT_DURATION_MINUTES = 50;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
@@ -52,9 +53,19 @@ function publicView(record, role) {
     trainerName: text(trainer.name),
     createdAt: record.createdAt
   };
-  if (role === 'student') return { id: base.id, code: base.code, trainerName: base.trainerName };
-  if (role === 'trainer') return base;
-  return Object.assign({}, base, { studentId: record.studentId });
+  /* The demo ID and its safe desk link travel with an allotted batch so the
+     trainer can open the child's demo without receiving contact details. */
+  const demo = {
+    demoId: record.demoId || null,
+    demoLink: role === 'trainer' && record.demoId
+      ? '/trainer/students?demoId=' + encodeURIComponent(record.demoId)
+      : null
+  };
+  if (role === 'student') return Object.assign({
+    id: base.id, code: base.code, trainerName: base.trainerName
+  }, demo);
+  if (role === 'trainer') return Object.assign({}, base, demo);
+  return Object.assign({}, base, demo, { studentId: record.studentId });
 }
 
 function ensureForStudent(studentId) {
@@ -229,22 +240,34 @@ function writeSlots(batch, trainerId, candidates) {
 function finish(batch, trainer, trainerId, candidates, booked, create) {
   const task = create ? writeSlots(batch, trainerId, candidates) : Promise.resolve([]);
   return task.then(function (bookings) {
-    const slots = bookings.length ? bookings : (batch.slots || []);
-    const stored = Object.assign({}, batch, {
-      trainerId: trainerId,
-      trainer: { id: trainerId, name: trainer.name },
-      status: 'allotted',
-      allottedAt: batch.allottedAt || new Date().toISOString(),
-      slots: slots
-    });
-    return Promise.resolve(db.saveBatch(stored)).then(function () {
-      return Promise.resolve(db.appendSessionEvent(batch.id, 'batch.allotted', {
-        actorRole: 'founder',
-        targetId: trainerId,
-        at: stored.allottedAt,
-        batchCode: stored.code,
-        slots: slots.length
-      })).then(function () { return publicView(stored, 'founder'); });
+    return Promise.resolve(db.findContactRequestForStudent(batch.studentId)).then(function (demoRequest) {
+      const slots = bookings.length ? bookings : (batch.slots || []);
+      const stored = Object.assign({}, batch, {
+        trainerId: trainerId,
+        trainer: { id: trainerId, name: trainer.name },
+        status: 'allotted',
+        allottedAt: batch.allottedAt || new Date().toISOString(),
+        demoId: demoRequest && demoRequest.id || batch.demoId || null,
+        slots: slots
+      });
+      return Promise.resolve(db.saveBatch(stored)).then(function () {
+        return Promise.resolve(db.appendSessionEvent(batch.id, 'batch.allotted', {
+          actorRole: 'founder',
+          targetId: trainerId,
+          at: stored.allottedAt,
+          batchCode: stored.code,
+          slots: slots.length
+        })).then(function () {
+          /* Parent notices and email are best effort: a mail outage must not roll
+             back an already booked trainer calendar. */
+          return Promise.resolve(demoService.onAllotted(stored, trainer))
+            .catch(function (error) {
+              console.error('[demo] assignment notice failed:', error.message);
+              return null;
+            })
+            .then(function () { return publicView(stored, 'founder'); });
+        });
+      });
     });
   });
 }

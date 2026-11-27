@@ -347,13 +347,19 @@
               <input id="demoParent" name="parentName" type="text" autocomplete="name" placeholder="Your name" required>
             </label>
             <label class="field">
-              <span>Child's grade</span>
+              <span>Child's name</span>
+              <input id="demoChild" name="childName" type="text" placeholder="Your child's name" required>
+            </label>
+            <label class="field">
+              <span>Child's school curriculum</span>
+              <select id="demoCurriculum" name="curriculum" required>
+                <option value="">Select a curriculum</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Grade according to that curriculum</span>
               <select id="demoGrade" name="grade" required>
-                <option value="">Select a grade</option>
-                <option>Kindergarten</option><option>Grade 1</option><option>Grade 2</option>
-                <option>Grade 3</option><option>Grade 4</option><option>Grade 5</option>
-                <option>Grade 6</option><option>Grade 7</option><option>Grade 8</option>
-                <option>Grade 9</option><option>Grade 10</option>
+                <option value="">Choose a curriculum first</option>
               </select>
             </label>
           </div>
@@ -365,8 +371,8 @@
               <input id="demoEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
             </label>
             <label class="field">
-              <span>WhatsApp / phone <small>optional</small></span>
-              <input id="demoPhone" name="phone" type="tel" autocomplete="tel" placeholder="+ Country code and number">
+              <span>WhatsApp / mobile number</span>
+              <input id="demoPhone" name="phone" type="tel" autocomplete="tel" placeholder="+ country code and number" required>
             </label>
             <label class="field">
               <span>Your timezone</span>
@@ -403,9 +409,19 @@
 
         <div class="booking-success" id="demoSuccess" hidden>
           <div class="success-mark">✓</div>
-          <h3>Request received.</h3>
+          <h3>Demo booked. Your login is ready.</h3>
           <p id="successCopy">We'll confirm a real demo slot with you shortly.</p>
           <p class="success-ref" id="successRef"></p>
+          <div class="booking-credentials" id="bookingCredentials" hidden>
+            <div><span class="mono">Demo ID</span><b id="bookingDemoId">—</b></div>
+            <div><span class="mono">Login email</span><b id="bookingEmail">—</b></div>
+            <div><span class="mono">Shared password</span><b id="bookingPassword">—</b></div>
+            <p class="credential-note">Use this one password for both the child and parent desks. Keep it — it stays your login until you change it yourself in Profile → Password. <b>Check your email for more details.</b></p>
+            <div class="credential-links" id="credentialLinks" hidden>
+              <a id="childDeskLink" href="/student/home">Open child desk</a>
+              <a id="parentDeskLink" href="/parent/index.html">Open parent desk</a>
+            </div>
+          </div>
           <a class="btn btn-ghost" id="whatsappConfirm" target="_blank" rel="noopener">Message us on WhatsApp</a>
           <button class="text-button" type="button" id="editRequest">Edit my request</button>
         </div>
@@ -429,6 +445,7 @@
 </footer>
 
 <script src="shared/public-nav.js" defer></script>
+<script src="shared/curriculumOptions.js" defer></script>
 <script src="landing.js" defer></script>
 </body>
 </html>

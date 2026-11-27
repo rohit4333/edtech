@@ -15,7 +15,11 @@ const LOCKED_FIELDS = [
   'bankProof',
   'additionalDocuments'
 ];
-const EDITABLE_FIELDS = ['personal', 'bank'];
+/* publicProfile is the only onboarding section a linked child or parent may
+   ever see: display name, picture, degrees, achievements and experience. */
+const EDITABLE_FIELDS = ['personal', 'bank', 'publicProfile'];
+const PROFILE_IMAGE = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i;
+const MAX_PROFILE_IMAGE_CHARS = 1200000;
 
 function text(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -51,6 +55,29 @@ function document(value) {
   return number || front || rear || image ? result : null;
 }
 
+function list(value, max, length) {
+  const raw = Array.isArray(value) ? value : String(value || '').split(/[\n,;]+/);
+  return raw.map(function (item) { return text(item).slice(0, length); })
+    .filter(Boolean).slice(0, max);
+}
+
+/* Family-facing profile: nothing here may carry contact, KYC or bank data. */
+function publicProfile(value, previous) {
+  const source = object(value);
+  const base = object(previous);
+  const picture = text(source.profilePicture || base.profilePicture);
+  const years = Number(source.yearsExperience !== undefined
+    ? source.yearsExperience : base.yearsExperience);
+  return {
+    fullName: text(source.fullName || base.fullName).slice(0, 120),
+    profilePicture: PROFILE_IMAGE.test(picture) && picture.length <= MAX_PROFILE_IMAGE_CHARS
+      ? picture : null,
+    yearsExperience: Number.isFinite(years) && years >= 0 ? Math.min(60, Math.round(years)) : null,
+    degrees: list(source.degrees !== undefined ? source.degrees : base.degrees, 6, 160),
+    achievements: list(source.achievements !== undefined ? source.achievements : base.achievements, 8, 240)
+  };
+}
+
 function normalize(input, existing) {
   const body = object(input);
   const base = existing || {};
@@ -83,7 +110,8 @@ function normalize(input, existing) {
       ifscCode: text(bank.ifscCode || previousBank.ifscCode),
       bankName: text(bank.bankName || previousBank.bankName),
       branch: text(bank.branch || previousBank.branch)
-    }
+    },
+    publicProfile: publicProfile(object(body.publicProfile), object(base.publicProfile))
   };
 
   const entries = {
@@ -160,6 +188,7 @@ function publicView(record, role, options) {
     masked: role === 'founder' && !reveal,
     personal: Object.assign({}, object(record.personal)),
     bank: Object.assign({}, object(record.bank)),
+    publicProfile: object(record.publicProfile),
     identity: {
       fullName: text(record.fullName),
       dateOfBirth: text(record.dateOfBirth)
@@ -231,6 +260,7 @@ async function updatePersonal(trainerId, input, role) {
   const stored = Object.assign({}, existing, {
     personal: next.personal,
     bank: next.bank,
+    publicProfile: next.publicProfile,
     updatedAt: new Date().toISOString()
   });
   await db.saveTrainerOnboarding(stored);

@@ -49,6 +49,14 @@
   color: var(--coral, #FF5B2E);
 }
 
+.batch-list .batch-demo {
+  font: 600 11px/1.4 var(--mono, monospace);
+  color: var(--ink, #0E1420);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
 .batch-note {
   margin: 0;
   color: var(--muted, #6B7280);

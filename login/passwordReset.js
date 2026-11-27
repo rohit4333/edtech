@@ -18,6 +18,7 @@
   var confirmStatus = byId('confirmStatus');
   var devTokenBox = byId('devTokenBox');
   var devTokenValue = byId('devTokenValue');
+  var devOtpValue = byId('devOtpValue');
   var resetSuccess = byId('resetSuccess');
   var backToLogin = byId('backToLogin');
 
@@ -72,16 +73,19 @@
       request('/auth/password-reset/request', { email: email.value })
         .then(function (data) {
           var message = data.delivered
-            ? 'A one-time reset link was sent. It expires in ' + data.expiresInMinutes + ' minutes.'
-            : 'If that email has an active Mathify account, a one-time reset link is ready. It expires in 15 minutes.';
+            ? 'A six-digit code and a one-time link were sent. They expire in ' + data.expiresInMinutes + ' minutes.'
+            : 'If that email has an active Mathify account, a reset code is ready. It expires in 15 minutes.';
           say(requestStatus, message, 'success');
-          if (data.developmentToken && devTokenValue && devTokenBox) {
-            devTokenValue.textContent = data.developmentToken;
+          var confirmEmail = byId('confirmEmail');
+          if (confirmEmail && !confirmEmail.value) confirmEmail.value = email.value;
+          if ((data.developmentToken || data.developmentOtp) && devTokenBox) {
+            if (devTokenValue) devTokenValue.textContent = data.developmentToken || '';
+            if (devOtpValue) devOtpValue.textContent = data.developmentOtp || '';
             devTokenBox.hidden = false;
-            var confirmEmail = byId('confirmEmail');
             var confirmToken = byId('resetToken');
-            if (confirmEmail && !confirmEmail.value) confirmEmail.value = email.value;
-            if (confirmToken) confirmToken.value = data.developmentToken;
+            var confirmOtp = byId('resetOtp');
+            if (confirmToken && data.developmentToken) confirmToken.value = data.developmentToken;
+            if (confirmOtp && data.developmentOtp) confirmOtp.value = data.developmentOtp;
           }
         })
         .catch(function (error) {
@@ -96,10 +100,15 @@
       event.preventDefault();
       var email = byId('confirmEmail');
       var token = byId('resetToken');
+      var otp = byId('resetOtp');
       var password = byId('resetNewPassword');
       var confirm = byId('resetConfirmPassword');
       var submit = byId('confirmSubmit');
-      if (!email || !token || !password || !confirm || !submit) return;
+      if (!email || !password || !confirm || !submit) return;
+      if ((!otp || !otp.value.trim()) && (!token || !token.value.trim())) {
+        say(confirmStatus, 'Enter the six-digit code or the one-time link token.');
+        return;
+      }
 
       if (password.value !== confirm.value) {
         say(confirmStatus, 'New passwords do not match.');
@@ -114,7 +123,8 @@
       say(confirmStatus, 'Setting your new password…', 'success');
       request('/auth/password-reset/confirm', {
         email: email.value,
-        token: token.value,
+        token: token ? token.value.trim() : '',
+        otp: otp ? otp.value.trim() : '',
         password: password.value
       }).then(function () {
         say(confirmStatus, '', 'success');

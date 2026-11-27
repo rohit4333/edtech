@@ -8,6 +8,7 @@ const trainerDocuments = require('../services/trainerDocumentService');
 const announcementService = require('../services/announcementService');
 const founderAdmin = require('../services/founderAdminService');
 const adminAudit = require('../services/adminAuditService');
+const demoService = require('../services/demoService');
 
 const router = express.Router();
 
@@ -137,6 +138,36 @@ router.get(
         return res.json({
           batches: batches.map(function (row) { return batchService.publicView(row, 'founder'); })
         });
+      })
+      .catch(next);
+  }
+);
+
+/* Demo requests are shared with the founder/RM desk. The family login is
+   issued and emailed at booking; staff only read its safe status and hand over
+   trainer passwords from the staff administration desk. */
+router.get(
+  '/demos',
+  auth.requireAuth,
+  adminRole,
+  function (req, res, next) {
+    demoService.listRequests(req.query.limit || 50)
+      .then(function (demos) { return res.json({ demos: demos }); })
+      .catch(next);
+  }
+);
+
+router.post(
+  '/demos/:demoId/credentials',
+  auth.requireAuth,
+  adminRole,
+  function (req, res, next) {
+    demoService.prepare(req.params.demoId, req.user, req.body || {})
+      .then(function (result) {
+        audit(req, 'demo.credentials_checked', 'demo', req.params.demoId, null, {
+          issuedAtBooking: Boolean(result.demo && result.demo.credentialsIssued)
+        });
+        return res.json(result);
       })
       .catch(next);
   }

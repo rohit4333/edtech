@@ -1090,6 +1090,13 @@
       code.textContent = batch.code || '—';
       item.appendChild(name);
       item.appendChild(code);
+      if (batch.demoId) {
+        var demo = document.createElement('a');
+        demo.className = 'batch-demo';
+        demo.href = batch.demoLink || ('/trainer/students?demoId=' + encodeURIComponent(batch.demoId));
+        demo.textContent = 'Demo ' + batch.demoId;
+        item.appendChild(demo);
+      }
       list.appendChild(item);
     });
   }

@@ -621,6 +621,14 @@
         <ul class="batch-list" id="allotedBatchList">
           <li class="batch-empty">No batches allotted yet.</li>
         </ul>
+        <section class="trainer-demo-card" id="trainerDemoCard" hidden aria-live="polite" aria-label="Assigned demo">
+          <div class="trainer-demo-head"><span class="mono">Assigned demo</span><span class="chip-count" id="trainerDemoBatch">—</span></div>
+          <div class="demo-card-grid">
+            <div><span class="mono">Demo ID</span><b id="trainerDemoId">—</b></div>
+            <div><span class="mono">Child</span><b id="trainerDemoChild">—</b></div>
+            <div><span class="mono">Context</span><b id="trainerDemoContext">—</b></div>
+          </div>
+        </section>
         <p class="batch-note">Name and batch ID only. Contact details and social links are never shared with students or other trainers.</p>
       </section>
 
@@ -700,6 +708,28 @@
               <label class="wide">Address
                 <textarea id="kycAddress" name="address" rows="2"></textarea>
               </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Profile shown to families <span>only these details are shared</span></legend>
+            <div class="onboarding-grid">
+              <label>Name shown to families
+                <input id="kycPublicName" name="publicName" maxlength="120" placeholder="Your teaching name">
+              </label>
+              <label>Years of experience
+                <input id="kycYearsExperience" name="yearsExperience" type="number" min="0" max="60" inputmode="numeric">
+              </label>
+              <label class="wide">Degrees &amp; qualifications
+                <textarea id="kycDegrees" name="degrees" rows="2" placeholder="B.Sc. Mathematics, M.Ed."></textarea>
+              </label>
+              <label class="wide">Achievements
+                <textarea id="kycAchievements" name="achievements" rows="3" placeholder="Award, publication or competition result"></textarea>
+              </label>
+              <label class="wide">Profile picture <span class="optional">optional</span>
+                <input id="kycProfilePicture" name="profilePicture" type="file" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <input type="hidden" id="kycProfilePictureData" name="profilePictureData">
             </div>
           </fieldset>
 
@@ -837,6 +867,9 @@
 </div>
 
 <script src="../shared/viewerTimezone.js" defer></script>
+<script src="../shared/sessionKeepalive.js" defer></script>
+<script src="../shared/demoStatus.js" defer></script>
+<link rel="stylesheet" href="../shared/demo-status.css">
 <script src="api.js?v=20261126" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="schedule.js" defer></script>

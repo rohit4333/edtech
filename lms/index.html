@@ -285,6 +285,32 @@
         </div>
         <button class="sheet-x" type="button" data-close-sheet aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
       </header>
+      <div class="wp-panel" aria-labelledby="autoPlannerTitle">
+        <div class="wp-panel-head">
+          <div>
+            <span class="mono">Auto planner · registered board and grade</span>
+            <h3 id="autoPlannerTitle">A ready week for the child.</h3>
+            <p>Choices come from the child's Mathify profile. Only a founder can edit or regenerate.</p>
+          </div>
+        </div>
+        <div class="wp-controls">
+          <label class="field">
+            <span>Curriculum</span>
+            <select id="autoCurriculum" name="curriculum" required>
+              <option value="">Select a curriculum</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Grade</span>
+            <select id="autoGrade" name="grade" required>
+              <option value="">Choose a curriculum first</option>
+            </select>
+          </label>
+          <button class="btn btn-coral btn-sm" type="button" id="autoPlannerLoad">Load planner</button>
+        </div>
+        <p class="wp-status" id="autoPlannerStatus" role="status" aria-live="polite"></p>
+        <div id="autoPlannerView" aria-live="polite"></div>
+      </div>
       <div id="plannerSheetContent"></div>
     </section>
   </div>
@@ -310,6 +336,8 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="../shared/curriculumOptions.js"></script>
+<script src="autoPlanner.js"></script>
 <script src="app.js"></script>
 <script src="planner.js"></script>
 </body>

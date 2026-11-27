@@ -81,7 +81,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 8, 'eight reviewed migrations are discovered');
+  check(migrations.length === 9, 'nine reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -205,10 +205,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 8,
-    'all eight migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 8,
-    'all eight migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 9,
+    'all nine migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 9,
+    'all nine migrations carry checksum drift guards');
   const kycMigration = migrations.find(function (migration) {
     return migration.name === '0006_trainer_onboarding_batches.sql';
   });

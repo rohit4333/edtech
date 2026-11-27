@@ -1401,6 +1401,27 @@
         <p class="sub">Your week is on track <span class="dot-sep" aria-hidden="true"></span> 3 items need attention</p>
       </div>
 
+      <!-- ---------- demo desk ---------- -->
+      <section class="demo-card" id="demoCard" hidden aria-live="polite" aria-label="Your demo">
+        <div class="demo-card-head"><span class="mono">Your demo</span><span class="chip-count" id="demoState">Checking…</span></div>
+        <div class="demo-card-grid">
+          <div><span class="mono">Demo ID</span><b id="demoIdValue">—</b></div>
+          <div><span class="mono">Batch</span><b id="demoBatchValue">—</b></div>
+          <div><span class="mono">Trainer</span><b id="demoTrainerValue">—</b></div>
+          <div><span class="mono">Access</span><b id="demoAccessValue">—</b></div>
+        </div>
+        <p class="demo-hint" id="demoHint">Check your email for more details.</p>
+        <div class="demo-trainer" id="demoTrainerPanel" hidden>
+          <img id="demoTrainerPhoto" alt="Your trainer" hidden>
+          <div>
+            <b id="demoTrainerName"></b>
+            <p id="demoTrainerExperience"></p>
+            <div id="demoTrainerDegrees"></div>
+            <div id="demoTrainerAchievements"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- ---------- hero ---------- -->
       <section class="hero" id="overview" aria-label="Next session and week summary">
 
@@ -1798,6 +1819,9 @@
 </style>
 
 <script src="../shared/viewerTimezone.js" defer></script>
+<script src="../shared/sessionKeepalive.js" defer></script>
+<script src="../shared/demoStatus.js" defer></script>
+<link rel="stylesheet" href="../shared/demo-status.css">
 <script src="api.js?v=20261126" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="app.js" defer></script>

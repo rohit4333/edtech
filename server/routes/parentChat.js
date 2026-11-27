@@ -23,6 +23,7 @@ const requireTrainerAccess = require('../middleware/trainerAccess');
 
 const router = express.Router();
 router.use(auth.requireAuth);
+router.use(auth.requireClassAccess);
 router.use(requireTrainerAccess());
 
 const PARTICIPANTS = auth.requireRole('parent', 'trainer');

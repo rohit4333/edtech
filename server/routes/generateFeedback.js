@@ -11,7 +11,7 @@ const freeLm = require('../services/freeLmService');
 const router = express.Router();
 const feedbackThrottle = rateLimit.createLimiter({ name: 'generate-feedback', windowMs: 60000, max: 20 });
 
-router.post('/', auth.requireAuth, feedbackThrottle, async function (req, res) {
+router.post('/', auth.requireAuth, auth.requireClassAccess, feedbackThrottle, async function (req, res) {
   try {
     const body = req.body || {};
     if (typeof body.transcript === 'string' && body.transcript.trim()) {

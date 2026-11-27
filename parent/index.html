@@ -89,6 +89,28 @@
         <p class="sub" id="threadSub">Ishaan Verma <span class="dot-sep" aria-hidden="true"></span> Ananya Rao <span class="dot-sep" aria-hidden="true"></span> 1-on-1 maths</p>
       </div>
 
+      <!-- ---------- demo desk ---------- -->
+      <section class="demo-card" id="demoCard" hidden aria-live="polite" aria-label="Your child's demo">
+        <div class="demo-card-head"><span class="mono">Your child’s demo</span><span class="chip-count" id="demoState">Checking…</span></div>
+        <div class="demo-card-grid">
+          <div><span class="mono">Demo ID</span><b id="demoIdValue">—</b></div>
+          <div><span class="mono">Batch</span><b id="demoBatchValue">—</b></div>
+          <div><span class="mono">Trainer</span><b id="demoTrainerValue">—</b></div>
+          <div><span class="mono">Access</span><b id="demoAccessValue">—</b></div>
+        </div>
+        <p class="demo-hint" id="demoHint">Check your email for more details.</p>
+        <div class="demo-trainer" id="demoTrainerPanel" hidden>
+          <img id="demoTrainerPhoto" alt="Your child's trainer" hidden>
+          <div>
+            <b id="demoTrainerName"></b>
+            <p id="demoTrainerExperience"></p>
+            <div id="demoTrainerDegrees"></div>
+            <div id="demoTrainerAchievements"></div>
+          </div>
+        </div>
+        <div class="demo-notices" id="demoNotices" hidden></div>
+      </section>
+
       <!-- ---------- context strip ---------- -->
       <section class="context" aria-label="Your 1-on-1 context">
         <article class="context-cell" id="child">
@@ -161,6 +183,9 @@
 </div>
 
 <script src="../shared/viewerTimezone.js" defer></script>
+<script src="../shared/sessionKeepalive.js" defer></script>
+<script src="../shared/demoStatus.js" defer></script>
+<link rel="stylesheet" href="../shared/demo-status.css">
 <script src="app.js" defer></script>
 <script src="../shared/sectionRouter.js" defer></script>
 </body>

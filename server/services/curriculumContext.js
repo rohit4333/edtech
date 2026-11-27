@@ -6,66 +6,19 @@
  * school chapter) are read — never a name, email, phone or social handle.
  */
 
-const CURRICULUM_PROFILES = {
-  CBSE: {
-    country: 'India',
-    style: 'NCERT textbook-aligned, step-by-step proofs, Indian real-life examples',
-    notation: 'Indian number system (lakhs/crores), metric units, ₹ (Rupees)',
-    pedagogy: 'Concept-first, then application. Heavy on NCERT exercises.',
-    illustrationContext: 'Use Indian context (rupees, cricket, Indian festivals, local geography).'
-  },
-  ICSE: {
-    country: 'India',
-    style: 'Detailed, emphasis on analytical thinking, richer vocabulary',
-    notation: 'Indian number system, metric units, ₹ (Rupees)',
-    pedagogy: 'Deeper conceptual understanding, longer word problems.',
-    illustrationContext: 'Use Indian context (rupees, cricket, Indian festivals, local geography).'
-  },
-  IB: {
-    country: 'International',
-    style: 'Inquiry-based, real-world applications, global context',
-    notation: 'International standard, SI units',
-    pedagogy: 'Conceptual, interdisciplinary, encourages student questioning.',
-    illustrationContext: 'Use global context (UN SDGs, international scenarios, diverse cultures).'
-  },
-  IGCSE: {
-    country: 'International (British)',
-    style: 'British curriculum, structured progression, exam-focused',
-    notation: 'British English spelling (colour, centre), metric units, £ (Pounds)',
-    pedagogy: 'Clear learning objectives, past-paper style questions.',
-    illustrationContext: 'Use culturally relevant examples for International (British).'
-  },
-  'Common Core': {
-    country: 'USA',
-    style: 'American curriculum, emphasis on mathematical practices and reasoning',
-    notation: 'US customary + metric, $ (Dollars)',
-    pedagogy: 'Problem-solving first, multiple solution methods encouraged.',
-    illustrationContext: 'Use American context (dollars, miles, US geography, baseball/football).'
-  },
-  'British National': {
-    country: 'UK',
-    style: 'Key Stage aligned, structured progression',
-    notation: 'British English, £ (Pounds), metric',
-    pedagogy: 'Mastery approach, clear step-by-step progression.',
-    illustrationContext: 'Use culturally relevant examples for UK.'
-  },
-  Ontario: {
-    country: 'Canada',
-    style: 'Canadian curriculum, inclusive examples',
-    notation: 'Metric, $ (Canadian Dollars)',
-    pedagogy: 'Discovery-based, collaborative problem-solving.',
-    illustrationContext: 'Use culturally relevant examples for Canada.'
-  }
-};
+/* The catalogue is the single source of boards, aliases and grade ladders.
+   It preserves the seven legacy canonical profile names exactly so existing
+   callers keep working while adding every board in the LMS picker. */
+const catalog = require('./curriculumCatalog');
+
+const CURRICULUM_PROFILES = catalog.profiles();
 
 /* Aliases keep older callers that send a lowercase key, "cambridge" or "uk"
    working while the canonical profile keys stay exactly as specified. */
-const ALIASES = {
-  cbse: 'CBSE', ncert: 'CBSE', icse: 'ICSE', isc: 'ICSE', ib: 'IB', ibdp: 'IB',
-  igcse: 'IGCSE', cambridge: 'IGCSE', 'common_core': 'Common Core', ccss: 'Common Core',
-  us: 'Common Core', british_national: 'British National', uk: 'British National',
-  gcse: 'British National', ontario: 'Ontario', canada: 'Ontario'
-};
+const ALIASES = catalog.aliases();
+/* Earlier integrations used underscore aliases; keep them legal. */
+ALIASES.common_core = 'Common Core';
+ALIASES.british_national = 'British National';
 
 const DEFAULT_CURRICULUM = 'IB';
 
@@ -169,5 +122,6 @@ module.exports = {
   CURRICULUM_MAP: CURRICULUM_PROFILES,
   DEFAULT_CURRICULUM: DEFAULT_CURRICULUM,
   normalizeCurriculum: normalizeCurriculum,
-  buildPromptInjection: buildPromptInjection
+  buildPromptInjection: buildPromptInjection,
+  catalog: catalog
 };

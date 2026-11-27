@@ -511,8 +511,15 @@
       var node = $('sheet-' + key);
       if (node) node.hidden = key !== name;
     });
-    if (name === 'planner' && window.mathifyPlanner && window.mathifyPlanner.render) {
-      window.mathifyPlanner.render();
+    if (name === 'planner') {
+      if (window.mathifyAutoPlanner && window.mathifyAutoPlanner.render) {
+        window.mathifyAutoPlanner.render();
+      }
+      /* The local class-duration designer stays available below the generated
+         early-years planner. */
+      if (window.mathifyPlanner && window.mathifyPlanner.render) {
+        window.mathifyPlanner.render();
+      }
     }
     if (name === 'course' && course) {
       var target = $('sheetDetailContent');

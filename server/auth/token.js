@@ -1,9 +1,18 @@
 /* Small HMAC token helper. The demo fallback is only available outside
-   production; live deployments must set a strong AUTH_SECRET. */
+   production; live deployments must set a strong AUTH_SECRET.
+ *
+   A signed access token is short-lived by default, but the desks remember a
+   sign-in through a long-lived refresh token kept in browser localStorage.
+   Refresh tokens carry the same tokenVersion as the user record, so an
+   operator's credential replacement invalidates every outstanding session. */
 const crypto = require('crypto');
 const config = require('../config');
 
 const ttlSeconds = Number(process.env.AUTH_TTL_SECONDS || 12 * 60 * 60);
+const rememberTtlSeconds = Math.max(
+  ttlSeconds,
+  Number(process.env.AUTH_REMEMBER_TTL_SECONDS || 30 * 24 * 60 * 60)
+);
 
 const DEMO_SECRET = 'mathify-dev-secret-change-me';
 
@@ -36,24 +45,37 @@ function safeEqual(left, right) {
   return crypto.timingSafeEqual(a, b);
 }
 
-function sign(user) {
+function issue(user, kind, ttl) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = base64url(JSON.stringify({
     sub: user.id,
     role: user.role,
     name: user.name,
+    kind: kind,
+    ver: Number(user.tokenVersion || 0),
     iat: now,
-    exp: now + ttlSeconds
+    exp: now + ttl
   }));
   const input = header + '.' + payload;
   const signature = base64url(crypto.createHmac('sha256', secret()).update(input).digest());
   return input + '.' + signature;
 }
 
-function verify(token) {
-  if (typeof token !== 'string') return null;
-  const parts = token.split('.');
+/* Access tokens stay short-lived; the separate refresh token is what lets a
+   browser reload, a new tab or a closed laptop silently return to the desk. */
+function sign(user, options) {
+  const requested = options && Number(options.ttl);
+  return issue(user, 'access', requested > 0 ? requested : ttlSeconds);
+}
+
+function signRefresh(user) {
+  return issue(user, 'refresh', rememberTtlSeconds);
+}
+
+function verify(tokenValue, kind) {
+  if (typeof tokenValue !== 'string') return null;
+  const parts = tokenValue.split('.');
   if (parts.length !== 3) return null;
 
   let key;
@@ -67,10 +89,15 @@ function verify(token) {
     const payload = JSON.parse(fromBase64url(parts[1]));
     if (!payload.sub || !payload.role) return null;
     if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    /* Tokens minted before the remember-me change have no kind and count as
+       access tokens; refresh tokens are always explicit. */
+    const expectedKind = kind || 'access';
+    if (payload.kind && payload.kind !== expectedKind) return null;
+    if (expectedKind === 'refresh' && payload.kind !== 'refresh') return null;
     return payload;
   } catch (error) {
     return null;
   }
 }
 
-module.exports = { sign, verify };
+module.exports = { sign, signRefresh, verify, ttlSeconds, rememberTtlSeconds, secret: secret };

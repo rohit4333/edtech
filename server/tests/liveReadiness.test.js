@@ -394,7 +394,9 @@ async function main() {
 
     /* Contact form has a real, validated API route behind it. */
     const contactOk = await request('POST', '/api/contact', {
-      name: 'Test Parent', email: 'parent@example.com', phone: '+1 555 0100', message: 'Book a demo.'
+      parentName: 'Test Parent', childName: 'Test Child', email: 'parent@example.com',
+      phone: '+1 555 0100', curriculum: 'cbse', grade: 'class-7',
+      timezone: 'Asia/Dubai', message: 'Book a demo.'
     });
     check(contactOk.status === 201 && contactOk.body.ok === true, 'booking request is accepted');
     check(typeof contactOk.body.reference === 'string', 'booking request returns a reference');

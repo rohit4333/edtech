@@ -93,11 +93,18 @@ async function callFreelm(request) {
     { role: 'user', content: String(input.user || '') }
   ];
 
+  const generation = {
+    model: input.model || envValue('FREELM_MODEL') || 'chat:fast',
+    max_tokens: Number(input.maxOutputTokens) || 600
+  };
+  /* Reproducible curriculum authoring needs the same generation controls at
+     every stage. Stages that ignore an option simply leave Mathify's cache to
+     enforce immutability after the first successful generation. */
+  if (Number.isFinite(input.temperature)) generation.temperature = input.temperature;
+  if (Number.isFinite(input.seed)) generation.seed = Math.trunc(input.seed);
+
   try {
-    const response = await llm.chat(messages, {
-      model: input.model || envValue('FREELM_MODEL') || 'chat:fast',
-      max_tokens: Number(input.maxOutputTokens) || 600
-    });
+    const response = await llm.chat(messages, generation);
     const text = String((response && response.text) || '').trim();
     if (!text) throw problem('freelm returned no text result.', 'FREELM_EMPTY_RESULT', 502);
     return text;

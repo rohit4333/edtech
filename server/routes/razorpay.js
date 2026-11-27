@@ -4,6 +4,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const realtime = require('../realtime');
 const service = require('../services/razorpayService');
+const demoService = require('../services/demoService');
 
 const router = express.Router();
 
@@ -164,6 +165,14 @@ router.post('/webhook', async function (req, res) {
         sessionsAdded: sessions,
         sessionsRemaining: student.sessionsRemaining
       });
+
+      /* A credited pack restores ordinary class access for demo families.
+         This notice is best effort and never changes the payment response. */
+      try {
+        await demoService.onEnrolled(studentId);
+      } catch (error) {
+        console.error('[demo] enrollment update failed:', error.message);
+      }
 
       return res.json({
         received: true,

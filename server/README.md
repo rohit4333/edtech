@@ -354,7 +354,7 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Forty-nine Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
+Fifty-one Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 

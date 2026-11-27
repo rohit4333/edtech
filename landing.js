@@ -49,13 +49,39 @@
   }
 
   var form = document.getElementById('demoForm');
+
+  function showBookingCredentials(data, fallbackEmail) {
+    var box = document.getElementById('bookingCredentials');
+    if (!box) return;
+    var credentials = data && data.credentials;
+    box.hidden = !(credentials && credentials.password);
+    if (box.hidden) return;
+    var demoId = document.getElementById('bookingDemoId');
+    var emailNode = document.getElementById('bookingEmail');
+    var passwordNode = document.getElementById('bookingPassword');
+    if (demoId) demoId.textContent = data.demoId || '—';
+    if (emailNode) emailNode.textContent = credentials.email || fallbackEmail || '—';
+    if (passwordNode) passwordNode.textContent = credentials.password;
+    var links = document.getElementById('credentialLinks');
+    var child = document.getElementById('childDeskLink');
+    var parent = document.getElementById('parentDeskLink');
+    if (links && child && parent) {
+      links.hidden = !(credentials.studentLink && credentials.parentLink);
+      if (credentials.studentLink) child.href = credentials.studentLink;
+      if (credentials.parentLink) parent.href = credentials.parentLink;
+    }
+  }
   if (!form) return;
 
   var step = 1;
   var selectedTime = '';
-  var draftKey = 'mathify.demo.draft.v1';
+  var draftKey = 'mathify.demo.draft.v2';
+  var restoredCurriculum = '';
+  var restoredGrade = '';
 
   var parentName = document.getElementById('demoParent');
+  var childName = document.getElementById('demoChild');
+  var curriculum = document.getElementById('demoCurriculum');
   var grade = document.getElementById('demoGrade');
   var email = document.getElementById('demoEmail');
   var phone = document.getElementById('demoPhone');
@@ -82,6 +108,11 @@
     } catch (errorValue) {
       return '';
     }
+  }
+
+  function selectedLabel(select) {
+    var option = select && select.selectedOptions && select.selectedOptions[0];
+    return (option && option.textContent.trim()) || '';
   }
 
   /* The full IANA zone set comes from the browser's ICU data. The embedded
@@ -278,11 +309,14 @@
   function buildMessage() {
     var zone = (timezone && timezone.value.trim()) || localTimezone() || 'your timezone';
     var when = selectedTime || 'Any time';
-    var child = (grade && grade.value) || 'the child';
+    var child = (childName && childName.value.trim()) || 'the child';
+    var board = selectedLabel(curriculum) || 'the school curriculum';
+    var gradeLabel = selectedLabel(grade) || 'the matching grade';
     var guardian = (parentName && parentName.value.trim()) || 'A parent';
     return 'Hi Mathify — I would like to book a 35-minute live 1-on-1 demo for ' +
-      child + '. Parent/guardian: ' + guardian + '. Preferred time: ' + when +
-      '. Timezone: ' + zone + '. Please confirm a real slot with me.';
+      child + ' (' + board + ', ' + gradeLabel + '). Parent/guardian: ' + guardian +
+      '. Preferred time: ' + when + '. Timezone: ' + zone +
+      '. Please confirm a real slot with me.';
   }
 
   function refreshMessage() {
@@ -295,6 +329,8 @@
       window.sessionStorage.setItem(draftKey, JSON.stringify({
         step: step,
         parentName: parentName ? parentName.value : '',
+        childName: childName ? childName.value : '',
+        curriculum: curriculum ? curriculum.value : '',
         grade: grade ? grade.value : '',
         email: email ? email.value : '',
         phone: phone ? phone.value : '',
@@ -319,7 +355,9 @@
     if (!draft || typeof draft !== 'object') return;
 
     if (parentName && draft.parentName) parentName.value = draft.parentName;
-    if (grade && draft.grade) grade.value = draft.grade;
+    if (childName && draft.childName) childName.value = draft.childName;
+    restoredCurriculum = draft.curriculum || '';
+    restoredGrade = draft.grade || '';
     if (email && draft.email) email.value = draft.email;
     if (phone && draft.phone) phone.value = draft.phone;
     if (timezone && draft.timezone) ensureTimezoneOption(draft.timezone, false);
@@ -376,6 +414,17 @@
   populateTimezones();
 
   loadDraft();
+  /* The curriculum list is server-owned and grouped like the timezone picker.
+     Changing the board rebuilds the grade list from that board's registered
+     ladder; validation is repeated on the server before any request is saved. */
+  if (window.MathifyCurriculums && window.MathifyCurriculums.populate && curriculum) {
+    window.MathifyCurriculums.populate(curriculum, grade, {
+      curriculum: restoredCurriculum,
+      grade: restoredGrade,
+      onChange: function () { refreshMessage(); saveDraft(); },
+      onGradeChange: function () { refreshMessage(); saveDraft(); }
+    });
+  }
   setStep(step);
   refreshMessage();
 
@@ -384,7 +433,7 @@
   });
   back.addEventListener('click', function () { setStep(1); });
 
-  [parentName, grade, email, phone, timezone].forEach(function (field) {
+  [parentName, childName, email, phone, timezone].forEach(function (field) {
     if (!field) return;
     field.addEventListener('input', function () { refreshMessage(); saveDraft(); });
     field.addEventListener('change', function () { refreshMessage(); saveDraft(); });
@@ -411,9 +460,14 @@
     if (!validateStep(2)) return;
 
     var payload = {
+      parentName: parentName.value.trim(),
       name: parentName.value.trim(),
+      childName: childName ? childName.value.trim() : '',
+      curriculum: curriculum ? curriculum.value : '',
+      grade: grade ? grade.value : '',
       email: email.value.trim(),
       phone: phone ? phone.value.trim() : '',
+      timezone: timezone ? timezone.value : '',
       message: message.value.trim()
     };
     setError('');
@@ -438,12 +492,13 @@
       if (progress) progress.hidden = true;
       success.hidden = false;
       if (successCopy) {
-        successCopy.textContent = 'We will confirm a real demo slot with ' + payload.name +
-          ' on ' + payload.email + ' shortly.';
+        successCopy.textContent = 'Demo booked for ' + payload.childName + '. We will confirm the slot with ' +
+          payload.name + ' on ' + payload.email + '. Check your email for more details.';
       }
       if (successRef) {
-        successRef.textContent = data.reference ? 'Reference · ' + data.reference : '';
+        successRef.textContent = data.demoId ? 'Demo ID · ' + data.demoId : '';
       }
+      showBookingCredentials(data, payload.email);
       if (whatsapp) {
         whatsapp.href = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(
           'Hi Mathify — I just requested a 35-minute 1-on-1 demo' +

@@ -149,9 +149,9 @@ async function issueToken(req, res) {
   }
 }
 
-router.post('/token', directFirst, auth.requireAuth, requireTrainerAccess(), issueToken);
-router.get('/token', auth.requireAuth, requireTrainerAccess(), issueToken);
-router.post('/', directFirst, auth.requireAuth, requireTrainerAccess(), issueToken);
-router.get('/', auth.requireAuth, requireTrainerAccess(), issueToken);
+router.post('/token', directFirst, auth.requireAuth, auth.requireClassAccess, requireTrainerAccess(), issueToken);
+router.get('/token', auth.requireAuth, auth.requireClassAccess, requireTrainerAccess(), issueToken);
+router.post('/', directFirst, auth.requireAuth, auth.requireClassAccess, requireTrainerAccess(), issueToken);
+router.get('/', auth.requireAuth, auth.requireClassAccess, requireTrainerAccess(), issueToken);
 
 module.exports = router;

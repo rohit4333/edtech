@@ -83,6 +83,7 @@
   function clearTokens() {
     memoryToken = null;
     try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    if (window.MathifySession) window.MathifySession.clear(ROLE);
   }
 
   function logout() {
@@ -97,6 +98,9 @@
     }, null).then(function (data) {
       if (!data || !data.token) throw new Error('Demo sign-in unavailable.');
       writeToken(data.token);
+      if (data.refreshToken && window.MathifySession) {
+        window.MathifySession.store(ROLE, data.refreshToken, data.token);
+      }
       return data.token;
     });
   }
@@ -120,8 +124,16 @@
   function api(path, options) {
     return ensureAuth().then(function (token) {
       return rawRequest(path, options, token).catch(function (error) {
-        if (error.status === 401 || error.status === 403) return Promise.reject(requireLogin());
-        throw error;
+        if (error.status !== 401) throw error;
+        if (!window.MathifySession) return Promise.reject(requireLogin());
+        return window.MathifySession.refresh(ROLE).then(function (fresh) {
+          if (!fresh) return Promise.reject(requireLogin());
+          writeToken(fresh);
+          return rawRequest(path, options, fresh).catch(function (again) {
+            if (again.status === 401) return Promise.reject(requireLogin());
+            throw again;
+          });
+        });
       });
     });
   }

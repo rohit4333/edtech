@@ -15,7 +15,9 @@
 const crypto = require('crypto');
 const db = require('../db');
 const password = require('../auth/password');
+const sessionVersion = require('./sessionVersionService');
 const trainerOnboarding = require('./trainerOnboardingService');
+const notifications = require('./notificationService');
 
 const ADMIN_ROLES = ['trainer', 'relationship_manager', 'student'];
 const STAFF_ROLES = ['trainer', 'relationship_manager'];
@@ -57,6 +59,22 @@ function personView(user) {
     if (user[key] !== undefined) view[key] = user[key];
   });
   return view;
+}
+
+/* A staff or student credential replaced by an administrator is confirmed to
+   the account owner by email. The one-time handover value is never repeated. */
+async function notifyCredential(user) {
+  if (!user) return { sent: false, reason: 'no_account' };
+  const linked = await sessionVersion.linkedAccountIds(user.id);
+  const aliases = Array.isArray(user.loginAliases) ? user.loginAliases : [];
+  const recipient = String(user.email || aliases[0] ||
+    (linked.request && linked.request.email) || '').toLowerCase();
+  if (!recipient) return { sent: false, reason: 'no_recipient' };
+  return notifications.sendPasswordChangedEmail({
+    email: recipient,
+    name: user.name,
+    role: user.role
+  });
 }
 
 function requireRole(role, actorRole) {
@@ -283,26 +301,27 @@ async function grantAccess(id, actorId, actorRole) {
   const passwordValue = generatedPassword(user.name);
   const secured = password.hashPassword(passwordValue);
   const now = new Date().toISOString();
-  const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
-    current.status = 'active';
-    current.passwordSalt = secured.salt;
-    current.passwordHash = secured.hash;
-    current.passwordChangedAt = now;
-    current.passwordResetByFounderAt = now;
-    current.accessGrantedAt = now;
-    current.accessGrantedBy = String(actorId || actorRole || 'founder');
-    current.accessGrantedByRole = actorRole === 'relationship_manager'
-      ? 'relationship_manager' : 'founder';
-    current.accessRevokedAt = null;
-    current.accessUpdatedAt = now;
-    return current;
+  const updated = await Promise.resolve(sessionVersion.bump(user.id, {
+    status: 'active',
+    passwordSalt: secured.salt,
+    passwordHash: secured.hash,
+    passwordChangedAt: now,
+    passwordResetByFounderAt: now,
+    accessGrantedAt: now,
+    accessGrantedBy: String(actorId || actorRole || 'founder'),
+    accessGrantedByRole: actorRole === 'relationship_manager'
+      ? 'relationship_manager' : 'founder',
+    accessRevokedAt: null,
+    accessUpdatedAt: now
   }));
+  const notification = await notifyCredential(user);
   return {
-    person: personView(updated || user),
+    person: personView((updated && updated.user) || user),
     email: user.email,
     password: passwordValue,
     passwordSource: 'generated',
-    note: 'Copy this password with the email address and hand it over. It is shown only once.'
+    notification: notification,
+    note: 'Copy this password with the email address and hand it over. It is shown only once. A confirmation is emailed to the account.'
   };
 }
 
@@ -349,25 +368,26 @@ async function setPassword(id, input, actorId, actorRole) {
   const now = new Date().toISOString();
   const actor = String(actorId || actorRole || 'founder');
   const issuedByRole = isManager ? 'relationship_manager' : 'founder';
-  const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
-    current.passwordSalt = secured.salt;
-    current.passwordHash = secured.hash;
-    current.passwordChangedAt = now;
+  const updated = await Promise.resolve(sessionVersion.bump(user.id, {
+    passwordSalt: secured.salt,
+    passwordHash: secured.hash,
+    passwordChangedAt: now,
     /* Historical field retained so older founder-desk readers keep working;
        the issued-by fields below make the manager exception explicit. */
-    current.passwordResetByFounderAt = now;
-    current.passwordIssuedAt = now;
-    current.passwordIssuedBy = actor;
-    current.passwordIssuedByRole = issuedByRole;
-    current.passwordTemporaryIssued = !supplied;
-    current.passwordGenerated = !supplied;
-    return current;
+    passwordResetByFounderAt: now,
+    passwordIssuedAt: now,
+    passwordIssuedBy: actor,
+    passwordIssuedByRole: issuedByRole,
+    passwordTemporaryIssued: !supplied,
+    passwordGenerated: !supplied
   }));
+  const notification = await notifyCredential(user);
   return {
-    person: personView(updated || user),
+    person: personView((updated && updated.user) || user),
     email: user.email,
     temporaryPassword: supplied ? null : newPassword,
-    passwordSource: supplied ? 'founder' : 'generated'
+    passwordSource: supplied ? 'founder' : 'generated',
+    notification: notification
   };
 }
 

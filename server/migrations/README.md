@@ -16,6 +16,7 @@ plan.
 | `0007_student_hint_lockdown.sql` | Revokes the drifted Data API grant on `quiz_questions.hint` and recreates `student_quiz_questions` without `hint`. Hints stay trainer-owned until an explicit trainer grant releases them; role checks use `app_metadata`. |
 | `0008_payment_idempotency.sql` | Adds service-only Razorpay payment/order-credit relations and unique payment/order-credit indexes for exactly-once crediting; no anon/authenticated Data API grants. |
 | `0009_recordings_storage.sql` | Creates the private `recordings` Storage bucket, a security-definer boolean helper and one `SELECT` policy on `storage.objects`. Objects are named `<session-uuid>/<filename>`; only that session's student, trainer or an `app_metadata` founder can read. No anon policy or table grants; writes stay service-role-only. |
+| `0010_weekly_planner_cache.sql` | Documents the service-only `mathify_records` collections for immutable weekly planners: `weekly_planner_cache`, `weekly_planner_archive` and `weekly_planner_pointer`. Generated JSON is never overwritten; regeneration archives the prior version and moves the active pointer. No anon/authenticated Data API grants. |
 
 ## Review before applying
 
@@ -44,7 +45,7 @@ to the Data API automatically, so the academic columns are explicitly granted to
 
 `server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
 check the transaction wrapper, checksum drift guards, service-only grants and
-outbox shape. They are part of 36 Node suites run with plain `node` + `assert`
+outbox shape. They are part of 51 Node suites run with plain `node` + `assert`
 (no Jest/Vitest/Playwright/Cypress); results are in `TEST_REPORT.md`. The first
 seven SQL files, including `0007` and `0008`, are review-only in this workspace:
 no runner-based live apply occurred during the recorded checks. `0009` is the

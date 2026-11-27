@@ -91,23 +91,30 @@ function normalizeGenerated(generated, jsonOnly) {
   throw problem('AI provider returned no text result.', 'AI_EMPTY_RESULT', 502);
 }
 
-async function callCloudflare(current, systemContent, userContent) {
+async function callCloudflare(current, systemContent, userContent, options) {
   const controller = new AbortController();
   const timer = setTimeout(function () { controller.abort(); }, current.timeoutMs);
+  const call = options || {};
+  const generation = {};
+  if (Number.isFinite(call.temperature)) generation.temperature = call.temperature;
+  if (Number.isFinite(call.seed)) generation.seed = Math.trunc(call.seed);
 
   try {
+    const body = {
+      messages: [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: userContent }
+      ]
+    };
+    Object.keys(generation).forEach(function (key) { body[key] = generation[key]; });
+
     const response = await fetch(endpoint(current), {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + current.apiToken,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemContent },
-          { role: 'user', content: userContent }
-        ]
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal
     });
 
@@ -186,7 +193,9 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
           return freelmStage.callFreelm({
             system: systemContent,
             user: userContent,
-            maxOutputTokens: callOptions.maxOutputTokens || 600
+            maxOutputTokens: callOptions.maxOutputTokens || 600,
+            temperature: callOptions.temperature,
+            seed: callOptions.seed
           });
         }
       });
@@ -199,7 +208,9 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
             system: systemContent,
             user: userContent,
             image: image,
-            maxOutputTokens: callOptions.maxOutputTokens || 2048
+            maxOutputTokens: callOptions.maxOutputTokens || 2048,
+            temperature: callOptions.temperature,
+            seed: callOptions.seed
           });
         }
       });
@@ -211,7 +222,9 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
           return alternates.callGroq({
             system: systemContent,
             user: userContent,
-            maxOutputTokens: callOptions.maxOutputTokens || 2048
+            maxOutputTokens: callOptions.maxOutputTokens || 2048,
+            temperature: callOptions.temperature,
+            seed: callOptions.seed
           });
         }
       });
@@ -219,7 +232,12 @@ async function generateAIResponse(systemPrompt, userPrompt, options) {
   }
   attempts.push({
     name: 'Cloudflare',
-    run: function () { return callCloudflare(current, systemContent, userContent); }
+    run: function () {
+      return callCloudflare(current, systemContent, userContent, {
+        temperature: callOptions.temperature,
+        seed: callOptions.seed
+      });
+    }
   });
 
   let lastError = null;

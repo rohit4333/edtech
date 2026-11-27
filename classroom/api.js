@@ -101,10 +101,16 @@
     if (settings.skipAuth) return rawRequest(path, settings, null);
     return ensureAuth().then(function (tokenValue) {
       return rawRequest(path, settings, tokenValue).catch(function (error) {
-        if ((error.status === 401 || error.status === 403) && !window.MATHIFY_ACCESS_TOKEN) {
-          return Promise.reject(requireLogin());
-        }
-        throw error;
+        if (error.status !== 401 || window.MATHIFY_ACCESS_TOKEN) throw error;
+        if (!window.MathifySession) return Promise.reject(requireLogin());
+        return window.MathifySession.refresh(role).then(function (fresh) {
+          if (!fresh) return Promise.reject(requireLogin());
+          writeToken(fresh);
+          return rawRequest(path, settings, fresh).catch(function (again) {
+            if (again.status === 401) return Promise.reject(requireLogin());
+            throw again;
+          });
+        });
       });
     });
   }
@@ -116,6 +122,9 @@
       body: { email: email, password: password }
     }, null).then(function (data) {
       writeToken(data.token);
+      if (data.refreshToken && window.MathifySession) {
+        window.MathifySession.store(role, data.refreshToken, data.token);
+      }
       return data.token;
     });
   }

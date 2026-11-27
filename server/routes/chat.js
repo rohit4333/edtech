@@ -8,6 +8,8 @@ const chatWorker = require('../services/chatWorkerService');
 
 const router = express.Router();
 router.use(auth.requireAuth);
+/* Chat is class help, not a policy or payment surface. */
+router.use(auth.requireClassAccess);
 
 function bearer(req) {
   const header = req.headers.authorization || '';

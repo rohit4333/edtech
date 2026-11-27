@@ -18,6 +18,7 @@ const reactions = require('../services/reactionService');
 const reactionPermission = require('../services/reactionPermissionService');
 const appPolicy = require('../config/policy.json');
 const requireTrainerAccess = require('../middleware/trainerAccess');
+const demoService = require('../services/demoService');
 
 const router = express.Router();
 
@@ -26,6 +27,9 @@ router.use(auth.requireAuth);
    ink, media controls or any other classroom surface. */
 router.use(requireTrainerAccess());
 router.use(auth.loadSession);
+/* Post-demo logins still work for payments and policies, but never for class
+   content until a pack has been credited. */
+router.use(auth.requireClassAccess);
 
 router.get('/:sessionId/state', async function (req, res) {
   const state = await serializers.toSessionState(req.sessionRecord, req.user);
@@ -653,6 +657,14 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
     });
 
     const presence = await presenceService.finalize(updated, endedAt);
+
+    /* A finished demo closes demo-only class access but keeps payments and
+       policies reachable. Notification failures never fail the session end. */
+    try {
+      await demoService.onSessionEnded(session);
+    } catch (error) {
+      console.error('[demo] session completion update failed:', error.message);
+    }
 
     /* One end-of-session celebration only. The priority is milestone → mastery
        gate → session complete, so a child never sees stacked overlays. */

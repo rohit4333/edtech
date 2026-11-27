@@ -127,6 +127,43 @@ router.post('/login', async function (req, res, next) {
 
     return res.json({
       token: tokenService.sign(user),
+      /* The refresh token lets a desk silently renew its access token after a
+         long break instead of dropping the family back to the sign-in page. */
+      refreshToken: tokenService.signRefresh(user),
+      rememberSeconds: tokenService.rememberTtlSeconds,
+      user: auth.publicUser(user)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/* Exchange a remembered refresh token for a fresh desk token. The role comes
+   from the signed token, never from the request body, so a parent refresh can
+   never mint a student token (or the other way around). */
+router.post('/refresh', async function (req, res, next) {
+  const presented = String((req.body || {}).refreshToken || '').trim();
+  const payload = tokenService.verify(presented, 'refresh');
+  if (!payload) {
+    return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN', message: 'Sign in again to continue.' });
+  }
+  try {
+    const user = await db.findUserById(payload.sub);
+    const pendingStaff = user && user.status === 'pending' &&
+      (user.role === 'trainer' || user.role === 'relationship_manager');
+    if (!user || (user.status !== 'active' && !pendingStaff)) {
+      return res.status(401).json({ error: 'INVALID_REFRESH_TOKEN', message: 'Sign in again to continue.' });
+    }
+    if (Number(payload.ver || 0) !== Number(user.tokenVersion || 0)) {
+      return res.status(401).json({ error: 'SESSION_EXPIRED', message: 'Sign in again to continue.' });
+    }
+    if (user.role !== payload.role && !sharedLoginPair(user.role, payload.role)) {
+      return res.status(403).json({ error: 'ROLE_DENIED', message: 'Those credentials cannot open this desk.' });
+    }
+    return res.json({
+      token: tokenService.sign(user),
+      refreshToken: presented,
+      rememberSeconds: tokenService.rememberTtlSeconds,
       user: auth.publicUser(user)
     });
   } catch (error) {

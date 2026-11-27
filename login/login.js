@@ -112,11 +112,17 @@
     if (password) password.disabled = value;
   }
 
-  function storeToken(token, targetRole) {
+  function storeToken(token, targetRole, refreshToken) {
     var keys = (ROLES[targetRole] || ROLES.student).tokenKeys;
     keys.forEach(function (key) {
       try { window.localStorage.setItem(key, token); } catch (error) { /* private mode */ }
     });
+    /* A server-signed refresh token keeps this desk signed in across browser
+       restarts. It is scoped to the opened desk so a shared child/parent
+       credential never swaps dashboards on refresh. */
+    if (refreshToken && window.MathifySession) {
+      window.MathifySession.store(targetRole, refreshToken, token);
+    }
   }
 
   function applyRole(value) {
@@ -143,7 +149,7 @@
       var user = data && data.user;
       if (!data || !data.token || !user) throw new Error('SIGN_IN_UNAVAILABLE');
       var targetRole = ROLES[user.role] ? user.role : role;
-      storeToken(data.token, targetRole);
+      storeToken(data.token, targetRole, data.refreshToken);
       if (user.timezone) {
         try { window.localStorage.setItem('mathify.timezone', user.timezone); } catch (error) { /* private mode */ }
       }

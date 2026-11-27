@@ -625,6 +625,13 @@ function findPasswordReset(tokenHash) {
   return getRecord('password_resets', String(tokenHash || ''));
 }
 
+function findPasswordResetByOtpHash(otpHash) {
+  return listRecords('password_resets').then(function (rows) {
+    const found = rows.find(function (row) { return row.otpHash === otpHash; });
+    return found ? copy(found) : null;
+  });
+}
+
 function savePasswordReset(record) {
   return putRecord('password_resets', String(record.tokenHash || ''), record);
 }
@@ -739,6 +746,65 @@ function recordContactRequest(requestRecord) {
   return putRecord('contact_requests', stored.id, stored);
 }
 
+/* Demo requests and parent inbox rows stay in the same service-only store.
+   Browser Data API roles have no grant on mathify_records. */
+function findContactRequest(requestId) {
+  return getRecord('contact_requests', String(requestId || ''));
+}
+
+function findContactRequestForStudent(studentId) {
+  return listRecords('contact_requests').then(function (rows) {
+    return rows.find(function (row) { return row.studentId === studentId; }) || null;
+  });
+}
+
+function listContactRequests(limit) {
+  const size = Math.max(1, Math.min(200, Number(limit || 50)));
+  return listRecords('contact_requests').then(function (rows) {
+    rows.sort(function (left, right) {
+      return String(right.receivedAt || '').localeCompare(String(left.receivedAt || ''));
+    });
+    return rows.slice(0, size);
+  });
+}
+
+function updateContactRequest(requestId, patch) {
+  return findContactRequest(requestId).then(function (current) {
+    if (!current) return null;
+    return putRecord('contact_requests', requestId, Object.assign({}, current, copy(patch) || {}));
+  });
+}
+
+function insertParentNotification(record) {
+  const stored = Object.assign({
+    id: id('pn'),
+    createdAt: new Date().toISOString(),
+    readAt: null
+  }, copy(record) || {});
+  return putRecord('parent_notifications', stored.id, stored);
+}
+
+function findParentNotification(notificationId) {
+  return getRecord('parent_notifications', String(notificationId || ''));
+}
+
+function listParentNotifications(childId) {
+  return listRecords('parent_notifications').then(function (rows) {
+    const filtered = rows.filter(function (row) { return row.childId === childId; });
+    filtered.sort(function (left, right) {
+      return String(right.createdAt || '').localeCompare(String(left.createdAt || ''));
+    });
+    return filtered;
+  });
+}
+
+function updateParentNotification(notificationId, patch) {
+  return findParentNotification(notificationId).then(function (current) {
+    if (!current) return null;
+    return putRecord('parent_notifications', notificationId, Object.assign({}, current, copy(patch) || {}));
+  });
+}
+
 /* ------------------------------------------------------------ event outbox */
 
 function channelName(sessionId) {
@@ -838,6 +904,43 @@ function saveParentChatRead(record) {
   return putRecord('parent_chat_read', parentChatReadKey(stored.threadId, stored.recipientId), stored);
 }
 
+/* ------------------------------------------------- early-years planner cache
+   Collection keys are the full Mathify cache keys, so a second generation can
+   never overwrite the first. Regeneration writes a new version and archives
+   the prior immutable record under its own unique key. */
+function findWeeklyPlannerCache(cacheKey) {
+  return getRecord('weekly_planner_cache', String(cacheKey || ''));
+}
+
+function insertWeeklyPlannerCache(record) {
+  const stored = copy(record);
+  return insertRecordOnce('weekly_planner_cache', stored.cacheKey, stored).then(function (result) {
+    return { claimed: result.claimed, record: result.data };
+  });
+}
+
+function archiveWeeklyPlannerCache(record) {
+  const stored = copy(record);
+  const archiveKey = stored.cacheKey + ':archived:' + String(stored.archivedAt || new Date().toISOString());
+  stored.archiveKey = archiveKey;
+  return insertRecordOnce('weekly_planner_archive', archiveKey, stored).then(function (result) {
+    return { claimed: result.claimed, record: result.data };
+  });
+}
+
+function listWeeklyPlannerArchive() {
+  return listRecords('weekly_planner_archive');
+}
+
+function findWeeklyPlannerPointer(pointerKey) {
+  return getRecord('weekly_planner_pointer', String(pointerKey || ''));
+}
+
+function saveWeeklyPlannerPointer(record) {
+  const stored = copy(record);
+  return putRecord('weekly_planner_pointer', stored.pointerKey, stored);
+}
+
 /* --------------------------------------------------------------------- seed */
 
 async function seedDemo() {
@@ -898,6 +1001,7 @@ module.exports = {
   saveFounderPenalty,
   listFounderPenalties,
   findPasswordReset,
+  findPasswordResetByOtpHash,
   savePasswordReset,
   listLeaveRequests,
   listLeaveRequestsForUser,
@@ -936,6 +1040,14 @@ module.exports = {
   listPracticeBatches,
   updatePracticeBatch,
   recordContactRequest,
+  findContactRequest,
+  findContactRequestForStudent,
+  listContactRequests,
+  updateContactRequest,
+  insertParentNotification,
+  findParentNotification,
+  listParentNotifications,
+  updateParentNotification,
   appendSessionEvent,
   recentSessionEvents,
   listSessionEvents,
@@ -946,5 +1058,11 @@ module.exports = {
   findParentChatRead,
   saveParentChatRead,
   claimReminder,
-  releaseReminderClaim
+  releaseReminderClaim,
+  findWeeklyPlannerCache,
+  insertWeeklyPlannerCache,
+  archiveWeeklyPlannerCache,
+  listWeeklyPlannerArchive,
+  findWeeklyPlannerPointer,
+  saveWeeklyPlannerPointer
 };
