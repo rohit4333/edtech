@@ -1,6 +1,8 @@
 # TPFF QUESTION LEDGER — v4.0.0
 
 > **ARCHIVED EVIDENCE — NOT CURRENT STATE.** Agora/DeepSeek/Cloudflare-only references here are earlier provider-round notes. Agora transport has been removed; LiveKit is the only 1:1 call stack. See README.md and LIVE_QA_REPORT.md.
+>
+> **v4.0.3 addendum (2026-11-27):** the founder supplied a Supabase Disk IO Budget email. It is appended as `Q6` below; earlier Q0–Q5 rows are unchanged. VERIFIED.
 
 ## Q0. HEADER
 
@@ -83,3 +85,41 @@ No new `Q1. …` questions and no new `NEW-Q-*` rows were supplied for v4.0.0; t
 | DEC-103 | Final local validation supersedes earlier suite counts: 36/36 suites with `agoraRoutes: 60`, `sessionPolicy: 37`, `rtcControls: 46`, `livePersistence: 54`, `chatWorker: 110` and `mcpServer: 55`; syntax sweep 136 files / 0 failures | APPLIED | `[src: E2E_TEST_LOG.md:70-79]` | VERIFIED | Tester / QA |
 | DEC-104 | Final pre-commit inventory is 41/32/9 (41 porcelain paths: 32 modified tracked + 9 untracked); the two audit docs are included, and all 9 untracked paths become tracked after the v4.0.0 documentation commit | APPLIED | `[src: E2E_TEST_LOG.md:46,70-82]`; `[ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26]` | VERIFIED | Repo maintainer |
 | DEC-105 | `.env.example` assignment lines remain 45 and §13.a env rows remain 59; both counts are simultaneously true and stated distinctly | APPLIED | `[src: E2E_TEST_LOG.md:46]`; `[src: PROJECT_FLOW_FILE.md:§13.a]`; `[ev: env-name audit, 2026-11-26]` | VERIFIED | Docs/Archivist |
+
+## Q6. v4.0.3 ADDENDUM — SUPABASE DISK IO BUDGET EMAIL (2026-11-27)
+
+The founder pasted a Supabase platform email for project ref `apsohqamsodkasqxdxou` on 2026-11-27. It is an operational capacity alert, not a code error, security incident or invoice. It is recorded below as six explicit WHAT / WHY / HOW / WHEN / WHERE / WHICH questions so each can be closed with a concrete artifact. The email is preserved verbatim at the end of this section [ev: user-supplied email paste, 2026-11-27]. VERIFIED.
+
+| ID | Question | Status | Exact artifact needed to answer | Owner | Tag | Source |
+|---|---|---|---|---|---|---|
+| NEW-Q-001 | WHAT is the Supabase "Disk IO Budget" warning for project `apsohqamsodkasqxdxou`, and what happens when the budget is fully consumed? | OPEN / UNKNOWN | Supabase High Disk IO Consumption Guide plus a Dashboard → Observability → Database → Disk IO Balance export whose consequences match the email's three bullets | Platform/DB operator | UNKNOWN | `[ev: user-supplied Supabase email, 2026-11-27]`; `[src: https://supabase.com/kb/troubleshooting/exhaust-disk-io]` |
+| NEW-Q-002 | WHY did this project start depleting its Disk IO Budget — which queries, jobs, polling loops or dashboard actions are consuming IO? | OPEN / UNKNOWN | Dashboard daily/hourly Disk IO charts correlated with `pg_stat_statements` top queries and app/Worker request logs; artifact must name the consuming operation or state "not derivable from repo" | Platform/DB operator + Backend reviewer | UNKNOWN | `[ev: user-supplied Supabase email, 2026-11-27]`; `[src: server/jobs/reminders.js]`; `[src: server/services/presenceService.js]` |
+| NEW-Q-003 | HOW should we diagnose and reduce disk IO, or raise capacity if reduction is insufficient? | OPEN / UNKNOWN | Before/after Disk IO Balance export plus `EXPLAIN (ANALYZE, BUFFERS)` for the top query, or a compute add-on change receipt; no live change is claimed until applied | Platform/DB operator | UNKNOWN | `[src: https://supabase.com/docs/guides/platform/compute-and-disk]`; `[ev: user-supplied Supabase email, 2026-11-27]` |
+| NEW-Q-004 | WHEN did consumption cross the alert threshold, on which day/hour, and when does the budget replenish? | OPEN / UNKNOWN | Daily and hourly Disk IO consumption exports linked in the email with a timestamped threshold crossing, plus Supabase's documented budget reset window | Platform/DB operator | UNKNOWN | `[ev: user-supplied Supabase email, 2026-11-27]` |
+| NEW-Q-005 | WHERE in Supabase do we inspect the daily/hourly Disk IO consumption and the lowest sampled balance? | OPEN / UNKNOWN | Dashboard → Observability → Overview → Database → Disk IO Balance, and Custom Reports → Instance health → `Disk IO % Consumed` / `Disk IO % Remaining`; Infrastructure settings for the seven-day minimum | Platform/DB operator | UNKNOWN | `[ev: user-supplied Supabase email, 2026-11-27]`; `[src: https://supabase.com/kb/troubleshooting/exhaust-disk-io]` |
+| NEW-Q-006 | WHICH compute add-on, environment and code paths are affected — and is the committed mock-mode app responsible at all? | OPEN / UNKNOWN | Infrastructure settings showing the current compute add-on and project ref `apsohqamsodkasqxdxou`, deployment environment inventory, and a repo search for live-mode polling/query paths; must explicitly separate dashboard/SQL activity from deployed app traffic | Platform/DevOps owner | UNKNOWN | `[ev: user-supplied Supabase email, 2026-11-27]`; `[src: server/db/supabase.js]`; `[src: server/config.js]` |
+
+### Verbatim source email (text/plain attachment "Pasted Text")
+
+```text
+Hey there,
+
+We hope you've been having a good experience with your project rohit4333's Project (project ref: apsohqamsodkasqxdxou).
+
+Your project is depleting its Disk IO Budget. This implies that your project is utilizing more Disk IO than what your compute add-on can effectively manage. You can check your daily Disk IO consumption here and hourly here.
+
+When your project has consumed all of your Disk IO Budget,
+
+Response times on requests can increase noticeably
+CPU usage rises noticeably due to IO wait
+Your instance may become unresponsive
+We have created a guide that explains Disk IO in more detail and what you can do to address this issue: High Disk IO Consumption Guide.
+
+Different compute add-ons come with different baseline performances. So, you can also consider upgrading your compute add-on as your performance needs increase with your usage.
+
+The Supabase team
+```
+
+## Q7. v4.0.3 COVERAGE NOTE
+
+Six new `NEW-Q-*` rows were added under `Q6`; the 26 carried-forward `U-*` rows remain unchanged and open, and one matching `U-27` operational row was appended to `PROJECT_FLOW_FILE.md` §10 and its `KNOWN_UNKNOWNS.md` extract. No live Supabase dashboard export, query-stat artifact, compute change or migration apply was produced in this update, so all six rows and `U-27` remain `OPEN / UNKNOWN` [ev: user-supplied email paste, 2026-11-27]. VERIFIED.
