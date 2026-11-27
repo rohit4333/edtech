@@ -216,7 +216,7 @@ These confirm mock-mode fallback, deliberate privacy rejection, and opt-in jobs 
 - A server quiz launch put the student tab into quiz mode (`quiz-live`) and suppressed the shared celebration: `/celebrate` returned `fired:false`, `seq:null`, and no `shared.celebration` event or visible celebration layer followed.
 - A kid reaction during that active quiz still reached the safe event stream (`reaction.sent`, seq `13`) and rendered the separate reaction layer containing `💡`; it did not enable any camera or microphone track.
 - A reaction arriving while a celebration was visible stayed hidden until the celebration cleared, then rendered; the two layers were never visible at the same time.
-- Reduced-motion / always-on sound contracts, the icon-only trainer deck on the dashboard and camera page, and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
+- Reduced-motion / always-on sound contracts, the icon-only trainer deck appearing on the camera page only after a live server state, its absence from the dashboard, and the static badge fallback were verified in source contracts; no real device permission or remote hardware change was requested.
 
 ## Founder settings and planner designer (port 4200)
 

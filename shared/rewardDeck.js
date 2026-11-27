@@ -1,9 +1,10 @@
 /* ==========================================================================
-   MATHIFY — trainer reward deck for active-session pages
-   Injected only on trainer pages while a session is active. The classroom has
-   its own in-page deck; this shared deck serves the dashboard and the camera
-   check page. Every click animates locally first, then sends the allowlisted
-   server event. Sound is always on and volume-capped; there is no mute toggle.
+   MATHIFY — trainer celebration deck for the camera check page
+   The trainer dashboard never loads this deck. On the connect page it appears
+   only after the server confirms the session is live, never during the
+   pre-session camera check. The 1:1 classroom owns its own engagement bar.
+   Every click animates locally first, then sends an allowlisted event. Sound is
+   always on and volume-capped; there is no mute toggle.
    ========================================================================== */
 (function () {
   'use strict';
@@ -11,11 +12,14 @@
   var params = new URLSearchParams(window.location.search);
   var declaredRole = params.get('role') ||
     (window.MATHIFY_USER && window.MATHIFY_USER.role) || '';
-  var trainerPath = /(^|\/)trainer\//.test(window.location.pathname);
+  var connectPage = document.body.classList.contains('connect-page') ||
+    /\/connect\.html$/.test(window.location.pathname);
   var studentView = params.get('view') === 'student' || declaredRole === 'student' ||
     /(^|\/)student\//.test(window.location.pathname);
+  var sessionLive = false;
 
-  if (studentView || !(trainerPath || declaredRole === 'trainer' || declaredRole === 'founder')) return;
+  if (!connectPage || studentView ||
+      !(declaredRole === 'trainer' || declaredRole === 'founder')) return;
   /* The 1:1 classroom already owns a richer engagement bar. Never double it. */
   if (document.querySelector('[data-celebration-style]')) return;
 
@@ -43,6 +47,7 @@
   var deck = null;
   var stage = null;
   var stageTimer = null;
+  var audioBound = false;
   var stylePreference = '';
   var audioContext = null;
 
@@ -185,8 +190,12 @@
     post('/reactions', { emoji: safeEmoji });
   }
 
+  function canMount() {
+    return Boolean(connectPage && sessionLive && sessionId());
+  }
+
   function mount() {
-    if (deck) return;
+    if (!canMount() || deck) return false;
     deck = document.createElement('div');
     deck.className = 'reward-deck';
     deck.id = 'rewardDeck';
@@ -217,24 +226,44 @@
     Array.prototype.forEach.call(deck.querySelectorAll('[data-rd-style]'), function (button) {
       button.addEventListener('click', function () { fireStyle(button.getAttribute('data-rd-style')); });
     });
-    document.addEventListener('pointerdown', unlockAudio, { passive: true });
-    document.addEventListener('keydown', unlockAudio);
+    if (!audioBound) {
+      document.addEventListener('pointerdown', unlockAudio, { passive: true });
+      document.addEventListener('keydown', unlockAudio);
+      audioBound = true;
+    }
+    return true;
+  }
+
+  function unmount() {
+    if (stageTimer) { clearTimeout(stageTimer); stageTimer = null; }
+    if (deck && deck.parentNode) deck.parentNode.removeChild(deck);
+    if (stage && stage.parentNode) stage.parentNode.removeChild(stage);
+    deck = null;
+    stage = null;
   }
 
   function ensureMounted() {
-    if (sessionId()) {
-      mount();
-      return true;
-    }
+    if (canMount()) return mount();
+    unmount();
     return false;
   }
 
-  if (!ensureMounted()) {
-    var poll = setInterval(function () {
-      if (ensureMounted()) clearInterval(poll);
-    }, 700);
-    setTimeout(function () { clearInterval(poll); }, 60000);
+  function loadSessionState() {
+    var id = sessionId();
+    if (!id || !window.mathifyClassroomApi ||
+        typeof window.mathifyClassroomApi.getSessionState !== 'function') return;
+    window.mathifyClassroomApi.getSessionState(id).then(function (state) {
+      sessionLive = Boolean(state && state.status === 'live');
+      ensureMounted();
+    }).catch(function () {
+      /* Fail closed: a state read error must never enable the deck. */
+      sessionLive = false;
+      ensureMounted();
+    });
   }
+
+  loadSessionState();
+  window.setInterval(loadSessionState, 4000);
 
   window.mathifyRewardDeck = {
     mount: mount,

@@ -78,7 +78,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 - Two-sided connection precondition before any class can start.
 - Fixed-catalog reward badges rendered as student trophies.
 - Student Control: one trainer-only surface for media Access, explicit mute/camera-off, emoji/applause pauses, board sharing, rewards, quiz, progress and end.
-- Server-owned brand-safe celebrations and role-scoped reactions with layered full-page effects, always-on capped sound with no mute control, icon-only trainer controls, an active-session deck on the dashboard and camera check page, and a reduced-motion static fallback.
+- Server-owned brand-safe celebrations and role-scoped reactions with layered full-page effects, always-on capped sound with no mute control, icon-only trainer controls, a camera-check-page deck that mounts only after the server confirms the session is live, and a reduced-motion static fallback. The trainer dashboard never loads the deck.
 - Private parent ↔ trainer human chat for a linked child, with per-recipient unread counts, mark-read, regex DLP and founder-only flags.
 - 49 automated suites, CI, Docker, Render/Railway manifests, a five-minute cron for 24h/1h/15m/2m reminders plus Needs Attention, private LiveKit Egress recording with role-scoped short-lived signed links, structured logging and rate limiting.
 

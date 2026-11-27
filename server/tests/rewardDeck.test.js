@@ -24,12 +24,12 @@ function main() {
   const deckCss = read('shared/rewardDeck.css');
   const boardCss = read('shared/fullBoard.css');
 
-  ok(trainerHtml.indexOf('href="../shared/rewardDeck.css"') !== -1 &&
-    trainerHtml.indexOf('src="../shared/rewardDeck.js"') !== -1,
-  'the trainer dashboard loads the shared celebration deck');
+  ok(trainerHtml.indexOf('rewardDeck.css') === -1 &&
+    trainerHtml.indexOf('rewardDeck.js') === -1,
+  'the trainer dashboard never loads the celebration deck');
   ok(connectHtml.indexOf('href="../shared/rewardDeck.css"') !== -1 &&
     connectHtml.indexOf('src="../shared/rewardDeck.js"') !== -1,
-  'the trainer camera check page loads the same celebration deck');
+  'the trainer camera check page loads the shared celebration deck');
   ok(trainerHtml.indexOf('id="cameraOnlyBtn"') !== -1 &&
     trainerHtml.indexOf('id="i-cam"') !== -1,
   'the dashboard has a camera-only return action');
@@ -40,13 +40,13 @@ function main() {
   'an active dashboard session exposes its id to the deck');
 
   ok(deckJs.indexOf("declaredRole === 'student'") !== -1 &&
-    deckJs.indexOf('studentView || !(trainerPath') !== -1,
-  'the deck refuses student and non-trainer roles');
+    deckJs.indexOf('!connectPage || studentView') !== -1,
+  'the deck refuses student roles and every non-connect page');
   ok(deckJs.indexOf("[data-celebration-style]')") !== -1,
   'the classroom keeps its own deck without a duplicate');
-  ok(deckJs.indexOf("params.get('sessionId') || params.get('session')") !== -1 &&
-    deckJs.indexOf('if (sessionId()) {') !== -1,
-  'the deck mounts only with a session id');
+  ok(deckJs.indexOf("state.status === 'live'") !== -1 &&
+    deckJs.indexOf('connectPage && sessionLive && sessionId()') !== -1,
+  'the deck mounts only after the server confirms a live session');
   ok(deckJs.indexOf("aria-label', 'Celebration controls'") !== -1 &&
     deckJs.indexOf('>Rewards<') === -1 &&
     deckJs.indexOf('reward-deck-label') === -1,
