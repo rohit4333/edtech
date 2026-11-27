@@ -91,7 +91,9 @@
   var imageCache = {};
   var active = null;
   var pointerId = null;
-  var tool = 'pen';
+  /* Select is the safe default: opening the board never starts sketching.
+     Non-sketching tools keep the compact arrow cursor. */
+  var tool = 'select';
   var color = 'ink';
   var weight = 'normal';
   var sharing = false;
@@ -809,8 +811,13 @@
     moveDrag = null;
     resizeDrag = null;
     canvas.style.cursor = '';
-    overlay.classList.toggle('tool-hand', tool === 'hand');
-    overlay.classList.toggle('tool-select', tool === 'select');
+    overlay.classList.remove('is-panning');
+    /* Only drawing tools change the pointer icon. Shapes, lines and every
+       other non-sketching tool inherit the compact arrow in fullBoard.css. */
+    ['select', 'hand', 'pen', 'highlighter', 'marker', 'eraser', 'laser']
+      .forEach(function (cursorTool) {
+        overlay.classList.toggle('tool-' + cursorTool, tool === cursorTool);
+      });
     toolPalette.querySelectorAll('[data-board-tool]').forEach(function (item) {
       item.setAttribute('aria-pressed', String(item === button));
     });
@@ -1070,22 +1077,29 @@
   }
 
   /* A planner or quiz question is pushed as question-only pixels: no options,
-     answer, hint or trainer note ever enters the board event. The whole board
-     is then sent as one snapshot so both people see the same upward shift. */
-  function questionDataUrl(text) {
-    var clean = String(text || '').trim();
-    if (!clean) return null;
-    var width = 1400;
-    var pad = 76;
-    var measure = document.createElement('canvas').getContext('2d');
-    if (!measure) return null;
-    var font = '600 58px Poppins, Arial, sans-serif';
-    measure.font = font;
-    var maxWidth = width - pad * 2;
-    var words = clean.split(/\s+/);
+     answer, hint or trainer note ever enters the board event. Image questions
+     bring only their own attached image. The card uses the Paper & Ink CSS
+     tokens, sits top-right, and travels through the existing snapshot event. */
+  function themeToken(name, fallback) {
+    var styles = window.getComputedStyle(document.documentElement);
+    return (styles.getPropertyValue(name) || '').trim() || fallback;
+  }
+
+  function roundRect(pen, x, y, width, height, radius) {
+    var r = Math.min(radius, width / 2, height / 2);
+    pen.beginPath();
+    pen.moveTo(x + r, y);
+    pen.arcTo(x + width, y, x + width, y + height, r);
+    pen.arcTo(x + width, y + height, x, y + height, r);
+    pen.arcTo(x, y + height, x, y, r);
+    pen.arcTo(x, y, x + width, y, r);
+    pen.closePath();
+  }
+
+  function wrapLines(measure, value, maxWidth) {
     var lines = [];
     var line = '';
-    words.forEach(function (word) {
+    String(value).split(/\s+/).forEach(function (word) {
       var next = line ? line + ' ' + word : word;
       if (line && measure.measureText(next).width > maxWidth) {
         lines.push(line);
@@ -1093,21 +1107,119 @@
       } else line = next;
     });
     if (line) lines.push(line);
-    var lineHeight = 82;
-    var stage = document.createElement('canvas');
-    stage.width = width;
-    stage.height = Math.max(260, lines.length * lineHeight + 150);
-    var pen = stage.getContext('2d');
-    if (!pen) return null;
-    pen.fillStyle = '#FDFAF3';
-    pen.fillRect(0, 0, stage.width, stage.height);
-    pen.fillStyle = '#0E1420';
-    pen.font = font;
-    pen.textBaseline = 'top';
-    lines.forEach(function (value, index) {
-      pen.fillText(value, pad, 72 + index * lineHeight);
+    return lines;
+  }
+
+  function questionImageSource(value) {
+    if (!value) return Promise.resolve(null);
+    var source = typeof value === 'string' ? value :
+      (value.data || value.dataUrl || value.src || value.url || '');
+    source = String(source || '').trim();
+    if (!source) return Promise.resolve(null);
+    if (source.indexOf('data:image/') === 0) return Promise.resolve(source);
+    if (/^https?:\/\//.test(source) || source.charAt(0) === '/') {
+      return fetch(source).then(function (response) { return response.blob(); })
+        .then(function (blob) {
+          return new Promise(function (resolve) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(String(reader.result || '')); };
+            reader.onerror = function () { resolve(null); };
+            reader.readAsDataURL(blob);
+          });
+        }).catch(function () { return null; });
+    }
+    if (value && typeof value === 'object' && value.mime &&
+        /^image\//.test(value.mime) && /^[A-Za-z0-9+/=\s]+$/.test(source)) {
+      return Promise.resolve('data:' + value.mime + ';base64,' + source.replace(/\s+/g, ''));
+    }
+    return Promise.resolve(null);
+  }
+
+  function questionCard(question) {
+    var text = String((question && (question.q || question.text || question.prompt || question.stem)) || '').trim();
+    if (!text) return Promise.resolve(null);
+    var width = 1400;
+    var pad = 56;
+    var measure = document.createElement('canvas').getContext('2d');
+    if (!measure) return Promise.resolve(null);
+    var font = '600 56px Poppins, Arial, sans-serif';
+    measure.font = font;
+    var maxWidth = width - pad * 2;
+    var lines = wrapLines(measure, text, maxWidth);
+    var lineHeight = 78;
+    var imageValue = question && (question.image || question.imageUrl ||
+      question.image_url || question.imageData || question.image_data ||
+      question.photo || question.attachment);
+    return questionImageSource(imageValue).then(function (source) {
+      if (!source) return null;
+      return loadBitmap(source).then(function (bitmap) {
+        return { source: source, bitmap: bitmap };
+      }).catch(function () { return null; });
+    }).then(function (image) {
+      var paper = themeToken('--paper', '#FDFAF3');
+      var ink = themeToken('--ink', '#0E1420');
+      var accent = themeToken('--coral-deep', '#B83A16');
+      var line = themeToken('--line', 'rgba(14,20,32,.14)');
+      var imageWidth = 0;
+      var imageHeight = 0;
+      if (image) {
+        var ratio = (image.bitmap.naturalWidth || 16) / (image.bitmap.naturalHeight || 9);
+        imageWidth = maxWidth;
+        imageHeight = imageWidth / ratio;
+        if (imageHeight > 520) { imageHeight = 520; imageWidth = imageHeight * ratio; }
+        if (imageHeight < 180) { imageHeight = 180; imageWidth = imageHeight * ratio; }
+      }
+      var textTop = pad + 52;
+      var height = textTop + lines.length * lineHeight +
+        (image ? 34 + imageHeight : 0) + pad;
+      var stage = document.createElement('canvas');
+      stage.width = width;
+      stage.height = Math.ceil(height);
+      var pen = stage.getContext('2d');
+      if (!pen) return null;
+      pen.save();
+      pen.fillStyle = 'rgba(14,20,32,.12)';
+      roundRect(pen, 18, 24, width - 36, stage.height - 36, 28);
+      pen.fill();
+      pen.restore();
+      pen.fillStyle = paper;
+      roundRect(pen, 8, 8, width - 16, stage.height - 24, 28);
+      pen.fill();
+      pen.lineWidth = 2;
+      pen.strokeStyle = line;
+      pen.stroke();
+      pen.fillStyle = accent;
+      pen.beginPath();
+      pen.arc(pad + 6, pad + 9, 7, 0, Math.PI * 2);
+      pen.fill();
+      pen.fillStyle = ink;
+      pen.font = '600 26px Poppins, Arial, sans-serif';
+      pen.textBaseline = 'top';
+      pen.fillText('QUESTION', pad + 26, pad - 3);
+      pen.font = font;
+      lines.forEach(function (value, index) {
+        pen.fillText(value, pad, textTop + index * lineHeight);
+      });
+      if (image) {
+        var imageY = textTop + lines.length * lineHeight + 34;
+        var imageX = pad + Math.max(0, (maxWidth - imageWidth) / 2);
+        pen.fillStyle = '#FFFFFF';
+        roundRect(pen, imageX - 10, imageY - 10, imageWidth + 20, imageHeight + 20, 18);
+        pen.fill();
+        pen.lineWidth = 2;
+        pen.strokeStyle = line;
+        pen.stroke();
+        pen.save();
+        roundRect(pen, imageX, imageY, imageWidth, imageHeight, 12);
+        pen.clip();
+        pen.drawImage(image.bitmap, imageX, imageY, imageWidth, imageHeight);
+        pen.restore();
+      }
+      return {
+        data: stage.toDataURL('image/webp', 0.92) || stage.toDataURL('image/png'),
+        hasImage: Boolean(image)
+      };
     });
-    return stage.toDataURL('image/webp', 0.92) || stage.toDataURL('image/png');
   }
 
   function shiftItemsUp(delta) {
@@ -1128,61 +1240,88 @@
     });
   }
 
-  /* Automatic question transfer queues the text on the same board without
+  /* Keep old writing visible under the upward shift, then move any item that
+     would collide with the reserved top-right question card below that card. */
+  function clearQuestionZone(box) {
+    items.forEach(function (item) {
+      var bounds = itemBounds(item);
+      if (!bounds || bounds.right < box.x || bounds.left > box.x + box.w ||
+          bounds.bottom < box.y || bounds.top > box.y + box.h) return;
+      var delta = box.y + box.h + 0.02 - bounds.top;
+      if (!(delta > 0)) return;
+      if (item.kind === 'image' && item.image && typeof item.image.y === 'number') {
+        item.image.y = Math.min(1, item.image.y + delta);
+        return;
+      }
+      var ink = item.ink || item;
+      if (ink && Array.isArray(ink.points)) {
+        ink.points.forEach(function (point) {
+          if (Array.isArray(point) && typeof point[1] === 'number') {
+            point[1] = Math.min(1, point[1] + delta);
+          }
+        });
+      }
+    });
+  }
+
+  /* Automatic question transfer queues the question on the same board without
      stealing the quiz stage. A trainer-initiated push still opens the board. */
-  function showQuestionText(text, options) {
+  function showQuestionText(question, options) {
     var opts = options || {};
     if (!trainer || !overlay || !canvas) return Promise.resolve(false);
-    var clean = String(text || '').trim();
-    if (!clean) {
-      if (!opts.silent) say('There is no question to push.');
-      return Promise.resolve(false);
-    }
-    var dataUrl = questionDataUrl(clean);
-    if (!dataUrl) {
-      if (!opts.silent) say('The question could not be drawn.');
-      return Promise.resolve(false);
-    }
-    if (opts.open !== false) open();
-    return compactImage(dataUrl).then(function (compact) {
-      return loadBitmap(compact).then(function (bitmap) {
-        var ratio = (bitmap.naturalWidth || 16) / (bitmap.naturalHeight || 9);
-        var w = 0.84;
-        var h = w / ratio;
-        if (h > 0.16) { h = 0.16; w = h * ratio; }
-        if (h < 0.06) { h = 0.06; w = h * ratio; }
-        var bottom = 0;
-        items.forEach(function (item) {
-          var bounds = itemBounds(item);
-          if (bounds) bottom = Math.max(bottom, bounds.bottom);
-        });
-        var delta = Math.min(0.85, Math.max(0.03, bottom - 0.78 + 0.02));
-        shiftItemsUp(delta);
-        var record = {
-          kind: 'image',
-          image: {
-            id: 'question_' + Date.now() + '_' + imageCount,
-            data: compact,
-            x: Math.max(0, (1 - w) / 2),
-            y: 0.82,
+    return questionCard(question).then(function (card) {
+      if (!card || !card.data) {
+        if (!opts.silent) say('There is no question to push.');
+        return false;
+      }
+      if (opts.open !== false) open();
+      return compactImage(card.data).then(function (compact) {
+        return loadBitmap(compact).then(function (bitmap) {
+          var ratio = (bitmap.naturalWidth || 16) / (bitmap.naturalHeight || 9);
+          var w = card.hasImage ? 0.42 : 0.36;
+          var h = w / ratio;
+          var maxH = card.hasImage ? 0.46 : 0.34;
+          if (h > maxH) { h = maxH; w = h * ratio; }
+          if (h < 0.12) { h = 0.12; w = h * ratio; }
+          var box = {
+            x: Math.max(0, 0.97 - w),
+            y: 0.035,
             w: w,
-            h: h
+            h: Math.min(h, 0.9 - 0.035)
+          };
+          var bottom = 0;
+          items.forEach(function (item) {
+            var bounds = itemBounds(item);
+            if (bounds) bottom = Math.max(bottom, bounds.bottom);
+          });
+          shiftItemsUp(Math.min(0.85, Math.max(0.03, bottom - 0.78 + 0.02)));
+          clearQuestionZone(box);
+          var record = {
+            kind: 'image',
+            image: {
+              id: 'question_' + Date.now() + '_' + imageCount,
+              data: compact,
+              x: box.x,
+              y: box.y,
+              w: box.w,
+              h: box.h
+            }
+          };
+          imageCount += 1;
+          items.push(record);
+          selection = [];
+          redoStack = [];
+          deleteUndo = [];
+          deleteRedo = [];
+          redraw();
+          if (!opts.silent) {
+            say(sharing
+              ? 'Question placed on the shared board.'
+              : 'Question placed on your board; it will share when Share is on.');
           }
-        };
-        imageCount += 1;
-        items.push(record);
-        selection = [];
-        redoStack = [];
-        deleteUndo = [];
-        deleteRedo = [];
-        redraw();
-        if (!opts.silent) {
-          say(sharing
-            ? 'Question placed on the shared board.'
-            : 'Question placed on your board; it will share when Share is on.');
-        }
-        return push('snapshot', Object.assign({ page: 1 }, snapshotPayload())).then(function () {
-          return true;
+          return push('snapshot', Object.assign({ page: 1 }, snapshotPayload())).then(function () {
+            return true;
+          });
         });
       });
     }).catch(function (error) {
@@ -1194,8 +1333,8 @@
   window.MathifyFullBoard = {
     showQuestionText: showQuestionText,
     pushQuestion: showQuestionText,
-    queueQuestionText: function (text) {
-      return showQuestionText(text, { open: false, silent: true });
+    queueQuestionText: function (question) {
+      return showQuestionText(question, { open: false, silent: true });
     },
     isSharing: function () { return sharing; },
     isOpen: function () { return !overlay.hidden; }

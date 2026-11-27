@@ -278,15 +278,79 @@ const staticFiles = express.static(webRoot, {
    routes -- gets the manifest and service worker without a second page copy or
    duplicated business logic. API and founder-gate responses are never touched. */
 const WEBAPP_BOOTSTRAP = '<script src="/webapp/register.js"></script>';
+/* Development-only review aid. Every rendered page names itself in a small
+   fixed badge so review feedback can point at one exact surface. Production
+   builds never inject it; the badge also disappears with ?devLabel=0. */
+const DEV_PAGE_LABEL_BOOTSTRAP = `<script>
+(function () {
+  if (new URLSearchParams(window.location.search).get('devLabel') === '0') return;
+  var badge = document.createElement('div');
+  badge.id = 'mathify-dev-page-label';
+  Object.assign(badge.style, {
+    position:'fixed',left:'12px',bottom:'12px',zIndex:'99999',
+    padding:'6px 9px',borderRadius:'8px',
+    background:'rgba(14,20,32,.9)',color:'#FDFAF3',
+    font:'500 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace',
+    letterSpacing:'.08em',textTransform:'uppercase',
+    pointerEvents:'none',boxShadow:'0 4px 14px rgba(0,0,0,.24)'
+  });
+  function pageName() {
+    var path = window.location.pathname.replace(/\\/+$/, '') || '/';
+    var params = new URLSearchParams(window.location.search);
+    var role = params.get('view') === 'student' || params.get('role') === 'student' ? 'student' : 'trainer';
+    if (path.indexOf('/trainer/') === 0) return 'Trainer dashboard / Start class';
+    if (path.indexOf('/classroom/connect') === 0) return 'Shared connect page';
+    if (path.indexOf('/classroom/') === 0) {
+      var sheets = [].slice.call(document.querySelectorAll('.sheet'));
+      var visible = sheets.filter(function (sheet) {
+        return !sheet.hidden && window.getComputedStyle(sheet).display !== 'none';
+      });
+      if (visible.some(function (sheet) { return sheet.id === 'sheet-planner'; })) return 'Trainer planner designer';
+      if (visible.some(function (sheet) { return sheet.id === 'sheet-quiz'; })) return 'Quiz sheet / ' + role;
+      if (document.body.classList.contains('quiz-live')) return 'Quiz sheet / ' + role;
+      if (params.get('board') === 'full' || document.body.classList.contains('board-open')) {
+        return role === 'student' ? 'Student shared whiteboard' : 'Trainer whiteboard / shared board';
+      }
+      return role === 'student' ? 'Classroom / student' : 'Classroom / trainer';
+    }
+    if (path.indexOf('/lms/') === 0) {
+      var planner = document.getElementById('sheet-planner');
+      return planner && !planner.hidden ? 'Trainer planner designer' : 'LMS curriculum library';
+    }
+    if (path.indexOf('/student/') === 0) return 'Student dashboard';
+    if (path.indexOf('/founder-admin/') === 0) return 'Founder admin gate';
+    if (path.indexOf('/founder/') === 0) return 'Founder desk';
+    if (path.indexOf('/rm/') === 0) return 'RM desk';
+    if (path.indexOf('/parent/') === 0) return 'Parent desk';
+    if (path.indexOf('/planner-agent/') === 0) return 'Planner agent desk';
+    if (path.indexOf('/app/') === 0) return 'Unified app';
+    if (path.indexOf('/login') === 0) return 'Login';
+    if (path === '/' || path === '/index.html') return 'Landing page';
+    return path.split('/').filter(Boolean).join(' / ') || 'Mathify page';
+  }
+  function paint() {
+    var host = document.fullscreenElement || document.body;
+    if (!host) return;
+    if (badge.parentNode !== host) host.appendChild(badge);
+    badge.textContent = 'DEV PAGE · ' + pageName();
+  }
+  paint();
+  window.setInterval(paint, 600);
+}());
+</script>`;
 function sendWebAppHtml(filePath, req, res, next) {
   fs.readFile(filePath, 'utf8', function (error, html) {
     if (error) return next(error);
-    if (html.indexOf('/webapp/register.js') === -1) {
+    var injection = '';
+    if (html.indexOf('/webapp/register.js') === -1) injection += WEBAPP_BOOTSTRAP;
+    if (process.env.NODE_ENV !== 'production' &&
+        html.indexOf('mathify-dev-page-label') === -1) injection += DEV_PAGE_LABEL_BOOTSTRAP;
+    if (injection) {
       const marker = '</body>';
       const index = html.toLowerCase().lastIndexOf(marker);
       html = index === -1
-        ? html + WEBAPP_BOOTSTRAP
-        : html.slice(0, index) + WEBAPP_BOOTSTRAP + html.slice(index);
+        ? html + injection
+        : html.slice(0, index) + injection + html.slice(index);
     }
     res.set('Cache-Control', 'no-cache');
     return res.type('html').send(html);

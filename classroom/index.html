@@ -299,6 +299,7 @@
           <div class="quiz-student">
             <span class="mono">Student view · Ishaan</span>
             <h2 id="quizQuestion">Which ratio is equivalent to 3 : 5?</h2>
+            <img class="quiz-question-image" id="quizQuestionImage" alt="" hidden>
             <p class="quiz-practice-badge" id="quizPracticeBadge" role="status" hidden>Practice Question: Let's try this one together!</p>
             <div class="student-opts" id="quizOptions"></div>
             <div class="student-actions">
@@ -547,7 +548,7 @@
         <span>View only</span>
       </div>
       <div class="full-board-tools" role="toolbar" aria-label="Teaching whiteboard tools">
-        <button type="button" class="trainer-only" data-board-tool="select" aria-pressed="false" aria-label="Select (V)" aria-keyshortcuts="V" title="Select · V · Ctrl+A selects all">
+        <button type="button" class="trainer-only" data-board-tool="select" aria-pressed="true" aria-label="Select (V)" aria-keyshortcuts="V" title="Select · V · Ctrl+A selects all">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 3l14 9-6 1.4L9.4 19 5 3Z"></path></svg>
         </button>
         <button type="button" class="trainer-only" data-board-tool="hand" aria-pressed="false" aria-label="Pan board (H)" aria-keyshortcuts="H" title="Move the board · H · drag to pan">
@@ -555,7 +556,7 @@
         </button>
         <span class="board-rule trainer-only" aria-hidden="true"></span>
         <span class="board-ink-tool trainer-only">
-          <button type="button" data-board-tool="pen" aria-pressed="true" aria-label="Pen" title="Pen">
+          <button type="button" data-board-tool="pen" aria-pressed="false" aria-label="Pen" title="Pen">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <path d="M4 20l4.2-1 10.2-10.2a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L5 15.8 4 20Z"></path>
               <path d="M14.5 5.5l4 4"></path>
@@ -1013,7 +1014,7 @@
           <li><span class="q-letter">C</span><span>9 : 12</span></li>
           <li><span class="q-letter">D</span><span>3 : 8</span></li>
         </ul>
-        <p class="q-note">The question goes to the shared whiteboard automatically — options stay here. Ishaan sees options, only the hints you grant, and skip. Answers stay unrevealed until you choose. Reteach freezes the quiz and adds a fresh check from the same objective.</p>
+        <p class="q-note">The question goes to the shared whiteboard automatically, top-right, with its image when it is a picture question — options stay here. Ishaan sees options, only the hints you grant, and skip. Answers stay unrevealed until you choose. Reteach freezes the quiz and adds a fresh check from the same objective.</p>
       </div>
       <footer class="sheet-foot">
         <button class="btn btn-light btn-sm" type="button" data-close-sheet>Cancel</button>

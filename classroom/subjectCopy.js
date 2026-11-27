@@ -266,6 +266,12 @@
     setText('#lessonSubject', copy.lesson);
     setText('#boardSub', copy.board);
     setText('#quizQuestion', copy.quizPlaceholder);
+    var quizImage = document.getElementById('quizQuestionImage');
+    if (quizImage) {
+      quizImage.hidden = true;
+      quizImage.removeAttribute('src');
+      quizImage.alt = '';
+    }
 
     paintChips(copy.recap.chips);
     paintLog(copy.recap.log);

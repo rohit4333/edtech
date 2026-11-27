@@ -1354,6 +1354,7 @@
     if (sessionEventPollingId === sessionId && sessionEventTimer) return;
     activeSessionId = sessionId;
     window.MATHIFY_SESSION_ID = sessionId;
+    try { window.localStorage.setItem('mathify.trainer.sessionId', sessionId); } catch (error) { /* private mode */ }
     sessionEventPollingId = sessionId;
     sessionEventCursor = 0;
     sessionEventCursorReady = false;

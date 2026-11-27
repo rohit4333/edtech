@@ -26,9 +26,14 @@
   transform-origin:center center;
   cursor:var(--ink-arrow,default)
 }
-/* The hand tool turns the same edge-to-edge canvas into a pannable board;
-   selection keeps the same dark arrow so outlines and Delete targets stay clear. */
+/* Select and every non-sketching tool keep the compact dark arrow. Drawing
+   tools show their own icon; hand pan keeps grab/grabbing. */
 .full-board.tool-select .full-board-canvas-wrap canvas{cursor:var(--ink-arrow,default)}
+.full-board.tool-pen .full-board-canvas-wrap canvas{cursor:var(--board-cursor-pen,var(--ink-arrow,default))}
+.full-board.tool-highlighter .full-board-canvas-wrap canvas,
+.full-board.tool-marker .full-board-canvas-wrap canvas{cursor:var(--board-cursor-highlighter,var(--ink-arrow,default))}
+.full-board.tool-eraser .full-board-canvas-wrap canvas{cursor:var(--board-cursor-eraser,var(--ink-arrow,default))}
+.full-board.tool-laser .full-board-canvas-wrap canvas{cursor:var(--board-cursor-laser,var(--ink-arrow,default))}
 .full-board.tool-hand .full-board-canvas-wrap canvas{cursor:grab}
 .full-board.tool-hand.is-panning .full-board-canvas-wrap canvas{cursor:grabbing}
 /* Every board a trainer or child sees carries one centred diagonal Mathify.

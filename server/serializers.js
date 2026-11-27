@@ -162,6 +162,26 @@ function hasStoredQuizQuestions(session) {
     && session.quiz.questions.length);
 }
 
+/* A picture question carries its own image, never its image-generation prompt
+   or trainer guidance. Only image-like fields cross the role boundary. */
+function safeQuestionImage(question) {
+  if (!question) return null;
+  var image = question.image || question.imageUrl || question.image_url ||
+    question.imageData || question.image_data || question.photo || question.attachment;
+  if (!image) return null;
+  var source = typeof image === 'string' ? image :
+    (image.data || image.dataUrl || image.src || image.url || '');
+  source = String(source || '').trim();
+  if (!source) return null;
+  if (source.indexOf('data:image/') === 0 ||
+      /^https?:\/\//.test(source) || source.charAt(0) === '/') return source;
+  if (image && typeof image === 'object' && image.mime &&
+      /^image\//.test(image.mime) && /^[A-Za-z0-9+/=\s]+$/.test(source)) {
+    return 'data:' + image.mime + ';base64,' + source.replace(/\s+/g, '');
+  }
+  return null;
+}
+
 /* One question source for both serializers and answer validation. Stored
    questions always win; math and other subjects never borrow this bank. */
 function quizQuestionsFor(session) {
@@ -195,7 +215,7 @@ function trainerQuiz(session) {
     startedAt: session.quiz.startedAt,
     readiness: readiness(session),
     questions: quizQuestionsFor(session).map(function (question) {
-      return {
+      var view = {
         id: question.id,
         prompt: question.prompt,
         options: question.options.slice(),
@@ -209,6 +229,9 @@ function trainerQuiz(session) {
         requiresCorrectAnswer: question.requiresCorrectAnswer === true,
         status: question.status || 'active'
       };
+      var image = safeQuestionImage(question);
+      if (image) view.image = image;
+      return view;
     }),
     attempts: session.quiz.attempts.slice(),
     reveals: (session.quiz.reveals || []).slice(),
@@ -243,6 +266,8 @@ function studentQuiz(session, options) {
         prompt: question.prompt,
         options: question.options.slice()
       };
+      const image = safeQuestionImage(question);
+      if (image) answer.image = image;
       if (question.requiresCorrectAnswer === true) {
         answer.requiresCorrectAnswer = true;
       }

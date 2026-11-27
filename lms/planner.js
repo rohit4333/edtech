@@ -27,8 +27,9 @@
       grade: 5,
       chapter: 'NCERT Class 5 Ratios',
       learning_objectives: 'Identify equivalent ratios\nExplain a ratio with a drawing',
-      estimated_minutes: 45,
       quiz_prompt: 'Which pair of ratios is equivalent to 2 : 3?',
+      quiz_image: '',
+      estimated_minutes: 45,
       blocks: [
         block('b1', 'heading', {
           text: 'Equivalent ratios'
@@ -169,6 +170,7 @@
       topic_id: String(draft.topic_id || '').trim(),
       chapter: String(draft.chapter || '').trim(),
       quizPrompt: String(draft.quiz_prompt || '').trim(),
+      quizImage: String(draft.quiz_image || '').trim(),
       blocks: studentBlocks()
     };
   }
@@ -291,6 +293,19 @@
     var quizField = inputField('Student-facing quiz prompt', 'quiz_prompt', 'textarea');
     quizField.style.marginTop = '12px';
     container.appendChild(quizField);
+
+    var quizImageField = inputField('Question image URL (optional)', 'quiz_image', 'text');
+    quizImageField.style.marginTop = '10px';
+    container.appendChild(quizImageField);
+
+    var transferRow = el('div', 'planner-transfer-row');
+    var sendToBoard = el('button', 'btn btn-ghost btn-sm', 'Send question to whiteboard');
+    sendToBoard.type = 'button';
+    sendToBoard.id = 'plannerQuestionToBoard';
+    transferRow.appendChild(sendToBoard);
+    transferRow.appendChild(el('span', 'planner-transfer-note',
+      'Opens the trainer board with only this question and its image.'));
+    container.appendChild(transferRow);
 
     container.appendChild(el('div', 'planner-note',
       'Every block keeps trainer guidance separate. The quiz prompt is checked against trainer notes before export.'));
@@ -524,6 +539,33 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
       } else fallbackCopy(text);
+    });
+
+    var sendButton = $('plannerQuestionToBoard');
+    if (sendButton) sendButton.addEventListener('click', function () {
+      var prompt = String(draft.quiz_prompt || '').trim();
+      var image = String(draft.quiz_image || '').trim();
+      if (!prompt) {
+        renderValidation(['Add a student-facing quiz prompt before sending it to the whiteboard.']);
+        var input = document.querySelector('[data-draft-key="quiz_prompt"]');
+        if (input && input.focus) input.focus();
+        return;
+      }
+      try {
+        window.localStorage.setItem('mathify.planner.question', JSON.stringify({
+          id: 'planner_' + Date.now(),
+          q: prompt,
+          image: image || null,
+          at: Date.now()
+        }));
+      } catch (error) { /* private mode: the classroom cannot receive the handoff */ }
+      var params = new URLSearchParams(window.location.search);
+      var sessionId = window.MATHIFY_SESSION_ID ||
+        window.localStorage.getItem('mathify.trainer.sessionId') ||
+        params.get('sessionId') || 'ses_math_001';
+      var url = '../classroom/index.html?sessionId=' + encodeURIComponent(sessionId) +
+        '&role=trainer&board=full&plannerQuestion=1&review=' + Date.now();
+      if (!window.open(url, '_blank')) window.location.href = url;
     });
 
     var resetButton = $('plannerResetBtn');

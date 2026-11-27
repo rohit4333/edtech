@@ -205,19 +205,36 @@ async function main() {
     const classroom = readAsset('classroom/index.html');
     const classroomApp = readAsset('classroom/app.js');
     const sessionJs = readAsset('classroom/session.js');
+    const plannerJs = readAsset('lms/planner.js');
     ok(tokens.indexOf('--ink-arrow:') !== -1 &&
       tokens.indexOf("fill='%230E1420' stroke='%23FFFFFF'") !== -1 &&
-      tokens.indexOf('4 2, default') !== -1 &&
+      tokens.indexOf("width='18' height='18'") !== -1 &&
+      tokens.indexOf('3 1, default') !== -1 &&
       room.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
       room.indexOf('cursor:none') === -1 &&
       fullBoardCss.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
       fullBoardCss.indexOf('.full-board.tool-select .full-board-canvas-wrap canvas{cursor:var(--ink-arrow,default)}') !== -1,
-    'every board surface uses a dark arrow pointer with a light outline, including eraser and selection');
+    'every board surface uses a compact dark arrow pointer with a light outline; non-sketching tools keep it');
     ok(classroom.indexOf('shared/cursorRelay.js') !== -1 &&
       classroom.indexOf('shared/cursorSetup.js') !== -1,
     'the pointer relay is loaded on the verified classroom page');
 
     const fullBoardJs = readAsset('shared/fullBoard.js');
+    ok(tokens.indexOf('--board-cursor-pen:') !== -1 &&
+      tokens.indexOf('--board-cursor-highlighter:') !== -1 &&
+      tokens.indexOf('--board-cursor-eraser:') !== -1 &&
+      tokens.indexOf('--board-cursor-laser:') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-pen .full-board-canvas-wrap canvas{cursor:var(--board-cursor-pen,var(--ink-arrow,default))}') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-highlighter .full-board-canvas-wrap canvas,') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-marker .full-board-canvas-wrap canvas{cursor:var(--board-cursor-highlighter,var(--ink-arrow,default))}') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-eraser .full-board-canvas-wrap canvas{cursor:var(--board-cursor-eraser,var(--ink-arrow,default))}') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-laser .full-board-canvas-wrap canvas{cursor:var(--board-cursor-laser,var(--ink-arrow,default))}') !== -1 &&
+      fullBoardJs.indexOf("['select', 'hand', 'pen', 'highlighter', 'marker', 'eraser', 'laser']") !== -1,
+    'sketching tools use their own compact icon cursor while hand pan keeps grab/grabbing');
+    ok(fullBoardJs.indexOf("var tool = 'select'") !== -1 &&
+      classroom.indexOf('data-board-tool="select" aria-pressed="true"') !== -1 &&
+      classroom.indexOf('data-board-tool="pen" aria-pressed="false"') !== -1,
+    'the trainer whiteboard opens in select mode, never already sketching');
     ok(fullBoardCss.indexOf('body.board-open .top .full-board-tools') !== -1 &&
       /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss) &&
       fullBoardCss.indexOf('dock-left') === -1 &&
@@ -473,25 +490,50 @@ async function main() {
       classroom.indexOf('class="workspace"') === -1,
     'the lesson deck no longer exposes sketch-space strips');
 
-    ok(fullBoardJs.indexOf('function questionDataUrl(text)') !== -1 &&
-      fullBoardJs.indexOf('function shiftItemsUp(delta)') !== -1 &&
+    ok(fullBoardJs.indexOf('function questionCard(question)') !== -1 &&
+      fullBoardJs.indexOf('function questionImageSource(value)') !== -1 &&
+      fullBoardJs.indexOf('function clearQuestionZone(box)') !== -1 &&
+      fullBoardJs.indexOf("themeToken('--paper', '#FDFAF3')") !== -1 &&
+      fullBoardJs.indexOf("themeToken('--ink', '#0E1420')") !== -1 &&
+      fullBoardJs.indexOf("themeToken('--coral-deep', '#B83A16')") !== -1 &&
+      fullBoardJs.indexOf("themeToken('--line', 'rgba(14,20,32,.14)')") !== -1 &&
       fullBoardJs.indexOf("id: 'question_' + Date.now() + '_' + imageCount") !== -1 &&
-      fullBoardJs.indexOf('y: 0.82') !== -1 &&
+      fullBoardJs.indexOf('x: Math.max(0, 0.97 - w)') !== -1 &&
+      fullBoardJs.indexOf('y: 0.035') !== -1 &&
+      fullBoardJs.indexOf('hasImage') !== -1 &&
       fullBoardJs.indexOf("push('snapshot', Object.assign({ page: 1 }, snapshotPayload()))") !== -1 &&
-      fullBoardJs.indexOf('queueQuestionText: function (text)') !== -1 &&
+      fullBoardJs.indexOf('queueQuestionText: function (question)') !== -1 &&
       fullBoardJs.indexOf('{ open: false, silent: true }') !== -1,
-    'a question becomes question-only board pixels and one whole-board snapshot');
+    'a themed top-right question card carries its own image and one whole-board snapshot');
     var queueStart = sessionJs.indexOf('function queueQuestionToBoard(item)');
     var queueEnd = sessionJs.indexOf('\n  }', queueStart);
     var queueFn = sessionJs.slice(queueStart, queueEnd);
     ok(queueFn.indexOf('item.q') !== -1 &&
+      queueFn.indexOf('item.image') !== -1 &&
+      queueFn.indexOf('q: text') !== -1 &&
+      queueFn.indexOf('image:') !== -1 &&
       queueFn.indexOf('options') === -1 &&
       queueFn.indexOf('answer') === -1 &&
       queueFn.indexOf('hint') === -1 &&
-      sessionJs.indexOf('boardApi.queueQuestionText(text)') !== -1 &&
+      sessionJs.indexOf('boardApi.queueQuestionText(question)') !== -1 &&
       sessionJs.indexOf('if (quizLive()) queueQuestionToBoard(item);') !== -1 &&
       sessionJs.indexOf("window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion)") !== -1,
-    'the trainer pushes only the stem, even when the quiz starts before the board loads');
+    'the trainer pushes only the stem and attached image, even during bootstrap');
+    var mapStart = sessionJs.indexOf('function mapQuizQuestion(source, index)');
+    var mapFn = sessionJs.slice(mapStart, sessionJs.indexOf('\n  }', mapStart));
+    ok(mapFn.indexOf('source.image') !== -1 && mapFn.indexOf('mapped.image') !== -1 &&
+      sessionJs.indexOf('quizImageSource(item.image)') !== -1 &&
+      sessionJs.indexOf('id="quizQuestionImage"') === -1 &&
+      classroom.indexOf('id="quizQuestionImage"') !== -1 &&
+      sessionJs.indexOf('consumePlannerQuestion') !== -1 &&
+      sessionJs.indexOf('mathify.planner.question') !== -1,
+    'a picture question keeps its image in the quiz stage and the planner handoff');
+    ok(plannerJs.indexOf("id = 'plannerQuestionToBoard'") !== -1 &&
+      plannerJs.indexOf("'Send question to whiteboard'") !== -1 &&
+      plannerJs.indexOf("'mathify.planner.question'") !== -1 &&
+      plannerJs.indexOf('board=full&plannerQuestion=1') !== -1 &&
+      plannerJs.indexOf('draft.quiz_image') !== -1,
+    'the trainer planner exposes a direct question-to-whiteboard handoff');
     var boardStart = classroom.indexOf('<section class="full-board"');
     var boardMarkup = classroom.slice(boardStart, classroom.indexOf('</section>', boardStart));
     var markStart = fullBoardCss.indexOf('.mathify-board-mark{');

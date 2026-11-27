@@ -55,6 +55,10 @@ function main() {
   const app = read('server/app.js');
   check(/\/webapp\/register\.js/.test(app) && /sendWebAppHtml\(/.test(app),
     'the server injects one web-app bootstrap into reviewed HTML pages');
+  check(/mathify-dev-page-label/.test(app) &&
+    /process\.env\.NODE_ENV !== 'production'/.test(app) &&
+    /devLabel/.test(app),
+  'every reviewed page gets a development-only name badge that production never injects');
   check(/Service-Worker-Allowed/.test(app) && /application\/manifest\+json/.test(app) &&
     /res\.set\('Cache-Control', 'no-cache'\)/.test(app),
   'the service worker and manifest are served with fresh, correct headers');

@@ -49,9 +49,11 @@ assert.strictEqual(
 );
 assert.strictEqual(trainerCopy.answerKey, '6 : 10');
 
+const questionImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9a4AAAAABJRU5ErkJggg==';
 const requiredQuestion = Object.assign({}, session.quiz.questions[0], {
   id: 'q_required',
-  requiresCorrectAnswer: true
+  requiresCorrectAnswer: true,
+  image: questionImage
 });
 const withRequired = Object.assign({}, session, {
   quiz: Object.assign({}, session.quiz, {
@@ -65,7 +67,9 @@ const safeRequired = serializers.toStudentSession(
 );
 assert.strictEqual(safeRequired.quiz.questions[0].requiresCorrectAnswer, true);
 assert.strictEqual(safeRequired.quiz.questions[0].answerIndex, undefined);
+assert.strictEqual(safeRequired.quiz.questions[0].image, questionImage);
+assert.strictEqual(serializers.toTrainerSession(withRequired).quiz.questions[0].image, questionImage);
 assert.strictEqual(JSON.stringify(safeRequired).indexOf('"answerKey"'), -1);
 assert.strictEqual(JSON.stringify(safeRequired).indexOf('"explanation"'), -1);
 
-console.log('studentSerializer: 19 assertions passed');
+console.log('studentSerializer: 22 assertions passed');

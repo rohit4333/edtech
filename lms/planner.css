@@ -7,6 +7,10 @@
 }
 .planner-head-grid .field + .field{margin-top:0}
 .planner-head-grid textarea{min-height:58px}
+.planner-transfer-row{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px
+}
+.planner-transfer-note{font-size:11px;line-height:1.4;color:var(--muted)}
 .planner-note{
   margin-top:12px;padding:10px 12px;border:1px solid var(--line);
   border-radius:var(--r-sm);font-size:11px;line-height:1.55;color:var(--muted)

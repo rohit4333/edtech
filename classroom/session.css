@@ -456,6 +456,13 @@ body.quiz-live.view-student .quiz-stage{border-color:rgba(255,91,46,.34)}
   letter-spacing:-.045em;
   line-height:1.08;
 }
+.quiz-question-image{
+  display:block;width:min(100%,420px);max-height:220px;object-fit:contain;
+  margin-top:14px;padding:8px;
+  border:1px solid var(--line);border-radius:12px;
+  background:var(--paper);box-shadow:0 8px 24px rgba(14,20,32,.08)
+}
+.quiz-question-image[hidden]{display:none}
 .student-opts{
   display:grid;
   grid-template-columns:1fr 1fr;

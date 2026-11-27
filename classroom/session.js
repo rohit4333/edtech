@@ -424,6 +424,7 @@
   var quizLaunch = $('#quizLaunch');
   var quizExit = $('#quizExit');
   var quizQuestion = $('#quizQuestion');
+  var quizQuestionImage = $('#quizQuestionImage');
   var quizOptions = $('#quizOptions');
   var quizFeedback = $('#quizFeedback');
   var quizHint = $('#quizHint');
@@ -524,9 +525,9 @@
     parallelSolved: false,
     pollTimer: null
   };
-  /* A question is pushed to the one shared board by text only. Tracking the
-     key stops a state refresh from adding the same question twice, while a
-     fresh launch clears it so the new first question is always sent. */
+  /* The question stem and its own attached image are the only fields that
+     cross to the board. Options, answer keys, hints and trainer notes stay in
+     the quiz layer. The key stops a state refresh duplicating the card. */
   var lastBoardQuestionKey = null;
   var pendingBoardQuestion = null;
 
@@ -537,7 +538,12 @@
     var key = String(item.id || '') + '|' + text;
     if (key === lastBoardQuestionKey) return;
     lastBoardQuestionKey = key;
-    pendingBoardQuestion = text;
+    pendingBoardQuestion = {
+      q: text,
+      image: quizImageSource(item.image || item.imageUrl ||
+        item.image_url || item.imageData || item.image_data ||
+        item.photo || item.attachment) || null
+    };
     flushPendingBoardQuestion();
   }
 
@@ -545,12 +551,30 @@
     var boardApi = window.MathifyFullBoard;
     if (!pendingBoardQuestion || !boardApi ||
         typeof boardApi.queueQuestionText !== 'function') return;
-    var text = pendingBoardQuestion;
+    var question = pendingBoardQuestion;
     pendingBoardQuestion = null;
-    boardApi.queueQuestionText(text);
+    boardApi.queueQuestionText(question);
   }
 
   window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion);
+
+  /* The planner designer hands a question over through local storage, then
+     opens this classroom with board=full. Only the stem and image cross; the
+     planner's trainer notes and answer material stay on the planner page. */
+  function consumePlannerQuestion() {
+    if (!isTrainer || params.get('plannerQuestion') !== '1') return;
+    var handoff = null;
+    try {
+      handoff = JSON.parse(window.localStorage.getItem('mathify.planner.question') || 'null');
+      window.localStorage.removeItem('mathify.planner.question');
+    } catch (error) { handoff = null; }
+    if (!handoff || !handoff.q) return;
+    queueQuestionToBoard({
+      id: handoff.id || 'planner_' + Date.now(),
+      q: handoff.q,
+      image: handoff.image || null
+    });
+  }
 
   function paintQuizClock() {
     if (!quizStageTimer) return;
@@ -567,6 +591,21 @@
     return questions[quizState.index] || null;
   }
 
+  function quizImageSource(value) {
+    if (!value) return '';
+    var source = typeof value === 'string' ? value :
+      (value.data || value.dataUrl || value.src || value.url || '');
+    source = String(source || '').trim();
+    if (!source) return '';
+    if (source.indexOf('data:image/') === 0 ||
+        /^https?:\/\//.test(source) || source.charAt(0) === '/') return source;
+    if (value && typeof value === 'object' && value.mime &&
+        /^image\//.test(value.mime) && /^[A-Za-z0-9+/=\s]+$/.test(source)) {
+      return 'data:' + value.mime + ';base64,' + source.replace(/\s+/g, '');
+    }
+    return '';
+  }
+
   function mapQuizQuestion(source, index) {
     var options = Array.isArray(source.options) ? source.options.map(function (option) {
       return typeof option === 'string' ? option : option && option.text ? option.text : '';
@@ -578,6 +617,10 @@
       requiresCorrectAnswer: source.requiresCorrectAnswer === true,
       recheck: source.recheck === true
     };
+    var image = quizImageSource(source.image || source.imageUrl ||
+      source.image_url || source.imageData || source.image_data ||
+      source.photo || source.attachment);
+    if (image) mapped.image = image;
     /* Only an authenticated trainer view receives answer material. */
     if (isTrainer && Number.isInteger(source.answerIndex)) mapped.answer = source.answerIndex;
     if (isTrainer && typeof source.explanation === 'string' && source.explanation) {
@@ -749,8 +792,16 @@
     clearQuizInk(false);
 
     if (quizQuestion) quizQuestion.textContent = item.q;
-    /* Only the question stem crosses to the whiteboard. Options, answer keys,
-       hints and trainer notes stay in this quiz stage. */
+    if (quizQuestionImage) {
+      var imageSrc = quizImageSource(item.image);
+      quizQuestionImage.hidden = !imageSrc;
+      if (imageSrc && quizQuestionImage.getAttribute('src') !== imageSrc) {
+        quizQuestionImage.src = imageSrc;
+      }
+      quizQuestionImage.alt = imageSrc ? 'Question image' : '';
+    }
+    /* Only the question stem and its attached image cross to the whiteboard.
+       Options, answer keys, hints and trainer notes stay in this quiz stage. */
     if (quizLive()) queueQuestionToBoard(item);
     if (isRequiredQuestion(item)) {
       setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
@@ -1894,6 +1945,8 @@
       }
     }).catch(function () { return null; });
   }
+
+  consumePlannerQuestion();
 
   if (sessionId && (isTrainer || studentView)) {
     sendPresence(false);
