@@ -1069,6 +1069,141 @@
     });
   }
 
+  /* A planner or quiz question is pushed as question-only pixels: no options,
+     answer, hint or trainer note ever enters the board event. The whole board
+     is then sent as one snapshot so both people see the same upward shift. */
+  function questionDataUrl(text) {
+    var clean = String(text || '').trim();
+    if (!clean) return null;
+    var width = 1400;
+    var pad = 76;
+    var measure = document.createElement('canvas').getContext('2d');
+    if (!measure) return null;
+    var font = '600 58px Poppins, Arial, sans-serif';
+    measure.font = font;
+    var maxWidth = width - pad * 2;
+    var words = clean.split(/\s+/);
+    var lines = [];
+    var line = '';
+    words.forEach(function (word) {
+      var next = line ? line + ' ' + word : word;
+      if (line && measure.measureText(next).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    });
+    if (line) lines.push(line);
+    var lineHeight = 82;
+    var stage = document.createElement('canvas');
+    stage.width = width;
+    stage.height = Math.max(260, lines.length * lineHeight + 150);
+    var pen = stage.getContext('2d');
+    if (!pen) return null;
+    pen.fillStyle = '#FDFAF3';
+    pen.fillRect(0, 0, stage.width, stage.height);
+    pen.fillStyle = '#0E1420';
+    pen.font = font;
+    pen.textBaseline = 'top';
+    lines.forEach(function (value, index) {
+      pen.fillText(value, pad, 72 + index * lineHeight);
+    });
+    return stage.toDataURL('image/webp', 0.92) || stage.toDataURL('image/png');
+  }
+
+  function shiftItemsUp(delta) {
+    if (!(delta > 0)) return;
+    items.forEach(function (item) {
+      if (item.kind === 'image' && item.image && typeof item.image.y === 'number') {
+        item.image.y = Math.max(0, Math.min(1, item.image.y - delta));
+        return;
+      }
+      var ink = item.ink || item;
+      if (ink && Array.isArray(ink.points)) {
+        ink.points.forEach(function (point) {
+          if (Array.isArray(point) && typeof point[1] === 'number') {
+            point[1] = Math.max(0, Math.min(1, point[1] - delta));
+          }
+        });
+      }
+    });
+  }
+
+  /* Automatic question transfer queues the text on the same board without
+     stealing the quiz stage. A trainer-initiated push still opens the board. */
+  function showQuestionText(text, options) {
+    var opts = options || {};
+    if (!trainer || !overlay || !canvas) return Promise.resolve(false);
+    var clean = String(text || '').trim();
+    if (!clean) {
+      if (!opts.silent) say('There is no question to push.');
+      return Promise.resolve(false);
+    }
+    var dataUrl = questionDataUrl(clean);
+    if (!dataUrl) {
+      if (!opts.silent) say('The question could not be drawn.');
+      return Promise.resolve(false);
+    }
+    if (opts.open !== false) open();
+    return compactImage(dataUrl).then(function (compact) {
+      return loadBitmap(compact).then(function (bitmap) {
+        var ratio = (bitmap.naturalWidth || 16) / (bitmap.naturalHeight || 9);
+        var w = 0.84;
+        var h = w / ratio;
+        if (h > 0.16) { h = 0.16; w = h * ratio; }
+        if (h < 0.06) { h = 0.06; w = h * ratio; }
+        var bottom = 0;
+        items.forEach(function (item) {
+          var bounds = itemBounds(item);
+          if (bounds) bottom = Math.max(bottom, bounds.bottom);
+        });
+        var delta = Math.min(0.85, Math.max(0.03, bottom - 0.78 + 0.02));
+        shiftItemsUp(delta);
+        var record = {
+          kind: 'image',
+          image: {
+            id: 'question_' + Date.now() + '_' + imageCount,
+            data: compact,
+            x: Math.max(0, (1 - w) / 2),
+            y: 0.82,
+            w: w,
+            h: h
+          }
+        };
+        imageCount += 1;
+        items.push(record);
+        selection = [];
+        redoStack = [];
+        deleteUndo = [];
+        deleteRedo = [];
+        redraw();
+        if (!opts.silent) {
+          say(sharing
+            ? 'Question placed on the shared board.'
+            : 'Question placed on your board; it will share when Share is on.');
+        }
+        return push('snapshot', Object.assign({ page: 1 }, snapshotPayload())).then(function () {
+          return true;
+        });
+      });
+    }).catch(function (error) {
+      if (!opts.silent) say((error && error.message) || 'The question could not be placed.');
+      return false;
+    });
+  }
+
+  window.MathifyFullBoard = {
+    showQuestionText: showQuestionText,
+    pushQuestion: showQuestionText,
+    queueQuestionText: function (text) {
+      return showQuestionText(text, { open: false, silent: true });
+    },
+    isSharing: function () { return sharing; },
+    isOpen: function () { return !overlay.hidden; }
+  };
+  /* session.js loads before this file, so a quiz launched during bootstrap can
+     leave the question queued until the board helper is available. */
+  window.dispatchEvent(new Event('mathify:fullboard-ready'));
+
   function readFile(file) {
     if (!file || String(file.type || '').indexOf('image/') !== 0) {
       say('Choose a PNG, JPEG or WEBP screenshot.');

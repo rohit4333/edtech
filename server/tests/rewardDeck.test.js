@@ -82,10 +82,15 @@ function main() {
   var markBlock = boardCss.slice(boardCss.indexOf('.mathify-board-mark{'));
   markBlock = markBlock.slice(0, markBlock.indexOf('}'));
   var markOpacity = Number((markBlock.match(/opacity:\s*([\d.]+)/) || [])[1]);
-  ok(markBlock.indexOf('pointer-events:none;user-select:none') !== -1 &&
-    markOpacity >= 0.6 && markOpacity <= 0.85 &&
-    markBlock.indexOf('text-shadow:') !== -1,
-  'board watermarks are legible, haloed and never take a pointer');
+  ok(markBlock.indexOf('left:50%;top:50%') !== -1 &&
+    markBlock.indexOf('pointer-events:none;user-select:none') !== -1 &&
+    markBlock.indexOf('transform:translate(-50%,-50%) rotate(-30deg)') !== -1 &&
+    markBlock.indexOf('font:400 clamp(72px,13vw,200px)/1 var(--sans)') !== -1 &&
+    markBlock.indexOf('color:#BDB7AD') !== -1 &&
+    markBlock.indexOf('background-image') === -1 &&
+    boardCss.indexOf('.mathify-board-mark i{font-style:normal;font-weight:400') !== -1 &&
+    markOpacity >= 0.18 && markOpacity <= 0.28,
+  'board watermarks are a centred, upright regular-weight very-light-grey diagonal document print and never take a pointer');
 
   console.log('rewardDeck: ' + checks + ' assertions passed');
 }

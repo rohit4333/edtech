@@ -457,11 +457,66 @@ async function main() {
       sessionJs.indexOf("pipResize.addEventListener('pointerdown'") !== -1,
     'the camera deck is movable from anywhere and resizable from its corner grip');
     const boardMarks = classroom.match(/class="mathify-board-mark"/g) || [];
-    ok(boardMarks.length === 4 &&
+    const footMarks = classroom.match(/class="mathify-board-footmark"/g) || [];
+    const footBlock = fullBoardCss.slice(fullBoardCss.indexOf('.mathify-board-footmark{'));
+    const footStyle = footBlock.slice(0, footBlock.indexOf('}'));
+    ok(boardMarks.length === 4 && footMarks.length === 4 &&
       classroom.indexOf('>Mathify<i>.</i><') !== -1 &&
       fullBoardCss.indexOf('.mathify-board-mark{') !== -1 &&
+      footStyle.indexOf('font:700 20px/1 var(--sans)') !== -1 &&
+      footStyle.indexOf('color:var(--ink);opacity:.9') !== -1 &&
+      fullBoardCss.indexOf('.mathify-board-footmark i{font-style:normal;font-weight:700;color:var(--coral-deep)}') !== -1 &&
       fullBoardCss.indexOf('pointer-events:none;user-select:none') !== -1,
-    'every board surface carries a quiet Mathify mark for trainer and child');
+    'every board surface carries a light diagonal mark and the original dark bold bottom signature');
+    ok(classroom.indexOf('class="sketch-strip"') === -1 &&
+      classroom.indexOf('Sketch space') === -1 &&
+      classroom.indexOf('class="workspace"') === -1,
+    'the lesson deck no longer exposes sketch-space strips');
+
+    ok(fullBoardJs.indexOf('function questionDataUrl(text)') !== -1 &&
+      fullBoardJs.indexOf('function shiftItemsUp(delta)') !== -1 &&
+      fullBoardJs.indexOf("id: 'question_' + Date.now() + '_' + imageCount") !== -1 &&
+      fullBoardJs.indexOf('y: 0.82') !== -1 &&
+      fullBoardJs.indexOf("push('snapshot', Object.assign({ page: 1 }, snapshotPayload()))") !== -1 &&
+      fullBoardJs.indexOf('queueQuestionText: function (text)') !== -1 &&
+      fullBoardJs.indexOf('{ open: false, silent: true }') !== -1,
+    'a question becomes question-only board pixels and one whole-board snapshot');
+    var queueStart = sessionJs.indexOf('function queueQuestionToBoard(item)');
+    var queueEnd = sessionJs.indexOf('\n  }', queueStart);
+    var queueFn = sessionJs.slice(queueStart, queueEnd);
+    ok(queueFn.indexOf('item.q') !== -1 &&
+      queueFn.indexOf('options') === -1 &&
+      queueFn.indexOf('answer') === -1 &&
+      queueFn.indexOf('hint') === -1 &&
+      sessionJs.indexOf('boardApi.queueQuestionText(text)') !== -1 &&
+      sessionJs.indexOf('if (quizLive()) queueQuestionToBoard(item);') !== -1 &&
+      sessionJs.indexOf("window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion)") !== -1,
+    'the trainer pushes only the stem, even when the quiz starts before the board loads');
+    var boardStart = classroom.indexOf('<section class="full-board"');
+    var boardMarkup = classroom.slice(boardStart, classroom.indexOf('</section>', boardStart));
+    var markStart = fullBoardCss.indexOf('.mathify-board-mark{');
+    var markStyle = fullBoardCss.slice(markStart, fullBoardCss.indexOf('}', markStart));
+    var footStart = fullBoardCss.indexOf('.mathify-board-footmark{');
+    var footStyleAt = fullBoardCss.slice(footStart, fullBoardCss.indexOf('}', footStart));
+    var shiftStart = fullBoardJs.indexOf('function shiftItemsUp(delta)');
+    var shiftFn = fullBoardJs.slice(shiftStart, fullBoardJs.indexOf('\n  }', shiftStart));
+    ok(boardMarkup.indexOf('id="fullBoardCanvas"') < boardMarkup.indexOf('class="mathify-board-mark"') &&
+      boardMarkup.indexOf('class="mathify-board-footmark"') !== -1 &&
+      markStyle.indexOf('position:absolute') !== -1 &&
+      footStyleAt.indexOf('position:absolute') !== -1 &&
+      shiftFn.indexOf('footmark') === -1 &&
+      shiftFn.indexOf('board-mark') === -1 &&
+      fullBoardJs.indexOf('mathify-board-footmark') === -1,
+    'the confidential marks stay pinned to the board frame while ink shifts upward');
+    var closeStart = fullBoardJs.indexOf('function close() {');
+    var closeFn = fullBoardJs.slice(closeStart, fullBoardJs.indexOf('\n  }', closeStart));
+    ok(closeFn.indexOf('items = []') === -1 &&
+      closeFn.indexOf('imageCache = {}') === -1 &&
+      fullBoardJs.indexOf('items = payload.items.slice(0, 300)') !== -1,
+    'closing and reopening the board keeps the same shared written content');
+    ok(classroom.indexOf('question goes to the shared whiteboard automatically') !== -1 &&
+      classroom.indexOf('options stay here') !== -1,
+    'the trainer quiz sheet explains the automatic question-to-board transfer');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

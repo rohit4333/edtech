@@ -31,29 +31,51 @@
 .full-board.tool-select .full-board-canvas-wrap canvas{cursor:var(--ink-arrow,default)}
 .full-board.tool-hand .full-board-canvas-wrap canvas{cursor:grab}
 .full-board.tool-hand.is-panning .full-board-canvas-wrap canvas{cursor:grabbing}
-/* Every board a trainer or child sees carries the same quiet paper mark. It is
-   part of the canvas surface, not a deck or tool, and never takes a pointer.
-   It is deliberately legible: 22% ink read as blank paper, while a soft paper
-   halo keeps the mark readable over pen strokes without becoming a control. */
+/* Every board a trainer or child sees carries one centred diagonal Mathify.
+   document watermark, like a discreet confidential paper master. It is part of
+   the canvas surface, never a deck or a tool, and never takes a pointer. The DOM
+   text stays exactly Mathify<i>.</i>; an upright regular-weight print in a very
+   light warm grey keeps it elegant without shouting, and a paper halo keeps ink
+   readable. */
 .mathify-board-mark{
-  position:absolute;z-index:4;right:18px;bottom:14px;
+  position:absolute;left:50%;top:50%;z-index:4;
+  width:max-content;pointer-events:none;user-select:none;
+  white-space:nowrap;
+  font:400 clamp(72px,13vw,200px)/1 var(--sans);
+  letter-spacing:-.035em;
+  color:#BDB7AD;opacity:.22;
+  transform:translate(-50%,-50%) rotate(-30deg);
+  text-shadow:0 1px 2px rgba(253,250,243,.9)
+}
+.mathify-board-mark i{font-style:normal;font-weight:400;color:#C9826E}
+.student-ink,.scratch{position:relative;overflow:hidden}
+.student-ink .mathify-board-mark{
+  font-size:clamp(56px,9vw,110px);opacity:.22
+}
+/* The temporary Wacom panel is ink-dark, so the same diagonal print turns to
+   paper there instead of disappearing into the dark surface. */
+.scratch .mathify-board-mark{
+  font-size:clamp(48px,8vw,96px);opacity:.3;color:#D7D3CB;
+  text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 12px rgba(0,0,0,.75)
+}
+.scratch .mathify-board-mark i{color:#E6B8A8}
+/* The bottom signature copies the original elegant board mark: dark bold
+   ink, a soft paper halo and a coral dot, so every surface reads as a finished
+   confidential print while the large diagonal mark stays light. */
+.mathify-board-footmark{
+  position:absolute;z-index:5;right:18px;bottom:14px;
   pointer-events:none;user-select:none;
-  display:block;
-  font:600 20px/1 var(--sans);letter-spacing:-.03em;
-  color:var(--ink);opacity:.68;
+  font:700 20px/1 var(--sans);letter-spacing:-.03em;
+  color:var(--ink);opacity:.9;
   text-shadow:0 0 2px var(--paper),0 1px 6px rgba(253,250,243,.95)
 }
-.mathify-board-mark i{font-style:italic;font-weight:700;color:var(--coral-deep)}
-.student-ink,.scratch{position:relative}
-.student-ink .mathify-board-mark{right:16px;bottom:16px;font-size:16px;opacity:.62}
-/* The temporary Wacom panel is ink-dark, so the same mark turns to paper there.
-   Bottom-left keeps it clear of the panel's Clear / Share actions. */
-.scratch .mathify-board-mark{
-  right:auto;left:14px;bottom:13px;font-size:16px;opacity:.82;
-  color:var(--paper);
+.mathify-board-footmark i{font-style:normal;font-weight:700;color:var(--coral-deep)}
+.student-ink .mathify-board-footmark{right:16px;bottom:16px;font-size:16px;opacity:.85}
+.scratch .mathify-board-footmark{
+  right:auto;left:14px;bottom:13px;font-size:16px;opacity:.95;color:var(--paper);
   text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.7)
 }
-.scratch .mathify-board-mark i{color:#FFB59C}
+.scratch .mathify-board-footmark i{color:#FFB59C}
 .full-board-tools{
   position:absolute;z-index:3;
   display:flex;align-items:center;gap:5px;flex-wrap:nowrap;

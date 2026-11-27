@@ -214,11 +214,6 @@
                     <li class="answer"><span class="p-num"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span><p><b>8 parts = 48 cm</b><span>Multiply 6 by 8.</span></p></li>
                   </ol>
                 </div>
-                <div class="sketch-strip">
-                  <span class="mono">Sketch space <span>· 3 parts</span></span>
-                  <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
-                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
-                </div>
                 <footer class="p-foot"><span class="p-chip">Same bar, same story</span><span class="p-pagenum">01 / 03</span></footer>
               </article>
 
@@ -249,11 +244,6 @@
                     <figcaption>Each line is the same ribbon, measured in parts.</figcaption>
                   </figure>
                 </div>
-                <div class="sketch-strip">
-                  <span class="mono">Sketch space <span>· number line</span></span>
-                  <button class="expand-btn" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand</span></button>
-                  <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
-                </div>
                 <footer class="p-foot"><span class="p-chip">× the same number, top and bottom</span><span class="p-pagenum">02 / 03</span></footer>
               </article>
 
@@ -264,13 +254,6 @@
                   <p class="p-problem">The ratio of red to blue beads is <b>4 : 7</b>. There are <b>44 beads</b> in all. How many are blue?</p>
                 </header>
                 <div class="p-body p-body-3">
-                  <div class="workspace">
-                    <span class="ws-label">Bar model workspace</span>
-                    <button class="ws-expand" type="button" data-expand aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span>Expand sketch</span></button>
-                    <span class="ws-mark" aria-hidden="true">44</span>
-                    <span class="ws-prompt">Start with the whole.</span>
-                    <button class="zone-resize" type="button" data-zone-resize aria-label="Drag up to enlarge sketch space, down to shrink" aria-valuemin="80" aria-valuemax="900" aria-valuenow="320" title="Drag to resize"><span aria-hidden="true">↕</span></button>
-                  </div>
                   <aside class="checklist">
                     <span class="mono">Before you solve</span>
                     <ul>
@@ -287,6 +270,7 @@
             </div>
             <canvas id="ink" aria-label="Annotation layer. Draw on the board with a mouse, stylus or finger."></canvas>
             <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
+            <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
             <span class="brush" id="brush" aria-hidden="true"></span>
 
             <p class="board-hint" id="boardHint"><span aria-hidden="true"></span>Pick a tool and annotate the board</p>
@@ -329,6 +313,7 @@
               </div>
               <canvas id="studentInkCanvas" aria-label="Blank scratchpad and live trainer sketch during the quiz"></canvas>
               <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
+              <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
             </div>
           </div>
           <div class="quiz-trainer trainer-only">
@@ -351,6 +336,7 @@
                 </header>
                 <canvas id="scratchCanvas" tabindex="0" aria-label="Trainer Wacom overlay for resolving a doubt during the quiz"></canvas>
                 <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
+                <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
                 <footer class="scratch-actions">
                   <button class="mini" id="scratchClear" type="button">Clear</button>
                   <button class="mini" id="scratchShare" type="button">Share sketch</button>
@@ -685,6 +671,7 @@
       <div class="full-board-canvas-wrap">
         <canvas id="fullBoardCanvas" aria-label="Blank teaching whiteboard. Draw with a mouse, stylus or finger."></canvas>
         <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
+        <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
         <p class="full-board-status" id="fullBoardStatus" role="status" aria-live="polite" hidden></p>
       </div>
     </section>
@@ -1026,7 +1013,7 @@
           <li><span class="q-letter">C</span><span>9 : 12</span></li>
           <li><span class="q-letter">D</span><span>3 : 8</span></li>
         </ul>
-        <p class="q-note">Ishaan sees options, only the hints you grant, and skip. Answers stay unrevealed until you choose. Reteach freezes the quiz and adds a fresh check from the same objective.</p>
+        <p class="q-note">The question goes to the shared whiteboard automatically — options stay here. Ishaan sees options, only the hints you grant, and skip. Answers stay unrevealed until you choose. Reteach freezes the quiz and adds a fresh check from the same objective.</p>
       </div>
       <footer class="sheet-foot">
         <button class="btn btn-light btn-sm" type="button" data-close-sheet>Cancel</button>

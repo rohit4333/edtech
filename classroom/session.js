@@ -524,6 +524,33 @@
     parallelSolved: false,
     pollTimer: null
   };
+  /* A question is pushed to the one shared board by text only. Tracking the
+     key stops a state refresh from adding the same question twice, while a
+     fresh launch clears it so the new first question is always sent. */
+  var lastBoardQuestionKey = null;
+  var pendingBoardQuestion = null;
+
+  function queueQuestionToBoard(item) {
+    if (!isTrainer || !item || !item.q) return;
+    var text = String(item.q).trim();
+    if (!text) return;
+    var key = String(item.id || '') + '|' + text;
+    if (key === lastBoardQuestionKey) return;
+    lastBoardQuestionKey = key;
+    pendingBoardQuestion = text;
+    flushPendingBoardQuestion();
+  }
+
+  function flushPendingBoardQuestion() {
+    var boardApi = window.MathifyFullBoard;
+    if (!pendingBoardQuestion || !boardApi ||
+        typeof boardApi.queueQuestionText !== 'function') return;
+    var text = pendingBoardQuestion;
+    pendingBoardQuestion = null;
+    boardApi.queueQuestionText(text);
+  }
+
+  window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion);
 
   function paintQuizClock() {
     if (!quizStageTimer) return;
@@ -722,6 +749,9 @@
     clearQuizInk(false);
 
     if (quizQuestion) quizQuestion.textContent = item.q;
+    /* Only the question stem crosses to the whiteboard. Options, answer keys,
+       hints and trainer notes stay in this quiz stage. */
+    if (quizLive()) queueQuestionToBoard(item);
     if (isRequiredQuestion(item)) {
       setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
     } else {
@@ -1096,6 +1126,8 @@
     quizState.revealed = false;
     quizState.reteachArmed = false;
     quizState.recheckCount = 0;
+    lastBoardQuestionKey = null;
+    pendingBoardQuestion = null;
     renderQuiz();
     startQuizClock();
     startQuestionSync();
