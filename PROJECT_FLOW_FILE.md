@@ -22,6 +22,8 @@
 | Sidecars | `PROJECT_FLOW_INDEX.json`, `KNOWN_UNKNOWNS.md`, `HOWEVER_LOG.md` | VERIFIED | `[src: attached TPFF v2.0 specification:325-332]` |
 | Export recipes | `pandoc PROJECT_FLOW_FILE.md -o PROJECT_FLOW_FILE.pdf --toc`; `pandoc PROJECT_FLOW_FILE.md -o PROJECT_FLOW_FILE.docx --toc` | VERIFIED | `[src: attached TPFF v2.0 specification:339-342]` |
 
+**[CURRENT STATE RECONCILIATION — v4.0.2]** The cover rows above remain the original evidence baseline and are not rewritten. On `feat/student-rtc-control-perfection`, reviewed at `5639127`, the current providers are **LiveKit** for 1:1 RTC/tokens/Egress/signed webhooks, private S3-compatible/R2 storage with short-lived SigV4 links for recordings, **Resend** for every transactional email, **freelm → Gemini → Groq → Cloudflare Workers AI** for every model call, Supabase service role for live persistence, Razorpay for packs and Twilio for WhatsApp. Agora, Nodemailer/SMTP, OpenAI/DeepSeek and Cloudflare-only AI rows elsewhere in this file are explicitly historical evidence from earlier provider rounds, not current-state descriptions. Current redacted evidence is in `LIVE_QA_REPORT.md`. `[ev: git branch --show-current; git rev-parse --short HEAD, 2026-11-27]`; `[src: README.md §Current service providers]`; `[src: LIVE_QA_REPORT.md:80-96]`. VERIFIED.
+
 **Mandatory opening gate (replayed).**
 
 - VERIFIED — **A. Inputs received:** attached TPFF v2.0 specification (20,555 bytes, `text/plain`), full repo tree via `git ls-files` (206 paths in the v3.1.0 evidence snapshot), all `package.json`/lockfiles/build configs, `server/.env.example` (names only; 45 declared names including `MCP_FOUNDER_TOKEN`), `server/db/schema.sql` + 7 ordered review-only SQL files (`0001`, `0002`, `0003`, `0004`, `0006`, `0007`, `0008`), all router files, all frontend entry surfaces, 36 test files and 36 registered suites, the v3.1.0 full-suite result, CI/Docker/Railway/Render/Worker manifests, git history/branches/remotes, READMEs and prior reports, env-var names only. `[src: attached TPFF v2.0 specification:67-82]`, `[ev: git ls-files; Get-ChildItem -Recurse -Force -Filter '.env*'; npm.cmd test --prefix server; npm.cmd run migrate --silent --prefix server; git status --short, 2026-11-26]`
@@ -63,6 +65,7 @@
 | v3.1.0 | 2026-11-26 | `3b9d597766358356d0d2bd9b555cf7a3614de205` | PATCH | Evidence reconciliation: 206 tracked files, 36 suites, 7 review-only SQL files, 59 env names, unified Workers AI strings, read-only founder MCP tools, WhatsApp parent support, student hint lock, async middleware, exactly-once Razorpay credits and Agora ambiguity handling [U+2026-11-26] |
 | v4.0.0 | 2026-11-26 | `UNKNOWN_AT_AUTHORING_TIME` (evidence baseline `3b9d597`) | PATCH | Fold in the 10-role E2E audit, A-01…A-09 all FIXED, final 36/36 validation, 136-file syntax sweep, 7-file migration dry run, diff check and the 41/32/9 final pre-commit inventory [U+2026-11-26] |
 | v4.0.1 | 2026-11-26 | `UNKNOWN_AT_AUTHORING_TIME` (prior pushed HEAD `6172801aae3db0d27de55beb54feeef6f22790b6`) | PATCH | Fold in founder/RM people administration, manager audit, registration, password change/reset, founder-managed RM lock, full teaching board and the scoped RM generated-password recovery; 42/42 suites, 50-file syntax sweep, 44-check local HTTP contract check [U+2026-11-26] |
+| v4.0.2 | 2026-11-27 | `5639127` (docs reconciliation baseline) | PATCH | Add a current-state provider/service register: LiveKit + signed webhooks + private Egress, Resend, freelm → Gemini → Groq → Cloudflare, role-scoped SigV4 recording links, 15m/2m reminders with IANA rendering, 49/49 mock suites and current live evidence; preserve all earlier rows as history [U+2026-11-27] |
 
 [VERIFIED] Update mode declared once: **PATCH**. Reason: the section structure remains valid; only the cover, §1, cross-section rule rows and appendices are patched. No prior row was deleted. `[ev: TPFF_UPDATE_REPORT.md §U0–U2, 2026-11-26]`
 
@@ -71,6 +74,8 @@
 [VERIFIED] [U+2026-11-26] v4.0.0 is an append-only PATCH against the same evidence baseline `3b9d597`; the v2.0, v3.0.0 and v3.1.0 rows above are preserved. It adds the 10-role audit trail (`E2E_TEST_LOG.md`), the external/gap register (`TPFF_BLOCKERS.md`), the final validation evidence and the 41/32/9 pre-commit inventory without adding U/H rows or inventing a final commit hash. A-09 was already fixed by the v3.1.0 pass and is recorded, not re-applied. `[src: E2E_TEST_LOG.md:14-29,38-82]`; `[src: TPFF_BLOCKERS.md:18-32]`; `[ev: TPFF_UPDATE_REPORT.md §U10, 2026-11-26]`
 
 [VERIFIED] [U+2026-11-26] v4.0.1 is an append-only PATCH on branch `feat/student-rtc-control-perfection` against prior pushed HEAD `6172801aae3db0d27de55beb54feeef6f22790b6`. It preserves the §1.1 founder wording verbatim and the §§0–14 order with §14 last. It adds no new top-level section: the new evidence is appended inside `E2E_TEST_LOG.md` §11 and existing §§1.5, 4, 8, 10, 12 and 13 rows. It does not claim live Supabase, Workers AI, Agora, migration apply or interactive browser proof. `[src: E2E_TEST_LOG.md:111-125]`; `[src: server/routes/admin.js:27-57,298-423]`; `[src: server/routes/rm.js:26-71]`; `[src: server/services/registrationService.js:30-90]`; `[src: server/services/passwordService.js:46-155]`; `[ev: git branch --show-current; git rev-parse HEAD; npm.cmd test --prefix server; node.exe live-check.js, 2026-11-26]`
+
+[VERIFIED] [U+2026-11-27] v4.0.2 is an append-only PATCH on the same branch, reviewed at `5639127`. It preserves the §1.1 founder wording verbatim and the §§0–14 order with §14 last; no prior row is deleted. It adds a current-state register at §9.1 and current-state notes at §9.3, §9.4, §12, §13.a and §13.b so later readers can distinguish current LiveKit/Resend/freelm-chain naming from the older Agora/Nodemailer/SMTP/OpenAI/DeepSeek/Cloudflare-only evidence preserved below. It does not claim a real class MP4, Resend delivery, Razorpay/Twilio success or a deployed Worker. `[src: README.md §Current service providers]`; `[src: LIVE_QA_REPORT.md:80-96]`; `[src: server/.env.example:83-93,111-137]`; `[ev: git branch --show-current; git rev-parse --short HEAD, 2026-11-27]`
 
 ---
 
@@ -1188,6 +1193,18 @@ Legend: **A** = allow, **D** = deny, **N/I** = not implemented, **C** = conditio
 
 ### 9.1 Integration register
 
+[CURRENT STATE — v4.0.2] **This block supersedes the older rows below for current-state naming.** The table that follows is the historical v4.0.0 evidence register and remains verbatim.
+
+| Current concern | Provider / service | Current contract | Tag | Evidence |
+| --- | --- | --- | --- | --- |
+| 1:1 RTC | **LiveKit** | Server-signed `AccessToken`, room `mathify-<sessionId>`, `roomJoin: true`, `wss://` media URL; legacy Agora routes are compatibility/tests only | VERIFIED | `[src: LIVE_QA_REPORT.md:23-26]`; `[src: server/services/livekitTokenService.js]` |
+| Class recording | **LiveKit Egress → private S3-compatible/R2** | Trainer-only start/stop, server-derived object key, no browser credentials or permanent URL | VERIFIED | `[src: LIVE_QA_REPORT.md:72,92-96]`; `[src: server/services/livekitEgressService.js]` |
+| Recording playback | **Short-lived S3 SigV4 GET links** | Founder/RM any class; trainer/student/parent own class; 600 s default, 3600 s cap; failed/aborted Egress never watchable | VERIFIED | `[src: LIVE_QA_REPORT.md:92-95]`; `[src: server/routes/recordingAccess.js]` |
+| Webhooks | **Signed LiveKit webhooks** | `WebhookReceiver` with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`, exact raw-body `sha256`; `agora_join` is an internal compatibility label, not Agora | VERIFIED | `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]` |
+| Transactional email | **Resend** | All mail including password reset and reminders; unset keys fail closed with `EMAIL_NOT_CONFIGURED`; no SMTP/Nodemailer sender | VERIFIED | `[src: LIVE_QA_REPORT.md:73,87-88]`; `[src: server/services/emailService.js]` |
+| Model calls | **freelm → Gemini → Groq → Cloudflare Workers AI** | One chain on server and Worker source; image questions use Gemini → Cloudflare; OpenAI/DeepSeek unused | VERIFIED | `[src: LIVE_QA_REPORT.md:27-29]`; `[src: server/services/cloudflareAiService.js]` |
+| Persistence / payments / WhatsApp | **Supabase service role / Razorpay / Twilio** | Live mode never falls back to demo identities; payment and WhatsApp remain credential-gated | VERIFIED | `[src: LIVE_QA_REPORT.md:21,43-44,61-63]`; `[src: server/.env.example:70-98]` |
+
 | Integration | Tag | Endpoint / mechanism | Auth & credential surface | Failure mode when down or misconfigured | Source |
 |---|---|---|---|---|---|
 | Cloudflare Workers AI (text) | VERIFIED | Worker REST `https://api.cloudflare.com/client/v4/accounts/.../ai/run/...` plus `[ai]` binding; Express bridge `CHAT_WORKER_URL`, else local REST | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, Worker `AUTH_SECRET` | Non-prod deterministic fallback; production throws; one live text call PASS HTTP 200 ~453 ms | `[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-integrations-docs.md:18-37]`; `[src: TEST_REPORT.md:18]` |
@@ -1224,6 +1241,8 @@ Legend: **A** = allow, **D** = deny, **N/I** = not implemented, **C** = conditio
 
 ### 9.3 Webhooks
 
+[CURRENT STATE — v4.0.2] The current webhook is `POST /api/webhooks/livekit`. It is verified with `livekit-server-sdk` `WebhookReceiver` using `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` and a `sha256` claim over the exact raw body; there is no separate LiveKit webhook secret. Valid events reconcile presence and Egress status/final object key; tampered or unsigned events return `401 INVALID_SIGNATURE`, replayed `event.id` values are deduplicated, and founder observers never count as participants. The `agora_join`/`agora_leave` presence labels are internal compatibility strings only. Rows below this note remain historical evidence. `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]`. VERIFIED.
+
 | Webhook | Tag | Verification | Accepted event / effect | Rejection or down behavior | Source |
 |---|---|---|---|---|---|
 | `POST /api/webhooks/whatsapp` | VERIFIED | `X-Twilio-Signature` HMAC-SHA1 over URL + sorted params | TwiML flow, dedupe, pseudonymous AI reply, progress draft, payment-link proposal, reschedule answer, handoff pause/resume and founder notice | Production fails closed if URL/secret missing | `[src: server/services/whatsappAiService.js:24-35,266-311,444-503]`; `[src: server/routes/webhooks.js:85-155]` |
@@ -1233,6 +1252,8 @@ Legend: **A** = allow, **D** = deny, **N/I** = not implemented, **C** = conditio
 | `POST /api/chat/student-doubt` bridge | VERIFIED | Express bearer + Worker HMAC verify; role allowlist rechecked in core | Student image/question to pinned models | Blocked roles rejected; vision 400/403 → fallback or no image chat | `[src: C:/Users/rohit/AppData/Local/Temp/opencode/tpff-roles-surfaces.md:205]`; `[src: TEST_REPORT.md:19-20]` |
 
 ### 9.4 Cron, timers and background jobs
+
+[CURRENT STATE — v4.0.2] The five-minute scheduler is unchanged, but the current job windows are 24-hour/1-hour reminders, a 15-minute parent + trainer join email plus parent in-app notification, and a trainer-only T−2-minute warning while that trainer is still absent. One absolute UTC instant is stored and rendered in each registered IANA zone, with the child zone as the shared-parent fallback. Resend delivers the mail; missing keys return `EMAIL_NOT_CONFIGURED` and no delivery is claimed. The row below is the historical job description. `[src: LIVE_QA_REPORT.md:84-88]`; `[src: server/jobs/reminders.js:16-23]`. VERIFIED.
 
 | Job | Tag | Cadence | Action | Down / disabled behavior | Source |
 |---|---|---|---|---|---|
@@ -1432,6 +1453,7 @@ This section lists only events with a local git record, a captured command outpu
 | 2026-11-26 (this drafting pass) | `gh pr list --state all --repo rohit4333/edtech` failed unauthenticated with exit code 4; `supabase --version` was not recognized | Captured command evidence | VERIFIED | [ev: gh pr list --state all --repo rohit4333/edtech; GH_EXITCODE: 4; supabase --version, 2026-11-26] |
 | 2026-11-26 (10-role audit) | [U+2026-11-26] Ten isolated role agents ran against evidence baseline `3b9d597`; A-01…A-09 are all FIXED (A-09 by v3.1.0, not re-applied), B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps | Captured multi-agent audit evidence | VERIFIED | [src: E2E_TEST_LOG.md:14-29,38-64]; [src: TPFF_BLOCKERS.md:9-40] |
 | 2026-11-26 (v4.0.0 final validation) | [U+2026-11-26] `npm.cmd test --prefix server` exit 0 with 36/36 suites (`agoraRoutes: 60`, `sessionPolicy: 37`, `rtcControls: 46`, `livePersistence: 54`, `chatWorker: 110`, `mcpServer: 55`), `node --check` `SYNTAX_FILES=136`/`SYNTAX_FAILURES=0`, seven-file migration dry run exit 0, `git diff --check` exit 0 with CRLF warnings only; final pre-commit inventory 41/32/9 | Captured command evidence | VERIFIED | [src: E2E_TEST_LOG.md:70-82]; [ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26] |
+| 2026-11-27 (current-state reconciliation) | [U+2026-11-27] `DATABASE_MODE=mock npm test` exit 0 with 49 suites; current services named as LiveKit + private Egress/SigV4 links + signed webhooks, Resend, and freelm → Gemini → Groq → Cloudflare; no real class MP4, Resend delivery, Razorpay/Twilio success or Worker deploy is claimed | Captured current evidence | VERIFIED | [src: LIVE_QA_REPORT.md:9-15,80-96]; [ev: git rev-parse --short HEAD, 2026-11-27] |
 
 ## 13. APPENDICES
 
@@ -1440,6 +1462,8 @@ This section lists only events with a local git record, a captured command outpu
 Citation paths without a drive prefix in §13 are relative to `C:/Users/rohit/AppData/Local/Temp/opencode/`; repository paths are relative to the working tree root. VERIFIED.
 
 ### 13.a Env variable reference
+
+[CURRENT STATE — v4.0.2] The table below is the historical 59-name inventory. Current names are in `server/.env.example`: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_AGENT_NAME`, `LIVEKIT_EGRESS_*`, `RESEND_API_KEY`, `RESEND_FROM`, the AI-chain keys (`GEMINI_*`, `GROQ_*`, `CLOUDFLARE_*`, `FREELM_*`) and reminder/timezone settings. LiveKit webhook verification reuses the same LiveKit API key/secret; no separate webhook secret exists. `NODEMAILER_*` names were removed. Names only are listed; no values are reproduced. `[src: server/.env.example:33-68,83-93,111-163]`; `[src: LIVE_QA_REPORT.md:88]`. VERIFIED.
 
 [U+2026-11-26] Names only are reproduced here; no secret value was read or printed. The inventory contains 45 names from `server/.env.example` plus 14 additional names referenced in code, config or deploy manifests, for 59 total; `MCP_FOUNDER_TOKEN` is newly present in the template [ev: Select-String -Path 'server\.env.example' -Pattern '^\s*([A-Z][A-Z0-9_]*)\s*='; combined name audit, 2026-11-26]; [src: server/.env.example:50]. VERIFIED.
 
@@ -1512,6 +1536,8 @@ Citation paths without a drive prefix in §13 are relative to `C:/Users/rohit/Ap
 Local `server/.env` key-state audit recorded `PORT`, `AUTH_SECRET`, `CORS_ORIGIN`, `DATABASE_MODE`, `REALTIME_MODE`, `DEMO_PASSWORD`, `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE`, `AGORA_RECORDING_VENDOR`, `AGORA_RECORDING_REGION`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_MODEL` and `CLOUDFLARE_TIMEOUT_MS` as SET, and the remaining audited provider keys as EMPTY; values were never read or printed [src: tpff-integrations-docs.md:99]. VERIFIED.
 
 ### 13.b Dependency list
+
+[CURRENT STATE — v4.0.2] Current dependencies are `livekit-server-sdk`, `freelm` and `resend` in `server/`, with `freelm` at the root; lockfiles pass `npm ci --dry-run --ignore-scripts` and `npm audit --omit=dev --prefix server` reports 0 vulnerabilities. `nodemailer` is absent from both lockfiles. The `nodemailer` row below is historical evidence only. `[src: LIVE_QA_REPORT.md:15]`; `[src: server/package.json]`. VERIFIED.
 
 `server/package-lock.json` is lockfileVersion 3; runtime declarations and locked resolutions are listed below; server devDependencies are empty and root dependencies/devDependencies are empty [ev: node.exe -e "const p=require('./server/package.json'), l=require('./server/package-lock.json'); ...", 2026-11-26]; [src: tpff-integrations-docs.md:103-107]. VERIFIED.
 

@@ -2,7 +2,9 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned Egress, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; the earlier Agora routes remain for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 46 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
+This codebase state (`feat/student-rtc-control-perfection`, reviewed at `5639127`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; the earlier Agora routes remain only for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 49 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
+
+**Current providers:** LiveKit (RTC, tokens, Egress, webhooks) · private S3-compatible/R2 storage with short-lived SigV4 links (recordings) · Resend (all mail) · freelm → Gemini → Groq → Cloudflare Workers AI (every model call) · Supabase service role (live persistence) · Razorpay (packs) · Twilio (WhatsApp). Agora, Nodemailer/SMTP, OpenAI and DeepSeek are not current providers.
 
 ## Run
 
@@ -119,7 +121,7 @@ Text is scanned by `services/parentChatDlp.js` before any write or delivery. Ema
 | `POST` | `/api/sessions/:sessionId/media-permission` | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking |
 | `POST` | `/api/sessions/:sessionId/network-check` | Verified participant reports their own speed; role comes from the JWT, never the body |
 | `POST` | `/api/sessions/:sessionId/badges` | Trainer/founder only: award a fixed-catalog badge; label and points come from policy |
-| `POST` | `/api/sessions/:sessionId/end` | Trainer-only end + recap + recording link |
+| `POST` | `/api/sessions/:sessionId/end` | Trainer-only end + recap; ready recordings are exposed later through role-scoped signed links |
 
 ### Public connection probe and policy
 
@@ -189,7 +191,7 @@ whiteboard/Wacom activity are the only shared signals.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/policy/config` | Configurable rules; unresolved values are `null` |
-| `POST` | `/api/webhooks/recording` | Store vendor recording URL and notify |
+| `POST` | `/api/webhooks/recording` | Legacy Agora recording-ready webhook; retained for compatibility/tests, not the current LiveKit Egress path |
 | `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
 | `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
 | `GET` | `/api/admin/settings` | Founder-only runtime settings draft with read-only money widgets |
@@ -203,8 +205,13 @@ whiteboard/Wacom activity are the only shared signals.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/livekit/token`, `/api/get-token` | LiveKit JWT + WebSocket URL; server-owned room/identity, subscribe-only observer grants; `NETWORK_BELOW_MINIMUM` until both sides pass |
+| `POST` | `/api/livekit/recording/start`, `/api/livekit/recording/stop` | Trainer-only Egress control; server derives room, object key and private S3 destination |
+| `POST` | `/api/webhooks/livekit` | Verified LiveKit JWT + raw-body `sha256`; reconciles presence and Egress status/final object key |
+| `GET` | `/api/recordings` | List ready private recordings for the caller's role scope |
+| `GET` | `/api/recordings/:sessionId/url` | Mint a short-lived SigV4 GET link (10 minutes default, 1 hour cap); no permanent URL or secret |
+| `GET` | `/api/parent/reminders` | Parent-only in-app class reminders scoped to the linked child |
 | `POST` | `/api/generate-feedback` | Structured feedback through the shared `freelm → Gemini → Groq → Cloudflare` chain; mock mode returns deterministically |
-| `POST` | `/api/ai/test-ping` | Live-only health probe; requires at least two real provider answers, never returns a mock result |
+| `POST` | `/api/ai/test-ping` | Live-only, founder-only probe; requires two real provider answers, never returns a mock result |
 | `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
 | `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
 
@@ -216,9 +223,21 @@ LiveKit recording is available through `POST /api/livekit/recording/start` and
 `POST /api/livekit/recording/stop`. The trainer sends only a session id or
 recording id; the server derives the room, object key and S3 destination. With
 no LiveKit Egress storage configured, both routes fail closed with
-`RECORDING_NOT_CONFIGURED`. Legacy routes `GET /api/agora/token`,
-`POST /api/agora/recording/start|stop` and `/api/agora/webhook` are retained for
-compatibility/tests only.
+`RECORDING_NOT_CONFIGURED`. Webhook verification uses `WebhookReceiver` with the
+existing `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` and a `sha256` checksum of the
+exact raw body; there is no separate LiveKit webhook secret. A verified
+`egress_ended` event with `fileResults` writes the object key and marks the
+recording `stopped`; failed or aborted Egress without a file is `failed` and
+never watchable. The internal `agora_join`/`agora_leave` presence labels are
+legacy compatibility names, not Agora transport.
+
+`GET /api/recordings` and `GET /api/recordings/:sessionId/url` use `canAccessRecording()`:
+founder and relationship manager may review any class; trainer, student and
+parent are scoped to their own 1:1 session. Links are 600-second S3 SigV4 GET
+URLs (60–3600 second bounds) built by `recordingAccessService.js`; no permanent
+URL, bucket name in a browser payload, or secret key is returned. Legacy routes
+`GET /api/agora/token`, `POST /api/agora/recording/start|stop` and
+`/api/agora/webhook` are retained for compatibility/tests only.
 
 Curriculum path — `services/cloudflareService.js` generates curriculum in two model calls through
 the shared chain: `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner
@@ -280,7 +299,7 @@ the full AI chain (`GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`,
 Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape hatch),
 `APP_ORIGIN`, `RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,
 `TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`.
-All email, including password resets, reminders and human handoffs, goes through Resend.
+All email, including password resets, reminders and human handoffs, goes through Resend. At T−15 minutes parent and trainer receive a join email and the parent also gets an in-app notification; at T−2 minutes an absent trainer gets a second warning. Missing `RESEND_API_KEY`/`RESEND_FROM` returns `EMAIL_NOT_CONFIGURED`; no delivery is mocked.
 
 Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`.
 They are retained only for compatibility routes and local tests; Cloudflare Workers AI
@@ -335,15 +354,15 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Testing
 
-Forty-six Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. `LIVE_QA_REPORT.md` at the repository root records current live HTTP and Supabase evidence. `TEST_REPORT.md` has historical full results, including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `parentChat.test.js` and `apiSmoke.test.js`; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
+Forty-nine Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 
-`db/schema.sql` is the source of truth. `migrations/0001_baseline.sql`, `0002_student_curriculum.sql`, `0003_live_persistence.sql` and `0004_ai_chat_logs.sql` are reviewed with `npm run migrate` (dry run, SHA-256 checksums, no DB contact). Applying requires both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`; see `migrations/README.md`. No live migration has been applied; live credentials were absent during the chat checks.
+`db/schema.sql` is the source of truth. All eight reviewed SQL files through `0009_recordings_storage.sql` are checked with `npm run migrate` (dry run, SHA-256 checksums, no DB contact). Applying requires both `DATABASE_URL` and `MATHIFY_MIGRATE_CONFIRM=apply`; see `migrations/README.md`. No runner-based live migration has been applied; the private recordings bucket and its session-scoped reader policy were applied separately after review.
 
 ## Remaining work
 
 1. Finish the partial LMS surface (publish and pack import) and mirror the remaining mock stores onto normalized relations.
 2. Decide whether founder settings drafts should become a reviewed persistence source; planner exports remain local authoring output until then.
-3. Rotate exposed credentials, including LiveKit, and verify production env validation; historical Workers AI text evidence is documentary. Live LiveKit signing, freelm calls, Resend delivery, Supabase writes, payments, SMS and migration apply still need explicit live verification.
+3. Rotate exposed credentials, including LiveKit, and verify production env validation; historical Workers AI text evidence is documentary. Live LiveKit signing, AI-chain calls, signed webhooks, role-scoped link signing and Supabase SQL have been verified in `LIVE_QA_REPORT.md`; Resend delivery, Razorpay/Twilio sends, a real joined-room recording and runner-based migration apply remain gated.
 4. OCR PDF pages 5–17 before quoting them verbatim.
