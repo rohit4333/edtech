@@ -41,7 +41,7 @@
     </nav>
     <div class="rail-note">
       <span class="mono">Manager boundary</span>
-      <p>Grant access, add and revoke penalties, and issue a generated temporary password to a granted trainer. Only the founder revokes a desk, chooses or replaces a credential or edits founder-set pay.</p>
+      <p>Grant access, set the shared session rate, and issue a generated temporary password to a granted trainer. Only the founder revokes a desk, chooses or replaces a credential or edits founder-set pay. All other pay actions stay founder-only.</p>
     </div>
     <a class="rail-back" href="../apps.html">Back to surfaces</a>
   </aside>
@@ -50,7 +50,7 @@
     <section class="intro" id="dashboard" aria-labelledby="rmTitle">
       <p class="eyebrow">Relationship manager · founder authorised</p>
       <h1 id="rmTitle">Help every learner and trainer<em>.</em></h1>
-      <p class="lede">You share the founder's operating view to support trainers, students and parents. You may grant access, manage penalties and issue a generated temporary password to an approved trainer; the founder alone revokes access, chooses or replaces credentials and edits founder-set pay.</p>
+      <p class="lede">You share the founder's operating view to support trainers, students and parents. You may read every pay detail, set the shared demo and regular session rate, grant access and issue a generated temporary password to an approved trainer. Salary, penalties, policy and the gratitude credit stay founder-only.</p>
       <p class="status" id="rmDashboardStatus" role="status" aria-live="polite">Loading your desk…</p>
       <div class="stat-grid" id="rmStats" aria-live="polite"></div>
 
@@ -152,9 +152,9 @@
         <div>
           <span class="mono">02 · Trainers</span>
           <h2 id="rmTrainerTitle">Support and grant trainer access</h2>
-          <p>View every trainer record, grant a KYC-verified desk with a first password, and assign enrolled batches. Base pay stays locked to the founder's decision.</p>
+          <p>View every trainer record and full pay detail, grant a KYC-verified desk with a first password, set the shared session rate and assign enrolled batches.</p>
         </div>
-        <span class="tag">Grant only</span>
+        <span class="tag">Grant + rate</span>
       </div>
       <p class="status" id="rmTrainerStatus" role="status" aria-live="polite">Loading trainers…</p>
       <div class="admin-grid">
@@ -184,20 +184,19 @@
       </div>
       <div class="admin-grid">
         <form class="admin-panel" id="rmRateForm" novalidate>
-          <h3>Set onboarding base rate</h3>
+          <h3>Set session pay rate</h3>
           <label>₹ per completed session<input id="rmBaseRate" type="number" min="1" step="0.01" required></label>
-          <button class="btn btn-ghost" type="submit">Set rate once</button>
-          <p class="admin-hint">Allowed only while this trainer is pending and the founder has not set a rate. After grant or a founder decision, this field is locked permanently for managers.</p>
-        </form>
-        <form class="admin-panel" id="rmPenaltyForm" novalidate>
-          <h3>Record a penalty</h3>
-          <label>Amount (₹)<input id="rmPenaltyAmount" type="number" min="1" step="0.01" required></label>
-          <label>Reason<input id="rmPenaltyReason" maxlength="500" required placeholder="Short audit reason"></label>
-          <button class="btn btn-coral" type="submit">Record penalty</button>
+          <button class="btn btn-ghost" type="submit">Update rate</button>
+          <p class="admin-hint">This one rate applies to both demo and regular classes. Every other pay action — salary, penalties and fines, founder settings and the gratitude credit — is founder-only.</p>
         </form>
         <div class="admin-panel">
           <h3>Trainer record</h3>
-          <div id="rmTrainerDetail">Choose a trainer to load sessions, batches, KYC and pay.</div>
+          <div id="rmTrainerDetail">Choose a trainer to load sessions, batches and KYC.</div>
+        </div>
+        <div class="admin-panel">
+          <h3>Pay detail (read only)</h3>
+          <div id="rmPayDetail">Choose a trainer to load every pay statement.</div>
+          <p class="admin-hint">Founder and manager see the same full breakdown. The session-rate form above is the only pay control you can edit.</p>
         </div>
       </div>
     </section>
@@ -230,10 +229,10 @@
       <div class="card-head">
         <div>
           <span class="mono">04 · Penalties</span>
-          <h2 id="rmPenaltyTitle">Review and revoke penalties</h2>
-          <p>A manager may record a penalty and revoke one. Every decision stays in the audit trail with its author and revocation time.</p>
+          <h2 id="rmPenaltyTitle">Review recorded penalties</h2>
+          <p>Penalty and fine decisions stay with the founder. This history is read only for the manager, including the author and revocation time.</p>
         </div>
-        <span class="tag">Manager power</span>
+        <span class="tag">Read only</span>
       </div>
       <div class="admin-panel">
         <div id="rmPenaltyList">Loading penalties…</div>

@@ -1,9 +1,10 @@
 /* ==========================================================================
    MATHIFY — classroom engagement layer
-   Reactions and celebrations are deliberately separate UI layers. A reaction
-   is a role-tagged gesture; a celebration is a server-owned recognition event.
-   They never render at the same time, never touch camera or microphone tracks,
-   and never carry correctness, hints or trainer notes.
+   Reactions are role-tagged gestures that render as a full-screen, layered
+   celebration on both sides. Celebrations are server-owned recognition events.
+   Both use the same Paper & Ink stage, never touch camera or microphone tracks,
+   never carry correctness/hints/trainer notes, and always play a locally
+   synthesised sound. There is no mute control.
    ========================================================================== */
 (function () {
   'use strict';
@@ -21,17 +22,29 @@
     new URLSearchParams(window.location.search).get('role') === 'student' || role === 'student';
 
   var STORE_PREF = 'mathify.engagement.pref.' + role;
-  var STORE_SOUND = 'mathify.engagement.sound';
-
   var celebrationLayer = $('#celebrationLayer');
   var reactionLayer = $('#reactionLayer');
-  var prefSelect = $('#celebrationPref');
-  var soundButton = $('#engagementSoundBtn');
   var kudosButton = $('#sendKudosBtn');
   var studentTile = $('#studentTile');
 
+  var EMOJIS = ['💡', '🤔', '✅', '👏', '⭐', '🎯', '🎉', '🥳', '❤️', '🔥'];
+  var PARTICLE_EMOJIS = ['🎉', '🥳', '👏', '⭐', '✨', '🎊', '💛', '🔥'];
+  var STYLE_EMOJI = {
+    paper_ribbons: '🎊',
+    origami_balloons: '🎈',
+    drum_pulse: '🥁',
+    star_shower: '⭐',
+    torn_confetti: '🎉',
+    milestone_seal: '🏅'
+  };
+  var EMOJI_STYLE = {
+    '💡': 'paper_ribbons', '🤔': 'origami_balloons', '✅': 'drum_pulse',
+    '👏': 'torn_confetti', '⭐': 'star_shower', '🎯': 'milestone_seal',
+    '🎉': 'torn_confetti', '🥳': 'star_shower', '❤️': 'paper_ribbons', '🔥': 'drum_pulse'
+  };
+
   var config = null;
-  var soundOn = readStore(STORE_SOUND) === 'on';
+  var soundOn = true;
   var screenSharing = false;
   var applauseAllowed = true;
   var reactAllowed = true;
@@ -40,7 +53,12 @@
   var pendingReaction = null;
   var celebrationCount = 0;
   var lastCelebrationAt = 0;
+  var lastLocalFireAt = 0;
+  var lastLocalType = '';
+  var lastLocalReactionAt = 0;
+  var lastLocalReactionEmoji = '';
   var audioContext = null;
+  var stylePreference = readStore(STORE_PREF) || '';
   var motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   function readStore(key) {
@@ -57,6 +75,63 @@
     return Boolean(motionQuery && motionQuery.matches);
   }
 
+  function unlockAudio() {
+    var AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) return;
+    try {
+      if (!audioContext) audioContext = new AudioCtor();
+      if (audioContext.state === 'suspended') audioContext.resume();
+    } catch (error) { /* audio is an optional enhancement */ }
+  }
+
+  /* Sound is synthesised locally from allowed ids. No asset, no network call,
+     no toggle: every reaction and celebration plays a quiet, capped cue. */
+  function playSound(id, volumeValue) {
+    if (!id) return;
+    unlockAudio();
+    var AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor || !audioContext) return;
+    try {
+      var volume = Math.max(0, Math.min(0.6, Number(volumeValue) || 0.32));
+      var now = audioContext.currentTime;
+
+      function tone(frequency, start, length, type, gain) {
+        var osc = audioContext.createOscillator();
+        var amp = audioContext.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(frequency, now + start);
+        amp.gain.setValueAtTime(0.0001, now + start);
+        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume * (gain || 1)), now + start + 0.02);
+        amp.gain.exponentialRampToValueAtTime(0.0001, now + start + length);
+        osc.connect(amp);
+        amp.connect(audioContext.destination);
+        osc.start(now + start);
+        osc.stop(now + start + length + 0.03);
+      }
+
+      if (id === 'drum_roll_short' || id === 'tabla_pulse') {
+        [0, 0.13, 0.26, 0.39, 0.52].forEach(function (start, index) {
+          tone(150 + index * 18, start, 0.13, 'sine', 1);
+        });
+      } else if (id === 'chime_paper' || id === 'welcome_bell') {
+        tone(660, 0, 0.6, 'triangle', 0.7);
+        tone(880, 0.08, 0.5, 'triangle', 0.5);
+        tone(1046, 0.17, 0.42, 'triangle', 0.35);
+      } else if (id === 'sparkle') {
+        [880, 1046, 1318, 1568].forEach(function (frequency, index) {
+          tone(frequency, index * 0.08, 0.18, 'sine', 0.5);
+        });
+      } else if (id === 'applause_soft') {
+        [0, 0.18, 0.36, 0.54].forEach(function (start) {
+          tone(320, start, 0.1, 'triangle', 0.35);
+          tone(430, start + 0.04, 0.08, 'triangle', 0.25);
+        });
+      } else if (id === 'ui_click_soft') {
+        tone(520, 0, 0.08, 'sine', 0.3);
+      }
+    } catch (error) { /* audio is an optional enhancement */ }
+  }
+
   /* ------------------------------------------------------------ preferences */
   function defaultConfig() {
     return {
@@ -64,39 +139,29 @@
       types: [
         { id: 'paper_ribbons', label: 'Paper Ribbons', durationMs: 3000, sound: 'drum_roll_short' },
         { id: 'origami_balloons', label: 'Origami Balloons', durationMs: 3500, sound: 'chime_paper' },
-        { id: 'torn_confetti', label: 'Torn Confetti', durationMs: 3200, sound: 'applause_soft' }
+        { id: 'drum_pulse', label: 'Drum Pulse', durationMs: 2500, sound: 'tabla_pulse' },
+        { id: 'star_shower', label: 'Star Shower', durationMs: 2800, sound: 'sparkle' },
+        { id: 'torn_confetti', label: 'Torn Confetti', durationMs: 3200, sound: 'applause_soft' },
+        { id: 'milestone_seal', label: 'Milestone Seal', durationMs: 4000, sound: 'welcome_bell' }
       ],
       preferences: {
-        allowedOverrides: ['paper_ribbons', 'origami_balloons', 'torn_confetti'],
+        allowedOverrides: ['paper_ribbons', 'origami_balloons', 'drum_pulse', 'star_shower', 'torn_confetti', 'milestone_seal'],
         priority: ['student', 'trainer', 'default']
       },
       throttle: { maxPerSession: 5, minGapBetweenMs: 3000 },
-      accessibility: { respectReducedMotion: true }
+      accessibility: { respectReducedMotion: true, localMuteAllowed: false }
     };
   }
 
-  function populatePreferences() {
-    if (!prefSelect) return;
+  function syncStyleButtons() {
     var source = config || defaultConfig();
     var allowed = source.preferences && Array.isArray(source.preferences.allowedOverrides)
       ? source.preferences.allowedOverrides : [];
-    var types = Array.isArray(source.types) ? source.types : [];
-    var current = readStore(STORE_PREF) || '';
-    prefSelect.innerHTML = '';
-
-    var fallback = document.createElement('option');
-    fallback.value = '';
-    fallback.textContent = 'Default (set by trainer policy)';
-    prefSelect.appendChild(fallback);
-
-    types.forEach(function (item) {
-      if (!item || allowed.indexOf(item.id) < 0) return;
-      var option = document.createElement('option');
-      option.value = item.id;
-      option.textContent = item.label || item.id;
-      prefSelect.appendChild(option);
+    $$('[data-celebration-style]').forEach(function (button) {
+      var id = button.getAttribute('data-celebration-style');
+      button.hidden = allowed.length > 0 && allowed.indexOf(id) < 0;
+      button.setAttribute('aria-pressed', String(stylePreference === id));
     });
-    prefSelect.value = allowed.indexOf(current) >= 0 ? current : '';
   }
 
   function applyApplauseAllowed(value) {
@@ -137,99 +202,28 @@
   function loadConfig() {
     if (!api || typeof api.getPublicConfig !== 'function') {
       config = defaultConfig();
-      populatePreferences();
+      syncStyleButtons();
       return Promise.resolve(config);
     }
     return api.getPublicConfig().then(function (data) {
       config = (data && data.celebrations && Array.isArray(data.celebrations.types))
         ? data.celebrations : defaultConfig();
-      populatePreferences();
+      syncStyleButtons();
       return config;
     }).catch(function () {
       config = defaultConfig();
-      populatePreferences();
+      syncStyleButtons();
       return config;
     });
   }
 
   function preference() {
-    return prefSelect ? prefSelect.value : (readStore(STORE_PREF) || '');
+    return stylePreference;
   }
 
-  /* ------------------------------------------------------------------ sound */
-  /* Sounds are synthesized locally with WebAudio. There are no audio assets,
-     no network calls, no autoplay and no sound for reduced-motion users. The
-     volume is capped at 0.6 by policy and scaled down further for a calm room. */
-  function playSound(id) {
-    if (!soundOn || screenSharing || reducedMotion() || !id) return;
-    var AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor) return;
-    try {
-      if (!audioContext) audioContext = new AudioCtor();
-      if (audioContext.state === 'suspended') audioContext.resume();
-      var volume = Math.max(0, Math.min(0.6, 0.16));
-      var now = audioContext.currentTime;
-
-      function tone(frequency, start, length, type, gain) {
-        var osc = audioContext.createOscillator();
-        var amp = audioContext.createGain();
-        osc.type = type || 'sine';
-        osc.frequency.setValueAtTime(frequency, now + start);
-        amp.gain.setValueAtTime(0.0001, now + start);
-        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume * (gain || 1)), now + start + 0.02);
-        amp.gain.exponentialRampToValueAtTime(0.0001, now + start + length);
-        osc.connect(amp);
-        amp.connect(audioContext.destination);
-        osc.start(now + start);
-        osc.stop(now + start + length + 0.03);
-      }
-
-      if (id === 'drum_roll_short' || id === 'tabla_pulse') {
-        [0, 0.16, 0.32, 0.48].forEach(function (start, index) {
-          tone(150 + index * 18, start, 0.14, 'sine', 1);
-        });
-      } else if (id === 'chime_paper' || id === 'welcome_bell') {
-        tone(660, 0, 0.6, 'triangle', 0.7);
-        tone(880, 0.08, 0.5, 'triangle', 0.5);
-      } else if (id === 'sparkle') {
-        [880, 1046, 1318].forEach(function (frequency, index) {
-          tone(frequency, index * 0.1, 0.16, 'sine', 0.5);
-        });
-      } else if (id === 'applause_soft') {
-        /* Three quiet filtered-style bursts without loading any asset. */
-        [0, 0.22, 0.44].forEach(function (start) {
-          tone(320, start, 0.1, 'triangle', 0.35);
-          tone(430, start + 0.04, 0.08, 'triangle', 0.25);
-        });
-      } else if (id === 'ui_click_soft') {
-        tone(520, 0, 0.08, 'sine', 0.3);
-      }
-    } catch (error) { /* audio is an optional enhancement */ }
-  }
-
-  function renderSoundButton() {
-    if (!soundButton) return;
-    soundButton.setAttribute('aria-label', soundOn ? 'Sound on' : 'Sound off');
-    soundButton.setAttribute('aria-pressed', String(soundOn));
-    soundButton.title = soundOn
-      ? 'Celebration sound is on for this device. Turn it off any time.'
-      : 'Celebration sound is off. Turn it on to hear quiet recognition sounds.';
-  }
-
-  function toggleSound() {
-    soundOn = !soundOn;
-    writeStore(STORE_SOUND, soundOn ? 'on' : 'off');
-    renderSoundButton();
-    if (soundOn) {
-      var AudioCtor = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtor) {
-        try {
-          if (!audioContext) audioContext = new AudioCtor();
-          if (audioContext.state === 'suspended') audioContext.resume();
-        } catch (error) { /* ignore */ }
-      }
-    }
-    notify(soundOn ? 'Celebration sound on for this device.' : 'Celebration sound off.');
+  function typeConfig(type) {
+    var types = (config && Array.isArray(config.types)) ? config.types : defaultConfig().types;
+    return types.find(function (item) { return item && item.id === type; }) || null;
   }
 
   /* ------------------------------------------------------------------ layers */
@@ -237,6 +231,7 @@
     activeLayer = null;
     if (celebrationLayer) {
       celebrationLayer.hidden = true;
+      celebrationLayer.className = 'engagement-layer';
       celebrationLayer.innerHTML = '';
     }
     if (reactionLayer) {
@@ -270,17 +265,118 @@
     activeTimer = setTimeout(clearActive, safeDuration);
   }
 
-  /* ------------------------------------------------------------ celebration */
-  function piece(type, colorKey) {
-    var el = document.createElement('span');
-    el.className = 'celebration-piece is-' + type + ' tone-' + colorKey;
-    el.setAttribute('aria-hidden', 'true');
-    return el;
+  function el(className, text) {
+    var node = document.createElement('span');
+    node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
   }
 
+  function setParticleStyles(node, options) {
+    node.style.setProperty('--px', String(options.px) + '%');
+    node.style.setProperty('--py', String(options.py) + '%');
+    node.style.setProperty('--dx', String(options.dx) + 'px');
+    node.style.setProperty('--dy', String(options.dy) + 'px');
+    node.style.setProperty('--rot', String(options.rot) + 'deg');
+    node.style.setProperty('--size', String(options.size) + 'px');
+    node.style.setProperty('--delay', (Number(options.delay) || 0).toFixed(2) + 's');
+    node.style.setProperty('--dur', (Number(options.dur) || 2.4).toFixed(2) + 's');
+  }
+
+  function addEmojiWaves(stage, emoji, count) {
+    var fragment = document.createDocumentFragment();
+    for (var index = 0; index < count; index += 1) {
+      var wave = index % 3;
+      var node = el('emoji-particle ' + (wave === 0 ? 'emoji-rise' : wave === 1 ? 'emoji-fall' : 'emoji-burst'));
+      node.setAttribute('aria-hidden', 'true');
+      node.textContent = index % 3 === 0 ? emoji : PARTICLE_EMOJIS[index % PARTICLE_EMOJIS.length];
+      var px = wave === 2 ? 50 : 5 + ((index * 37) % 90);
+      var py = wave === 1 ? -8 : wave === 2 ? 56 : 30 + ((index * 19) % 55);
+      var angle = ((index * 47) % 360) * Math.PI / 180;
+      var radius = 90 + ((index * 29) % 180);
+      setParticleStyles(node, {
+        px: px,
+        py: py,
+        dx: wave === 2 ? Math.round(Math.cos(angle) * radius) : ((index % 5) * 18 - 36),
+        dy: wave === 0 ? -60 - ((index % 4) * 28) : wave === 1 ? window.innerHeight + 80 : Math.round(Math.sin(angle) * radius),
+        rot: (index % 2 ? 1 : -1) * (30 + (index % 7) * 18),
+        size: 24 + (index % 6) * 4,
+        delay: (index % 10) * 0.075,
+        dur: 1.9 + (index % 5) * 0.16
+      });
+      fragment.appendChild(node);
+    }
+    stage.appendChild(fragment);
+  }
+
+  function addStyleLayer(stage, type, colors, count) {
+    var palette = Array.isArray(colors) && colors.length ? colors : ['coral', 'ink', 'paper'];
+    var fragment = document.createDocumentFragment();
+    for (var index = 0; index < count; index += 1) {
+      var node = el('celebration-piece is-' + type + ' tone-' + palette[index % palette.length]);
+      node.setAttribute('aria-hidden', 'true');
+      node.style.setProperty('--piece-delay', ((index % 14) * 0.055).toFixed(2) + 's');
+      node.style.setProperty('--piece-x', ((index * 41) % 100) + '%');
+      node.style.setProperty('--piece-drift', ((index % 7) * 12 - 36) + 'px');
+      fragment.appendChild(node);
+    }
+    stage.appendChild(fragment);
+  }
+
+  function renderCelebrationScene(options) {
+    if (!celebrationLayer) return;
+    var source = options || {};
+    var type = String(source.type || 'paper_ribbons');
+    var duration = Math.max(400, Math.min(5000, Number(source.durationMs) || 3000));
+    var badgeText = String(source.badgeText || 'Celebrate').slice(0, 120);
+    var hero = String(source.emoji || STYLE_EMOJI[type] || '🎉').slice(0, 8);
+
+    if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
+    pendingReaction = null;
+    resetLayers();
+
+    celebrationLayer.hidden = false;
+    celebrationLayer.className = 'engagement-layer is-' + (source.kind === 'emoji' ? 'emoji' : 'style');
+    celebrationLayer.setAttribute('role', 'status');
+    celebrationLayer.setAttribute('aria-live', 'polite');
+
+    var stage = el('celebration-stage');
+    stage.appendChild(el('celebration-wash'));
+    [0, 1, 2].forEach(function (index) {
+      var ring = el('celebration-ring ring-' + index);
+      ring.setAttribute('aria-hidden', 'true');
+      stage.appendChild(ring);
+    });
+
+    var badge = el('engagement-badge');
+    badge.appendChild(el('celebration-hero', hero));
+    badge.appendChild(el('celebration-copy', badgeText));
+    stage.appendChild(badge);
+
+    if (!reducedMotion()) {
+      addEmojiWaves(stage, String(source.particleEmoji || hero), Math.max(18, Math.min(48, Number(source.count) || 30)));
+      addStyleLayer(stage, type, source.colors, Math.max(8, Math.min(90, Number(source.styleCount) || 24)));
+    }
+
+    celebrationLayer.appendChild(stage);
+    var item = typeConfig(type);
+    playSound(source.soundId || (item && item.sound) || 'sparkle', source.volume);
+
+    if (source.spotlight && studentTile) {
+      studentTile.classList.add('is-spotlight');
+      var tileBadge = el('spotlight-badge', badgeText);
+      studentTile.appendChild(tileBadge);
+    }
+
+    activateLayer('celebration', duration);
+  }
+
+  /* ------------------------------------------------------------ celebration */
   function renderCelebration(payload) {
     if (!payload || !celebrationLayer) return;
     var type = String(payload.celebrationType || '');
+    /* A locally fired animation already played. Ignore its own server echo. */
+    if (lastLocalFireAt && Date.now() - lastLocalFireAt < 1200 && type === lastLocalType) return;
     var source = config || defaultConfig();
     var known = (Array.isArray(source.types) ? source.types : []).some(function (item) {
       return item && item.id === type;
@@ -295,82 +391,58 @@
     celebrationCount += 1;
     lastCelebrationAt = now;
 
-    /* Only one layer is ever visible. An in-flight or queued reaction is
-       dropped when a trainer recognition moment takes precedence. */
-    if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
-    pendingReaction = null;
-    resetLayers();
     var animation = payload.animation || {};
-    var duration = Number(animation.durationMs) || 3000;
     var spotlight = payload.spotlight || {};
-    var badgeText = String(spotlight.badgeText || 'Well done').slice(0, 120);
-
-    celebrationLayer.hidden = false;
-    celebrationLayer.setAttribute('role', 'status');
-    celebrationLayer.setAttribute('aria-live', 'polite');
-
-    var badge = document.createElement('span');
-    badge.className = 'engagement-badge';
-    badge.textContent = badgeText;
-    celebrationLayer.appendChild(badge);
-
-    if (!reducedMotion()) {
-      var colors = Array.isArray(animation.colors) && animation.colors.length
-        ? animation.colors : ['coral', 'ink', 'paper'];
-      var count = Math.max(6, Math.min(90, Number(animation.count) || 20));
-      var fragment = document.createDocumentFragment();
-      for (var index = 0; index < count; index += 1) {
-        var item = piece(type, colors[index % colors.length]);
-        item.style.setProperty('--piece-delay', ((index % 12) * 0.07).toFixed(2) + 's');
-        item.style.setProperty('--piece-x', ((index * 37) % 100) + '%');
-        item.style.setProperty('--piece-drift', ((index % 5) * 12 - 24) + 'px');
-        fragment.appendChild(item);
-      }
-      celebrationLayer.appendChild(fragment);
-      playSound(payload.sound && payload.sound.id);
-    }
-
-    if (spotlight.enabled && studentTile) {
-      studentTile.classList.add('is-spotlight');
-      var tileBadge = document.createElement('span');
-      tileBadge.className = 'spotlight-badge';
-      tileBadge.textContent = badgeText;
-      studentTile.appendChild(tileBadge);
-    }
-
-    activateLayer('celebration', duration);
+    var item = typeConfig(type) || {};
+    renderCelebrationScene({
+      kind: 'style',
+      type: type,
+      emoji: STYLE_EMOJI[type],
+      badgeText: String(spotlight.badgeText || item.label || 'Well done'),
+      durationMs: Number(animation.durationMs) || Number(item.durationMs) || 3000,
+      colors: Array.isArray(animation.colors) && animation.colors.length ? animation.colors : ['coral', 'ink', 'paper'],
+      count: 30,
+      styleCount: Math.max(12, Math.min(90, Number(animation.count) || 24)),
+      soundId: payload.sound && payload.sound.id ? payload.sound.id : item.sound,
+      volume: payload.sound && payload.sound.volume,
+      spotlight: spotlight.enabled === true
+    });
   }
 
   /* --------------------------------------------------------------- reactions */
-  function renderReaction(payload) {
-    if (!payload || !reactionLayer) return;
+  function renderReaction(payload, force) {
+    if (!payload || !celebrationLayer) return;
     var emoji = String(payload.emoji || '');
-    if (['💡', '🤔', '✅', '👏', '⭐', '🎯'].indexOf(emoji) < 0) return;
+    if (EMOJIS.indexOf(emoji) < 0) return;
+    /* Ignore the echo of a gesture this tab already animated locally. */
+    if (!force && payload.fromRole === role && lastLocalReactionAt &&
+        Date.now() - lastLocalReactionAt < 1000 && emoji === lastLocalReactionEmoji) return;
 
-    /* A gesture during a celebration is queued, never drawn over it. The
-       celebration timer flushes it after the shared spotlight has cleared. */
-    if (activeLayer === 'celebration') {
+    /* A remote gesture during a celebration is queued, never drawn over it.
+       A local click always animates immediately, like Meet/Zoom reactions. */
+    if (!force && activeLayer === 'celebration') {
       pendingReaction = payload;
       return;
     }
-    if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
-    resetLayers();
-    reactionLayer.hidden = false;
-    reactionLayer.setAttribute('role', 'status');
-    reactionLayer.setAttribute('aria-live', 'polite');
-    var chip = document.createElement('span');
-    chip.className = 'reaction-chip';
-    chip.textContent = emoji;
-    var label = document.createElement('span');
-    label.className = 'visually-hidden';
+
+    var type = EMOJI_STYLE[emoji] || 'paper_ribbons';
+    var item = typeConfig(type) || {};
     var audience = payload.toRole === 'trainer'
       ? ' for the trainer'
       : payload.toRole === 'student' ? ' for the student' : '';
-    label.textContent = (payload.fromRole === 'student' ? 'Student' : 'Trainer') +
-      ' reaction' + audience;
-    chip.appendChild(label);
-    reactionLayer.appendChild(chip);
-    activateLayer('reaction', 1400);
+    var sender = payload.fromRole === 'student' ? 'Student' : 'Trainer';
+    renderCelebrationScene({
+      kind: 'emoji',
+      type: type,
+      emoji: emoji,
+      particleEmoji: emoji,
+      badgeText: sender + ' celebration' + audience,
+      durationMs: 2600,
+      colors: ['coral', 'ink', 'paper'],
+      count: 36,
+      styleCount: 18,
+      soundId: item.sound || 'sparkle'
+    });
   }
 
   /* ------------------------------------------------------------------ events */
@@ -379,38 +451,79 @@
       notify('Your trainer has paused applause for this session.');
       return;
     }
+    if (emoji !== '👏' && isStudent && !reactAllowed) {
+      notify('Your trainer has paused emoji reactions for this session.');
+      return;
+    }
+    unlockAudio();
+    playSound('ui_click_soft', 0.18);
+    renderReaction({
+      emoji: emoji,
+      fromRole: role,
+      toRole: emoji === '👏' ? (isStudent ? 'trainer' : 'student') : 'room'
+    }, true);
+    lastLocalReactionAt = Date.now();
+    lastLocalReactionEmoji = emoji;
     if (!api || !sessionId || typeof api.sendReaction !== 'function') return;
     api.sendReaction(sessionId, emoji).catch(function (error) {
       notify(error && error.message ? error.message : 'Reaction could not be sent.');
     });
   }
 
-  function sendKudos() {
+  function fireCelebration(type) {
+    if (isStudent) return;
+    unlockAudio();
+    playSound('ui_click_soft', 0.18);
+    var selected = type || 'star_shower';
+    var item = typeConfig(selected) || {};
+    renderCelebrationScene({
+      kind: 'style',
+      type: selected,
+      emoji: STYLE_EMOJI[selected],
+      badgeText: item.label || 'Star moment',
+      durationMs: Number(item.durationMs) || 3000,
+      colors: ['coral', 'ink', 'paper'],
+      count: 30,
+      styleCount: 24,
+      soundId: item.sound || 'sparkle'
+    });
+    lastLocalFireAt = Date.now();
+    lastLocalType = selected;
     if (!api || !sessionId || typeof api.sendCelebration !== 'function') return;
-    api.sendCelebration(sessionId, 'trainer_kudos', preference()).then(function (result) {
-      if (result && result.fired === false) notify('Please wait a moment before another celebration.');
-    }).catch(function (error) {
+    api.sendCelebration(sessionId, 'trainer_kudos', type || '').catch(function (error) {
       notify(error && error.message ? error.message : 'Celebration could not be sent.');
     });
+  }
+
+  function sendStyle(type) {
+    stylePreference = type;
+    writeStore(STORE_PREF, type);
+    syncStyleButtons();
+    fireCelebration(type);
+  }
+
+  function sendKudos() {
+    fireCelebration(preference() || 'star_shower');
   }
 
   function bindControls() {
     $$('[data-reaction]').forEach(function (button) {
       button.addEventListener('click', function () { sendReaction(button.getAttribute('data-reaction')); });
     });
-    if (prefSelect) {
-      prefSelect.addEventListener('change', function () { writeStore(STORE_PREF, prefSelect.value); });
-    }
-    if (soundButton) soundButton.addEventListener('click', toggleSound);
+    $$('[data-celebration-style]').forEach(function (button) {
+      button.addEventListener('click', function () { sendStyle(button.getAttribute('data-celebration-style')); });
+    });
     if (kudosButton) kudosButton.addEventListener('click', sendKudos);
     if (studentTile) {
       /* A spotlight is a visual overlay only. It must not enable a camera. */
       var videos = studentTile.querySelectorAll('video');
       if (videos.length && !reducedMotion()) studentTile.classList.add('has-video');
     }
+    document.addEventListener('pointerdown', unlockAudio, { passive: true });
+    document.addEventListener('keydown', unlockAudio);
   }
 
-  renderSoundButton();
+  syncStyleButtons();
   bindControls();
   loadConfig();
   loadPermissionState();
@@ -425,14 +538,12 @@
     },
     setApplauseAllowed: applyApplauseAllowed,
     setReactionAllowed: applyReactionAllowed,
-    setScreenSharing: function (value) {
-      screenSharing = Boolean(value);
-      if (screenSharing && soundOn) notify('Celebration sound paused while sharing.');
-    },
+    setScreenSharing: function (value) { screenSharing = Boolean(value); },
     isScreenSharing: function () { return screenSharing; },
     isSoundOn: function () { return soundOn; },
     reducedMotion: reducedMotion,
     preference: preference,
+    fireCelebration: fireCelebration,
     clear: clearActive
   };
 })();

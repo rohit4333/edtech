@@ -1,11 +1,11 @@
 {
   "version": "3.0.0",
-  "note": "Mathify celebration library. Colors are token keys, not raw values, so every renderer resolves through the paper/ink/coral design tokens. No gradients, no off-brand palette, no default sound.",
+  "note": "Mathify celebration library. Colors are token keys, not raw values, so every renderer resolves through the paper/ink/coral design tokens. No gradients, no off-brand palette. The client renders a locally synthesized sound that is always on, with no mute control.",
   "enabled": true,
   "sharedCelebration": {
     "enabled": true,
     "audience": ["trainer", "student"],
-    "soundPlayback": "local_client_side",
+    "soundPlayback": "local_client_side_always_on",
     "spotlightStudent": true,
     "suppressDuringActiveQuiz": true,
     "neverAutoEnableCamera": true
@@ -150,7 +150,7 @@
     "studentCanChoose": true,
     "trainerCanChoose": true,
     "priority": ["student", "trainer", "default"],
-    "allowedOverrides": ["paper_ribbons", "origami_balloons", "torn_confetti"]
+    "allowedOverrides": ["paper_ribbons", "origami_balloons", "drum_pulse", "star_shower", "torn_confetti", "milestone_seal"]
   },
   "throttle": {
     "maxPerSession": 5,
@@ -159,7 +159,7 @@
   "accessibility": {
     "respectReducedMotion": true,
     "reducedMotionFallback": "static_badge",
-    "localMuteAllowed": true,
+    "localMuteAllowed": false,
     "cameraPrivacyRespected": true
   },
   "sounds": {

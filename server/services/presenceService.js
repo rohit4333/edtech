@@ -30,6 +30,8 @@ function rules() {
     ) ? Number(configured.trainerMinPresentWithStudentMinutes) : 50,
     studentMinPresentMinutes: Number.isFinite(Number(configured.studentMinPresentMinutes))
       ? Number(configured.studentMinPresentMinutes) : 15,
+    studentMinPayGateMinutes: Number.isFinite(Number(configured.studentMinPayGateMinutes))
+      ? Number(configured.studentMinPayGateMinutes) : 35,
     learningEventsForPresent: Number(configured.learningEventsForPresent) || 3,
     trainerPayRequiresPresence: configured.trainerPayRequiresPresence !== false
   };
@@ -291,19 +293,21 @@ async function compute(session, now) {
 
   const sessionOpen = ['leave', 'cancelled', 'canceled', 'no_show', 'noshow', 'no-show']
     .indexOf(String(session.status || '').toLowerCase()) === -1;
-  /* A student who never joins does not block pay, but the trainer still has to
-     be present. Once the student joins, the teaching requirement follows the
-     session lifetime: 50 minutes for a regular class, 40 for a demo. */
+  /* Without a child, the trainer needs 15 counted minutes. With a child, both
+     sides have a gate: the child needs 35 counted minutes to unlock trainer pay,
+     and the trainer needs 50 active teaching minutes. Demos use the same gates. */
   const studentJoined = student.joinedAt !== null;
+  const studentStillPresent = student.joinedAt !== null && student.leftAt === null &&
+    ['active', 'joined', 'idle'].indexOf(student.state) !== -1;
+  const studentPayGateMet = !studentJoined ||
+    student.countedSeconds >= config.studentMinPayGateMinutes * 60;
   const lifetime = sessionTiming.lifetimeFor(session);
   const requiredTrainerMinutes = studentJoined
     ? lifetime.requiredTeachingMinutes : config.trainerMinPresentMinutes;
-  const trainerMeetsPayout = studentJoined
-    ? trainer.activeSecondsInWindow >= requiredTrainerMinutes * MINUTE_MS / 1000
-    : trainer.activeMinutes >= requiredTrainerMinutes;
+  const trainerMeetsPayout = trainer.countedSeconds >= requiredTrainerMinutes * 60;
   const payoutEligible = config.trainerPayRequiresPresence
-    ? sessionOpen && trainerMeetsPayout
-    : sessionOpen;
+    ? sessionOpen && studentPayGateMet && trainerMeetsPayout
+    : sessionOpen && studentPayGateMet;
 
   return {
     sessionId: session.id,
@@ -321,21 +325,33 @@ async function compute(session, now) {
     trainerActiveSecondsInWindow: trainer.activeSecondsInWindow,
     trainerNoShow: trainer.state === 'no_show',
     studentNoShow: student.state === 'no_show',
+    /* The extra-minute reward needs to know the child is still in the room,
+       not merely that they attended at some point. */
+    studentStillPresent: studentStillPresent,
+    studentState: student.state,
+    studentLeftAt: student.leftAt,
+    studentPayGateMet: studentPayGateMet,
+    studentPayGateMinutes: config.studentMinPayGateMinutes,
+    studentCountedSeconds: student.countedSeconds,
+    studentActiveSecondsInWindow: student.activeSecondsInWindow,
     payoutEligible: payoutEligible,
     payoutBlocked: !payoutEligible,
     payoutRequirement: {
       studentJoined: studentJoined,
+      studentPayGateMet: studentPayGateMet,
+      studentRequiredMinutes: config.studentMinPayGateMinutes,
       requiredTrainerMinutes: requiredTrainerMinutes,
       satisfied: trainerMeetsPayout,
       source: 'presence_events'
     },
     attendance: { trainer: trainer.attendance, student: student.attendance },
     rule: studentJoined
-      ? 'When the student joins, the trainer is paid after ' + requiredTrainerMinutes +
-        ' active teaching minutes inside the first ' + lifetime.completionWindowMinutes +
-        ' minutes from the scheduled start.'
-      : 'When the student does not join, the trainer is paid after at least ' +
-        config.trainerMinPresentMinutes + ' active minutes.'
+      ? 'When the child joins, they must be counted for at least ' +
+        config.studentMinPayGateMinutes + ' minutes and the trainer must complete ' +
+        requiredTrainerMinutes + ' active teaching minutes inside the first ' +
+        lifetime.completionWindowMinutes + ' minutes from the scheduled start.'
+      : 'When the child does not join, the trainer is paid after at least ' +
+        config.trainerMinPresentMinutes + ' active teaching minutes.'
   };
 }
 
@@ -380,6 +396,12 @@ async function finalize(session, now) {
       trainerActiveMinutesInWindow: snapshot.participants.trainer.activeMinutesInWindow,
       trainerPresent: snapshot.trainerPresent,
       studentPresent: snapshot.studentPresent,
+      studentStillPresent: snapshot.studentStillPresent,
+      studentState: snapshot.studentState,
+      studentLeftAt: snapshot.studentLeftAt,
+      studentPayGateMet: snapshot.studentPayGateMet,
+      studentCountedSeconds: snapshot.studentCountedSeconds,
+      studentActiveSecondsInWindow: snapshot.studentActiveSecondsInWindow,
       payoutEligible: snapshot.payoutEligible,
       payoutRequirement: snapshot.payoutRequirement,
       computedAt: snapshot.computedAt,

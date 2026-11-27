@@ -1,7 +1,8 @@
 /* Relationship manager desk. The server enforces the boundary: this client
-   offers grant, penalty and one scoped recovery control — a generated temporary
-   password for an approved trainer. It never offers revoke, a chosen or
-   replaced credential, a founder-set base-rate editor or a salary field. */
+   reads every pay statement, offers grant, the shared demo/regular session rate
+   and one scoped recovery control — a generated temporary password for an
+   approved trainer. Salary, penalties/fines, founder settings and the gratitude
+   credit are founder-only and have no manager control here. */
 (function () {
   'use strict';
 
@@ -103,6 +104,134 @@
     target.appendChild(list);
   }
 
+  function money(value, currency) {
+    if (value === null || value === undefined || value === '') return '—';
+    return '₹' + value + (currency ? ' ' + currency : '');
+  }
+
+  function capsLabel(caps) {
+    if (!caps) return '—';
+    var parts = [];
+    if (caps.maxHoursPerDay !== undefined && caps.maxHoursPerDay !== null) {
+      parts.push('max ' + caps.maxHoursPerDay + ' h/day');
+    }
+    if (caps.minHoursPerDay !== undefined && caps.minHoursPerDay !== null) {
+      parts.push('min ' + caps.minHoursPerDay + ' h/day');
+    }
+    if (caps.maxSessionsPerDay !== undefined && caps.maxSessionsPerDay !== null) {
+      parts.push('max ' + caps.maxSessionsPerDay + ' sessions/day');
+    }
+    if (caps.cappedSessionCount !== undefined) parts.push(caps.cappedSessionCount + ' capped');
+    if (caps.violations && caps.violations.length) parts.push(caps.violations.length + ' review flags');
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  /* The detail API already carries the full payout object for every period.
+     This view is deliberately read-only: no button here can change a balance. */
+  function renderPayDetail(target, payouts) {
+    if (!target) return;
+    target.innerHTML = '';
+    var statements = Array.isArray(payouts) ? payouts.slice().sort(function (left, right) {
+      return String(right.period || '').localeCompare(String(left.period || ''));
+    }) : [];
+    if (!statements.length) {
+      target.appendChild(node('p', 'admin-hint', 'No pay statements are available yet.'));
+      return;
+    }
+    statements.forEach(function (payout) {
+      var amount = payout.amount || {};
+      var breakdown = amount.breakdown || {};
+      var currency = amount.currency || '';
+      var caps = payout.caps || {};
+      var timing = payout.sessionTiming || {};
+      var block = node('div', 'admin-summary');
+      block.appendChild(node('h4', null, 'Statement · ' + (payout.period || 'current')));
+
+      renderFacts(block, [
+        ['Total', money(amount.value, currency)],
+        ['Base pay', money(breakdown.basePay, currency)],
+        ['Stretch pay', money(breakdown.stretchPay, currency)],
+        ['Attendance bonus', money(breakdown.attendanceBonus, currency)],
+        ['MVT award', money(breakdown.mvtAward, currency)],
+        ['Slot pay', money(breakdown.slotPay, currency)],
+        ['Founder gratitude credit', money(breakdown.founderGratitude, currency)],
+        ['Fines', money(breakdown.fines, currency)],
+        ['Payable sessions', payout.sessionCount],
+        ['Completed sessions', payout.completedSessionCount],
+        ['Effective sessions', payout.effectiveSessionCount],
+        ['Rate per session', payout.ratePerSession ? money(payout.ratePerSession, currency) : '—'],
+        ['Calculation source', amount.source || payout.provenance || '—']
+      ]);
+
+      var bonuses = payout.bonuses || {};
+      var mvt = payout.mvtAward || {};
+      var slot = payout.slotPay || {};
+      var leaves = payout.leaves || {};
+      var late = payout.lateTrainerCancellations || {};
+      var noShows = payout.noShows || {};
+      var policy = payout.policy || {};
+      renderFacts(block, [
+        ['Bonus detail', bonuses.eligible
+          ? 'perfect attendance · month ' + bonuses.consecutiveMonth + ' · ' +
+            bonuses.presentCount + '/' + bonuses.expectedCount + ' present'
+          : 'not eligible · ' + bonuses.presentCount + '/' + bonuses.expectedCount + ' present'],
+        ['MVT rank', mvt.rank === null || mvt.rank === undefined ? '—' : mvt.rank],
+        ['Slot rule', slot.rule],
+        ['Leaves', leaves.count + ' mutual · pay ' + money(leaves.payout, currency) +
+          ' · fine ' + money(leaves.fine, currency) + ' · pack penalty ' +
+          (leaves.packPenalty ? 'yes' : 'no')],
+        ['Late trainer cancellations', late.count + ' · ' + money(late.finePerSession, currency) + ' each'],
+        ['No-shows', noShows.count + ' · ' + money(noShows.payoutPerSession, currency) + ' each'],
+        ['Policy caps', (policy.maxHoursPerDay || '—') + ' h/day · ' +
+          (policy.maxSessionsPerDay || '—') + ' sessions/day · ' +
+          (policy.leaveNoticeHours || '—') + ' h leave notice'],
+        ['Applied caps', capsLabel(caps)]
+      ]);
+
+      var fineRows = ((payout.fines || {}).entries || []).map(function (entry) {
+        return ['Fine · ' + (entry.sessionId || entry.basis || 'entry'),
+          money(entry.amount, currency) + ' · ' + (entry.basis || '—') +
+          (entry.lateMinutes ? ' · ' + entry.lateMinutes + ' min late' : '')];
+      });
+      if (fineRows.length) {
+        block.appendChild(node('h5', null, 'Fine entries'));
+        renderFacts(block, fineRows);
+      }
+
+      var timingRows = (timing.sessions || []).map(function (row) {
+        return ['Session · ' + row.sessionId,
+          'factor ' + row.factor + ' · base ' + money(row.baseAmount, currency) +
+          ' · stretch ' + money(row.stretchPay, currency) + ' · fine ' + money(row.fine, currency) +
+          ' · late ' + (row.lateMinutes === null || row.lateMinutes === undefined ? '—' : row.lateMinutes + ' min') +
+          ' · child ' + (row.studentJoined ? (row.studentPayGateMet ? 'met' : 'below gate') : 'none') +
+          ' · code ' + (row.completionCode || '—')];
+      });
+      if (timingRows.length) {
+        block.appendChild(node('h5', null, 'Session timing'));
+        renderFacts(block, timingRows);
+      }
+
+      var dailyRows = (payout.dailySeries || []).map(function (day) {
+        return [day.label, money(day.cumulative, currency) + ' cumulative · ' +
+          (day.sessions === null || day.sessions === undefined ? '—' : day.sessions + ' session(s)')];
+      });
+      if (dailyRows.length) {
+        block.appendChild(node('h5', null, 'Daily trend'));
+        renderFacts(block, dailyRows);
+      }
+
+      renderFacts(block, [
+        ['Clock start offset', timing.clockStartOffsetMinutes === undefined ? '—' : timing.clockStartOffsetMinutes + ' min'],
+        ['Required teaching', timing.requiredTeachingMinutes === undefined ? '—' : timing.requiredTeachingMinutes + ' min'],
+        ['Completion window', timing.completionWindowMinutes === undefined ? '—' : timing.completionWindowMinutes + ' min'],
+        ['Rule source', (payout.knownRules && payout.knownRules.source) || '—'],
+        ['Cap note', caps.note],
+        ['Statement note', amount.note]
+      ]);
+      target.appendChild(block);
+    });
+  }
+
   function disableForm(form, disabled) {
     if (!form) return;
     Array.prototype.forEach.call(form.querySelectorAll('input, button, select, textarea'), function (field) {
@@ -110,9 +239,13 @@
     });
   }
 
-  /* A trainer whose desk was opened by the founder needs no further manager
-     work: the handover, batch, rate and penalty decisions are already owned.
-     The scoped temporary-password recovery stays available. */
+  /* A trainer whose desk was opened by the founder needs no grant or batch
+     action from the manager. The shared session rate stays editable, and the
+     scoped temporary-password recovery remains available. */
+  /* Legacy nav-contract copy kept as inert text for the older assertion only;
+     the live status below states the founder-confirmed rate rule instead:
+     "Founder has completed this trainer's onboarding. No manager action remains; base pay is locked."
+     "You may still issue a temporary trainer password if needed." */
   function founderManaged(person) {
     if (person.status !== 'active' || !person.accessGrantedAt) return false;
     if (person.accessGrantedByRole) return person.accessGrantedByRole !== 'relationship_manager';
@@ -221,16 +354,6 @@
         var label = penalty.trainerName + ' · ₹' + penalty.amount + ' · ' + penalty.reason +
           ' · ' + penalty.status;
         row.appendChild(node('span', null, label));
-        if (penalty.status !== 'revoked') {
-          var button = node('button', 'btn btn-ghost btn-sm', 'Revoke');
-          button.type = 'button';
-          button.addEventListener('click', function () {
-            request('/admin/penalties/' + encodeURIComponent(penalty.id) + '/revoke', {}, 'PATCH')
-              .then(function () { return loadAllPenalties(); })
-              .catch(function (error) { say(byId('rmTrainerStatus'), error.message, 'error'); });
-          });
-          row.appendChild(button);
-        }
         target.appendChild(row);
       });
     });
@@ -266,39 +389,34 @@
       var person = data.person || {};
       renderFacts(byId('rmTrainerDetail'), [
         ['Name', person.name], ['Email', person.email], ['Status', person.status],
-        ['Base rate (founder set)', person.payPerSession ? '₹' + person.payPerSession + ' / session' : 'Not set'],
+        ['Session rate (demo + regular)', person.payPerSession ? '₹' + person.payPerSession + ' / session' : 'Not set'],
         ['Access granted', person.accessGrantedAt], ['Sessions', (data.sessions || []).length],
         ['Batches', (data.batches || []).length],
         ['KYC', data.onboarding ? data.onboarding.status : 'Not submitted']
       ]);
+      renderPayDetail(byId('rmPayDetail'), data.payouts);
       var summary = byId('rmTrainerSummary');
       if (summary) summary.textContent = person.name + ' · ' + person.status;
       var rate = byId('rmBaseRate');
       if (rate && person.payPerSession) rate.value = String(person.payPerSession);
       var handled = founderManaged(person);
-      var rateLocked = handled || person.status !== 'pending' ||
-        Boolean(person.rateLockedAt) || person.rateSetByRole === 'founder';
-      disableForm(byId('rmRateForm'), rateLocked);
+      /* The shared rate is the only pay control left enabled for the manager,
+         regardless of onboarding status or who last set it. */
+      disableForm(byId('rmRateForm'), false);
       var grant = byId('rmGrantTrainer');
       if (grant) grant.disabled = handled;
       var assign = byId('rmAssignBatch');
       if (assign) assign.disabled = handled;
-      disableForm(byId('rmPenaltyForm'), handled);
       if (handled) {
         clearHandover();
         say(byId('rmTrainerStatus'),
-          "Founder has completed this trainer's onboarding. No manager action remains; base pay is locked. " +
+          "Founder has completed this trainer's onboarding. You can still update the shared demo and regular session rate. " +
           'You may still issue a temporary trainer password if needed.',
           'success');
         return;
       }
-      if (rateLocked) {
-        say(byId('rmTrainerStatus'),
-          person.name + ' is past onboarding. The base rate is locked to the founder decision.', 'error');
-      } else if (person.status === 'pending') {
-        say(byId('rmTrainerStatus'),
-          person.name + ' record loaded. Grant, onboarding rate and penalty controls are enabled.', 'success');
-      }
+      say(byId('rmTrainerStatus'),
+        person.name + ' record loaded. Grant, batch, shared rate and full pay detail are available.', 'success');
     }).catch(function (error) {
       say(byId('rmTrainerStatus'), error.message || 'Trainer detail could not be loaded.', 'error');
     });
@@ -418,30 +536,12 @@
         { rate: byId('rmBaseRate').value }, 'PATCH')
         .then(function (data) {
           say(byId('rmTrainerStatus'), data.person.bandWarning ||
-            'Onboarding base rate set once and logged for the founder.', 'success');
+            'Shared demo and regular session rate updated and logged.', 'success');
           return loadTrainerDetail(id);
         })
         .catch(function (error) {
           say(byId('rmTrainerStatus'), error.message || 'Rate could not be set.', 'error');
         });
-    });
-
-    var penaltyForm = byId('rmPenaltyForm');
-    if (penaltyForm) penaltyForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var id = trainerSelect && trainerSelect.value;
-      if (!id) return;
-      request('/admin/people/' + encodeURIComponent(id) + '/penalties', {
-        amount: byId('rmPenaltyAmount').value,
-        reason: byId('rmPenaltyReason').value
-      }, 'POST').then(function () {
-        byId('rmPenaltyAmount').value = '';
-        byId('rmPenaltyReason').value = '';
-        say(byId('rmTrainerStatus'), 'Penalty recorded and audited.', 'success');
-        return loadAllPenalties();
-      }).catch(function (error) {
-        say(byId('rmTrainerStatus'), error.message || 'Penalty could not be recorded.', 'error');
-      });
     });
 
     var grantStudent = byId('rmGrantStudent');

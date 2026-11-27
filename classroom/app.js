@@ -247,7 +247,9 @@
   var warningAnchorAt = null;
   var warningRemainingSeconds = null;
   var warningAnnounced = false;
+  var warningStateShown = false;
   var warningEl = $('#sessionWarning');
+  var warningDeck = $('#boardWarningDeck');
   var warningTextEl = $('#sessionWarningText');
   var warningCountEl = $('#sessionWarningCount');
 
@@ -266,19 +268,33 @@
     return viewerRole === 'trainer' || viewerRole === 'founder';
   }
 
+  /* Same cue copy as the trainer desk; the role check above keeps it staff-only. */
+  function sessionWarningCopy(details, seconds) {
+    var info = details || {};
+    var minutes = Math.ceil(Math.max(0, seconds) / 60) || 5;
+    var label = info.minimumQuotaReached === true
+      ? 'Minimum time complete · ' + minutes + ' min left'
+      : 'Class ends in ' + minutes + ' minutes';
+    if (info.childPresent === true || info.childJoined === true) {
+      label += ' · class ends in 5 minutes';
+    }
+    return label;
+  }
+
   function showSessionWarning(payload, withSound) {
     if (!isStaffViewer() || ended || !warningEl) return;
+    warningStateShown = true;
     var details = payload || {};
     var seconds = Number(details.countdownSeconds);
     if (!Number.isFinite(seconds)) seconds = 5 * 60;
     warningRemainingSeconds = Math.max(0, Math.floor(seconds));
     warningAnchorAt = Date.now();
     if (warningTextEl) {
-      warningTextEl.textContent = details.classType === 'demo'
-        ? 'Demo class ends in 5 minutes' : 'Class ends in 5 minutes';
+      warningTextEl.textContent = sessionWarningCopy(details, warningRemainingSeconds);
     }
     if (warningCountEl) warningCountEl.textContent = timerClock(warningRemainingSeconds);
     warningEl.hidden = false;
+    if (warningDeck) warningDeck.hidden = false;
     if (withSound && !warningAnnounced && window.MathifySessionAlerts) {
       window.MathifySessionAlerts.ping('warning');
       warningAnnounced = true;
@@ -289,6 +305,7 @@
     warningAnchorAt = null;
     warningRemainingSeconds = null;
     if (warningEl) warningEl.hidden = true;
+    if (warningDeck) warningDeck.hidden = true;
   }
 
   function paintSessionWarning() {
@@ -324,6 +341,7 @@
       timerAnchorAt = null;
       timerAnchorSeconds = null;
       timerRunning = false;
+      warningStateShown = false;
       clearSessionWarning();
       paintSessionTimer();
       return;
@@ -331,12 +349,24 @@
     timerAnchorSeconds = activeSeconds;
     timerRunning = timingState.timerRunning === true;
     timerAnchorAt = timerRunning ? Date.now() : null;
-    if (timingState.warningReached && !timingState.closeReached) {
-      showSessionWarning({
-        classType: timingState.classType,
-        countdownSeconds: timingState.secondsUntilClose
-      }, false);
-    } else if (!timingState.warningReached) {
+    var minimumReached = timingState.minimumQuotaReached === true;
+    if (timingState.closeReached === true) {
+      clearSessionWarning();
+    } else if (minimumReached) {
+      if (!warningStateShown) {
+        var cueSeconds = timingState.minimumQuota && Number(timingState.minimumQuota.cueSeconds);
+        if (!Number.isFinite(cueSeconds)) cueSeconds = 5 * 60;
+        showSessionWarning({
+          minimumQuotaReached: true,
+          childPresent: timingState.childPresent === true,
+          childJoined: timingState.childPresent === true,
+          classType: timingState.classType,
+          countdownSeconds: cueSeconds,
+          minimumQuota: timingState.minimumQuota
+        }, false);
+      }
+    } else {
+      warningStateShown = false;
       clearSessionWarning();
     }
     paintSessionTimer();

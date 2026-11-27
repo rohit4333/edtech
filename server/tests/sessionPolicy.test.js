@@ -42,8 +42,15 @@ async function main() {
   check(policy.sessionTiming.clockStartOffsetMinutes === -1,
     'the class clock starts one minute before the allotted time');
   check(policy.payout.stretchReward.perMinuteInr === 5 &&
-    policy.payout.stretchReward.maxMinutes === 55,
-  'stretch reward is 5 INR per full minute only up to 55 minutes');
+    policy.payout.stretchReward.maxMinutes === 55 &&
+    policy.payout.stretchReward.requiresStudentPresent === true,
+  'stretch reward is 5 INR per full minute up to 55 only while the child is present');
+  check(!policy.payout.lateJoinDemoBands && !policy.payout.demoPayPercent,
+  'demos share the regular pay rate and late/fine bands');
+  check(policy.presence.studentMinPayGateMinutes === 35 &&
+    policy.presence.trainerMinPresentMinutes === 15 &&
+    policy.payout.studentPayGateFine.fineSessions === 1,
+  'the child pay gate is 35 counted minutes with one gate fine');
 
   const near = scheduledSession(iso(8 * MINUTE));
   const trainer = db.findUserById('usr_trainer_001');
@@ -85,40 +92,111 @@ async function main() {
   check(lateClock.clockStartsAt === latePresenceAt,
     'a late trainer starts the clock only when verified session presence begins');
 
-  /* Confirmed pay bands: no extra fine is deducted for very late joins. */
-  check(sessionTiming.lateJoin(fixedSession, new Date(startMs + 4 * MINUTE).toISOString()).factor === 1,
-    'a trainer under five minutes late gets full pay');
-  check(sessionTiming.lateJoin(fixedSession, new Date(startMs + 7 * MINUTE).toISOString()).factor === 0.5,
-    'a trainer five to nine minutes late gets half pay');
-  check(sessionTiming.lateJoin(fixedSession, new Date(startMs + 12 * MINUTE).toISOString()).factor === 0,
-    'a trainer ten or more minutes late gets no pay');
-  const veryLate = sessionTiming.lateJoin(fixedSession,
+  /* Late bands apply only when the child joined; no extra fine is deducted for
+     very late joins. Trainer-only minutes use the separate 15-minute rule below. */
+  const childBandSession = Object.assign({}, fixedSession, {
+    presence: {
+      studentJoinedAt: fixedStart,
+      studentCountedSeconds: 35 * 60,
+      studentStillPresent: true
+    }
+  });
+  check(sessionTiming.lateJoin(childBandSession, new Date(startMs + 4 * MINUTE).toISOString()).factor === 1,
+    'with the child joined, a trainer under five minutes late gets full pay');
+  check(sessionTiming.lateJoin(childBandSession, new Date(startMs + 7 * MINUTE).toISOString()).factor === 0.5,
+    'with the child joined, five to nine minutes late gets half pay');
+  check(sessionTiming.lateJoin(childBandSession, new Date(startMs + 12 * MINUTE).toISOString()).factor === 0,
+    'with the child joined, ten or more minutes late gets no pay');
+  const veryLate = sessionTiming.lateJoin(childBandSession,
     new Date(startMs + 20 * MINUTE).toISOString());
   check(veryLate.factor === 0 && veryLate.fine === 0,
-    'a trainer fifteen or more minutes late forfeits pay with no extra fine');
+    'with the child joined, fifteen or more minutes late forfeits pay with no extra fine');
 
   check(sessionTiming.evaluateCompletion(fixedSession, 50 * 60).completed === true &&
     sessionTiming.evaluateCompletion(fixedSession, 49 * 60).completed === false,
   'fifty active minutes are required when the student joins');
   check(sessionTiming.evaluateCompletion(fixedSession, 16 * 60, 15).completed === true,
     'fifteen active minutes qualify when the student never joins');
+  const trainerOnlyTiming = sessionTiming.evaluatePayoutTiming(Object.assign({}, fixedSession, {
+    presence: {
+      trainerJoinedAt: new Date(startMs + 7 * MINUTE).toISOString(),
+      trainerActiveSecondsInWindow: 16 * 60,
+      trainerCountedSeconds: 16 * 60,
+      payoutEligible: true
+    }
+  }));
+  check(trainerOnlyTiming.factor === 1 && trainerOnlyTiming.lateApplied === false,
+  'late join bands do not scale the 15-minute trainer-only pay rule');
+  const stretchPresence = {
+    trainerActiveSecondsInWindow: 55 * 60,
+    trainerCountedSeconds: 55 * 60,
+    studentJoinedAt: fixedStart,
+    studentCountedSeconds: 35 * 60,
+    studentActiveSecondsInWindow: 35 * 60,
+    studentStillPresent: true
+  };
   check(sessionTiming.evaluateStretch(Object.assign({}, fixedSession, {
-    presence: { trainerActiveSecondsInWindow: 55 * 60 }
+    presence: Object.assign({}, stretchPresence)
   })).amount === 25, 'five full extra minutes up to 55 pay 25 INR');
   check(sessionTiming.evaluateStretch(Object.assign({}, fixedSession, {
-    presence: { trainerActiveSecondsInWindow: 56 * 60 }
+    presence: Object.assign({}, stretchPresence, { trainerActiveSecondsInWindow: 56 * 60 })
   })).amount === 25, 'stretch reward stops at the 55-minute ceiling');
+  const childLeft = sessionTiming.evaluateStretch(Object.assign({}, fixedSession, {
+    presence: Object.assign({}, stretchPresence, { studentStillPresent: false })
+  }));
+  check(childLeft.amount === 0 && childLeft.code === 'STUDENT_NOT_PRESENT',
+  'extra minutes after the child leaves are not paid');
+  const childUnderGate = sessionTiming.evaluateStretch(Object.assign({}, fixedSession, {
+    presence: Object.assign({}, stretchPresence, {
+      studentCountedSeconds: 34 * 60,
+      studentActiveSecondsInWindow: 34 * 60
+    })
+  }));
+  check(childUnderGate.amount === 0 && childUnderGate.extraMinutes === 0,
+  'stretch pay is blocked while the child is under 35 counted minutes');
+
+  function childTiming(lateMinutes, childSeconds) {
+    return sessionTiming.evaluatePayoutTiming(Object.assign({}, fixedSession, {
+      presence: {
+        trainerJoinedAt: new Date(startMs + lateMinutes * MINUTE).toISOString(),
+        trainerActiveSecondsInWindow: 50 * 60,
+        trainerCountedSeconds: 50 * 60,
+        studentJoinedAt: fixedStart,
+        studentCountedSeconds: childSeconds,
+        studentActiveSecondsInWindow: childSeconds,
+        studentStillPresent: true,
+        payoutEligible: true
+      }
+    }));
+  }
+  const childHalf = childTiming(7, 35 * 60);
+  check(childHalf.factor === 0.5 && childHalf.fine === 0,
+  'with the child joined, five to nine minutes late is half pay with no fine');
+  const childNoPay = childTiming(12, 35 * 60);
+  check(childNoPay.factor === 0 && childNoPay.fine === 0,
+  'with the child joined, ten to fourteen minutes late is no pay with no fine');
+  const childVeryLate = childTiming(18, 35 * 60);
+  check(childVeryLate.factor === 0 && childVeryLate.fine === 0,
+  'with the child joined, fifteen-plus minutes late is no pay with no fine');
+  const childGateUnmet = childTiming(0, 34 * 60);
+  check(childGateUnmet.factor === 0 && childGateUnmet.fine >= 1,
+  'a child under 35 counted minutes blocks pay and raises one gate fine');
 
   const trainerRate = 350;
   const halfPaySession = scheduledSession(fixedStart, {
     trainerJoinedAt: new Date(startMs + 7 * MINUTE).toISOString(),
     trainerActiveSecondsInWindow: 16 * 60,
+    trainerCountedSeconds: 16 * 60,
     payoutEligible: true
   });
   const stretchSession = scheduledSession(fixedStart, {
     trainerJoinedAt: fixedStart,
     studentJoinedAt: fixedStart,
+    studentStillPresent: true,
+    studentCountedSeconds: 35 * 60,
+    studentActiveSecondsInWindow: 35 * 60,
     trainerActiveSecondsInWindow: 55 * 60,
+    trainerCountedSeconds: 55 * 60,
     payoutEligible: true
   });
   [halfPaySession, stretchSession].forEach(function (session) {
@@ -135,12 +213,53 @@ async function main() {
     policy,
     { trainers: [], allSessions: [], attendance: [] }
   );
-  check(payoutResult.amount.breakdown.basePay === 525,
-    'half pay and full pay combine into the base payout');
+  check(payoutResult.amount.breakdown.basePay === 700,
+    'a no-child late join and a child-present class both pay full base pay');
   check(payoutResult.amount.breakdown.stretchPay === 25,
     'stretch reward is a separate auditable payout line');
-  check(payoutResult.amount.value === 550,
-    'the payout total includes the stretch reward');
+  check(payoutResult.amount.value === 2725,
+    'the payout total includes the protected gift and the stretch reward');
+  check(payoutResult.sessionTiming.sessions.some(function (row) {
+    return row.sessionId === stretchSession.id && row.factor === 1;
+  }), 'a child with 35 counted minutes unlocks full trainer pay');
+  check(payoutResult.sessionTiming.sessions.some(function (row) {
+    return row.sessionId === halfPaySession.id && row.studentJoined === false &&
+      row.factor === 1 && row.fine === 0;
+  }), 'a seven-minute late trainer pays fully after 15 counted minutes when no child joined');
+
+  const childGateBlocked = scheduledSession(fixedStart, {
+    trainerJoinedAt: new Date(startMs + 7 * MINUTE).toISOString(),
+    trainerActiveSecondsInWindow: 55 * 60,
+    trainerCountedSeconds: 55 * 60,
+    studentJoinedAt: fixedStart,
+    studentCountedSeconds: 34 * 60,
+    studentActiveSecondsInWindow: 34 * 60,
+    studentStillPresent: true,
+    payoutEligible: false
+  });
+  childGateBlocked.id = 'unit_child_gate_blocked';
+  childGateBlocked.status = 'ended';
+  childGateBlocked.trainerId = 'unit_trainer';
+  childGateBlocked.startedAt = fixedStart;
+  const gatePayout = payout.buildPayout(
+    { id: 'unit_trainer', name: 'Unit Trainer', role: 'trainer', payPerSession: trainerRate },
+    [childGateBlocked],
+    '2026-12',
+    policy,
+    { trainers: [], allSessions: [], attendance: [] }
+  );
+  check(gatePayout.amount.breakdown.basePay === 0 &&
+    gatePayout.amount.breakdown.stretchPay === 0 &&
+    gatePayout.amount.breakdown.fines === trainerRate &&
+    gatePayout.fines.entries.filter(function (entry) {
+      return entry.basis === 'student_pay_gate_one_session_pay';
+    }).length === 1 &&
+    !gatePayout.fines.entries.some(function (entry) {
+      return entry.basis === 'late_join_one_session_pay';
+    }),
+  'an unmet child gate pays nothing and charges one gate fine, never a late fine');
+  check(gatePayout.amount.value === 2000,
+    'the protected gift floors a child-gate-blocked statement at 2000');
 
   /* HTTP proof: copied links, observer logging and the server-owned timer. */
   const server = await new Promise(function (resolve) {
@@ -268,6 +387,22 @@ async function main() {
       afterPresence.body.state.sessionTiming.clockStartsAt ===
         afterPresence.body.state.sessionTiming.earliestClockStartsAt,
     'verified trainer presence starts an early clock at -01:00');
+
+    const trainerState = afterPresence.body.state;
+    check(trainerState.payGate && trainerState.payGate.childJoined === false &&
+      trainerState.payGate.childRequiredSeconds === 35 * 60 &&
+      trainerState.payGate.trainerRequiredSeconds === 15 * 60,
+    'the trainer state exposes the role-scoped pay gate');
+    check(trainerState.sessionTiming.minimumQuotaReached === false &&
+      trainerState.sessionTiming.minimumQuota &&
+      trainerState.sessionTiming.minimumQuota.childJoined === false &&
+      trainerState.sessionTiming.minimumQuota.cueSeconds === 300,
+    'the trainer clock exposes minimum-quota progress and the five-minute cue');
+
+    const studentState = await request('GET', '/api/sessions/' + sessionId + '/state',
+      undefined, studentToken);
+    check(!studentState.body.state.payGate,
+    'the child state never exposes the trainer pay gate');
 
     const publicConfig = await request('GET', '/api/public/config');
     check(publicConfig.body.sessionAccess.earlyJoinMinutes === 10 &&

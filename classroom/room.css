@@ -320,10 +320,10 @@ body{overflow:hidden}
 .color[data-color="coral"].is-on{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--coral-deep)}
 
 /* paper + canvas live in board.css */
-.paper{position:relative;min-width:0;min-height:0;overflow:hidden;touch-action:none;cursor:var(--ink-cross,crosshair)}
+.paper{position:relative;min-width:0;min-height:0;overflow:hidden;touch-action:none;cursor:var(--ink-arrow,default)}
 #ink{position:absolute;inset:0;z-index:3;width:100%;height:100%;pointer-events:none}
-/* Eraser still shows the black cross; the brush ring shows its exact width. */
-.paper.tool-eraser{cursor:var(--ink-cross,crosshair)}
+/* Eraser keeps the dark arrow; the brush ring shows its exact width. */
+.paper.tool-eraser{cursor:var(--ink-arrow,default)}
 .brush{
   position:absolute;
   z-index:4;

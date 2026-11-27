@@ -63,7 +63,7 @@ Send the token as `Authorization: Bearer <token>`.
 | --- | --- | --- |
 | `GET` | `/api/trainer/dashboard` | Hero, today timeline, attention queue and metric sources |
 | `GET` | `/api/trainer/score` | Teaching score shape; value stays null until bands are configured |
-| `GET` | `/api/trainer/payouts` | Current payout with base pay, fines, bonus, MVT award and daily trend |
+| `GET` | `/api/trainer/payouts` | Current payout with base pay, fines, bonus, MVT award and daily trend, plus a persistent pay/fine tracker that switches from the 15-minute trainer-only rule to the child 35 + trainer 50 rule as soon as the child joins |
 | `GET` | `/api/trainer/payouts/:period` | Payout for a `YYYY-MM` period |
 | `GET` | `/api/trainer/attention` | Derived planner, quiz, draft, attendance and recording signals |
 | `GET` | `/api/trainer/attendance` | Six-session attendance register with present/absent/late/leave/unattended states |
@@ -183,12 +183,15 @@ cross-role identity builder, and `public.session_participant_names` is the only
 browser-readable Supabase view for session partners. Face, voice, names, role and
 whiteboard/Wacom activity are the only shared signals.
 
-The black cross pointer on every ink surface is a separate, ephemeral teaching cue:
+The dark arrow pointer on every ink surface is a separate, ephemeral teaching cue:
 `POST /api/sessions/:id/cursor` is trainer/founder-only and accepts a normalised
 `{ surface, x, y, active }` point, while `GET` returns only the newest point to the
 two verified participants. It is deliberately kept out of the durable session event
-outbox so frequent movement cannot evict the minute-40/50 warning or the auto-close
-event, and no pointer position is written to the database.
+outbox so frequent movement cannot evict the 50-minute warning or the 55-minute
+auto-close event, and no pointer position is written to the database. Every board
+shown to trainer or child carries a quiet Mathify watermark on the canvas surface;
+the five-minute cue uses the same warm warning deck on the trainer dashboard and
+classroom board and fires only after the applicable minimum quota completes.
 
 ### Public
 
@@ -348,7 +351,15 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 
 ## Configurable policy
 
-`config/policy.json` is the file-backed source of truth. Teaching-score scale, bands and target stay `null` until the conflicting founder-doc values are confirmed; the 80% mastery unlock threshold and payout rules are configured:
+`config/policy.json` is the file-backed source of truth. Teaching-score scale, bands and target stay `null` until the conflicting founder-doc values are confirmed; the 80% mastery unlock threshold and payout rules are configured. The founder-confirmed session policy applies to demo and regular classes alike:
+
+- Both class types are 50 minutes, warn at 50 and close at 55, and use the same base pay rate and fine policy.
+- Late bands apply only when the child joined: 0–5 min full pay; 5–10 min half pay with no fine; 10–15 min no pay and no fine; 15+ min no pay and no extra fine.
+- Without a child, the trainer needs 15 counted minutes; below that there is no pay and one session-pay is charged. With a child, pay unlocks only after the child has 35 counted minutes and the trainer has 50 active teaching minutes; below the child gate there is no pay and one session-pay is charged.
+- Extra reward is 5 INR per full minute from 50 to 55 for both class types, only while the child is still in the session and the 35-minute child gate is met.
+- The five-minute cue uses the same warm warning deck on the trainer dashboard and classroom board and fires only after the applicable minimum quota completes; the persistent pay/fine tracker switches from the 15-minute trainer-only rule to the child 35 + trainer 50 rule as soon as the child joins. Every board shown to trainer or child carries a quiet Mathify watermark on the canvas surface.
+
+Other configured payout rules:
 
 - 300–400 INR base pay per completed session
 - 6 hours / 6 sessions daily cap; under 3 hours is flagged for payroll review
@@ -359,6 +370,8 @@ The route returns `503 DATABASE_MODE_NOT_LIVE` until Supabase mode and keys are 
 - MVT ranks trainers by completed sessions and pays 3,000 / 2,000 / 1,000 INR
 - 38-day non-refundable packs
 - 24–48-hour reschedule window
+
+Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.
 
 ## Testing
 

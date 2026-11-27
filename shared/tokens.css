@@ -57,15 +57,16 @@
   /* Shell */
   --rail:248px;
 
-  /* Wacom/mouse ink surfaces always show a black cross pointer, including
-     eraser mode. Browsers that cannot load the SVG fall back to crosshair. */
-  --ink-cross:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg stroke='%230E1420' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M16 2.5v10M16 19.5v10M2.5 16h10M19.5 16h10'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='1.3' fill='%230E1420'/%3E%3C/svg%3E") 16 16, crosshair;
+  /* Ink surfaces use a dark Paper & Ink arrow with a light outline so it stays
+     visible on both white canvas and dark ink. Browsers that cannot load the
+     SVG fall back to the standard arrow. */
+  --ink-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M4.5 2.5L4.5 22.5L9.7 17.5L13.2 25.3L16.4 23.9L13 16.1L20.8 16Z' fill='%230E1420' stroke='%23FFFFFF' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 4 2, default;
 }
 
-/* Every surface that accepts stylus or mouse ink keeps the cross visible. */
+/* Every surface that accepts stylus or mouse ink keeps the arrow visible. */
 .paper,.paper.tool-eraser,.full-board-canvas-wrap canvas,
 #studentInkCanvas,#scratchCanvas,.ink-cursor-surface{
-  cursor:var(--ink-cross,crosshair)
+  cursor:var(--ink-arrow,default)
 }
 
 /* The verified student sees the trainer's pointer on the same surface. */

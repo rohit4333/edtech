@@ -119,6 +119,17 @@ async function main() {
     check((await request('POST', '/api/sessions/ses_math_001/reactions', { emoji: '👏' }, student))
       .status === 201, 'applause works again after restore');
 
+    for (const emoji of ['🎉', '🥳', '❤️']) {
+      const celebrationReaction = await request('POST', '/api/sessions/ses_math_001/reactions', {
+        emoji: emoji
+      }, student);
+      check(celebrationReaction.status === 201, 'student can send the celebration emoji ' + emoji);
+    }
+    const trainerFire = await request('POST', '/api/sessions/ses_math_001/reactions', { emoji: '🔥' }, trainer);
+    check(trainerFire.status === 201, 'trainer can send 🔥');
+    check((await request('POST', '/api/sessions/ses_math_001/reactions', { emoji: '⭐' }, student))
+      .status === 400, '⭐ stays trainer/founder-only after the emoji expansion');
+
     const reactionEvents = await request('GET', '/api/sessions/ses_math_001/events?limit=200', undefined, student);
     const sent = reactionEvents.body.events.filter(function (event) { return event.event === 'reaction.sent'; });
     const permissionEvents = reactionEvents.body.events.filter(function (event) {
@@ -135,8 +146,21 @@ async function main() {
       reactionService.allowedFor('student').indexOf('⭐') < 0 &&
       reactionService.allowedFor('trainer').indexOf('🎯') >= 0,
       'reaction roles are allowlisted from the JWT role');
+    check(['💡', '🤔', '✅', '👏', '🎉', '🥳', '❤️'].every(function (emoji) {
+      return reactionService.allowedFor('student').indexOf(emoji) >= 0;
+    }) && reactionService.allowedFor('student').indexOf('🔥') < 0 &&
+      ['👏', '⭐', '🎯', '🎉', '🥳', '🔥'].every(function (emoji) {
+        return reactionService.allowedFor('trainer').indexOf(emoji) >= 0 &&
+          reactionService.allowedFor('founder').indexOf(emoji) >= 0;
+      }), 'the expanded reaction lists still separate student and trainer roles');
     check(reactionService.summarise([{ emoji: '👏', minute: 2 }]).applausePct === 100,
       'engagement summary counts trainer-directed applause');
+    const mixed = reactionService.summarise([
+      { emoji: '👏', minute: 2 }, { emoji: '🎉', minute: 2 }, { emoji: '🥳', minute: 2 }
+    ]);
+    check(mixed.applausePct === 100 && mixed.counts['🎉'] === 1 && mixed.counts['🥳'] === 1 &&
+      mixed.counts['❤️'] === 0 && mixed.counts['🔥'] === 0,
+      'celebration emojis are counted without diluting the five-signal score');
     check(reactionPermission.normalize({}).studentCanReact === true &&
       reactionPermission.normalize({}).studentCanApplaud === true,
       'permission service defaults both gestures to enabled');
@@ -204,6 +228,18 @@ async function main() {
     check(cfg.preferences.priority.join(',') === 'student,trainer,default' &&
       cfg.throttle.maxPerSession === 5 && cfg.throttle.minGapBetweenMs === 3000,
       'preference priority and throttle match policy');
+
+    const rawCelebrations = JSON.parse(read('server/config/celebrations.json'));
+    const ALL_SIX = ['paper_ribbons', 'origami_balloons', 'drum_pulse', 'star_shower',
+      'torn_confetti', 'milestone_seal'];
+    check(cfg.accessibility.localMuteAllowed === false &&
+      rawCelebrations.accessibility.localMuteAllowed === false &&
+      rawCelebrations.sharedCelebration.soundPlayback === 'local_client_side_always_on',
+      'sound playback is always on in public config, with no local mute');
+    check(ALL_SIX.every(function (id) { return cfg.preferences.allowedOverrides.indexOf(id) >= 0; }) &&
+      ALL_SIX.every(function (id) {
+        return celebrations.selectType('mastery_gate_crossed', id, '', function () { return 0.99; }) === id;
+      }), 'all six celebration types are selectable overrides');
 
     check(celebrations.selectType('mastery_gate_crossed', 'torn_confetti', 'paper_ribbons',
       function () { return 0.99; }) === 'torn_confetti', 'student preference wins');
@@ -293,8 +329,22 @@ async function main() {
     check(/prefers-reduced-motion/.test(css) && /reducedMotion\(\)/.test(engagement) &&
       /static_badge|engagement-badge/.test(engagement + css),
       'reduced motion shows a static badge and drops animation');
-    check(/soundOn/.test(engagement) && /screenSharing/.test(engagement) &&
-      /Math\.min\(0\.6/.test(engagement), 'sound is opt-in, paused on share and volume-capped');
+    check(html.indexOf('id="engagementSoundBtn"') === -1 &&
+      html.indexOf('id="celebrationPref"') === -1,
+      'sound toggle and celebration-style dropdown are removed from the classroom UI');
+    check(!/mathify\.engagement\.sound|STORE_SOUND/.test(engagement) &&
+      !/renderSoundButton|toggleSound/.test(engagement),
+      'the client keeps no sound toggle or stored mute preference');
+    check(/(?:var|let|const)\s+soundOn\s*=\s*true/.test(engagement) &&
+      /isSoundOn[\s\S]{0,100}return\s+(?:true|soundOn)\s*;/.test(engagement),
+      'sound is always on and isSoundOn() reports true');
+    check(/Math\.min\(0\.6/.test(engagement), 'celebration sound stays volume-capped at 0.6');
+    const playSoundAt = engagement.indexOf('function playSound');
+    const playSoundTail = playSoundAt >= 0 ? engagement.slice(playSoundAt) : '';
+    const playSoundEnd = playSoundTail.indexOf('\n  }');
+    const playSoundBody = playSoundEnd === -1 ? playSoundTail : playSoundTail.slice(0, playSoundEnd + 4);
+    check(playSoundAt >= 0 && !/screenSharing/.test(playSoundBody) && !/!soundOn/.test(playSoundBody),
+      'screen sharing and mute state no longer suppress celebration sound');
     check(!/setMicEnabled\(true\)[\s\S]{0,80}onReaction/.test(engagement),
       'engagement never auto-enables a camera or microphone');
     check(/quizLive\(\)/.test(sessionLayer) && /shared\.celebration/.test(sessionLayer),

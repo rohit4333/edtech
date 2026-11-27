@@ -26,6 +26,12 @@
   var warningAnchorAt = null;
   var warningRemainingSeconds = null;
   var warningAnnounced = false;
+  var warningStateShown = false;
+  var payGateDeck = $('#payGateDeck');
+  var payGateBars = {
+    child: payGateDeck && $('[data-meter="child"] i', payGateDeck),
+    trainer: payGateDeck && $('[data-meter="trainer"] i', payGateDeck)
+  };
 
   function parts(value) {
     if (!value) return null;
@@ -516,11 +522,19 @@
     );
   }
 
-  $('#startClass') && $('#startClass').addEventListener('click', function (event) {
-    var id = activeSessionId || 'ses_math_001';
-    flash(event.currentTarget, 'Opening the 1-on-1 classroom…');
+  function openCameraPage(button, message) {
+    var id = activeSessionId || window.MATHIFY_SESSION_ID || 'ses_math_001';
+    if (button) flash(button, message);
     window.location.href = '../classroom/connect.html?sessionId=' +
-      encodeURIComponent(id) + '&role=trainer';
+      encodeURIComponent(id) + '&role=trainer&camera=1';
+  }
+
+  $('#startClass') && $('#startClass').addEventListener('click', function (event) {
+    openCameraPage(event.currentTarget, 'Opening the 1-on-1 classroom…');
+  });
+
+  $('#cameraOnlyBtn') && $('#cameraOnlyBtn').addEventListener('click', function (event) {
+    openCameraPage(event.currentTarget, 'Opening camera check…');
   });
 
   $$('[data-toast]').forEach(function (el) {
@@ -936,7 +950,8 @@
       ? knownRules.mutualLeave + ' ' + knownRules.fine
       : 'A 48-hour notice is required from either side; later trainer cancellation costs one session pay.';
     setText('#payoutPolicyNote', detail +
-      ' Pay is ₹300–₹400 per completed 1-on-1 session; your exact rate is the one in your contract or offer letter, or the rate stated during onboarding. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.');
+      ' Pay is ₹300–₹400 per completed 1-on-1 session; your exact rate is the one in your contract or offer letter, or the rate stated during onboarding. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.' +
+      ' Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.');
 
     var series = payout && payout.dailySeries;
     var points = series && Array.isArray(series.points) ? series.points : [];
@@ -1122,16 +1137,131 @@
   }
 
   /* ------------------------------------------------- live session cues */
+  /* This deck is desk-only: no child-facing console ever renders it. */
+  function isTrainerDesk() {
+    var role = window.MATHIFY_USER && window.MATHIFY_USER.role;
+    var params = new URLSearchParams(window.location.search);
+    return role !== 'student' && params.get('role') !== 'student' &&
+      params.get('view') !== 'student';
+  }
+
+  function showPayGateDeck() {
+    if (payGateDeck && isTrainerDesk()) payGateDeck.hidden = false;
+  }
+
+  function hidePayGateDeck() {
+    if (!payGateDeck) return;
+    payGateDeck.hidden = true;
+    payGateDeck.classList.remove('is-met');
+  }
+
+  function countedMinutes(value) {
+    return Math.floor(Math.max(0, Math.floor(Number(value) || 0)) / 60);
+  }
+
+  function requiredMinutes(gate, key, fallback) {
+    var seconds = Number(gate[key + 'RequiredSeconds']);
+    if (Number.isFinite(seconds) && seconds > 0) return Math.round(seconds / 60);
+    return fallback;
+  }
+
+  function meterValue(counted, required) {
+    return String(countedMinutes(counted)).padStart(2, '0') + '/' + required + ' min';
+  }
+
+  function setPayMeter(which, label, value, counted, requiredSeconds) {
+    var prefix = '#payGate' + which;
+    setText(prefix + 'Label', label);
+    setText(prefix + 'Value', value);
+    var bar = payGateBars && payGateBars[which.toLowerCase()];
+    if (!bar) return;
+    var ratio = requiredSeconds > 0
+      ? Math.max(0, Math.min(1, (Number(counted) || 0) / requiredSeconds)) : 0;
+    bar.style.width = (ratio * 100).toFixed(1) + '%';
+  }
+
+  function applyPayGate(gate) {
+    if (!payGateDeck) return;
+    if (!isTrainerDesk()) {
+      hidePayGateDeck();
+      return;
+    }
+    showPayGateDeck();
+    if (!gate) {
+      payGateDeck.classList.remove('is-met');
+      setText('#payGateState', 'Pay gate unavailable');
+      setPayMeter('Child', 'Child', '—', 0, 0);
+      setPayMeter('Trainer', 'Trainer', '—', 0, 0);
+      setText('#payGateNote', 'Live pay and fine rules are unavailable right now.');
+      return;
+    }
+
+    var childJoined = gate.childJoined === true;
+    var childPresent = gate.childStillPresent === true;
+    var childRequired = requiredMinutes(gate, 'child', 35);
+    var childRequiredSeconds = Number(gate.childRequiredSeconds) || childRequired * 60;
+    var trainerRequired = childJoined
+      ? requiredMinutes(gate, 'trainer', 50)
+      : (Number(gate.trainerOnlyMinutes) > 0
+        ? Math.round(Number(gate.trainerOnlyMinutes)) : 15);
+    var trainerRequiredSeconds = Number(gate.trainerRequiredSeconds) || trainerRequired * 60;
+    var childCounted = Number(gate.childCountedSeconds) || 0;
+    var trainerCounted = Number(gate.trainerCountedSeconds) || 0;
+    var childMet = gate.childGateMet === true;
+    var trainerMet = gate.trainerGateMet === true;
+    var stateText;
+    var childValue;
+    var trainerValue;
+    var note;
+
+    if (!childJoined) {
+      stateText = 'Child not joined';
+      childValue = 'Not in session';
+      trainerValue = countedMinutes(trainerCounted) + '/' + trainerRequired + ' min counted';
+      note = trainerRequired + ' trainer minutes keeps full pay and avoids a fine.';
+    } else {
+      childValue = meterValue(childCounted, childRequired);
+      trainerValue = meterValue(trainerCounted, trainerRequired);
+      if (childMet && trainerMet) {
+        stateText = 'Minimum met' + (childPresent ? '' : ' · Child left');
+        note = 'Pay unlocked · 50–55 min pays only while the child stays.';
+      } else {
+        stateText = childPresent
+          ? 'Child joined · minimum pending' : 'Child left · minimum pending';
+        note = 'Pay needs child ' + childRequired + ' min + trainer ' + trainerRequired + ' min.';
+      }
+    }
+
+    setText('#payGateState', stateText);
+    setText('#payGateNote', note);
+    setPayMeter('Child', 'Child', childValue, childJoined ? childCounted : 0,
+      childJoined ? childRequiredSeconds : 0);
+    setPayMeter('Trainer', 'Trainer', trainerValue, trainerCounted, trainerRequiredSeconds);
+    payGateDeck.classList.toggle('is-met', childJoined && childMet && trainerMet);
+  }
+
+  function deskWarningCopy(details, seconds) {
+    var info = details || {};
+    var minutes = Math.ceil(Math.max(0, seconds) / 60) || 5;
+    var label = info.minimumQuotaReached === true
+      ? 'Minimum time complete · ' + minutes + ' min left'
+      : 'Class ends in ' + minutes + ' minutes';
+    if (info.childPresent === true || info.childJoined === true) {
+      label += ' · class ends in 5 minutes';
+    }
+    return label;
+  }
+
   function showDeskWarning(payload, withSound) {
     if (!warningEl) return;
+    warningStateShown = true;
     var details = payload || {};
     var seconds = Number(details.countdownSeconds);
     if (!Number.isFinite(seconds)) seconds = 5 * 60;
     warningRemainingSeconds = Math.max(0, Math.floor(seconds));
     warningAnchorAt = Date.now();
     if (warningTextEl) {
-      warningTextEl.textContent = details.classType === 'demo'
-        ? 'Demo class ends in 5 minutes' : 'Class ends in 5 minutes';
+      warningTextEl.textContent = deskWarningCopy(details, warningRemainingSeconds);
     }
     if (warningCountEl) warningCountEl.textContent = clock(warningRemainingSeconds);
     warningEl.hidden = false;
@@ -1171,50 +1301,78 @@
     }
   }
 
+  /* The state poll drives the live pay tracker and the quiet fallback cue.
+     It shares the event tick so a selected session refreshes both together. */
+  function applySessionState(state) {
+    var payload = state || {};
+    applyPayGate(payload.payGate);
+    var timing = payload.sessionTiming;
+    if (!timing) return;
+    if (timing.closeReached === true) {
+      clearDeskWarning();
+      return;
+    }
+    if (timing.minimumQuotaReached !== true || warningStateShown) return;
+    var cueSeconds = timing.minimumQuota && Number(timing.minimumQuota.cueSeconds);
+    if (!Number.isFinite(cueSeconds)) cueSeconds = 5 * 60;
+    showDeskWarning({
+      minimumQuotaReached: true,
+      childPresent: timing.childPresent === true,
+      childJoined: timing.childPresent === true,
+      classType: timing.classType,
+      countdownSeconds: cueSeconds,
+      minimumQuota: timing.minimumQuota
+    }, false);
+  }
+
   function pollSessionEvents() {
-    if (!activeSessionId || !api.getSessionEvents) return;
-    api.getSessionEvents(activeSessionId, sessionEventCursor).then(function (events) {
-      var maxSeq = sessionEventCursor;
-      events.forEach(function (event) {
-        var seq = Number(event.seq) || 0;
-        if (seq > maxSeq) maxSeq = seq;
-        if (sessionEventCursorReady) handleDeskEvent(event);
-      });
-      sessionEventCursor = maxSeq;
-      sessionEventCursorReady = true;
-    }).catch(function () { /* transient polling failure; next tick retries */ });
+    var sessionId = activeSessionId;
+    if (!sessionId) return;
+    if (api && api.getSessionEvents) {
+      api.getSessionEvents(sessionId, sessionEventCursor).then(function (events) {
+        if (sessionId !== activeSessionId) return;
+        var maxSeq = sessionEventCursor;
+        events.forEach(function (event) {
+          var seq = Number(event.seq) || 0;
+          if (seq > maxSeq) maxSeq = seq;
+          if (sessionEventCursorReady) handleDeskEvent(event);
+        });
+        sessionEventCursor = maxSeq;
+        sessionEventCursorReady = true;
+      }).catch(function () { /* transient polling failure; next tick retries */ });
+    }
+    if (api && api.getSessionState) {
+      api.getSessionState(sessionId).then(function (state) {
+        if (sessionId !== activeSessionId) return;
+        applySessionState(state || {});
+      }).catch(function () { /* dashboard remains usable without session state */ });
+    }
   }
 
   function startSessionEventPolling(sessionId) {
     if (!sessionId) return;
     if (sessionEventPollingId === sessionId && sessionEventTimer) return;
+    activeSessionId = sessionId;
+    window.MATHIFY_SESSION_ID = sessionId;
     sessionEventPollingId = sessionId;
     sessionEventCursor = 0;
     sessionEventCursorReady = false;
     warningAnnounced = false;
+    warningStateShown = false;
     clearDeskWarning();
+    showPayGateDeck();
     if (sessionEventTimer) window.clearInterval(sessionEventTimer);
     pollSessionEvents();
     sessionEventTimer = window.setInterval(pollSessionEvents, 1500);
-    if (api.getSessionState) {
-      api.getSessionState(sessionId).then(function (state) {
-        var timing = state && state.sessionTiming;
-        if (timing && timing.warningReached && !timing.closeReached) {
-          showDeskWarning({
-            classType: timing.classType,
-            countdownSeconds: timing.secondsUntilClose
-          }, false);
-        }
-      }).catch(function () { /* dashboard remains usable without session state */ });
-    }
   }
 
   function applyActiveSession(session) {
     if (!session) return;
     activeSessionId = session.id;
+    window.MATHIFY_SESSION_ID = session.id;
     activeSessionStartedAt = session.startsAt || session.scheduledAt || null;
     activeLinkMinutes = Number(session.durationMinutes) > 0
-      ? Number(session.durationMinutes) : (session.classType === 'demo' ? 45 : ACTIVE_LINK_MINUTES);
+      ? Number(session.durationMinutes) : 50;
     startSessionEventPolling(session.id);
     setText('#nextTime', fmtTime(session.startsAt) + ' · live 1:1');
     setText('#nextTopic', session.title);
@@ -1222,7 +1380,7 @@
       window.MathifySubjects.setNextMeta(session, dashboardSnapshot && dashboardSnapshot.trainer);
     } else {
       var minutes = Number(session.durationMinutes) > 0
-        ? Number(session.durationMinutes) : (session.classType === 'demo' ? 45 : 50);
+        ? Number(session.durationMinutes) : 50;
       setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
         ' · ' + (session.code || 'Session') + ' · link active for ' + minutes + ' min');
     }
@@ -1244,9 +1402,9 @@
     })[0] || null;
   }
 
-  /* Dashboard link promotion follows the booked class length (demo 45,
-     regular 50). Pay still uses the server's audit window; the two stay
-     separate. */
+  /* Dashboard link promotion follows the booked class length. Demos and
+     regular classes are both 50 minutes; pay still uses the server's audit
+     window. */
   function checkActiveLinkRollover() {
     paintDeskWarning();
     if (!activeSessionStartedAt) return;
@@ -1292,6 +1450,8 @@
   }
 
   var api = window.mathifyTrainerApi;
+
+  if (activeSessionId) showPayGateDeck();
 
   (function bindProfile() {
     var profileBtn = $('#profileBtn');

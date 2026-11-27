@@ -9,7 +9,7 @@
 
   function activeMinutes(session) {
     if (session && Number(session.durationMinutes) > 0) return Number(session.durationMinutes);
-    return session && session.classType === 'demo' ? 45 : 50;
+    return 50;
   }
 
   var ALIASES = {

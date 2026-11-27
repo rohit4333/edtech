@@ -205,37 +205,56 @@ async function main() {
     const classroom = readAsset('classroom/index.html');
     const classroomApp = readAsset('classroom/app.js');
     const sessionJs = readAsset('classroom/session.js');
-    ok(tokens.indexOf('--ink-cross:') !== -1 &&
-      room.indexOf('cursor:var(--ink-cross,crosshair)') !== -1 &&
+    ok(tokens.indexOf('--ink-arrow:') !== -1 &&
+      tokens.indexOf("fill='%230E1420' stroke='%23FFFFFF'") !== -1 &&
+      tokens.indexOf('4 2, default') !== -1 &&
+      room.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
       room.indexOf('cursor:none') === -1 &&
-      fullBoardCss.indexOf('cursor:var(--ink-cross,crosshair)') !== -1,
-    'every board surface keeps a black cross pointer, including eraser mode');
+      fullBoardCss.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
+      fullBoardCss.indexOf('.full-board.tool-select .full-board-canvas-wrap canvas{cursor:var(--ink-arrow,default)}') !== -1,
+    'every board surface uses a dark arrow pointer with a light outline, including eraser and selection');
     ok(classroom.indexOf('shared/cursorRelay.js') !== -1 &&
       classroom.indexOf('shared/cursorSetup.js') !== -1,
     'the pointer relay is loaded on the verified classroom page');
 
     const fullBoardJs = readAsset('shared/fullBoard.js');
-    ok(/\.full-board-tools\.dock-top\{[^}]*top:44px[^}]*flex-direction:row/.test(fullBoardCss) &&
-      /\.full-board-tools\.dock-left\{[^}]*left:16px[^}]*flex-direction:column/.test(fullBoardCss) &&
-      /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss),
-    'the canvas fills the viewport while the tools dock horizontally at the top by default');
+    ok(fullBoardCss.indexOf('body.board-open .top .full-board-tools') !== -1 &&
+      /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss) &&
+      fullBoardCss.indexOf('dock-left') === -1 &&
+      fullBoardCss.indexOf('board-dock-left') === -1,
+    'the canvas fills the viewport while the tools live in their own floating deck');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
-      fullBoardCss.indexOf('position:fixed;top:0;right:0;bottom:auto;left:0;z-index:215') !== -1 &&
-      fullBoardCss.indexOf('width:100%;max-width:none;min-height:0;height:34px') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top .top-r{margin-left:0;gap:6px;flex:1;min-width:0;overflow:visible}') !== -1 &&
+      fullBoardCss.indexOf('background:transparent;box-shadow:none;backdrop-filter:none;pointer-events:none') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-rec-deck,\nbody.board-open .top .full-board-tools,\nbody.board-open .top .board-session-deck{') !== -1 &&
+      fullBoardCss.indexOf('position:fixed;top:12px;right:12px;bottom:auto;left:12px;z-index:215;') !== -1 &&
+      fullBoardCss.indexOf('justify-content:space-between') !== -1 &&
+      fullBoardCss.indexOf('position:relative;z-index:1;flex:none;min-width:0;') !== -1 &&
+      fullBoardCss.indexOf('height:48px;padding:0 12px;') !== -1 &&
+      fullBoardCss.indexOf('border:1px solid var(--line);border-radius:14px;') !== -1 &&
+      fullBoardCss.indexOf('box-shadow:0 16px 38px -14px rgba(14,20,32,.5)') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-rec-deck{order:1}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .full-board-tools{order:2;overflow:visible}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-session-deck{order:3}') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .rec{') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top #fullBoardShare{margin-left:auto}') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top #fullBoardFullscreen{margin-right:0}') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top-r .full-board-tools{') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top .net-meter{width:22px;height:26px;border-right:0}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .net-meter{width:24px;height:32px;border-right:0}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top-r .full-board-tools button{\n  height:32px;min-width:32px;padding:4px;box-shadow:none') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .brand') !== -1 &&
       fullBoardCss.indexOf('body.board-open .call-pip') !== -1 &&
       fullBoardCss.indexOf('body.board-open .engagement-bar') !== -1,
-    'the trainer deck spans the full width in a 34px strip with compact controls, camera and reactions');
+    'REC, whiteboard controls and session controls are three separate 48px floating decks');
+    ok(classroom.indexOf('class="board-warning-deck trainer-only" id="boardWarningDeck" hidden') !== -1 &&
+      fullBoardCss.indexOf('position:fixed;right:12px;bottom:12px;z-index:226;') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-warning-deck[hidden]{display:none}') !== -1 &&
+      fullBoardCss.indexOf('@keyframes boardWarnGlow') !== -1 &&
+      classroomApp.indexOf("var warningDeck = $('#boardWarningDeck')") !== -1 &&
+      classroomApp.indexOf('if (warningDeck) warningDeck.hidden = false;') !== -1 &&
+      classroomApp.indexOf('if (warningDeck) warningDeck.hidden = true;') !== -1,
+    'the five-minute cue lives in a hidden bottom-right alert deck that appears only when cued');
     const topStart = classroom.indexOf('<header class="top">');
     const topEnd = classroom.indexOf('</header>', topStart);
     const upperDeck = classroom.slice(topStart, topEnd);
-    ok(classroom.indexOf('id="fullBoardToolHandle"') !== -1 &&
+    ok(classroom.indexOf('id="fullBoardToolHandle"') === -1 &&
+      classroom.indexOf('id="fullBoardDockToggle"') === -1 &&
       upperDeck.indexOf('id="fullBoardShare"') !== -1 &&
       upperDeck.indexOf('id="fullBoardFullscreen"') !== -1 &&
       upperDeck.indexOf('aria-label="Close whiteboard"') !== -1 &&
@@ -252,16 +271,13 @@ async function main() {
     ok(fullBoardCss.indexOf('.top .btn svg,\n.top .full-board-toggle svg{display:none}') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .board-action-label') !== -1,
     'the session desk keeps readable labels while the board uses compact labels');
-    ok(fullBoardCss.indexOf('.full-board-tools button[aria-pressed="true"]{\n  background:var(--tool,var(--ink))') !== -1 &&
-      fullBoardCss.indexOf('[data-board-tool="select"]{--tool:#7C3AED}') !== -1 &&
-      fullBoardCss.indexOf('[data-board-tool="pen"]{--tool:#FF5B2E}') !== -1 &&
-      fullBoardCss.indexOf('[data-board-tool="highlighter"]{--tool:#D97706}') !== -1 &&
-      fullBoardCss.indexOf('[data-board-tool="laser"]{--tool:#E11D48}') !== -1 &&
-      fullBoardCss.indexOf('[data-tool-group="shapes"]{--tool:#2563EB}') !== -1 &&
-      fullBoardCss.indexOf('[data-tool-group="lines"]{--tool:#4F46E5}') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top #fullBoardFullscreen{color:#E11D48}') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top #peopleBtn .av{background:#4F46E5}') !== -1,
-    'board tools and deck icons use refined semantic colours with tinted active states');
+    ok(fullBoardCss.indexOf('.full-board-tools button[aria-pressed="true"]{\n  background:var(--coral);color:var(--ink);border-color:var(--coral)') !== -1 &&
+      fullBoardCss.indexOf('color:var(--ink);font:500 11px/1 var(--mono)') !== -1 &&
+      fullBoardCss.indexOf('border-color:var(--coral);background:var(--coral-soft);color:var(--coral-deep)') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #fullBoardFullscreen{color:var(--ink)}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top #peopleBtn .av{background:var(--ink)}') !== -1 &&
+      fullBoardCss.indexOf('--tool:') === -1,
+    'board icons follow the Paper & Ink theme with coral reserved for hover and active states');
     ok(fullBoardCss.indexOf('body.board-open .top .back') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .full-board-toggle') !== -1,
     'the redundant back and board-toggle links are hidden on the board');
@@ -292,20 +308,20 @@ async function main() {
       fullBoardJs.indexOf('for (var i = 0; i < last; i += 1)') !== -1,
     'the marker is replaced by a highlighter and a laser pen that fades from the tail');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
-      fullBoardCss.indexOf('top:0;right:0;bottom:auto;left:0;z-index:215') !== -1 &&
-      fullBoardCss.indexOf('height:34px') !== -1 &&
-      fullBoardCss.indexOf('body.board-open .top-r .full-board-tools{') !== -1 &&
-      fullBoardCss.indexOf('body.board-open.board-dock-left .top{') !== -1 &&
-      fullBoardCss.indexOf('width:52px;height:auto;max-height:100vh') !== -1 &&
-      fullBoardCss.indexOf('body.board-open.board-dock-left .top .board-zoom-value,') !== -1 &&
+      fullBoardCss.indexOf('background:transparent;box-shadow:none;backdrop-filter:none;pointer-events:none') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-rec-deck{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .full-board-tools{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-session-deck{') !== -1 &&
+      fullBoardCss.indexOf('dock-left') === -1 &&
       fullBoardCss.indexOf('dock-right') === -1 &&
       fullBoardCss.indexOf('dock-bottom') === -1 &&
+      fullBoardCss.indexOf('board-dock-left') === -1 &&
       fullBoardCss.indexOf('bottom:76px;z-index:225') !== -1 &&
-      fullBoardJs.indexOf("document.body.classList.toggle('board-dock-left'") !== -1 &&
+      fullBoardJs.indexOf('function setDockEdge') === -1 &&
       fullBoardJs.indexOf('function mountPalette') !== -1 &&
-      fullBoardJs.indexOf('topRow.insertBefore(toolPalette, shareBtn || null)') !== -1 &&
+      fullBoardJs.indexOf('topRow.insertBefore(toolPalette, sessionDeck || shareBtn || null)') !== -1 &&
       fullBoardJs.indexOf('unmountPalette()') !== -1,
-    'the session deck and editing tools share one surface that converts between a top strip and an icon-only left rail');
+    'REC, tools and session controls are three floating decks with no orientation toggle');
     [
       'ink', 'coral', 'teal', 'amber', 'blue', 'violet',
       'green', 'pink', 'orange', 'slate'
@@ -314,13 +330,24 @@ async function main() {
         'the maths board offers the ' + color + ' ink');
     });
     ok(classroom.indexOf('id="fullBoardInkPanel"') !== -1 &&
+      classroom.indexOf('ink-panel-head') === -1 &&
+      classroom.indexOf('<span>1 Thin</span>') === -1 &&
+      classroom.indexOf('<span>2 Normal</span>') === -1 &&
+      classroom.indexOf('<span>3 Bold</span>') === -1 &&
       classroom.indexOf('data-board-weight="thin"') !== -1 &&
       classroom.indexOf('data-board-weight="normal"') !== -1 &&
       classroom.indexOf('data-board-weight="bold"') !== -1 &&
-      fullBoardJs.indexOf('INK_TOOLS') !== -1 &&
+      classroom.indexOf('M4 14C7 7 10 19 13 12S19 7 20 11') !== -1 &&
+      classroom.indexOf('stroke-width="4.4"') !== -1 &&
+      fullBoardCss.indexOf('display:flex;flex-direction:row;align-items:center;gap:12px;') !== -1 &&
+      fullBoardCss.indexOf('.ink-widths{\n  display:flex;flex-wrap:nowrap;gap:4px;') !== -1 &&
+      classroom.indexOf('data-ink-toggle="pen"') !== -1 &&
+      classroom.indexOf('data-ink-toggle="highlighter"') !== -1 &&
+      fullBoardJs.indexOf('function openInkPanel') !== -1 &&
+      fullBoardJs.indexOf('function closeInkPanel') !== -1 &&
       fullBoardJs.indexOf('inkPanel.hidden') !== -1 &&
       fullBoardJs.indexOf('WEIGHTS[stroke.weight]') !== -1,
-    'colours and Thin/Normal/Bold thickness live in a pen-only ink panel');
+    'the ink panel is one wide unlabelled row with ten swatches and curved stroke samples');
     ok(classroom.indexOf('id="fullBoardRedo"') !== -1 &&
       fullBoardJs.indexOf('redoStack') !== -1,
     'undo and redo are icon-only board controls');
@@ -359,11 +386,11 @@ async function main() {
       classroomApp.indexOf("event.code === 'NumpadAdd'") !== -1 &&
       classroomApp.indexOf("shortcutKey === '0'") !== -1,
     'the desk whiteboard supports the same keyboard zoom controls');
-    ok(classroom.indexOf('id="fullBoardDockToggle"') !== -1 &&
-      fullBoardJs.indexOf("edge !== 'top' && edge !== 'left'") !== -1 &&
-      fullBoardJs.indexOf('function setDockEdge') !== -1 &&
-      fullBoardJs.indexOf('full-board-tools dock-top') === -1,
-    'the dock toggles only between top and left, defaulting to top');
+    ok(classroom.indexOf('id="fullBoardDockToggle"') === -1 &&
+      fullBoardJs.indexOf('function setDockEdge') === -1 &&
+      fullBoardJs.indexOf("edge !== 'top'") === -1 &&
+      fullBoardJs.indexOf('dockEdge') === -1,
+    'the board has a single top deck with no alignment toggle');
     ok(fullBoardJs.indexOf('function selectionBounds') !== -1 &&
       fullBoardJs.indexOf('function selectionCorners') !== -1 &&
       fullBoardJs.indexOf('function resizeHandleAt') !== -1 &&
@@ -376,9 +403,10 @@ async function main() {
       fullBoardJs.indexOf('Selection resized · Undo restores the board state.') !== -1,
     'every selected stroke, shape, line, image and group resizes from four corner grips');
     ok(fullBoardJs.indexOf("overlay.querySelector('.full-board-tools')") !== -1 &&
-      fullBoardJs.indexOf('paletteDrag') !== -1 &&
-      fullBoardJs.indexOf("classList.add('is-dragging')") !== -1,
-    'the trainer can drag the floating tool palette');
+      fullBoardJs.indexOf('paletteDrag') === -1 &&
+      fullBoardJs.indexOf("classList.add('is-dragging')") === -1 &&
+      fullBoardJs.indexOf('topRow.insertBefore(toolPalette, sessionDeck || shareBtn || null)') !== -1,
+    'the tool palette is fixed inside the top deck instead of floating or dragging');
     ok(fullBoardCss.indexOf('body.board-open #fullBoardShare.is-sharing') !== -1 &&
       fullBoardCss.indexOf('background:#15803D') !== -1 &&
       fullBoardCss.indexOf('background:#DC2626') !== -1,
@@ -391,7 +419,7 @@ async function main() {
       topR.indexOf('id="peopleBtn"') < topR.indexOf('id="netMeter"'),
     'the deck keeps REC, Share/Close, session details and network meter in order');
     ok(fullBoardJs.indexOf("document.body.classList.add('board-open')") !== -1 &&
-      fullBoardJs.indexOf("document.body.classList.remove('board-open', 'board-dock-left')") !== -1,
+      fullBoardJs.indexOf("document.body.classList.remove('board-open')") !== -1,
     'opening and closing the board toggles the clean session layout');
     ok(fullBoardJs.indexOf("if (!document.fullscreenElement && !overlay.hidden) close();") !== -1,
     'native full-screen exit closes the board for trainer and student');
@@ -428,6 +456,12 @@ async function main() {
       sessionJs.indexOf('var pipDragTarget = pip || pipHead') !== -1 &&
       sessionJs.indexOf("pipResize.addEventListener('pointerdown'") !== -1,
     'the camera deck is movable from anywhere and resizable from its corner grip');
+    const boardMarks = classroom.match(/class="mathify-board-mark"/g) || [];
+    ok(boardMarks.length === 4 &&
+      classroom.indexOf('>Mathify<i>.</i><') !== -1 &&
+      fullBoardCss.indexOf('.mathify-board-mark{') !== -1 &&
+      fullBoardCss.indexOf('pointer-events:none;user-select:none') !== -1,
+    'every board surface carries a quiet Mathify mark for trainer and child');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

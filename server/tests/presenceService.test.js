@@ -1,6 +1,7 @@
 const assert = require('assert');
 const db = require('../db');
 const presenceService = require('../services/presenceService');
+const sessionTiming = require('../services/sessionTimingService');
 
 const trainer = db.findUserById('usr_trainer_001');
 const student = db.findUserById('usr_student_001');
@@ -46,6 +47,8 @@ const paid = await presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z')
 check(paid.participants.trainer.activeMinutes, 16);
 check(paid.trainerPresent, true);
 check(paid.studentPresent, false);
+check(paid.studentStillPresent, false);
+check(paid.studentCountedSeconds, 0);
 check(paid.payoutEligible, true);
 check(paid.payoutBlocked, false);
 
@@ -67,6 +70,7 @@ db.insertPresenceEvent({
 
 const unpaid = await presenceService.compute(sessionB, '2026-12-03T12:40:00.000Z');
 check(unpaid.participants.trainer.activeMinutes, 10);
+check(unpaid.participants.trainer.countedSeconds, 10 * 60);
 check(unpaid.trainerPresent, false);
 check(unpaid.payoutEligible, false);
 check(unpaid.payoutBlocked, true);
@@ -99,6 +103,8 @@ db.insertPresenceEvent({
 const withStudent = await presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
 check(withStudent.payoutRequirement.studentJoined, true);
 check(withStudent.payoutRequirement.requiredTrainerMinutes, 50);
+check(withStudent.studentCountedSeconds, 15 * 60);
+check(withStudent.studentStillPresent, true);
 check(withStudent.payoutEligible, false);
 
 db.insertPresenceEvent({
@@ -118,7 +124,56 @@ db.insertPresenceEvent({
 const fullClass = await presenceService.compute(sessionA, '2026-11-30T13:25:00.000Z');
 check(fullClass.trainerActiveSecondsInWindow, 55 * 60);
 check(fullClass.payoutRequirement.satisfied, true);
+check(fullClass.studentCountedSeconds, 54 * 60);
+check(fullClass.studentStillPresent, true);
 check(fullClass.payoutEligible, true);
+
+/* The child gate needs 35 counted child minutes as well as 50 trainer minutes. */
+function gateSession(id) {
+  return Object.assign({}, sessionA, {
+    id: id,
+    scheduledAt: '2026-12-06T10:00:00.000Z',
+    startsAt: '2026-12-06T10:00:00.000Z',
+    status: 'ended'
+  });
+}
+function insertGateEvents(sessionId, rows) {
+  rows.forEach(function (row) {
+    db.insertPresenceEvent({
+      sessionId: sessionId,
+      userId: row.role === 'trainer' ? trainer.id : student.id,
+      role: row.role,
+      kind: row.kind,
+      at: row.at
+    });
+  });
+}
+const gateUnderSession = gateSession('unit_presence_gate_under');
+insertGateEvents(gateUnderSession.id, [
+  { role: 'trainer', kind: 'livekit_join', at: '2026-12-06T10:00:00.000Z' },
+  { role: 'trainer', kind: 'livekit_leave', at: '2026-12-06T10:55:00.000Z' },
+  { role: 'student', kind: 'livekit_join', at: '2026-12-06T10:00:00.000Z' },
+  { role: 'student', kind: 'livekit_leave', at: '2026-12-06T10:34:00.000Z' }
+]);
+const gateUnder = await presenceService.compute(gateUnderSession, '2026-12-06T10:56:00.000Z');
+check(gateUnder.studentCountedSeconds, 34 * 60);
+check(gateUnder.studentStillPresent, false);
+check(gateUnder.studentPayGateMet, false);
+check(gateUnder.payoutEligible, false);
+check(sessionTiming.minimumQuota(gateUnder).reached, false);
+
+const gateMetSession = gateSession('unit_presence_gate_met');
+insertGateEvents(gateMetSession.id, [
+  { role: 'trainer', kind: 'livekit_join', at: '2026-12-06T10:00:00.000Z' },
+  { role: 'trainer', kind: 'livekit_leave', at: '2026-12-06T10:55:00.000Z' },
+  { role: 'student', kind: 'livekit_join', at: '2026-12-06T10:00:00.000Z' }
+]);
+const gateMet = await presenceService.compute(gateMetSession, '2026-12-06T10:56:00.000Z');
+check(gateMet.studentCountedSeconds, 56 * 60);
+check(gateMet.studentStillPresent, true);
+check(gateMet.studentPayGateMet, true);
+check(gateMet.payoutEligible, true);
+check(sessionTiming.minimumQuota(gateMet).reached, true);
 
 /* A drop must pause the clock without erasing it; a verified rejoin must show
    the trainer as live again and resume from the summed interval total. */

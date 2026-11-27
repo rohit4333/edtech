@@ -26,38 +26,26 @@ const DEFAULTS = {
   completionWindowMinutes: 60,
   completionWindowStartOffsetMinutes: -1
 };
-/* Session lifetime is separate from pay timing. The regular 50/55 pay contract
-   stays untouched; demo gets its own 45-minute class with a five-minute warning
-   window. The close is enforced by the server, never by a browser timer. */
+/* Session lifetime is the same for demos and regular classes: a 50-minute
+   teaching requirement, a five-minute warning at 50 and a server-owned close
+   at 55. The close is enforced by the server, never by a browser timer. */
+const DEFAULT_REGULAR_LIFETIME = {
+  durationMinutes: 50,
+  warningAtMinutes: 50,
+  closeAtMinutes: 55,
+  requiredTeachingMinutes: 50,
+  completionWindowMinutes: 60,
+  completionWindowStartOffsetMinutes: -1
+};
 const DEFAULT_LIFETIME = {
-  regular: {
-    durationMinutes: 50,
-    warningAtMinutes: 50,
-    closeAtMinutes: 55,
-    requiredTeachingMinutes: 50,
-    completionWindowMinutes: 60,
-    completionWindowStartOffsetMinutes: -1
-  },
-  demo: {
-    durationMinutes: 45,
-    warningAtMinutes: 40,
-    closeAtMinutes: 45,
-    requiredTeachingMinutes: 40,
-    completionWindowMinutes: 45,
-    completionWindowStartOffsetMinutes: 0
-  }
+  regular: DEFAULT_REGULAR_LIFETIME,
+  demo: Object.assign({}, DEFAULT_REGULAR_LIFETIME)
 };
 const DEFAULT_BANDS = [
   { fromMinutes: 0, toMinutes: 5, payFactor: 1, code: 'on_time', label: 'Full pay', fineSessions: 0 },
   { fromMinutes: 5, toMinutes: 10, payFactor: 0.5, code: 'half_pay', label: 'Half pay', fineSessions: 0 },
   { fromMinutes: 10, toMinutes: 15, payFactor: 0, code: 'no_pay', label: 'No pay', fineSessions: 0 },
   { fromMinutes: 15, toMinutes: null, payFactor: 0, code: 'no_pay_fine_forfeited', label: 'No pay', fineSessions: 0 }
-];
-/* Demo has no 5-9 half-pay or 10+ tier. Five minutes late is the single unpaid
-   and fined band; on time keeps the normal 80% demo session pay. */
-const DEFAULT_DEMO_BANDS = [
-  { fromMinutes: 0, toMinutes: 5, payFactor: 1, code: 'on_time', label: 'Full pay', fineSessions: 0 },
-  { fromMinutes: 5, toMinutes: null, payFactor: 0, code: 'no_pay_fine', label: 'No pay and one-session fine', fineSessions: 1 }
 ];
 
 function positiveNumber(value, fallback) {
@@ -93,8 +81,7 @@ function settings() {
   const windowStartOffset = Number(configured.completionWindowStartOffsetMinutes);
   const configuredBands = appPolicy.payout && Array.isArray(appPolicy.payout.lateJoinBands)
     ? appPolicy.payout.lateJoinBands : DEFAULT_BANDS;
-  const configuredDemoBands = appPolicy.payout && Array.isArray(appPolicy.payout.lateJoinDemoBands)
-    ? appPolicy.payout.lateJoinDemoBands : DEFAULT_DEMO_BANDS;
+  const bands = configuredBands.length ? configuredBands : DEFAULT_BANDS;
   return {
     clockStartOffsetMinutes: Number.isFinite(offset) ? offset : DEFAULTS.clockStartOffsetMinutes,
     requiredTeachingMinutes: Number.isFinite(required) && required > 0
@@ -107,8 +94,7 @@ function settings() {
       regular: lifetimeValues(configured.lifetime && configured.lifetime.regular, DEFAULT_LIFETIME.regular),
       demo: lifetimeValues(configured.lifetime && configured.lifetime.demo, DEFAULT_LIFETIME.demo)
     },
-    bands: configuredBands.length ? configuredBands : DEFAULT_BANDS,
-    demoBands: configuredDemoBands.length ? configuredDemoBands : DEFAULT_DEMO_BANDS
+    bands: bands
   };
 }
 
@@ -116,6 +102,129 @@ function isDemoSession(session) {
   if (!session) return false;
   if (session.classType === 'demo' || session.isDemo === true) return true;
   return Boolean(session.demoId);
+}
+
+/* Presence snapshots and finalized session.presence rows carry the same
+   participant counts. These readers work with either shape so the pay gate,
+   the cue and the serializer never disagree about the source of truth. */
+function presenceFrom(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return {};
+  return snapshot.presence && typeof snapshot.presence === 'object'
+    ? snapshot.presence : snapshot;
+}
+
+function nonNegativeSeconds(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function policyMinute(key, fallback) {
+  const configured = appPolicy.presence && Number(appPolicy.presence[key]);
+  return Number.isFinite(configured) && configured > 0 ? configured : fallback;
+}
+
+function participantFor(presence, role) {
+  return presence.participants && presence.participants[role]
+    ? presence.participants[role] : null;
+}
+
+function studentJoinedInPresence(presence) {
+  if (presence.payoutRequirement &&
+      typeof presence.payoutRequirement.studentJoined === 'boolean') {
+    return presence.payoutRequirement.studentJoined;
+  }
+  const student = participantFor(presence, 'student');
+  return Boolean(presence.studentJoinedAt || (student && student.joinedAt));
+}
+
+function studentStillPresentIn(presence) {
+  if (typeof presence.studentStillPresent === 'boolean') return presence.studentStillPresent;
+  const student = participantFor(presence, 'student');
+  if (!student || student.leftAt) return false;
+  const state = presence.studentState || student.state;
+  return state === 'active' || state === 'joined' || state === 'idle';
+}
+
+function countedSecondsFor(presence, role, keys) {
+  const participant = participantFor(presence, role);
+  const sources = [participant && participant.countedSeconds];
+  keys.forEach(function (key) { sources.push(presence[key]); });
+  for (let index = 0; index < sources.length; index += 1) {
+    const seconds = nonNegativeSeconds(sources[index]);
+    if (seconds !== null) return seconds;
+  }
+  return 0;
+}
+
+function studentCountedSecondsFrom(presence) {
+  return countedSecondsFor(presence, 'student',
+    ['studentCountedSeconds', 'studentActiveSecondsInWindow']);
+}
+
+function trainerCountedSecondsFrom(presence) {
+  return countedSecondsFor(presence, 'trainer',
+    ['trainerCountedSeconds', 'trainerActiveSecondsInWindow']);
+}
+
+function studentPayGateMetFor(presence) {
+  if (typeof presence.studentPayGateMet === 'boolean') return presence.studentPayGateMet;
+  if (presence.payoutRequirement &&
+      typeof presence.payoutRequirement.studentPayGateMet === 'boolean') {
+    return presence.payoutRequirement.studentPayGateMet;
+  }
+  if (!studentJoinedInPresence(presence)) return true;
+  /* No explicit flag: derive it from counted evidence and fail closed when
+     neither count field is available. A finalized payoutEligible:true is the
+     legacy snapshot's positive gate evidence. */
+  const counted = nonNegativeSeconds(presence.studentCountedSeconds);
+  const candidate = counted === null
+    ? nonNegativeSeconds(presence.studentActiveSecondsInWindow) : counted;
+  if (candidate !== null) {
+    return candidate >= policyMinute('studentMinPayGateMinutes', 35) * 60;
+  }
+  return presence.payoutEligible === true;
+}
+
+function gateFineSessions() {
+  const configured = appPolicy.payout && appPolicy.payout.studentPayGateFine &&
+    Number(appPolicy.payout.studentPayGateFine.fineSessions);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 1;
+}
+
+/* The five-minute cue is quota-gated, not wall-clock-gated. With a child both
+   the 35-minute child gate and the 50-minute trainer gate must be counted;
+   without a child the 15-minute trainer presence rule is enough. */
+function minimumQuota(snapshot) {
+  const presence = presenceFrom(snapshot);
+  const childJoined = studentJoinedInPresence(presence);
+  const trainerCountedSeconds = trainerCountedSecondsFrom(presence);
+  const quota = {
+    childJoined: false,
+    childStillPresent: false,
+    childRequiredSeconds: 0,
+    childCountedSeconds: 0,
+    trainerRequiredSeconds: 0,
+    trainerCountedSeconds: trainerCountedSeconds,
+    reached: false,
+    cueSeconds: 300
+  };
+
+  if (childJoined) {
+    const childRequiredSeconds = policyMinute('studentMinPayGateMinutes', 35) * 60;
+    const trainerRequiredSeconds = policyMinute('trainerMinPresentWithStudentMinutes', 50) * 60;
+    const childCountedSeconds = studentCountedSecondsFrom(presence);
+    quota.childJoined = true;
+    quota.childStillPresent = studentStillPresentIn(presence);
+    quota.childRequiredSeconds = childRequiredSeconds;
+    quota.childCountedSeconds = childCountedSeconds;
+    quota.trainerRequiredSeconds = trainerRequiredSeconds;
+    quota.reached = childCountedSeconds >= childRequiredSeconds &&
+      trainerCountedSeconds >= trainerRequiredSeconds;
+  } else {
+    quota.trainerRequiredSeconds = policyMinute('trainerMinPresentMinutes', 15) * 60;
+    quota.reached = trainerCountedSeconds >= quota.trainerRequiredSeconds;
+  }
+  return quota;
 }
 
 function lifetimeFor(session) {
@@ -255,7 +364,8 @@ function lateJoin(session, joinedAt) {
     };
   }
   const lateMinutes = Math.max(0, (joined - start) / MINUTE_MS);
-  const bands = isDemoSession(session) ? config.demoBands : config.bands;
+  /* Demo and regular classes share the same late bands and fine policy. */
+  const bands = config.bands;
   const band = bands.find(function (entry) {
     const from = Number(entry.fromMinutes) || 0;
     const to = entry.toMinutes === null || entry.toMinutes === undefined
@@ -323,81 +433,121 @@ function evaluateCompletion(session, activeSeconds, requiredOverride) {
   };
 }
 
-/* Stretch reward: full active minutes taught after the required baseline and
-   before the class closes, at the same 5 INR per minute. Regular classes use
-   50-55; demos use the confirmed 40-45 window at the same per-minute rate. */
+/* Stretch reward: full active minutes taught after the 50-minute baseline and
+   before the 55-minute close, at 5 INR per minute for demos and regular classes
+   alike. The child must still be in the session AND have met the 35-minute pay
+   gate; extra minutes taught alone never earn this reward. */
+function studentStillInSession(session) {
+  return studentStillPresentIn(presenceFrom(session));
+}
+
 function evaluateStretch(session) {
   const configured = (appPolicy.payout && appPolicy.payout.stretchReward) || {};
+  const presence = presenceFrom(session);
   const lifetime = lifetimeFor(session);
-  const demo = isDemoSession(session);
-  const startAfter = demo
-    ? lifetime.warningAtMinutes
-    : (Number.isFinite(Number(configured.startAfterMinutes))
-      ? Number(configured.startAfterMinutes) : 50);
-  const maxMinutes = demo
-    ? lifetime.closeAtMinutes
-    : (Number.isFinite(Number(configured.maxMinutes))
-      ? Number(configured.maxMinutes) : 55);
+  const startAfter = lifetime.warningAtMinutes;
+  const maxMinutes = lifetime.closeAtMinutes;
   const perMinute = Number.isFinite(Number(configured.perMinuteInr))
     ? Number(configured.perMinuteInr) : 5;
-  const activeSeconds = Number((session && session.presence &&
-    session.presence.trainerActiveSecondsInWindow));
-  if (!Number.isFinite(activeSeconds) || activeSeconds < 0) {
-    return {
-      extraMinutes: 0,
-      amount: 0,
-      currency: configured.currency || 'INR',
-      perMinuteInr: perMinute,
-      code: 'NO_STRETCH_DATA'
-    };
+  const currency = configured.currency || 'INR';
+  const studentPresent = studentStillInSession(session);
+  const studentPayGateMet = studentPayGateMetFor(presence);
+  const studentCountedSeconds = studentCountedSecondsFrom(presence);
+  const activeSeconds = nonNegativeSeconds(presence.trainerActiveSecondsInWindow);
+  const result = {
+    extraMinutes: 0,
+    amount: 0,
+    currency: currency,
+    perMinuteInr: perMinute,
+    studentPresent: studentPresent,
+    studentPayGateMet: studentPayGateMet,
+    studentCountedSeconds: studentCountedSeconds,
+    studentRequiredSeconds: policyMinute('studentMinPayGateMinutes', 35) * 60,
+    code: 'NO_STRETCH_DATA'
+  };
+
+  if (activeSeconds === null) return result;
+  if (!studentPresent) {
+    result.code = 'STUDENT_NOT_PRESENT';
+    return result;
   }
+  if (!studentPayGateMet) {
+    result.code = 'STUDENT_PAY_GATE_NOT_MET';
+    return result;
+  }
+
   const extraMinutes = Math.min(
     Math.max(0, Math.floor(activeSeconds / 60) - startAfter),
     Math.max(0, maxMinutes - startAfter)
   );
-  return {
-    extraMinutes: extraMinutes,
-    amount: Math.round(extraMinutes * perMinute * 100) / 100,
-    currency: configured.currency || 'INR',
-    perMinuteInr: perMinute,
-    code: extraMinutes > 0 ? 'STRETCH_REWARD_EARNED' : 'NO_STRETCH_REWARD'
-  };
+  result.extraMinutes = extraMinutes;
+  result.amount = Math.round(extraMinutes * perMinute * 100) / 100;
+  result.code = extraMinutes > 0 ? 'STRETCH_REWARD_EARNED' : 'NO_STRETCH_REWARD';
+  return result;
 }
 
 function evaluatePayoutTiming(session) {
-  const presence = (session && session.presence) || {};
+  const presence = presenceFrom(session);
   const joinedAt = presence.trainerJoinedAt || (session && session.trainerJoinedAt) || null;
   const activeSeconds = presence.trainerActiveSecondsInWindow;
-  const hasTiming = Boolean(joinedAt) || Number.isFinite(Number(activeSeconds));
+  const hasTiming = Boolean(joinedAt) || nonNegativeSeconds(activeSeconds) !== null;
+  const studentJoined = studentJoinedInPresence(presence);
+  const gateMinutes = policyMinute('studentMinPayGateMinutes', 35);
+  const studentCountedSeconds = studentCountedSecondsFrom(presence);
+  const studentPayGateMet = studentJoined ? studentPayGateMetFor(presence) : true;
+  const late = lateJoin(session, joinedAt);
+  const timingDetails = {
+    joinedAt: joinedAt,
+    studentJoined: studentJoined,
+    studentPayGateMet: studentPayGateMet,
+    studentRequiredMinutes: gateMinutes,
+    studentCountedSeconds: studentCountedSeconds,
+    lateApplied: studentJoined,
+    fineBasis: null,
+    late: late
+  };
+
   if (!hasTiming) {
-    return {
+    return Object.assign({
       factor: 1,
       fine: 0,
+      fineSessions: 0,
       code: 'LEGACY_NO_TIMING_DATA',
-      late: lateJoin(session, null),
       completion: evaluateCompletion(session, null)
-    };
+    }, timingDetails);
   }
-  const studentJoined = Boolean(presence.studentJoinedAt || (session && session.studentJoinedAt));
+
   const lifetime = lifetimeFor(session);
   const requiredMinutes = presence.payoutRequirement && presence.payoutRequirement.requiredTrainerMinutes
     ? Number(presence.payoutRequirement.requiredTrainerMinutes)
     : (studentJoined ? lifetime.requiredTeachingMinutes
-      : (appPolicy.presence && Number(appPolicy.presence.trainerMinPresentMinutes)) || 15);
-  const late = lateJoin(session, joinedAt);
+      : policyMinute('trainerMinPresentMinutes', 15));
+  /* Lateness only scales pay and its band fine when the child gate is met. A
+     failed child gate carries the single gate fine instead; the late fine is
+     suppressed so payoutService never double-fines the same row. */
+  const lateFactor = studentJoined ? late.factor : 1;
+  const lateFine = studentJoined ? late.fine : 0;
+  const lateFineSessions = studentJoined ? late.fineSessions : 0;
   const completion = evaluateCompletion(session, activeSeconds, requiredMinutes);
-  const code = completion.code === 'REQUIRED_MINUTES_NOT_MET'
-    ? 'REQUIRED_MINUTES_NOT_MET' : late.code;
-  return {
-    factor: late.factor * completion.factor,
-    fine: late.fine,
-    fineSessions: late.fineSessions,
-    joinedAt: joinedAt,
-    studentJoined: studentJoined,
+  const gateFine = gateFineSessions();
+  const fine = studentPayGateMet ? lateFine : gateFine;
+  const fineSessions = studentPayGateMet ? lateFineSessions : gateFine;
+  const fineBasis = !studentPayGateMet
+    ? 'student_pay_gate_one_session_pay'
+    : (fine > 0 ? 'late_join_one_session_pay' : null);
+  const code = !studentPayGateMet
+    ? 'STUDENT_PAY_GATE_NOT_MET'
+    : (completion.code === 'REQUIRED_MINUTES_NOT_MET'
+      ? 'REQUIRED_MINUTES_NOT_MET'
+      : (studentJoined ? late.code : 'TRAINER_ONLY_MINUTES_MET'));
+  return Object.assign({
+    factor: studentPayGateMet ? lateFactor * completion.factor : 0,
+    fine: fine,
+    fineSessions: fineSessions,
+    fineBasis: fineBasis,
     code: code,
-    late: late,
     completion: completion
-  };
+  }, timingDetails);
 }
 
 module.exports = {
@@ -412,6 +562,7 @@ module.exports = {
   completionWindowStart,
   completionWindowEnd,
   evaluateCompletion,
+  minimumQuota,
   evaluateStretch,
   evaluatePayoutTiming
 };

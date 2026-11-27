@@ -1,9 +1,9 @@
 /* Relationship-manager administration boundary. A manager shares the founder's
    operating view, can grant rather than revoke access, and has one scoped
    credential power: a generated temporary password for a KYC-verified, granted
-   trainer. A manager still cannot choose or replace a credential, touch
-   founder-set pay, or set an onboarding base rate more than once. No live
-   database is used. */
+   trainer. A manager may edit the shared demo/regular trainer pay rate, but
+   cannot choose or replace a credential, set salary/penalties, change founder
+   settings or the gratitude credit. No live database is used. */
 
 const assert = require('assert');
 const app = require('../app');
@@ -78,8 +78,9 @@ async function main() {
     'RM_PASSWORD_CHOICE_DENIED', 'a manager cannot choose a password');
   await rejects(founderAdmin.setPassword(active.id, { generated: true }, 'usr_rm_001', RM),
     'KYC_OR_GRANT_REQUIRED', 'a manager cannot issue a password before KYC is on file');
-  await rejects(founderAdmin.setBaseRate(active.id, 425, 'usr_rm_001', RM),
-    'RM_RATE_LOCKED', 'a manager cannot change an active trainer rate');
+  const managerActiveRate = await founderAdmin.setBaseRate(active.id, 425, 'usr_rm_001', RM);
+  equal(managerActiveRate.payPerSession, 425, 'a manager can change an active trainer rate');
+  equal(managerActiveRate.rateSetByRole, RM, 'the active rate edit records the manager role');
   await rejects(founderAdmin.setMonthlySalary('usr_rm_001', 99000, RM),
     'RM_SALARY_LOCKED', 'a manager cannot set a salary');
 
@@ -147,25 +148,33 @@ async function main() {
 
   const onboardingTrainer = await createTrainer('Rate Trainer', 'pending');
   const firstRate = await founderAdmin.setBaseRate(onboardingTrainer.id, 375, 'usr_rm_001', RM);
-  equal(firstRate.payPerSession, 375, 'a manager can set the base rate once while pending');
+  equal(firstRate.payPerSession, 375, 'a manager can set the base rate while pending');
   equal(firstRate.rateSetByRole, RM, 'the onboarding rate records the manager role');
-  ok(Boolean(firstRate.rateLockedAt), 'the first manager-set rate locks immediately');
-  await rejects(founderAdmin.setBaseRate(onboardingTrainer.id, 390, 'usr_rm_001', RM),
-    'RM_RATE_LOCKED', 'a second manager base-rate edit is refused');
+  ok(!firstRate.rateLockedAt, 'a manager-set rate does not create a founder lock');
+  const secondRate = await founderAdmin.setBaseRate(onboardingTrainer.id, 390, 'usr_rm_001', RM);
+  equal(secondRate.payPerSession, 390, 'a manager can revise a pending rate');
+  equal(secondRate.rateSetByRole, RM, 'the revision stays tagged to the manager');
 
   const founderRateTrainer = await createTrainer('Founder Rate Trainer', 'pending');
   await founderAdmin.setBaseRate(founderRateTrainer.id, 360, 'usr_founder_001', 'founder');
-  await rejects(founderAdmin.setBaseRate(founderRateTrainer.id, 365, 'usr_rm_001', RM),
-    'RM_RATE_LOCKED', 'a manager cannot replace a founder-set pending rate');
+  const managerReplacedRate = await founderAdmin.setBaseRate(founderRateTrainer.id, 365, 'usr_rm_001', RM);
+  equal(managerReplacedRate.payPerSession, 365, 'a manager can replace a founder-set pending rate');
+  equal(managerReplacedRate.rateSetByRole, RM, 'the replacement records the manager role');
 
   const penaltyTrainer = await createTrainer('Penalty Trainer', 'active');
+  await rejects(founderAdmin.addPenalty(penaltyTrainer.id, {
+    amount: 250, reason: 'Late cancellation without notice'
+  }, 'usr_rm_001', RM),
+  'RM_PENALTY_DENIED', 'a manager cannot adhere a penalty or fine');
   const added = await founderAdmin.addPenalty(penaltyTrainer.id, {
     amount: 250, reason: 'Late cancellation without notice'
-  }, 'usr_rm_001', RM);
-  equal(added.decidedByRole, RM, 'a manager can adhere a penalty with a tagged decision');
-  const revoked = await founderAdmin.revokePenalty(added.id, 'usr_rm_001', RM);
-  equal(revoked.status, 'revoked', 'a manager can revoke a penalty with an audit trail');
-  equal(revoked.revokedByRole, RM, 'penalty revocation records the manager role');
+  }, 'usr_founder_001', 'founder');
+  equal(added.decidedByRole, 'founder', 'the founder penalty records the owner decision');
+  await rejects(founderAdmin.revokePenalty(added.id, 'usr_rm_001', RM),
+    'RM_PENALTY_DENIED', 'a manager cannot revoke a penalty or fine');
+  const revoked = await founderAdmin.revokePenalty(added.id, 'usr_founder_001', 'founder');
+  equal(revoked.status, 'revoked', 'the founder revokes a penalty with an audit trail');
+  equal(revoked.revokedByRole, 'founder', 'penalty revocation records the founder role');
 
   await rejects(founderAdmin.create('relationship_manager', {
     name: 'Self Manager', email: unique('self') + '@mathify.test'
@@ -241,6 +250,48 @@ async function main() {
     });
     ok(founderLogin.status === 200 && rmLogin.status === 200,
       'founder and manager can sign in for the audit check');
+
+    const rateRoute = '/api/admin/people/' + encodeURIComponent(active.id) + '/base-rate';
+    const rmRate = await request('PATCH', rateRoute, { rate: 430 }, rmLogin.body.token);
+    ok(rmRate.status === 200 && rmRate.body.person.payPerSession === 430 &&
+      rmRate.body.person.rateSetByRole === RM,
+    'the route lets a manager update the shared demo/regular rate for an active trainer');
+    const rateAudit = await request('GET', '/api/admin/audit?role=relationship_manager&limit=50',
+      undefined, founderLogin.body.token);
+    const rateAuditRow = rateAudit.status === 200 && rateAudit.body.entries.find(function (row) {
+      return row.action === 'base_rate.set' && row.targetId === active.id &&
+        String(row.detail.rate) === '430';
+    });
+    ok(Boolean(rateAuditRow) && rateAuditRow.actorRole === RM,
+      'the founder audit records base_rate.set with the manager actor');
+
+    const salaryRoute = '/api/admin/people/' + encodeURIComponent('usr_rm_001') + '/monthly-salary';
+    const rmSalary = await request('PATCH', salaryRoute, { amount: 99000 }, rmLogin.body.token);
+    ok(rmSalary.status === 403 && rmSalary.body.error === 'FORBIDDEN',
+      'the salary route remains founder-only');
+    const penaltyRoute = '/api/admin/people/' + encodeURIComponent(active.id) + '/penalties';
+    const rmPenalty = await request('POST', penaltyRoute, {
+      amount: 250, reason: 'Manager penalty attempt'
+    }, rmLogin.body.token);
+    ok(rmPenalty.status === 403 && rmPenalty.body.error === 'FORBIDDEN',
+      'penalty and fine decisions remain founder-only');
+    const revokeRoute = '/api/admin/penalties/' + encodeURIComponent('unauthorized_penalty') + '/revoke';
+    const rmRevoke = await request('PATCH', revokeRoute, {}, rmLogin.body.token);
+    ok(rmRevoke.status === 403 && rmRevoke.body.error === 'FORBIDDEN',
+      'penalty revocation remains founder-only');
+    const settingsRoute = '/api/admin/settings';
+    const rmSettings = await request('GET', settingsRoute, undefined, rmLogin.body.token);
+    ok(rmSettings.status === 403 && rmSettings.body.error === 'FORBIDDEN',
+      'founder settings remain founder-only');
+    const rmPolicy = await request('PATCH', settingsRoute,
+      { section: 'policy', values: { 'quiz.unlockThreshold': 85 } }, rmLogin.body.token);
+    ok(rmPolicy.status === 403 && rmPolicy.body.error === 'FORBIDDEN',
+      'policy settings remain founder-only');
+    const rmGratitude = await request('PATCH', settingsRoute,
+      { section: 'policy', values: { 'payout.founderGratitude.amount': 5000 } }, rmLogin.body.token);
+    ok(rmGratitude.status === 403 && rmGratitude.body.error === 'FORBIDDEN',
+      'the gratitude credit remains founder-only');
+
     const route = '/api/admin/people/' + encodeURIComponent(granted.person.id) + '/password';
     const chosen = await request('PATCH', route, { password: 'manager-chosen-http' }, rmLogin.body.token);
     ok(chosen.status === 403 && chosen.body.error === 'RM_PASSWORD_CHOICE_DENIED',

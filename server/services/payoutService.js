@@ -43,6 +43,10 @@ function validPeriod(period) {
     parts.month >= 1 && parts.month <= 12;
 }
 
+function validCalendarMonth(period) {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(period));
+}
+
 function periodDays(period, asOf) {
   if (!validPeriod(period)) return [];
   const parts = periodParts(period);
@@ -93,25 +97,58 @@ function isBillable(session) {
   return BILLABLE_STATUSES.indexOf(String(session && session.status || '').toLowerCase()) !== -1;
 }
 
+function studentJoinedIn(session) {
+  const presence = (session && session.presence) || {};
+  return Boolean(presence.studentJoinedAt || (session && session.studentJoinedAt));
+}
+
+function childCountedSecondsIn(session) {
+  const presence = (session && session.presence) || {};
+  const student = presence.participants && presence.participants.student;
+  const sources = [
+    student && student.countedSeconds,
+    presence.studentCountedSeconds,
+    presence.studentActiveSecondsInWindow
+  ];
+  for (let index = 0; index < sources.length; index += 1) {
+    const seconds = Number(sources[index]);
+    if (Number.isFinite(seconds) && seconds >= 0) return seconds;
+  }
+  return 0;
+}
+
+function childGateMinutes(policy) {
+  const configured = policy && policy.presence && Number(policy.presence.studentMinPayGateMinutes);
+  return Number.isFinite(configured) && configured > 0 ? configured : 35;
+}
+
+const FOUNDER_GRATITUDE_NOTE = 'Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.';
+
+/* Statement-level monthly acknowledgement. It is never prorated, never tied to
+   a session and never revoked by a fine; an unconfigured or invalid period fails
+   closed with no credit. */
+function founderGratitudeAmount(period, config) {
+  if (!validCalendarMonth(period)) return 0;
+  const configured = config && config.founderGratitude;
+  const amount = configured && Number(configured.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * 100) / 100;
+}
+
 /* Late-join and completion bands scale, but never increase, the session rate.
-   Demo session pay is 80% of the regular rate; the 40-45 minute stretch is paid
-   at the same per-minute rate as a regular class. Sessions with no recorded
-   presence timing keep full pay. */
+   Demos use the same rate, 50-55 stretch and bands as regular classes. The
+   stretch only pays while the child is still in the session; without a child,
+   the trainer needs 15 counted minutes. Sessions with no presence timing keep
+   full pay. */
 function sessionPayout(session, rate) {
   const timing = sessionTiming.evaluatePayoutTiming(session);
   const stretch = sessionTiming.evaluateStretch(session);
-  const demo = sessionTiming.isDemoSession(session);
-  const configuredDemoPercent = Number(policyFile.payout && policyFile.payout.demoPayPercent);
-  const demoPercent = Number.isFinite(configuredDemoPercent) && configuredDemoPercent > 0
-    ? configuredDemoPercent : 80;
-  const demoFactor = demo ? demoPercent / 100 : 1;
   const factor = Math.max(0, Math.min(1, Number(timing.factor)));
-  const baseAmount = Math.round(rate * factor * demoFactor * 100) / 100;
+  const baseAmount = Math.round(rate * factor * 100) / 100;
   const fine = Math.round(rate * Math.max(0, Number(timing.fine || 0)) * 100) / 100;
   return {
     sessionId: session.id,
     factor: factor,
-    demoFactor: demoFactor,
     baseAmount: baseAmount,
     stretchPay: stretch.amount,
     stretch: stretch,
@@ -366,8 +403,9 @@ function buildDailySeries(user, sessions, period, config, asOf) {
     if (!byDate[key]) byDate[key] = { count: 0, amount: 0 };
     const pay = sessionPayout(session, rate);
     byDate[key].count += 1;
-    /* Demonstration classes are paid at 80%; their 40-45 minute stretch is
-       paid at the regular per-minute rate. Fines stay out of this base trend. */
+    /* Demonstration classes use the same rate and 50-55 stretch as regular
+       classes; the stretch only pays while the child is still present and the
+       35-minute child gate is met. Fines stay out of this base trend. */
     byDate[key].amount += pay.baseAmount + pay.stretchPay;
   });
 
@@ -429,18 +467,72 @@ function buildPayout(user, sessions, period, policy, context) {
     return sum + row.factor;
   }, 0) * 100) / 100;
 
-  const lateJoinFines = sessionPayouts.filter(function (row) { return row.fine > 0; })
-    .map(function (row) {
+  const lateJoinFines = sessionPayouts.filter(function (row) {
+    return row.fine > 0 && row.timing.fineBasis === 'late_join_one_session_pay';
+  }).map(function (row) {
       return {
         sessionId: row.sessionId,
         lateMinutes: row.timing.late.lateMinutes,
         late: true,
         amount: row.fine,
-        basis: 'demo_late_join_one_session_pay',
+        basis: 'late_join_one_session_pay',
         currency: INR
       };
     });
-  const fines = cancellationFines(periodSessions, rate, config.fineRules).concat(lateJoinFines);
+  /* A trainer-only session is still payable after 15 counted minutes. Below
+     that threshold the trainer is unpaid and owes one session's pay, for both
+     demos and regular classes. Legacy sessions without presence evidence are
+     not retroactively fined. */
+  const shortConfig = config.shortTrainerPresence || {};
+  const shortMinutes = Number.isFinite(Number(shortConfig.withoutStudentMinutes))
+    ? Number(shortConfig.withoutStudentMinutes) : 15;
+  const shortFineSessions = Number.isFinite(Number(shortConfig.fineSessions))
+    ? Math.max(0, Number(shortConfig.fineSessions)) : 1;
+  const shortPresenceFines = periodSessions.filter(function (session) {
+    const presence = session && session.presence;
+    if (!presence || presence.payoutEligible !== false || studentJoinedIn(session)) return false;
+    if (attendancePolicy.isMutualLeave(session, policy) ||
+      attendancePolicy.isLateTrainerCancellation(session, policy)) return false;
+    const activeSeconds = Number(presence.trainerActiveSecondsInWindow);
+    return Number.isFinite(activeSeconds) && activeSeconds >= 0 && activeSeconds < shortMinutes * 60;
+  }).map(function (session) {
+    return {
+      sessionId: session.id,
+      late: false,
+      amount: Math.round(rate * shortFineSessions * 100) / 100,
+      basis: 'trainer_short_presence_one_session_pay',
+      currency: INR
+    };
+  });
+  /* With a child, under 35 counted minutes blocks pay and charges exactly one
+     session-pay. This is derived from periodSessions because a blocked session
+     is filtered out of payableSessions. evaluatePayoutTiming suppresses its
+     late fine for the same row, so there is no double fine here. */
+  const gateConfig = config.studentPayGateFine || {};
+  const gateMinutes = childGateMinutes(policy);
+  const gateFineSessions = Number.isFinite(Number(gateConfig.fineSessions))
+    ? Math.max(0, Number(gateConfig.fineSessions)) : 1;
+  const lateFineSessionIds = lateJoinFines.map(function (row) { return row.sessionId; });
+  const studentPayGateFines = periodSessions.filter(function (session) {
+    const presence = session && session.presence;
+    if (!presence || !studentJoinedIn(session)) return false;
+    if (isNoShow(session) || attendancePolicy.isMutualLeave(session, policy) ||
+      attendancePolicy.isLateTrainerCancellation(session, policy)) return false;
+    if (lateFineSessionIds.indexOf(session.id) !== -1) return false;
+    if (presence.studentPayGateMet === false) return true;
+    if (presence.studentPayGateMet !== undefined) return false;
+    return childCountedSecondsIn(session) < gateMinutes * 60;
+  }).map(function (session) {
+    return {
+      sessionId: session.id,
+      late: false,
+      amount: Math.round(rate * gateFineSessions * 100) / 100,
+      basis: 'student_pay_gate_one_session_pay',
+      currency: INR
+    };
+  });
+  const fines = cancellationFines(periodSessions, rate, config.fineRules)
+    .concat(lateJoinFines, shortPresenceFines, studentPayGateFines);
   const fineTotal = fines.reduce(function (sum, entry) { return sum + entry.amount; }, 0);
 
   const attendance = attendanceBonusFor(
@@ -465,7 +557,13 @@ function buildPayout(user, sessions, period, policy, context) {
   };
 
   const slotPay = Number.isFinite(Number(options.slotPay)) ? Math.max(0, Number(options.slotPay)) : 0;
-  const total = Math.max(0, basePay + stretchPay + attendance.bonus + mvt.award + slotPay - fineTotal);
+  const founderGratitude = founderGratitudeAmount(period, config);
+  const founderGratitudeNote = (config.founderGratitude && config.founderGratitude.note) ||
+    FOUNDER_GRATITUDE_NOTE;
+  /* The gift is protected: even if every other earning is consumed by fines,
+     the statement cannot fall below the configured monthly credit. */
+  const total = Math.max(founderGratitude,
+    basePay + stretchPay + attendance.bonus + mvt.award + slotPay + founderGratitude - fineTotal);
   const parts = periodParts(period);
   const statementDate = validPeriod(period)
     ? new Date(Date.UTC(parts.year, parts.month, 1)).toISOString().slice(0, 10)
@@ -494,9 +592,10 @@ function buildPayout(user, sessions, period, policy, context) {
         attendanceBonus: attendance.bonus,
         mvtAward: mvt.award,
         slotPay: slotPay,
+        founderGratitude: founderGratitude,
         fines: fineTotal
       },
-      note: 'Calculated from completed sessions, late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Demo sessions pay 80% of the regular rate, require 40 teaching minutes inside 45, pay the same 5 INR per extra minute from 40 to 45, and incur one session-pay if the trainer is five or more minutes late. Mutual leave and no-shows are unpaid.'
+      note: 'Calculated from completed sessions, shared late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Demos and regular classes share the same rate, duration, stretch and fine policy. With a child, pay unlocks only after 35 counted child minutes and 50 counted trainer minutes; under 35 child minutes there is no pay and exactly one session-pay is charged, with the late fine suppressed to prevent a double fine. Without a child, the trainer needs 15 counted minutes; below that there is no pay and one session-pay is charged. Mutual leave, no-shows and late trainer cancellations are not double-fined. ' + founderGratitudeNote
     },
     bonuses: {
       value: attendance.bonus,
@@ -538,7 +637,6 @@ function buildPayout(user, sessions, period, policy, context) {
         return {
           sessionId: row.sessionId,
           factor: row.factor,
-          demoFactor: row.demoFactor,
           requiredTeachingMinutes: row.lifetime.requiredTeachingMinutes,
           completionWindowMinutes: row.lifetime.completionWindowMinutes,
           baseAmount: row.baseAmount,
@@ -546,6 +644,10 @@ function buildPayout(user, sessions, period, policy, context) {
           fine: row.fine,
           lateBand: row.timing.late.band,
           lateMinutes: row.timing.late.lateMinutes,
+          studentJoined: row.timing.studentJoined,
+          studentPayGateMet: row.timing.studentPayGateMet,
+          studentRequiredMinutes: row.timing.studentRequiredMinutes,
+          studentCountedSeconds: row.timing.studentCountedSeconds,
           completionCode: row.timing.completion.code
         };
       })

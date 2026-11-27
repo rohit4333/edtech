@@ -7,6 +7,7 @@
 <meta name="description" content="Trainer console: next session, today's schedule, attendance register, teaching score and student roster.">
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../shared/rewardDeck.css">
 <link rel="stylesheet" href="subjectPanels.css">
 <link rel="stylesheet" href="shell.css">
 <link rel="stylesheet" href="sections.css">
@@ -61,6 +62,47 @@
   }
   .session-warning .warn-count{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:800}
   @keyframes warnPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+  /* Trainer desk only. Quiet Paper & Ink surface for the live pay/fine gate;
+     no decorative accents, just mono labels and hairline progress. */
+  .pay-gate-deck{
+    margin:10px 0 2px;padding:10px 12px;border-radius:12px;
+    border:1px solid var(--line);background:var(--cream);
+    box-shadow:0 4px 14px rgba(30,20,10,.05);
+  }
+  .pay-gate-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  #payGateTitle{
+    font:600 9px/1.3 var(--mono);letter-spacing:.12em;
+    text-transform:uppercase;color:var(--faint);
+  }
+  #payGateState{font-size:12px;font-weight:600;color:var(--ink)}
+  .pay-gate-grid{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;margin-top:8px;
+  }
+  .pay-gate-meter{
+    min-width:0;padding:6px 8px;border:1px solid var(--line-soft);
+    border-radius:8px;background:var(--paper);
+  }
+  .pay-gate-label{
+    display:block;font:500 8px/1.3 var(--mono);letter-spacing:.1em;
+    text-transform:uppercase;color:var(--faint);
+  }
+  .pay-gate-value{
+    display:block;margin-top:2px;font-size:12px;font-weight:600;
+    color:var(--ink);font-variant-numeric:tabular-nums;
+  }
+  .pay-gate-track{
+    display:block;height:3px;margin-top:6px;border-radius:var(--r-full);
+    background:var(--line-soft);overflow:hidden;
+  }
+  .pay-gate-track i{
+    display:block;width:0;height:100%;border-radius:inherit;
+    background:var(--ink-2);transition:width .3s ease;
+  }
+  .pay-gate-deck.is-met .pay-gate-track i{background:var(--teal-ink)}
+  #payGateNote{margin:8px 0 0;font:500 10px/1.45 var(--mono);color:var(--muted)}
+  /* Quiet second clause in the existing payout policy note. */
+  .founder-gift-note{display:block;margin-top:6px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -115,6 +157,9 @@
   </symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24">
     <path d="M7 17 17 7M9.4 7H17v7.6"/>
+  </symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24">
+    <rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5 21 8v8l-5-2.5"/>
   </symbol>
   <symbol id="i-spark" viewBox="0 0 24 24">
     <path d="M12 3.4 13.7 9l5.6 1.7-5.6 1.7L12 18l-1.7-5.6L4.7 10.7 10.3 9Z"/>
@@ -280,8 +325,28 @@
 
           <div class="session-warning" id="sessionWarning" role="status" aria-live="polite" hidden>
             <span class="warn-dot" aria-hidden="true"></span>
-            <span id="sessionWarningText">Class ends in 5 minutes</span>
+            <span id="sessionWarningText">Minimum time complete · 5 min left</span>
             <span class="warn-count" id="sessionWarningCount">05:00</span>
+          </div>
+
+          <div class="pay-gate-deck trainer-only" id="payGateDeck" hidden aria-label="Pay and fine tracker">
+            <div class="pay-gate-head">
+              <span id="payGateTitle">Pay &amp; fine tracker</span>
+              <span id="payGateState" role="status" aria-live="polite">Checking pay gate…</span>
+            </div>
+            <div class="pay-gate-grid">
+              <div class="pay-gate-meter" data-meter="child">
+                <span class="pay-gate-label" id="payGateChildLabel">Child</span>
+                <span class="pay-gate-value num" id="payGateChildValue">Waiting for state</span>
+                <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+              </div>
+              <div class="pay-gate-meter" data-meter="trainer">
+                <span class="pay-gate-label" id="payGateTrainerLabel">Trainer</span>
+                <span class="pay-gate-value num" id="payGateTrainerValue">Waiting for state</span>
+                <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+              </div>
+            </div>
+            <p id="payGateNote">Checking the live pay and fine rules…</p>
           </div>
 
           <div class="next-mid">
@@ -303,6 +368,7 @@
 
           <div class="next-foot">
             <button class="btn btn-coral" id="startClass">Start class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            <button class="btn btn-light" id="cameraOnlyBtn">Camera only <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cam"/></svg></button>
             <button class="btn btn-light" data-ask="Review my plan for Fractions, decimals &amp; percentages.">Open planner</button>
             <a class="btn btn-light subject-workspace-link" id="codingWorkspaceLink" href="../classroom/connect.html?role=trainer" hidden>Coding workspace <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a>
             <span class="english-indicators" id="englishIndicators" hidden aria-label="Reading, writing and speaking"><span>Reading</span><span>Writing</span><span>Speaking</span></span>
@@ -388,7 +454,7 @@
             <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
             <span id="payoutTrendNote">Completed sessions · fines, bonus and MVT excluded from daily points.</span>
           </div>
-          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · exact pay per contract/offer letter or as stated during onboarding · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app.</p>
+          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · exact pay per contract/offer letter or as stated during onboarding · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app. <span class="founder-gift-note">Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.</span></p>
         </div>
       </section>
 
@@ -904,6 +970,7 @@
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="schedule.js" defer></script>
 <script src="app.js" defer></script>
+<script src="../shared/rewardDeck.js" defer></script>
 <script src="parentChat.js" defer></script>
 <script src="onboarding.js" defer></script>
 <script>

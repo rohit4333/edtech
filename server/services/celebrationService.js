@@ -3,7 +3,7 @@
  * Config is the single source of truth for the six animation types, event
  * mapping and throttling. The service emits an allowlisted payload only: no
  * answer keys, hints, trainer notes, ids, phone numbers or social links.
- * Sound is rendered locally by the client and stays opt-in. */
+ * Sound is rendered locally by the client and is always on, with no mute. */
 
 const fs = require('fs');
 const path = require('path');
@@ -64,7 +64,7 @@ function publicConfig() {
     accessibility: {
       respectReducedMotion: source.accessibility && source.accessibility.respectReducedMotion !== false,
       reducedMotionFallback: 'static_badge',
-      localMuteAllowed: true,
+      localMuteAllowed: source.accessibility && source.accessibility.localMuteAllowed !== false,
       cameraPrivacyRespected: true
     }
   };

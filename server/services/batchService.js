@@ -333,8 +333,8 @@ function writeSlots(batch, trainerId, candidates, demo) {
           timezone: studentTimezone,
           studentTimezone: studentTimezone,
           durationMinutes: candidate.durationMinutes,
-          /* Demo sessions carry their own 40/45 timing and 80% pay contract.
-             This stays with the session even after the demo request closes. */
+          /* Demo and regular sessions share the 50-minute class length, pay
+             rate and fine policy. The label stays after the demo closes. */
           classType: candidate.classType || (demo ? 'demo' : 'regular'),
           demoId: candidate.demoId || null,
           /* Server-derived and unique per session: parallel rooms can never

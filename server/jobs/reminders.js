@@ -512,6 +512,12 @@ async function checkSessionLifetime() {
     const timing = sessionTiming.clock(session, now, joinedAt);
     if (timing.waitingForTrainer || timing.lifetimeElapsedSeconds === null) continue;
     const elapsed = timing.lifetimeElapsedSeconds;
+    /* The cue is quota-gated, never wall-clock-gated: 35 child + 50 trainer
+       counted minutes with a child, 15 counted trainer minutes without one. */
+    const quota = sessionTiming.minimumQuota(snapshot);
+    const childJoined = quota.childJoined;
+    const warningAtMinutes = childJoined
+      ? timing.lifetime.warningAtMinutes : quota.trainerRequiredSeconds / 60;
 
     if (elapsed >= timing.closeAtSeconds) {
       const key = String(session.id) + ':session_auto_close';
@@ -556,8 +562,9 @@ async function checkSessionLifetime() {
       continue;
     }
 
-    if (elapsed >= timing.warningAtSeconds) {
-      const key = String(session.id) + ':session_warning:' + timing.classType;
+    if (quota.reached) {
+      const key = String(session.id) + ':session_warning:' + timing.classType +
+        ':' + (childJoined ? 'child' : 'trainer_only');
       const claimed = await claim(key, {
         kind: 'session_warning',
         sessionId: session.id,
@@ -569,14 +576,22 @@ async function checkSessionLifetime() {
         await realtime.publish(session.id, 'session.warning', {
           at: new Date(now).toISOString(),
           classType: timing.classType,
-          warningAtMinutes: timing.lifetime.warningAtMinutes,
+          childPresent: childJoined,
+          childStillPresent: quota.childStillPresent,
+          minimumQuotaReached: true,
+          minimumQuota: quota,
+          warningAtMinutes: warningAtMinutes,
           closeAtMinutes: timing.lifetime.closeAtMinutes,
-          countdownSeconds: Math.max(0, timing.closeAtSeconds - elapsed)
+          countdownSeconds: 300,
+          trainerCountedSeconds: quota.trainerCountedSeconds,
+          childCountedSeconds: quota.childCountedSeconds,
+          studentCountedSeconds: quota.childCountedSeconds
         });
         actions += 1;
         logger.info('reminders', {
           event: 'session_warning_sent', sessionId: session.id,
-          classType: timing.classType, elapsedSeconds: elapsed
+          classType: timing.classType, elapsedSeconds: elapsed,
+          minimumQuotaReached: true
         });
       } catch (caught) {
         await release(key);

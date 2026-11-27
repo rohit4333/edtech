@@ -2,14 +2,15 @@
    MATHIFY — founder and relationship-manager administration service
 
    The founder is the workspace owner and therefore the admin. A relationship
-   manager is founder-authorised staff with the same operating view, except the
-   manager may grant but never revoke desk access, may never choose or replace a
-   login credential, and may never edit the base rate the founder set. The one
-   scoped credential exception is issuing a generated temporary password to an
-   already KYC-verified, granted trainer as a recovery handover. Penalty
-   decisions, including revocation, are available to both roles. Every browser
-   payload is an allowlisted view: password hashes, salts and contact tokens
-   never leave this module.
+   manager is founder-authorised staff with the same operating view, including
+   every trainer's full pay statement. The manager may grant but never revoke
+   desk access, may never choose or replace a login credential, and may edit
+   only the shared trainer session rate (`payPerSession`, used by demo and
+   regular classes alike). Salary, penalties/fines, founder settings and the
+   gratitude credit are owner-only. The one scoped credential exception is
+   issuing a generated temporary password to an already KYC-verified, granted
+   trainer as a recovery handover. Every browser payload is an allowlisted
+   view: password hashes, salts and contact tokens never leave this module.
    ========================================================================== */
 
 const crypto = require('crypto');
@@ -18,6 +19,10 @@ const password = require('../auth/password');
 const sessionVersion = require('./sessionVersionService');
 const trainerOnboarding = require('./trainerOnboardingService');
 const notifications = require('./notificationService');
+const payoutService = require('./payoutService');
+const slotService = require('./slotService');
+const config = require('../config');
+const appPolicy = require('../config/policy.json');
 
 const ADMIN_ROLES = ['trainer', 'relationship_manager', 'student'];
 const STAFF_ROLES = ['trainer', 'relationship_manager'];
@@ -59,6 +64,43 @@ function personView(user) {
     if (user[key] !== undefined) view[key] = user[key];
   });
   return view;
+}
+
+/* A pay statement is read-only. Periods come from the trainer's own session
+   dates plus the current month, so the founder and manager see the whole pay
+   history in one detail response. Nothing here records or pays a balance. */
+function sessionPeriod(session) {
+  const value = session && (session.startedAt || session.startsAt || session.scheduledAt);
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 7) : null;
+}
+
+function payoutPeriods(sessions) {
+  const periods = {};
+  (sessions || []).forEach(function (session) {
+    const period = sessionPeriod(session);
+    if (period) periods[period] = true;
+  });
+  periods[new Date().toISOString().slice(0, 7)] = true;
+  return Object.keys(periods).sort().reverse();
+}
+
+async function trainerPayouts(user, sessions, allSessions, attendance, trainers) {
+  const periods = payoutPeriods(sessions);
+  const payouts = [];
+  for (const period of periods) {
+    const slotPay = await Promise.resolve(
+      slotService.unutilisedPayForPeriod(user, sessions, period)
+    );
+    payouts.push(payoutService.buildPayout(user, sessions, period, appPolicy, {
+      trainers: trainers,
+      allSessions: allSessions,
+      attendance: attendance,
+      slotPay: slotPay,
+      provenance: config.databaseMode
+    }));
+  }
+  return payouts;
 }
 
 /* A staff or student credential replaced by an administrator is confirmed to
@@ -119,7 +161,7 @@ async function detail(role, id, actorRole) {
   const sessionIds = {};
   sessions.forEach(function (session) { sessionIds[session.id] = true; });
 
-  const [attendance, batches, documents, penalties, onboarding] = await Promise.all([
+  const [attendance, batches, documents, penalties, onboarding, allSessions, trainers] = await Promise.all([
     Promise.resolve(db.listAttendance()),
     Promise.resolve(db.listBatches()),
     Promise.resolve(db.listTrainerDocuments()),
@@ -128,7 +170,13 @@ async function detail(role, id, actorRole) {
       : Promise.resolve([]),
     STAFF_ROLES.indexOf(role) !== -1
       ? trainerOnboarding.viewFor(user.id, 'founder', { reveal: true })
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    role === 'trainer'
+      ? Promise.resolve(db.listSessionsForUser({ role: 'founder' }))
+      : Promise.resolve([]),
+    role === 'trainer'
+      ? Promise.resolve(db.listUsers())
+      : Promise.resolve([])
   ]);
 
   const view = {
@@ -153,6 +201,11 @@ async function detail(role, id, actorRole) {
       });
     view.onboarding = onboarding;
     view.penalties = penalties;
+    if (role === 'trainer') {
+      /* Founder and RM both receive every statement field: base/stretch,
+         attendance, MVT, slot pay, fines, gratitude, timing, caps and notes. */
+      view.payouts = await trainerPayouts(user, sessions, allSessions, attendance, trainers);
+    }
   } else {
     const enrolled = batches.find(function (batch) { return batch.studentId === user.id; });
     view.batch = enrolled || db.findBatchForStudent(user.id) || null;
@@ -391,10 +444,9 @@ async function setPassword(id, input, actorId, actorRole) {
   };
 }
 
-/* The exact rate is contract-controlled. The founder may edit it at any time.
-   A relationship manager may set it once while the trainer is still in pending
-   onboarding; after the grant, or after the founder has set the rate, it is
-   locked to the manager. The ₹300–₹400 band remains a policy reference. */
+/* The exact rate is contract-controlled but editable by both admin roles at
+   any time. It is the single trainer pay rate: demo and regular classes both
+   pay from `payPerSession`. The ₹300–₹400 band remains a policy reference. */
 async function setBaseRate(id, rate, actorId, actorRole) {
   const value = Number(rate);
   if (!Number.isFinite(value) || value <= 0 || value > MAX_RATE) {
@@ -403,26 +455,13 @@ async function setBaseRate(id, rate, actorId, actorRole) {
   const rounded = Math.round(value * 100) / 100;
   const user = await requirePerson(id, 'trainer');
   const now = new Date().toISOString();
-  if (actorRole === 'relationship_manager') {
-    if (user.status !== 'pending' || user.rateLockedAt || user.rateSetByRole === 'founder') {
-      throw problem('RM_RATE_LOCKED',
-        'A manager may set the base rate only once during trainer onboarding. It is locked after grant or a founder decision.',
-        403);
-    }
-  }
+  const isManager = actorRole === 'relationship_manager';
   const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
     current.payPerSession = rounded;
     current.rateUpdatedAt = now;
-    if (actorRole === 'relationship_manager') {
-      current.rateLockedAt = now;
-      current.rateSetBy = String(actorId || 'relationship_manager');
-      current.rateSetByRole = 'relationship_manager';
-    } else {
-      current.rateSetBy = String(actorId || 'founder');
-      current.rateSetByRole = 'founder';
-      /* A founder decision closes the manager's onboarding window too. */
-      if (!current.rateLockedAt) current.rateLockedAt = now;
-    }
+    current.rateSetBy = String(actorId || actorRole || 'founder');
+    current.rateSetByRole = isManager ? 'relationship_manager' : 'founder';
+    if (!isManager && !current.rateLockedAt) current.rateLockedAt = now;
     return current;
   }));
   const view = personView(updated || Object.assign({}, user, { payPerSession: rounded }));
@@ -459,6 +498,8 @@ async function listPenalties(trainerId) {
    reason and amount. Nothing is deducted here; the payroll service consumes
    the recorded decision. */
 async function addPenalty(trainerId, input, actorId, actorRole) {
+  requireOwner(actorRole, 'RM_PENALTY_DENIED',
+    'Only the founder may record a penalty or fine.');
   const user = await requirePerson(trainerId, 'trainer');
   const body = input || {};
   const amount = Number(body.amount);
@@ -490,6 +531,8 @@ async function addPenalty(trainerId, input, actorId, actorRole) {
 /* Revocation is an append-only status change: the original decision stays in
    the audit trail with who removed it and when. */
 async function revokePenalty(penaltyId, actorId, actorRole) {
+  requireOwner(actorRole, 'RM_PENALTY_DENIED',
+    'Only the founder may revoke a penalty or fine.');
   const current = await Promise.resolve(db.findFounderPenalty(String(penaltyId || '')));
   if (!current) throw problem('PENALTY_NOT_FOUND', 'That penalty does not exist.', 404);
   if (current.status === 'revoked') return current;

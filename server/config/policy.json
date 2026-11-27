@@ -20,18 +20,18 @@
         "requiredTeachingMinutes": 50,
         "completionWindowMinutes": 60,
         "completionWindowStartOffsetMinutes": -1,
-        "note": "Full pay at 50 active minutes; 45-49 half pay, 40-44 no pay, below 40 forfeited. Active minutes are summed across reconnects inside the -01:00 to +59:00 window."
+        "note": "Full pay requires 50 active teaching minutes inside the -01:00 to +59:00 window. Late-join bands apply only when the child joins; trainer-only sessions pay after 15 counted minutes. Extra full minutes from 50 to 55 add 5 INR only while the child is still present and the 35-minute child gate is met."
       },
       "demo": {
-        "durationMinutes": 45,
-        "warningAtMinutes": 40,
-        "closeAtMinutes": 45,
-        "requiredTeachingMinutes": 40,
-        "completionWindowMinutes": 45,
-        "completionWindowStartOffsetMinutes": 0,
-        "note": "A demo lasts 45 minutes; 40 teaching minutes are required. The trainer is warned at 40 and the server closes the class at 45. Demo late bands stay separate from the regular shortfall bands."
+        "durationMinutes": 50,
+        "warningAtMinutes": 50,
+        "closeAtMinutes": 55,
+        "requiredTeachingMinutes": 50,
+        "completionWindowMinutes": 60,
+        "completionWindowStartOffsetMinutes": -1,
+        "note": "A demo has the same 50-minute teaching requirement, five-minute warning, 55-minute server close, pay rate, late/fine bands and child pay gate as a regular class."
       },
-      "note": "Demo warns at 40 and closes at 45; regular warns at 50 and closes at 55. Timers run from the trainer's verified class clock, and the browser never owns the close."
+      "note": "Demo and regular classes both warn at 50 and close at 55 with the same base rate, late bands and fine policy. Timers run from the trainer's verified class clock, and the browser never owns the close."
     }
   },
   "quiz": {
@@ -66,6 +66,8 @@
     "trainerMinPresentMinutes": 15,
     "trainerMinPresentWithStudentMinutes": 50,
     "studentMinPresentMinutes": 15,
+    "studentMinPayGateMinutes": 35,
+    "payGateNote": "With the child present, trainer pay unlocks only after the child has 35 counted minutes and the trainer has 50 active teaching minutes. Without the child, 15 counted trainer minutes are enough.",
     "learningEventsForPresent": 3,
     "trainerPayRequiresPresence": true,
     "sourcePriority": ["livekit_webhook", "heartbeat"]
@@ -102,8 +104,14 @@
   },
   "payout": {
     "rateRange": [300, 400],
-    "demoPayPercent": 80,
-    "demoPayNote": "Demo sessions pay 80% of the regular session rate. Presence gates and cancellation-fine rules stay the same; demo uses its own single-tier late rule (5+ minutes late = no pay plus one-session fine) and has no 10+ minute regular late tier.",
+    "demoPayNote": "Demo sessions use the same pay rate, 50-minute duration, 50-55 stretch and late/fine bands as regular classes.",
+    "founderGratitude": {
+      "amount": 2000,
+      "currency": "INR",
+      "creditDay": 1,
+      "label": "Founder’s Gratitude Gift",
+      "note": "Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder."
+    },
     "maxHoursPerDay": 6,
     "minHoursPerDay": 3,
     "maxSessionsPerDay": 6,
@@ -125,16 +133,22 @@
       { "fromMinutes": 10, "toMinutes": 15, "payFactor": 0, "code": "no_pay", "label": "No pay" },
       { "fromMinutes": 15, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine_forfeited", "label": "No pay; no extra fine" }
     ],
-    "lateJoinDemoBands": [
-      { "fromMinutes": 0, "toMinutes": 5, "payFactor": 1, "code": "on_time", "label": "Full pay", "fineSessions": 0 },
-      { "fromMinutes": 5, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine", "label": "No pay and one-session fine", "fineSessions": 1 }
-    ],
+    "shortTrainerPresence": {
+      "withoutStudentMinutes": 15,
+      "fineSessions": 1,
+      "note": "When the child does not join, the trainer still needs 15 counted minutes. Below that there is no pay and one session-pay is charged. Late-join bands only apply when the child is present."
+    },
+    "studentPayGateFine": {
+      "fineSessions": 1,
+      "note": "When the child joins but stays under 35 counted minutes, trainer pay is blocked and one session-pay is charged; the late fine is suppressed for that session so no double fine is applied."
+    },
     "stretchReward": {
       "startAfterMinutes": 50,
       "maxMinutes": 55,
       "perMinuteInr": 5,
       "currency": "INR",
-      "note": "Each full active teaching minute beyond 50 and up to 55 adds 5 INR."
+      "requiresStudentPresent": true,
+      "note": "Each full active teaching minute beyond 50 and up to 55 adds 5 INR for both demos and regular classes, only while the child is still in the session and the child's 35-minute pay gate is met."
     },
     "noShow": {
       "payout": 0,

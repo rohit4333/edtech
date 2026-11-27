@@ -72,7 +72,8 @@ function staticChecks() {
   /* RM controls stay inside the founder-set boundary. */
   present(shell, "'/grant'", 'the manager can grant desk access');
   present(shell, "'/password'", 'the manager can issue a generated temporary password');
-  present(shell, "'/penalties'", 'the manager can record penalties');
+  absent(shell, "'/penalties'", 'the unified app has no manager penalty action');
+  absent(shell, 'Record penalty', 'the manager cannot record a penalty from the unified app');
   absent(shell, "status: 'suspended'", 'the manager cannot revoke access from the unified app');
   absent(shell, "type = 'password'", 'the manager cannot choose a credential');
 
@@ -82,7 +83,7 @@ function staticChecks() {
     '/app/parent/inbox', '/app/parent/child', '/app/parent/sessions',
     '/app/parent/guidance', '/app/parent/policies',
     '/app/rm/dashboard', '/app/rm/trainers', '/app/rm/students',
-    '/app/rm/penalties', '/app/rm/classes'
+    '/app/rm/classes'
   ].forEach(function (route) {
     present(shell, "'" + route + "?desk=", 'the shell links ' + route);
     present(serverApp, "'" + route + "': 'unified/index.html'", route + ' is served by the section route map');

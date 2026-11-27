@@ -13,10 +13,11 @@ const subjectCatalog = require('../services/subjectCatalog');
 
 const router = express.Router();
 
-/* A relationship manager shares the founder's operating view. Owner-only
-   controls (settings, base rate, salary, credential choice and access
-   revocation) are enforced here; the single scoped exception is a generated
-   temporary password for an already granted trainer. */
+/* A relationship manager shares the founder's operating view, including every
+   trainer pay statement. The manager may set the shared session rate used by
+   demo and regular classes, but salary, penalties/fines, founder settings and
+   the gratitude credit stay owner-only. The one scoped credential exception is
+   a generated temporary password for an already granted trainer. */
 const adminRole = auth.requireRole('founder', 'relationship_manager');
 const founderRole = auth.requireRole('founder');
 
@@ -406,10 +407,10 @@ router.post(
   }
 );
 
-/* Credential choice, replacement and founder-set pay are owner-only. A manager
-   may only ask for the generated temporary trainer password; the service
-   refuses a chosen value, another target role or an ungranted account. Both
-   outcomes are written to the founder-visible audit with the acting role. */
+/* Credential choice and replacement are owner-only. A manager may only ask for
+   the generated temporary trainer password; the service refuses a chosen
+   value, another target role or an ungranted account. Both outcomes are written
+   to the founder-visible audit with the acting role. */
 router.patch(
   '/people/:id/password',
   auth.requireAuth,
@@ -431,6 +432,8 @@ router.patch(
   }
 );
 
+/* The shared trainer session rate is editable by both roles. It pays demo and
+   regular classes at the same rate; the payout engine reads the stored value. */
 router.patch(
   '/people/:id/base-rate',
   auth.requireAuth,
@@ -464,10 +467,12 @@ router.patch(
   }
 );
 
+/* Penalty and fine decisions are founder-only. Managers read the same history
+   for support, but cannot add, revoke or otherwise change a recorded fine. */
 router.post(
   '/people/:id/penalties',
   auth.requireAuth,
-  adminRole,
+  founderRole,
   function (req, res) {
     Promise.resolve(founderAdmin.addPenalty(req.params.id, req.body, req.user.id, req.user.role))
       .then(function (penalty) {
@@ -484,7 +489,7 @@ router.post(
 router.patch(
   '/penalties/:penaltyId/revoke',
   auth.requireAuth,
-  adminRole,
+  founderRole,
   function (req, res) {
     Promise.resolve(founderAdmin.revokePenalty(req.params.penaltyId, req.user.id, req.user.role))
       .then(function (penalty) {

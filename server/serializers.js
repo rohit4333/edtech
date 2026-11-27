@@ -422,11 +422,21 @@ async function toSessionState(session, user) {
   const media = mediaPermission.normalize(session.mediaPermissions);
   const applause = reactionPermission.normalize(session.reactionPermissions);
   const presenceSnapshot = await presenceService.compute(session);
+  const minimumQuota = sessionTiming.minimumQuota(presenceSnapshot);
   /* A live legacy session has no join webhook, so its own startedAt is the
      presence anchor. A scheduled room waits for verified trainer presence. */
   const trainerPresenceAt = session.status === 'live'
     ? (session.startedAt || presenceSnapshot.trainerJoinedAt)
     : presenceSnapshot.trainerJoinedAt;
+  const timing = sessionTiming.clock(session, undefined, trainerPresenceAt, {
+    trainerActiveSeconds: minimumQuota.trainerCountedSeconds,
+    timerRunning: presenceSnapshot.trainerTimerRunning === true
+  });
+  /* The same counted quota drives the room cue and the trainer pay gate. */
+  timing.minimumQuota = minimumQuota;
+  timing.minimumQuotaReached = minimumQuota.reached === true;
+  timing.childPresent = minimumQuota.childJoined;
+  timing.childStillPresent = minimumQuota.childStillPresent;
   const state = {
     id: session.id,
     subject: subject,
@@ -469,10 +479,7 @@ async function toSessionState(session, user) {
     },
     network: networkQuality.stateFor(session, user),
     roomAccess: sessionAccess.evaluate(session, user),
-    sessionTiming: sessionTiming.clock(session, undefined, trainerPresenceAt, {
-      trainerActiveSeconds: presenceSnapshot.participants.trainer.countedSeconds,
-      timerRunning: presenceSnapshot.trainerTimerRunning === true
-    }),
+    sessionTiming: timing,
     /* Trainer pay state is staff-only. A child receives only their own
        attendance summary below. */
     payoutRequirement: trainerView ? presenceSnapshot.payoutRequirement : null,
@@ -489,6 +496,29 @@ async function toSessionState(session, user) {
        id, contact detail or private metadata is included. */
     founderObserver: sessionAccess.publicState(session)
   };
+  /* Live pay/fine tracker for the trainer only. Without a child the 15-minute
+     trainer presence rule applies; with a child both the 35-minute child gate
+     and the 50-minute trainer teaching gate apply. A student state never gets
+     this key, not even as null. */
+  if (trainerView) {
+    /* The child requirement is always reported as 35 minutes, even when no
+       child joined; the quota object itself zeroes unavailable child fields. */
+    const childRequiredSeconds = (appPolicy.presence &&
+      Number(appPolicy.presence.studentMinPayGateMinutes) || 35) * 60;
+    state.payGate = {
+      childJoined: minimumQuota.childJoined,
+      childStillPresent: minimumQuota.childStillPresent,
+      childRequiredSeconds: childRequiredSeconds,
+      childCountedSeconds: minimumQuota.childCountedSeconds,
+      childGateMet: !minimumQuota.childJoined ||
+        minimumQuota.childCountedSeconds >= childRequiredSeconds,
+      trainerRequiredSeconds: minimumQuota.trainerRequiredSeconds,
+      trainerCountedSeconds: minimumQuota.trainerCountedSeconds,
+      trainerGateMet: minimumQuota.trainerCountedSeconds >= minimumQuota.trainerRequiredSeconds,
+      trainerOnlyMinutes: (appPolicy.presence && Number(appPolicy.presence.trainerMinPresentMinutes)) || 15,
+      source: 'presence_events'
+    };
+  }
   return state;
 }
 

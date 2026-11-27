@@ -1,7 +1,7 @@
 /* ==========================================================================
    MATHIFY — visible ink pointer + live trainer pointer relay
 
-   Mouse, stylus (Wacom) and touch ink surfaces keep a black cross visible at
+   Mouse, stylus (Wacom) and touch ink surfaces keep a dark arrow visible at
    all times, including eraser mode. The verified trainer's pointer position is
    relayed separately from board content so the child can follow where the
    trainer is working, on the shared board and on the quiz sketch surface.

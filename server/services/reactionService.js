@@ -4,15 +4,19 @@
 
 const db = require('../db');
 
-/* Kids can applaud their trainer. Applause is the one gesture both roles may
-   send, but it is always directed at the other participant by role — never at
-   an arbitrary user id supplied by the browser. */
+/* Kids can applaud their trainer. Applause is always directed at the other
+   participant by role — never at an arbitrary user id supplied by the browser.
+   Celebration emojis are shared; ⭐ and 🎯 stay trainer/founder-only. */
 const ALLOWED = {
-  student: ['💡', '🤔', '✅', '👏'],
-  trainer: ['👏', '⭐', '🎯'],
-  founder: ['👏', '⭐', '🎯']
+  student: ['💡', '🤔', '✅', '👏', '🎉', '🥳', '❤️'],
+  trainer: ['👏', '⭐', '🎯', '🎉', '🥳', '🔥'],
+  founder: ['👏', '⭐', '🎯', '🎉', '🥳', '🔥']
 };
-const ALL = ['💡', '🤔', '✅', '👏', '⭐', '🎯'];
+const ALL = ['💡', '🤔', '✅', '👏', '⭐', '🎯', '🎉', '🥳', '❤️', '🔥'];
+
+/* Engagement scoring stays anchored to the original five signals so the new
+   celebration emojis are counted but never distort the score. */
+const SCORING_SIGNALS = ['💡', '🤔', '✅', '👏', '🎯'];
 
 function allowedFor(role) {
   return (ALLOWED[role] || []).slice();
@@ -74,7 +78,10 @@ function summarise(rows) {
     if (emoji === '🤔') confusionMinutes.push(Math.max(0, Number(row.minute) || 0));
   });
   const total = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);
-  const pct = function (emoji) { return total ? Math.round((counts[emoji] / total) * 100) : 0; };
+  const scoringTotal = SCORING_SIGNALS.reduce(function (sum, key) { return sum + counts[key]; }, 0);
+  const pct = function (emoji) {
+    return scoringTotal ? Math.round((counts[emoji] / scoringTotal) * 100) : 0;
+  };
   const ahaPct = pct('💡');
   const confusionPct = pct('🤔');
   const accuracyPct = pct('🎯');

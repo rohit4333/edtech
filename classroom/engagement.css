@@ -95,13 +95,19 @@ body:not(.view-student) .student-only{display:none !important}
 .reaction-btn:hover,.reaction-btn:focus-visible{border-color:var(--coral);outline:none}
 .reaction-btn:focus-visible{box-shadow:0 0 0 2px var(--coral-soft)}
 .engagement-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-left:auto}
-.engagement-controls select,.engagement-controls button{
-  height:32px;padding:0 9px;border:1px solid var(--line);border-radius:4px;
-  background:var(--paper);color:var(--ink);font:inherit;font-size:11px;
+.celebration-style-btn{
+  width:34px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:4px;background:var(--paper);
+  color:var(--ink);cursor:pointer;
 }
-.engagement-controls button{cursor:pointer}
-.engagement-controls button svg{display:block;width:16px;height:16px}
-.engagement-controls button[aria-pressed="true"]{border-color:var(--coral);color:var(--coral-deep);font-weight:600}
+.celebration-style-btn .icon{display:block;width:18px;height:18px}
+.celebration-style-btn:hover,.celebration-style-btn:focus-visible{
+  border-color:var(--coral);background:var(--coral-soft);outline:none
+}
+.celebration-style-btn:focus-visible{box-shadow:0 0 0 2px var(--coral-soft)}
+.celebration-style-btn[aria-pressed="true"]{
+  border-color:var(--coral);color:var(--coral-deep);background:var(--coral-soft);font-weight:600
+}
 
 /* The celebration layer is a full-room announcement. It is pointer-transparent
    so teaching tools and live media stay usable underneath it. */
@@ -151,6 +157,68 @@ body:not(.view-student) .student-only{display:none !important}
   to{transform:translate(-50%,-50%) scale(2.6);opacity:0}
 }
 
+/* One full-room stage carries three layered waves: a quiet paper wash,
+   expanding rings, the recognition badge, rising/falling/bursting emojis and
+   the token-only celebration pieces. It never accepts a pointer event. */
+.celebration-stage{position:absolute;inset:0;display:grid;place-items:center;isolation:isolate}
+.celebration-wash{
+  position:absolute;inset:0;background:var(--coral-soft);opacity:.42;
+  animation:celebration-wash 2.6s ease-out both
+}
+@keyframes celebration-wash{
+  0%{opacity:0}
+  18%{opacity:.42}
+  72%{opacity:.28}
+  100%{opacity:0}
+}
+.celebration-ring{
+  position:absolute;left:50%;top:50%;width:180px;height:180px;
+  border:2px solid var(--coral);border-radius:50%;opacity:0;
+  animation:celebration-ring 2.2s ease-out both
+}
+.celebration-ring.ring-1{animation-delay:.18s;border-color:var(--ink)}
+.celebration-ring.ring-2{animation-delay:.36s;border-color:var(--coral)}
+@keyframes celebration-ring{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  22%{opacity:.55}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(3.4)}
+}
+#celebrationLayer .engagement-badge{
+  display:inline-flex;align-items:center;gap:10px;
+  animation:celebration-badge-in 620ms cubic-bezier(.2,.9,.2,1) both
+}
+.celebration-hero{font-size:34px;line-height:1}
+.celebration-copy{display:block;max-width:320px}
+@keyframes celebration-badge-in{
+  0%{opacity:0;transform:translateY(22px) scale(.72)}
+  55%{opacity:1;transform:translateY(-4px) scale(1.06)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.emoji-particle{
+  position:absolute;left:var(--px);top:var(--py);z-index:3;
+  font-size:var(--size);line-height:1;will-change:transform,opacity;
+  filter:drop-shadow(0 2px 2px rgba(14,20,32,.12))
+}
+.emoji-rise{animation:emoji-rise var(--dur) cubic-bezier(.2,.8,.2,1) var(--delay) both}
+.emoji-fall{animation:emoji-fall var(--dur) ease-in var(--delay) both}
+.emoji-burst{animation:emoji-burst var(--dur) ease-out var(--delay) both}
+@keyframes emoji-rise{
+  0%{opacity:0;transform:translate3d(0,24px,0) scale(.4) rotate(-12deg)}
+  22%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) scale(1.3) rotate(var(--rot))}
+}
+@keyframes emoji-fall{
+  0%{opacity:0;transform:translate3d(0,-8vh,0) rotate(var(--rot))}
+  16%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--dx),var(--dy),0) rotate(540deg)}
+}
+@keyframes emoji-burst{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  26%{opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.24) rotate(var(--rot))}
+}
+#celebrationLayer.is-emoji .celebration-piece{opacity:.5;transform:scale(.7)}
+
 /* Reactions are a small, separate corner signal. They never share the
    celebration layer and are suppressed while a celebration is on screen. */
 #reactionLayer{right:18px;bottom:18px;z-index:55}
@@ -175,15 +243,17 @@ body:not(.view-student) .student-only{display:none !important}
   font-size:10px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
-/* Reduced motion keeps the recognition message, drops every particle and
-   never plays sound (guarded in JavaScript too). */
+/* Reduced motion keeps the recognition message and the always-on sound,
+   but drops every particle and animation. */
 @media (prefers-reduced-motion: reduce){
-  .celebration-piece,.reaction-chip,.engagement-badge{animation:none !important}
-  .celebration-piece{display:none !important}
+  .celebration-piece,.reaction-chip,.engagement-badge,
+  .celebration-wash,.celebration-ring,.emoji-particle{animation:none !important}
+  .celebration-piece,.celebration-wash,.celebration-ring,.emoji-particle{display:none !important}
 }
 
 @media (max-width:720px){
   .engagement-controls{margin-left:0;width:100%}
-  .engagement-controls select,.engagement-controls button{flex:1 1 auto}
+  .celebration-style-btn{flex:0 0 34px}
+  .reaction-btn{min-width:34px;height:32px;padding:0 7px;font-size:15px}
   #reactionLayer{right:10px;bottom:10px}
 }

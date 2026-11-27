@@ -41,7 +41,6 @@
         { key: 'dashboard', label: 'Dashboard', href: '/app/rm/dashboard?desk=rm' },
         { key: 'trainers', label: 'Trainers', href: '/app/rm/trainers?desk=rm' },
         { key: 'students', label: 'Students', href: '/app/rm/students?desk=rm' },
-        { key: 'penalties', label: 'Penalties', href: '/app/rm/penalties?desk=rm' },
         { key: 'classes', label: 'Classes', href: '/app/rm/classes?desk=rm' }
       ]
     }
@@ -560,42 +559,6 @@
     }).catch(function (error) { showError(section, error); });
   }
 
-  function renderRmPenalties(view) {
-    var section = card('Penalties');
-    view.appendChild(section);
-    request('/admin/people/trainer').then(function (answer) {
-      var people = answer.people || [];
-      var select = make('select');
-      people.forEach(function (person) {
-        var option = make('option', null, person.name || person.id);
-        option.value = person.id;
-        select.appendChild(option);
-      });
-      var reason = make('input');
-      reason.type = 'text';
-      reason.placeholder = 'Reason';
-      var amount = make('input');
-      amount.type = 'number';
-      amount.min = '0';
-      amount.placeholder = 'Amount';
-      var button = make('button', 'btn', 'Record penalty');
-      button.type = 'button';
-      button.addEventListener('click', function () {
-        if (!select.value) return;
-        request('/admin/people/' + encodeURIComponent(select.value) + '/penalties', {
-          method: 'POST',
-          body: { reason: reason.value.trim(), amount: Number(amount.value) || 0 }
-        }).then(function () {
-          section.appendChild(make('p', 'ok', 'Penalty recorded.'));
-        }).catch(function (error) { section.appendChild(make('p', 'error', error.message)); });
-      });
-      section.appendChild(select);
-      section.appendChild(reason);
-      section.appendChild(amount);
-      section.appendChild(button);
-    }).catch(function (error) { showError(section, error); });
-  }
-
   function renderRmClasses(view) {
     var section = card('Classes and batches');
     view.appendChild(section);
@@ -630,7 +593,6 @@
     } else if (activeRole === 'relationship_manager') {
       if (section === 'trainers') renderPeople(view, 'trainer', 'Trainers');
       else if (section === 'students') renderPeople(view, 'student', 'Students');
-      else if (section === 'penalties') renderRmPenalties(view);
       else if (section === 'classes') renderRmClasses(view);
       else renderRmDashboard(view);
     }
