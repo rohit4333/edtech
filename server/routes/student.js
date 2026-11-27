@@ -197,7 +197,8 @@ router.post('/tutor/query', async function (req, res) {
 
   const result = await chatAssistant.reply('student', body.question, {
     studentId: body.studentId || ownId,
-    sessionId: body.sessionId || null
+    sessionId: body.sessionId || null,
+    actor: req.user
   });
   return res.json({ reply: result.reply, source: result.source });
 });

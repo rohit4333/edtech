@@ -9,6 +9,8 @@ const presenceService = require('./services/presenceService');
 const sessionAccess = require('./services/sessionAccessService');
 const sessionTiming = require('./services/sessionTimingService');
 const badgeService = require('./services/badgeService');
+const subjectCatalog = require('./services/subjectCatalog');
+const subjectService = require('./services/subjectService');
 const appPolicy = require('./config/policy.json');
 
 /* Explicit student boundary: hidden trainer guidance is never serialized. */
@@ -102,6 +104,11 @@ function participant(userId) {
   const user = db.findUserById(userId);
   if (!user) return null;
   return { name: user.name };
+}
+
+/* Subject is display/content selection only. Missing values are always math. */
+function subjectView(value) {
+  return subjectCatalog.publicView(value);
 }
 
 /* Trainer-only attendance rows need an opaque row key, never contact data. */
@@ -347,6 +354,9 @@ function toStudentSession(session, options) {
 
 async function toSessionState(session, user) {
   const trainerView = user && (user.role === 'trainer' || user.role === 'founder');
+  /* Subject is academic display data. It never changes access, RTC, payment
+     or attendance behaviour; every caller defaults a missing value to math. */
+  const subject = await subjectService.forSession(session);
   const media = mediaPermission.normalize(session.mediaPermissions);
   const applause = reactionPermission.normalize(session.reactionPermissions);
   const presenceSnapshot = await presenceService.compute(session);
@@ -357,6 +367,7 @@ async function toSessionState(session, user) {
     : presenceSnapshot.trainerJoinedAt;
   const state = {
     id: session.id,
+    subject: subject,
     status: session.status,
     currentPage: session.currentPage,
     boardVersion: session.board.version,
@@ -622,6 +633,7 @@ function toTrainerAttention(sessions, attendance) {
 }
 
 function toTrainerDashboard(user, sessions, attendance) {
+  const ownSubject = subjectView(user.subject);
   const ordered = sessions.slice().sort(function (a, b) {
     return new Date(a.startedAt || 0) - new Date(b.startedAt || 0);
   });
@@ -667,6 +679,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       code: session.code,
       title: session.title,
       status: session.status,
+      subject: subjectView(session.subject || ownSubject.subject),
       startsAt: session.startedAt,
       student: participant(session.studentId),
       attendance: attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy)
@@ -691,6 +704,14 @@ function toTrainerDashboard(user, sessions, attendance) {
   }, 0);
 
   const attention = trainerAttention(ordered, attendance);
+  const subjectCounts = {};
+  today.forEach(function (item) {
+    const slug = item.subject.subject;
+    subjectCounts[slug] = (subjectCounts[slug] || 0) + 1;
+  });
+  const subjectSummary = Object.keys(subjectCounts).map(function (slug) {
+    return Object.assign({}, subjectView(slug), { count: subjectCounts[slug] });
+  });
 
   return {
     trainer: {
@@ -698,6 +719,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       name: user.name,
       role: user.role,
       title: user.title || null,
+      subject: ownSubject,
       ratePerSession: user.payPerSession || null
     },
     summary: {
@@ -712,6 +734,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       code: next.code,
       title: next.title,
       status: next.status,
+      subject: subjectView(next.subject || ownSubject.subject),
       startsAt: next.startedAt,
       activeThroughMinutes: 50,
       currentPage: next.currentPage,
@@ -720,6 +743,7 @@ function toTrainerDashboard(user, sessions, attendance) {
       recordingUrl: next.recording ? next.recording.url : null
     } : null,
     today: today,
+    subjectSummary: subjectSummary,
     attention: attention,
     metrics: {
       attendance: {
@@ -748,6 +772,7 @@ function toTrainerDashboard(user, sessions, attendance) {
 }
 
 function toStudentDashboard(user, sessions) {
+  const ownSubject = subjectView(user.subject);
   const mine = sessions.filter(function (session) { return session.studentId === user.id; });
   const live = mine.find(function (session) { return session.status === 'live'; }) || null;
   const recordings = mine
@@ -779,6 +804,7 @@ function toStudentDashboard(user, sessions) {
       name: user.name,
       grade: user.grade,
       batch: user.batch,
+      subject: ownSubject,
       sessionsRemaining: user.sessionsRemaining === undefined ? null : user.sessionsRemaining
     },
     streak: user.streak,
@@ -789,6 +815,7 @@ function toStudentDashboard(user, sessions) {
           title: live.title,
           startedAt: live.startedAt,
           status: live.status,
+          subject: subjectView(live.subject || ownSubject.subject),
           trainer: participant(live.trainerId)
         }
       : null,

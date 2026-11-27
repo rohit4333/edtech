@@ -974,6 +974,10 @@ async function seedDemo() {
 
 module.exports = {
   assertConfigured,
+  getRecord,
+  putRecord,
+  deleteRecord,
+  listRecords,
   isUuid,
   insertSession,
   seedDemo,

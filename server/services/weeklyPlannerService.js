@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const config = require('../config');
 const db = require('../db');
 const catalog = require('./curriculumCatalog');
+const subjects = require('./subjectCatalog');
 const standardsRegistry = require('./weeklyPlannerStandards');
 const ai = require('./cloudflareAiService');
 
@@ -86,8 +87,10 @@ const SYSTEM_PROMPT = [
   'You are Mathify\'s early-years weekly planner author.',
   'Return ONLY strict JSON. No markdown, no comments, no prose outside the object.',
   'Write for one child and one trusted adult. Use warm, simple, age-appropriate language.',
-  'Use the supplied CURRICULUM, GRADE and TOPIC to infer age band, theme, tone and standards.',
+  'Use the supplied SUBJECT, CURRICULUM, GRADE and TOPIC to infer age band, theme, tone and standards.',
   'TOPIC comes from the child profile school chapter; shape every day around it.',
+  'Coding plans use unplugged logic games and short pretend code ideas.',
+  'English plans use reading, writing, speaking and listening; no literature or grammar drill.',
   'Use only official strand names and the exact standard codes supplied by the caller.',
   'Never invent a standard code, school board, logo, brand, personal detail or unsafe task.',
   'No sentence may be longer than twelve words. Each day narrative has two or three short sentences.',
@@ -96,7 +99,7 @@ const SYSTEM_PROMPT = [
   'Every activity includes support, core and stretch differentiation and an "I can..." chip.',
   'Return this exact shape:',
   '{',
-  '  "meta": {"title","curriculumSlug","curriculumLabel","gradeSlug","gradeLabel","topic","ageBand","theme","tone","standardsFramework","promptVersion"},',
+  '  "meta": {"title","subject","curriculumSlug","curriculumLabel","gradeSlug","gradeLabel","topic","ageBand","theme","tone","standardsFramework","promptVersion"},',
   '  "hero": {"title","subtitle","emoji","colorTheme":{"name","from","to","angle","text"}},',
   '  "standards": [{"code","label","strand","framework","ageBand"}],',
   '  "week": {"days": [{"day","narrative","emoji","activities":[',
@@ -125,12 +128,20 @@ function versionKey(version) {
   return 'v' + Number(version || FIRST_VERSION);
 }
 
-function cacheKeyFor(curriculumSlug, gradeSlug, version) {
-  return 'planner:' + versionKey(version) + ':' + curriculumSlug + ':' + gradeSlug;
+/* Math keeps the original board+grade key contract exactly. Coding and
+   English are namespaced so the same board and grade can hold three different
+   immutable planners. The topic still never enters a key. */
+function keyPrefix(subject) {
+  const slug = subjects.normalize(subject);
+  return slug === 'math' ? '' : slug + ':';
 }
 
-function pointerKeyFor(curriculumSlug, gradeSlug) {
-  return 'planner:active:' + curriculumSlug + ':' + gradeSlug;
+function cacheKeyFor(curriculumSlug, gradeSlug, version, subject) {
+  return 'planner:' + versionKey(version) + ':' + keyPrefix(subject) + curriculumSlug + ':' + gradeSlug;
+}
+
+function pointerKeyFor(curriculumSlug, gradeSlug, subject) {
+  return 'planner:active:' + keyPrefix(subject) + curriculumSlug + ':' + gradeSlug;
 }
 
 function seedFor(cacheKey) {
@@ -138,11 +149,15 @@ function seedFor(cacheKey) {
   return (digest.readUInt32BE(0) % 9999999999) + 1;
 }
 
-function cleanTopic(value) {
+function cleanTopic(value, subject) {
   const text = String(value === null || value === undefined ? '' : value)
     .replace(/[\r\n\t<>@]+/g, ' ').replace(/https?:\/\/\S+|www\.\S+/gi, ' ')
     .replace(/\s+/g, ' ').trim().slice(0, 120);
-  return text || 'General Mathematics';
+  if (text) return text;
+  const slug = subjects.normalize(subject);
+  if (slug === 'coding') return 'General Coding';
+  if (slug === 'english') return 'General Communication';
+  return 'General Mathematics';
 }
 
 function resolveSelection(input) {
@@ -150,19 +165,31 @@ function resolveSelection(input) {
   const resolved = catalog.resolve(value.curriculum || value.curriculumSlug, value.grade || value.gradeSlug);
   if (!resolved) throw fail('Unknown curriculum. Choose a board from the LMS catalogue.', 'UNKNOWN_CURRICULUM');
   if (!resolved.gradeSlug) throw fail('Unknown grade for this curriculum.', 'UNKNOWN_GRADE');
+  const subject = subjects.normalize(value.subject);
+  const view = subjects.publicView(subject);
   /* The topic only shapes generation. It is deliberately absent from the
      immutable cache key so a registered planner is never regenerated silently
      when a profile chapter changes. */
-  resolved.topic = cleanTopic(value.topic || value.schoolChapter);
+  resolved.subject = subject;
+  resolved.subjectLabel = view.label;
+  resolved.subjectWorkspace = view.workspace;
+  resolved.topic = cleanTopic(value.topic || value.schoolChapter, subject);
   return resolved;
 }
 
 function allowedStandards(selection) {
-  return standardsRegistry.allowedStandards(selection.curriculumSlug, selection.gradeSlug);
+  return standardsRegistry.allowedStandards(
+    selection.subject,
+    selection.curriculumSlug,
+    selection.gradeSlug
+  );
 }
 
 function buildUserPrompt(selection, allowed) {
   return JSON.stringify({
+    SUBJECT: selection.subjectLabel,
+    subjectSlug: selection.subject,
+    workspace: selection.subjectWorkspace,
     CURRICULUM: selection.curriculumLabel,
     curriculumSlug: selection.curriculumSlug,
     board: selection.curriculumCanonical,
@@ -292,6 +319,11 @@ function validatePlannerOutput(value, selection, allowed) {
       !nonEmptyString(meta.tone) || meta.promptVersion !== PROMPT_VERSION) {
     return { ok: false, reason: 'meta does not match the selected curriculum, grade and topic' };
   }
+  /* Legacy math planners are accepted without a subject token. Coding and
+     English are new, so their generated JSON must declare which one it is. */
+  if (selection.subject && selection.subject !== 'math' && meta.subject !== selection.subject) {
+    return { ok: false, reason: 'meta does not match the selected subject' };
+  }
   if (!nonEmptyString(hero.title) || !nonEmptyString(hero.subtitle) ||
       !nonEmptyString(hero.emoji) || !validColor(hero.colorTheme) ||
       !COLOR_NAMES.has(String(hero.colorTheme.name))) {
@@ -375,7 +407,9 @@ function validatePlannerOutput(value, selection, allowed) {
   return { ok: true, planner: planner };
 }
 
-function buildFallback(selection, allowed) {
+/* Math fallback is intentionally unchanged: existing v1 planners stay byte-
+   stable when a child has no coding/english subject on the profile. */
+function buildMathFallback(selection, allowed) {
   const codes = allowed.map(function (entry) { return entry.code; });
   const materials = [
     { name: 'Soft balls', quantity: '2', preparation: 'Place them on a clean mat.' },
@@ -502,11 +536,242 @@ function buildFallback(selection, allowed) {
   };
 }
 
+const CODING_DAYS = [
+  {
+    day: 'Monday', narrative: 'Mia puts red cards in a row. Sam adds one blue card. The row grows.',
+    emoji: '🃏', theme: 'Step cards', story: 'The lost button', making: 'Draw a step map', reflect: 'Say the next step'
+  },
+  {
+    day: 'Tuesday', narrative: 'A toy bear hides under a hat. Riya looks in three places. She finds it there.',
+    emoji: '🧸', theme: 'Hide and seek', story: 'Bear under the hat', making: 'Make a choice card', reflect: 'Name two choices'
+  },
+  {
+    day: 'Wednesday', narrative: 'Four beads sit on a string. Dev adds one more bead. The pattern repeats.',
+    emoji: '🔵', theme: 'Bead repeat', story: 'The bead train', making: 'Draw a repeat', reflect: 'Show the pattern'
+  },
+  {
+    day: 'Thursday', narrative: 'A paper robot needs three jobs. Zara gives each job a name. The jobs work well.',
+    emoji: '🤖', theme: 'Robot jobs', story: 'The tiny helper', making: 'Build a paper bot', reflect: 'Explain one job'
+  },
+  {
+    day: 'Friday', narrative: 'One card has a wrong step. Arjun finds the bad step. He fixes it with a grin.',
+    emoji: '🐞', theme: 'Bug hunt', story: 'The mixed-up map', making: 'Fix a step map', reflect: 'Tell how you fixed it'
+  }
+];
+
+const ENGLISH_DAYS = [
+  {
+    day: 'Monday', narrative: 'Leo reads a short note. He circles one new word. Then he says it aloud.',
+    emoji: '📄', theme: 'Word hunt', story: 'A note from home', making: 'Write one line', reflect: 'Say your new word'
+  },
+  {
+    day: 'Tuesday', narrative: 'Maya listens to a short tale. She names one kind act. Then she tells her friend.',
+    emoji: '👂', theme: 'Listen and tell', story: 'The kind little dog', making: 'Draw a thought bubble', reflect: 'Tell one kind act'
+  },
+  {
+    day: 'Wednesday', narrative: 'A picture shows a rainy park. Sam says three things. His words paint the scene.',
+    emoji: '🖼️', theme: 'Picture talk', story: 'The rainy park', making: 'Write a caption', reflect: 'Read your caption'
+  },
+  {
+    day: 'Thursday', narrative: 'Nina stands tall and speaks. Her voice is clear. The room hears her idea.',
+    emoji: '🎤', theme: 'Clear voice', story: 'The class meeting', making: 'Make a speaking card', reflect: 'Say one idea aloud'
+  },
+  {
+    day: 'Friday', narrative: 'A story has a happy end. Ari changes one part. Now the ending feels new.',
+    emoji: '✨', theme: 'New ending', story: 'The little kite', making: 'Write a new end', reflect: 'Explain your ending'
+  }
+];
+
+function subjectActivity(dayIndex, blockIndex, type, codes, copy) {
+  const color = COLORS[(dayIndex + blockIndex) % COLORS.length].name;
+  return {
+    id: 'd' + (dayIndex + 1) + '-' + type,
+    type: type,
+    title: copy.title,
+    emoji: copy.emoji,
+    icon: copy.icon,
+    color: color,
+    durationMinutes: copy.minutes,
+    instructions: copy.instructions.slice(),
+    materials: copy.materials.slice(),
+    iCan: copy.iCan,
+    differentiation: {
+      support: copy.support,
+      core: copy.core,
+      stretch: copy.stretch
+    },
+    observation: copy.observation,
+    standardCodes: [codes[(dayIndex + blockIndex) % codes.length]]
+  };
+}
+
+function buildSubjectFallback(selection, allowed, subject) {
+  const coding = subject === 'coding';
+  const templates = coding ? CODING_DAYS : ENGLISH_DAYS;
+  const codes = allowed.map(function (entry) { return entry.code; });
+  const materials = coding
+    ? [
+        { name: 'Paper cards', quantity: '6', preparation: 'Write one step on each card.' },
+        { name: 'Soft pencil', quantity: '1', preparation: 'Keep it ready for drawing.' },
+        { name: 'Colour dots', quantity: '5', preparation: 'Place them in a clear row.' }
+      ]
+    : [
+        { name: 'Short note', quantity: '1', preparation: 'Choose two clear lines to read.' },
+        { name: 'Picture card', quantity: '1', preparation: 'Pick a simple scene with people.' },
+        { name: 'Soft pencil', quantity: '1', preparation: 'Keep it ready for writing.' }
+      ];
+  const blocksFor = function (template, dayIndex) {
+    if (coding) {
+      return [
+        subjectActivity(dayIndex, 0, 'play', codes, {
+          title: template.theme, emoji: '🧩', icon: 'cards', minutes: 7,
+          instructions: ['Put three cards in a row.', 'Ask what comes next.', 'Say the steps out loud.'],
+          materials: ['Paper cards'], iCan: 'I can put steps in order.',
+          support: 'Use two cards only.', core: 'Use three cards in order.',
+          stretch: 'Add one extra step.', observation: 'Can the child name the next step?'
+        }),
+        subjectActivity(dayIndex, 1, 'story', codes, {
+          title: template.story, emoji: '📖', icon: 'book', minutes: 6,
+          instructions: ['Tell a tiny story about a lost button.', 'Pause before the last step.', 'Let your child guess it.'],
+          materials: ['Paper cards'], iCan: 'I can follow a story in steps.',
+          support: 'Retell one step.', core: 'Guess the last step.',
+          stretch: 'Change one step in the story.', observation: 'Can the child follow the story order?'
+        }),
+        subjectActivity(dayIndex, 2, 'making', codes, {
+          title: template.making, emoji: '🛠️', icon: 'sparkles', minutes: 8,
+          instructions: ['Draw a map with three steps.', 'Add one turn to the map.', 'Trace the steps with a finger.'],
+          materials: ['Soft pencil', 'Paper cards'], iCan: 'I can draw clear steps.',
+          support: 'Draw two steps together.', core: 'Draw three clear steps.',
+          stretch: 'Add one choice to the map.', observation: 'Does the drawing show each step?'
+        }),
+        subjectActivity(dayIndex, 3, 'reflection', codes, {
+          title: template.reflect, emoji: '💬', icon: 'reflect', minutes: 4,
+          instructions: ['Ask which step felt fun.', 'Ask which step was hard.', 'Cheer one careful try.'],
+          materials: ['Colour dots'], iCan: 'I can talk about my steps.',
+          support: 'Offer two simple choices.', core: 'Name one step you liked.',
+          stretch: 'Explain how you fixed a step.', observation: 'Can the child name one step they used?'
+        })
+      ];
+    }
+    return [
+      subjectActivity(dayIndex, 0, 'play', codes, {
+        title: template.theme, emoji: '🗣️', icon: 'voice', minutes: 7,
+        instructions: ['Say your name in a loud voice.', 'Pass a made-up word around.', 'Clap for each clear voice.'],
+        materials: ['Short note'], iCan: 'I can say a word clearly.',
+        support: 'Say one word together.', core: 'Say one word aloud.',
+        stretch: 'Say a short phrase aloud.', observation: 'Can the child speak clearly?'
+      }),
+      subjectActivity(dayIndex, 1, 'story', codes, {
+        title: template.story, emoji: '📖', icon: 'book', minutes: 6,
+        instructions: ['Read two lines from the note.', 'Ask what the sentence tells us.', 'Say it again with feeling.'],
+        materials: ['Short note'], iCan: 'I can read a short line.',
+        support: 'Read one line together.', core: 'Read two short lines.',
+        stretch: 'Read with a happy voice.', observation: 'Can the child read the line?'
+      }),
+      subjectActivity(dayIndex, 2, 'making', codes, {
+        title: template.making, emoji: '✏️', icon: 'pencil', minutes: 8,
+        instructions: ['Write one line about the picture.', 'Add one describing word.', 'Underline your best phrase.'],
+        materials: ['Picture card', 'Soft pencil'], iCan: 'I can write one clear line.',
+        support: 'Copy one short line.', core: 'Write one line alone.',
+        stretch: 'Add one more detail.', observation: 'Does the line match the picture?'
+      }),
+      subjectActivity(dayIndex, 3, 'reflection', codes, {
+        title: template.reflect, emoji: '💬', icon: 'reflect', minutes: 4,
+        instructions: ['Ask what was easy to read.', 'Ask what to say next time.', 'Praise one brave speaker.'],
+        materials: ['Picture card'], iCan: 'I can talk about my writing.',
+        support: 'Choose from two ideas.', core: 'Name one thing you wrote.',
+        stretch: 'Explain one word you chose.', observation: 'Can the child share one idea?'
+      })
+    ];
+  };
+
+  const days = templates.map(function (template, dayIndex) {
+    return {
+      day: template.day,
+      narrative: template.narrative,
+      emoji: template.emoji,
+      activities: blocksFor(template, dayIndex)
+    };
+  });
+
+  return {
+    meta: {
+      title: selection.theme.replace(/^./, function (letter) { return letter.toUpperCase(); }) +
+        ' ' + (coding ? 'coding' : 'communication') + ' week',
+      subject: subject,
+      curriculumSlug: selection.curriculumSlug,
+      curriculumLabel: selection.curriculumLabel,
+      gradeSlug: selection.gradeSlug,
+      gradeLabel: selection.gradeLabel,
+      topic: selection.topic,
+      ageBand: selection.ageBand,
+      theme: selection.theme,
+      tone: selection.tone,
+      standardsFramework: allowed.length && allowed[0].framework
+        ? allowed[0].framework
+        : subjects.get(subject).label + ' skills',
+      promptVersion: PROMPT_VERSION
+    },
+    hero: {
+      title: coding ? 'A gentle code week' : 'A gentle speaking week',
+      subtitle: coding ? 'Five short days of steps and play.' : 'Five short days of reading and talk.',
+      emoji: coding ? '💻' : '🎤',
+      colorTheme: { name: COLORS[0].name, from: COLORS[0].from, to: COLORS[0].to, angle: 135, text: COLORS[0].text }
+    },
+    standards: allowed.slice(0, 5),
+    week: { days: days },
+    materialsMasterList: materials,
+    observationTracker: [
+      {
+        id: 'obs-main',
+        label: coding ? 'Puts steps in order' : 'Reads and says a clear line',
+        criteria: coding ? 'Names each step before moving on.' : 'Reads one line without rushing.',
+        standardCodes: [codes[0]]
+      },
+      {
+        id: 'obs-make',
+        label: coding ? 'Draws a simple step map' : 'Writes one clear line',
+        criteria: coding ? 'Shows three ordered steps.' : 'Uses one line about a picture.',
+        standardCodes: [codes[1]]
+      },
+      {
+        id: 'obs-talk',
+        label: coding ? 'Explains one fix' : 'Shares one idea aloud',
+        criteria: coding ? 'Says what changed in the map.' : 'Speaks in a clear voice.',
+        standardCodes: [codes[2]]
+      }
+    ],
+    homeConnection: {
+      title: 'Family note',
+      familyNote: coding
+        ? 'This week we played with steps, choices and tiny fixes. Keep each task short and stop while your child wants one more turn.'
+        : 'This week we read short lines, wrote one clear line and spoke aloud. Keep practice warm and stop while your child wants one more turn.',
+      conversationStarters: coding
+        ? ['What step came first?', 'What did you change?', 'Which part felt fun?']
+        : ['What did you read today?', 'Which word did you use?', 'Which part felt fun?'],
+      printLabel: 'Print family note'
+    },
+    safetyNotes: [
+      { title: 'Use safe objects', detail: 'Choose soft, clean objects that fit in one hand.' },
+      { title: 'Stay close', detail: 'An adult stays nearby during each short task.' },
+      { title: 'Keep it kind', detail: 'Stop if your child feels tired or frustrated.' }
+    ]
+  };
+}
+
+function buildFallback(selection, allowed) {
+  if (selection.subject === 'coding' || selection.subject === 'english') {
+    return buildSubjectFallback(selection, allowed, selection.subject);
+  }
+  return buildMathFallback(selection, allowed);
+}
+
 function buildResponse(record, hit, source) {
   return {
     planner: copy(record.planner),
     cache: {
       topic: record.topic || null,
+      subject: record.subject || 'math',
       cacheKey: record.cacheKey,
       version: record.version,
       promptVersion: record.promptVersion,
@@ -526,7 +791,9 @@ async function store(record) {
 }
 
 async function pointerVersion(selection) {
-  const pointer = await db.findWeeklyPlannerPointer(pointerKeyFor(selection.curriculumSlug, selection.gradeSlug));
+  const pointer = await db.findWeeklyPlannerPointer(
+    pointerKeyFor(selection.curriculumSlug, selection.gradeSlug, selection.subject)
+  );
   return Number(pointer && pointer.version) || FIRST_VERSION;
 }
 
@@ -536,7 +803,7 @@ async function getOrCreate(input, options) {
   /* Normal reads follow the founder-controlled active pointer. An explicit
      version is used only by the founder's regenerate/edit flow. */
   const version = Number(settings.version) || await pointerVersion(selection);
-  const cacheKey = cacheKeyFor(selection.curriculumSlug, selection.gradeSlug, version);
+  const cacheKey = cacheKeyFor(selection.curriculumSlug, selection.gradeSlug, version, selection.subject);
   const seed = seedFor(cacheKey);
 
   if (!settings.force) {
@@ -570,6 +837,8 @@ async function getOrCreate(input, options) {
       }
       const record = {
         cacheKey: cacheKey,
+        subject: selection.subject,
+        subjectLabel: selection.subjectLabel,
         curriculumSlug: selection.curriculumSlug,
         gradeSlug: selection.gradeSlug,
         topic: selection.topic,
@@ -595,6 +864,8 @@ async function getOrCreate(input, options) {
 
   const fallbackRecord = {
     cacheKey: cacheKey,
+    subject: selection.subject,
+    subjectLabel: selection.subjectLabel,
     curriculumSlug: selection.curriculumSlug,
     gradeSlug: selection.gradeSlug,
     topic: selection.topic,
@@ -613,7 +884,9 @@ async function getOrCreate(input, options) {
 
 async function archiveActive(selection, actorId) {
   const currentVersion = await pointerVersion(selection);
-  const currentKey = cacheKeyFor(selection.curriculumSlug, selection.gradeSlug, currentVersion);
+  const currentKey = cacheKeyFor(
+    selection.curriculumSlug, selection.gradeSlug, currentVersion, selection.subject
+  );
   const previous = await db.findWeeklyPlannerCache(currentKey);
   if (previous) {
     await db.archiveWeeklyPlannerCache(Object.assign({}, previous, {
@@ -626,7 +899,8 @@ async function archiveActive(selection, actorId) {
 
 async function movePointer(selection, version, cacheKey, actorId) {
   await db.saveWeeklyPlannerPointer({
-    pointerKey: pointerKeyFor(selection.curriculumSlug, selection.gradeSlug),
+    pointerKey: pointerKeyFor(selection.curriculumSlug, selection.gradeSlug, selection.subject),
+    subject: selection.subject,
     curriculumSlug: selection.curriculumSlug,
     gradeSlug: selection.gradeSlug,
     version: version,
@@ -658,15 +932,20 @@ async function editPlanner(input, actorId) {
   }
   const currentVersion = await archiveActive(selection, actorId);
   const nextVersion = currentVersion + 1;
+  const editedKey = cacheKeyFor(
+    selection.curriculumSlug, selection.gradeSlug, nextVersion, selection.subject
+  );
   const record = {
-    cacheKey: cacheKeyFor(selection.curriculumSlug, selection.gradeSlug, nextVersion),
+    cacheKey: editedKey,
+    subject: selection.subject,
+    subjectLabel: selection.subjectLabel,
     curriculumSlug: selection.curriculumSlug,
     gradeSlug: selection.gradeSlug,
     topic: selection.topic,
     version: nextVersion,
     promptVersion: PROMPT_VERSION,
     temperature: TEMPERATURE,
-    seed: seedFor(cacheKeyFor(selection.curriculumSlug, selection.gradeSlug, nextVersion)),
+    seed: seedFor(editedKey),
     provider: 'founder-edit',
     model: null,
     generatedAt: new Date().toISOString(),

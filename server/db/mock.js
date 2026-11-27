@@ -334,6 +334,9 @@ const parentNotifications = [];
 /* Cron delivery claims stay in-memory in mock mode; live mode uses the
    service-only reminder_claim records from db/supabase.js. */
 const reminderClaims = new Map();
+/* Service-only records for subject workspaces, coding challenges and shared
+   IDE state. Live mode stores the same JSON in mathify_records. */
+const genericRecords = new Map();
 const presenceEvents = [];
 const presenceSnapshots = [];
 /* Engagement gestures stay separate from celebrations. Only code, role,
@@ -428,7 +431,43 @@ const trainerSlots = [
   }
 ];
 
+function cloneRecord(value) {
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+}
+
+function recordKey(collection, key) {
+  return String(collection || '') + ':' + String(key || '');
+}
+
+function getRecord(collection, key) {
+  const found = genericRecords.get(recordKey(collection, key));
+  return found === undefined ? null : cloneRecord(found);
+}
+
+function putRecord(collection, key, value) {
+  const stored = cloneRecord(value);
+  genericRecords.set(recordKey(collection, key), stored);
+  return cloneRecord(stored);
+}
+
+function deleteRecord(collection, key) {
+  return genericRecords.delete(recordKey(collection, key));
+}
+
+function listRecords(collection) {
+  const prefix = String(collection || '') + ':';
+  const rows = [];
+  genericRecords.forEach(function (value, key) {
+    if (key.indexOf(prefix) === 0) rows.push(cloneRecord(value));
+  });
+  return rows;
+}
+
 module.exports = {
+  getRecord: getRecord,
+  putRecord: putRecord,
+  deleteRecord: deleteRecord,
+  listRecords: listRecords,
   users: users,
   sessions: sessions,
   attendance: attendance,

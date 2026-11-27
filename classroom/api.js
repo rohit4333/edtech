@@ -33,6 +33,29 @@
     } catch (error) { return null; }
   }
 
+  /* Read-only opaque id used only to compare IDE ownership. Never a name,
+     email, phone or any contact/KYC/bank field. */
+  function tokenSubject(token) {
+    if (typeof token !== 'string' || token.split('.').length !== 3) return null;
+    try {
+      var encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (encoded.length % 4) encoded += '=';
+      var binary = window.atob(encoded);
+      var bytes = new Uint8Array(binary.length);
+      for (var index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      var payload = JSON.parse(new TextDecoder().decode(bytes));
+      var value = payload.sub || payload.userId || payload.id;
+      if (typeof value !== 'string' && typeof value !== 'number') return null;
+      var text = String(value);
+      /* An opaque id only. Never forward an email or phone-shaped value into
+         IDE ownership state, even if a token happens to carry one. */
+      if (text.indexOf('@') >= 0 || /^\+?[\d\s()-]{7,}$/.test(text)) return null;
+      return text;
+    } catch (error) { return null; }
+  }
+
   function storedToken(roleName) {
     try { return window.localStorage.getItem(TOKEN_PREFIX + roleName); } catch (error) { return null; }
   }
@@ -190,6 +213,11 @@
     viewerRole: function () {
       return tokenRole(readToken()) || role;
     },
+    /* Opaque session participant id for editor hand-off comparisons only. */
+    viewerId: function () {
+      return tokenSubject(readToken()) ||
+        (window.MATHIFY_USER && (window.MATHIFY_USER.id || window.MATHIFY_USER.userId)) || null;
+    },
     /* Trainer-only. The server derives the session and rejects a student call. */
     setMediaPermission: function (sessionId, studentCanToggleMedia) {
       return request(sessionPath(sessionId) + '/media-permission', {
@@ -294,6 +322,43 @@
         method: 'POST',
         body: { questionId: questionId, hintIndex: hintIndex || 1 }
       });
+    },
+
+    /* ------------------------------------------------------- coding workspace
+       The browser never receives hidden tests. Paths and bodies are the
+       session-scoped contracts implemented by the shared backend. */
+    getCodeChallenge: function (sessionId) {
+      return request('/code/challenge?sessionId=' + encodeURIComponent(sessionId))
+        .then(function (data) { return data && data.challenge; });
+    },
+    createCodeChallenge: function (body) {
+      return request('/code/challenges', { method: 'POST', body: body || {} })
+        .then(function (data) { return data && data.challenge; });
+    },
+    checkCode: function (body) {
+      return request('/code/check', { method: 'POST', body: body || {} });
+    },
+    getIdeState: function (sessionId) {
+      return request('/code/sessions/' + encodeURIComponent(sessionId) + '/ide')
+        .then(function (data) { return data && data.ide; });
+    },
+    saveIdeState: function (sessionId, patch) {
+      var body = Object.assign({}, patch || {});
+      return request('/code/sessions/' + encodeURIComponent(sessionId) + '/ide', {
+        method: 'POST', body: body
+      }).then(function (data) { return data && data.ide; });
+    },
+
+    /* ------------------------------------------------------- english workspace
+       Body fields are safe work artifacts only: no contact or private docs. */
+    getEnglishWork: function (sessionId) {
+      return request('/english/work?sessionId=' + encodeURIComponent(sessionId))
+        .then(function (data) { return data && data.work; });
+    },
+    saveEnglishWork: function (sessionId, work) {
+      var body = Object.assign({}, work || {}, { sessionId: sessionId });
+      return request('/english/work', { method: 'POST', body: body })
+        .then(function (data) { return data && data.work; });
     }
   };
 })();

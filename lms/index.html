@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="detail.css">
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="planner.css">
+<link rel="stylesheet" href="subjectPlanner.css">
 <style>
   .ic,.icon-btn svg,.context svg,.search svg,.filter-search svg,.tabs svg,
   .course-card svg,.detail svg,.sheet svg,.search-overlay svg,.asset-btn svg,
@@ -144,6 +145,11 @@
     <main class="page" id="main">
       <p class="preview-banner" role="status"><b>Curriculum preview.</b> The course library is partial: course, module, review and planner designer are usable; pack import and publish controls are not yet enabled.</p>
 
+      <div class="lms-denied" id="lmsDenied" role="alert" hidden>
+        <h2>LMS access is founder/trainer only.</h2>
+        <p>Relationship managers cannot open courses, modules or planners. No LMS request was made for this account.</p>
+      </div>
+
       <div class="page-head">
         <div>
           <p class="eyebrow">Curriculum · Wednesday 25 November 2026</p>
@@ -264,7 +270,11 @@
             <label class="field">
               <span class="mono">Topic</span>
               <select id="newTopic">
-                <option selected>Mathematics</option><option>Geometry</option><option>Mastery</option>
+                <option value="Mathematics" selected>Mathematics</option>
+                <option value="Geometry">Geometry</option>
+                <option value="Mastery">Mastery</option>
+                <option value="Coding">Coding</option>
+                <option value="English Communication">English Communication</option>
               </select>
             </label>
           </div>
@@ -294,6 +304,14 @@
           </div>
         </div>
         <div class="wp-controls">
+          <label class="field">
+            <span>Subject</span>
+            <select id="autoSubject" name="subject" required>
+              <option value="math" selected>Mathematics</option>
+              <option value="coding">Coding</option>
+              <option value="english">English Communication</option>
+            </select>
+          </label>
           <label class="field">
             <span>Curriculum</span>
             <select id="autoCurriculum" name="curriculum" required>
@@ -336,7 +354,10 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="access.js"></script>
 <script src="../shared/curriculumOptions.js"></script>
+<script src="api.js"></script>
+<script src="subjectPlanner.js"></script>
 <script src="autoPlanner.js"></script>
 <script src="app.js"></script>
 <script src="planner.js"></script>

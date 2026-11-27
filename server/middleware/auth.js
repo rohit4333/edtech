@@ -12,6 +12,8 @@ const SESSION_USER_KEYS = [
   'id', 'name', 'role', 'status', 'title', 'grade', 'mastery', 'streak', 'batch',
   'sessionsRemaining', 'payPerSession', 'maxHoursPerDay', 'maxSessionsPerDay',
   'badges', 'trophyPoints', 'timezone',
+  /* Academic course only. Never a contact detail or a role/policy flag. */
+  'subject', 'subjectUpdatedAt',
   /* Demo lifecycle flags let a route refuse classes after the demo while still
      allowing payments and policies through the same temporary login. */
   'demoId', 'demoState', 'classAccess', 'demoAttendedAt',

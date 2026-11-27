@@ -13,6 +13,8 @@ const timezoneService = require('./timezoneService');
 const demoService = require('./demoService');
 const batchNaming = require('./batchNamingService');
 const notifications = require('./notificationService');
+const subjectCatalog = require('./subjectCatalog');
+const subjectService = require('./subjectService');
 
 const DEFAULT_DURATION_MINUTES = 50;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
@@ -131,6 +133,7 @@ function publicView(record, role) {
     code: record.code,
     status: record.status || 'allotted',
     trainerId: record.trainerId,
+    subject: subjectCatalog.publicView(record.subject),
     studentName: text(student.name),
     trainerName: text(trainer.name),
     createdAt: record.createdAt
@@ -165,6 +168,7 @@ function ensureForStudent(studentId) {
           code: code(),
           studentId: studentId,
           student: { id: studentId, name: student.name },
+          subject: subjectCatalog.normalize(student.subject),
           trainerId: null,
           trainer: null,
           status: 'unallotted',
@@ -237,6 +241,9 @@ function allot(batchRef, trainerId, slots) {
           return openIntervals(trainerId, batch.studentId).then(function (booked) {
             /* Validate every slot before writing any of them. A conflict in the
                last slot must never leave earlier sessions half-booked. */
+            const subjectSlug = subjectCatalog.normalize(batch.subject);
+            const subjectWord = subjectSlug === 'math'
+              ? 'maths' : subjectSlug === 'coding' ? 'coding' : 'English';
             const candidates = list.map(function (slot) {
               const startsAt = text(slot.startsAt || slot.startedAt || slot.scheduledAt);
               const start = Date.parse(startsAt);
@@ -248,7 +255,7 @@ function allot(batchRef, trainerId, slots) {
                 ? minutes : DEFAULT_DURATION_MINUTES;
               return {
                 startsAt: startsAt,
-                title: text(slot.title) || 'Batch ' + batch.code + ' · 1-on-1 maths',
+                title: text(slot.title) || 'Batch ' + batch.code + ' · 1-on-1 ' + subjectWord,
                 durationMinutes: durationMinutes,
                 key: batch.id + '|' + startsAt,
                 start: start,
@@ -286,7 +293,12 @@ function allot(batchRef, trainerId, slots) {
 function writeSlots(batch, trainerId, candidates) {
   /* The child's registered zone travels with the booking. Reminders and every
      dashboard render the stored UTC instant in each viewer's own zone. */
-  return Promise.resolve(db.findUserById(batch.studentId)).then(function (student) {
+  return Promise.all([
+    Promise.resolve(db.findUserById(batch.studentId)),
+    Promise.resolve(subjectService.forBatch(batch))
+  ]).then(function (rows) {
+    const student = rows[0];
+    const subject = rows[1];
     const studentTimezone = timezoneService.forUser(student);
     return candidates.reduce(function (chain, candidate) {
       return chain.then(function (bookings) {
@@ -299,6 +311,7 @@ function writeSlots(batch, trainerId, candidates) {
           batchCode: batch.code,
           batchSlotKey: candidate.key,
           title: candidate.title,
+          subject: subject.subject,
           status: 'scheduled',
           startedAt: candidate.startsAt,
           scheduledAt: candidate.startsAt,

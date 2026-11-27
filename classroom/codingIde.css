@@ -1,0 +1,328 @@
+/* ==========================================================================
+   MATHIFY — coding live workspace
+   Subject panels sit inside the existing classroom stage. Only the IDE and
+   challenge surfaces are subject-specific; RTC, PiP and sheets stay shared.
+   ========================================================================== */
+
+.subject-stage{
+  flex:1;
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:var(--shadow-raise);
+  overflow:hidden;
+}
+
+.subject-stage-head{
+  flex:none;
+  min-height:52px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 12px 0 16px;
+  border-bottom:1px solid var(--line-soft);
+}
+.subject-head-l,.subject-head-r{display:flex;align-items:center;gap:9px;min-width:0}
+.subject-head-r{margin-left:auto}
+.subject-head-l b{
+  font-size:14.5px;
+  font-weight:500;
+  letter-spacing:-.015em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.subject-chip{
+  display:inline-flex;
+  align-items:center;
+  height:22px;
+  padding:0 8px;
+  flex:none;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--teal-soft);
+  color:var(--teal-ink);
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.subject-sync{
+  max-width:230px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
+.subject-sync.is-error{color:var(--coral-deep)}
+.subject-sync.is-ok{color:var(--teal-ink)}
+
+/* Whiteboard return, visible only on a subject session. */
+.subject-return{
+  height:26px;
+  padding:0 11px;
+  flex:none;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--cream);
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.subject-return:hover{border-color:rgba(14,20,32,.34);color:var(--ink)}
+
+/* ------------------------------------------------------------ coding split */
+.coding-split{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(240px,31%) minmax(0,1fr);
+  gap:12px;
+  padding:12px;
+}
+.coding-prompt{
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  padding:14px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:linear-gradient(180deg,var(--paper) 0%,#FFFDF8 100%);
+}
+.coding-prompt-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.tests-hidden{
+  font-family:var(--mono);
+  font-size:7.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--teal-ink);
+}
+.coding-prompt h2{
+  font-size:17px;
+  font-weight:500;
+  line-height:1.25;
+  letter-spacing:-.02em;
+}
+.coding-prompt-copy{
+  font-size:12px;
+  line-height:1.6;
+  color:var(--muted);
+  white-space:pre-wrap;
+}
+.coding-starter{
+  margin:0;
+  padding:10px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  background:var(--ink);
+  color:#CDEDE7;
+  font-family:var(--mono);
+  font-size:10.5px;
+  line-height:1.5;
+}
+.coding-trainer{
+  margin-top:auto;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.coding-challenge-form{display:flex;flex-direction:column;gap:6px}
+.coding-challenge-form label{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.coding-challenge-form input,
+.coding-challenge-form textarea,
+.english-notes,
+.english-writing,
+.english-speak textarea,
+.english-vocab-head input{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  background:var(--card);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:11.5px;
+  line-height:1.5;
+  padding:7px 9px;
+  resize:vertical;
+}
+.coding-challenge-form input:focus,
+.coding-challenge-form textarea:focus,
+.ide-code:focus,
+.ide-notes:focus,
+.english-notes:focus,
+.english-writing:focus,
+.english-speak textarea:focus,
+.english-vocab-head input:focus{outline:none;border-color:var(--coral-deep);box-shadow:var(--ring)}
+.ide-mono{font-family:var(--mono)!important;font-size:10.5px!important}
+.coding-challenge-form .btn{align-self:flex-start}
+.coding-control-row{display:flex;flex-wrap:wrap;gap:6px}
+.coding-control-status{
+  min-height:14px;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.06em;
+  color:var(--muted);
+}
+
+/* --------------------------------------------------------------- IDE pane */
+.coding-work{min-width:0;min-height:0;display:flex;flex-direction:column;gap:10px}
+.ide-frame{
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:var(--card);
+}
+.ide-tabs{
+  flex:none;
+  display:flex;
+  align-items:stretch;
+  gap:2px;
+  min-height:34px;
+  padding:0 8px;
+  border-bottom:1px solid var(--line);
+  background:var(--cream);
+}
+.ide-tab{
+  padding:0 12px;
+  border-bottom:2px solid transparent;
+  font-family:var(--mono);
+  font-size:9.5px;
+  letter-spacing:.06em;
+  color:var(--muted);
+}
+.ide-tab:hover{color:var(--ink);background:rgba(255,255,255,.5)}
+.ide-tab.is-on{border-bottom-color:var(--coral-deep);color:var(--ink);background:var(--card)}
+.ide-lock-note{
+  margin-left:auto;
+  align-self:center;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--coral-deep);
+}
+.ide-panels{flex:1;min-height:0;display:flex;flex-direction:column}
+.ide-panel{flex:1;min-height:0;display:flex}
+.ide-editor{position:relative;flex:1;min-height:0;display:flex;background:var(--ink)}
+.ide-lines{
+  flex:none;
+  width:42px;
+  margin:0;
+  padding:12px 8px 12px 0;
+  overflow:hidden;
+  border-right:1px solid rgba(253,250,243,.1);
+  color:rgba(253,250,243,.34);
+  font-family:var(--mono);
+  font-size:11.5px;
+  line-height:1.6;
+  text-align:right;
+  white-space:pre;
+}
+.ide-code,.ide-notes{
+  flex:1;
+  min-width:0;
+  min-height:0;
+  padding:12px;
+  border:0;
+  background:var(--ink);
+  color:#E7F5F1;
+  font-family:var(--mono);
+  font-size:11.5px;
+  line-height:1.6;
+  tab-size:2;
+  resize:none;
+  white-space:pre;
+  overflow:auto;
+}
+.ide-code:focus,.ide-notes:focus{outline:none;box-shadow:inset 0 0 0 1px rgba(255,91,46,.4)}
+.ide-code:disabled,.ide-notes:disabled{cursor:not-allowed;color:rgba(231,245,241,.55)}
+.ide-notes{background:var(--ink-2)}
+.ide-actions{
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border-top:1px solid var(--line);
+  background:var(--paper);
+}
+.ide-hint{font-family:var(--mono);font-size:8px;letter-spacing:.06em;color:var(--faint)}
+
+.ide-console{
+  flex:none;
+  height:min(34%,190px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:var(--card);
+}
+.ide-console header{
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:6px 10px;
+  border-bottom:1px solid var(--line-soft);
+}
+.ide-console-log{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  padding:8px 10px;
+  font-family:var(--mono);
+  font-size:10px;
+  line-height:1.55;
+}
+.ide-console-empty{color:var(--faint)}
+.ide-result{display:flex;gap:8px;padding:2px 0}
+.ide-result b{flex:none;font-weight:500}
+.ide-result.is-pass b{color:var(--teal-ink)}
+.ide-result.is-fail b{color:var(--coral-deep)}
+.ide-result span{color:var(--muted);white-space:pre-wrap}
+.ide-console-line{padding:2px 0;color:var(--muted);white-space:pre-wrap}
+
+@media (max-width:980px){
+  .coding-split{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);overflow:auto}
+  .coding-prompt{max-height:280px}
+  .ide-console{height:150px}
+}
+@media (max-width:640px){
+  .subject-stage-head{padding:0 8px 0 10px;gap:6px;min-height:46px}
+  .subject-head-l b{font-size:12px}
+  .subject-sync{display:none}
+  .coding-split{padding:8px;gap:8px}
+  .coding-prompt{padding:10px;max-height:230px}
+  .ide-lines{width:34px}
+  .ide-code,.ide-lines{font-size:10.5px}
+  .ide-hint{display:none}
+}

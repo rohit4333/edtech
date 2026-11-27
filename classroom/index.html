@@ -14,6 +14,8 @@
 <link rel="stylesheet" href="session.css">
 <link rel="stylesheet" href="agora.css">
 <link rel="stylesheet" href="engagement.css">
+<link rel="stylesheet" href="codingIde.css">
+<link rel="stylesheet" href="englishWorkspace.css">
 <link rel="stylesheet" href="../shared/fullBoard.css">
 </head>
 <body>
@@ -97,6 +99,7 @@
             <span class="board-sub">Lesson 15</span>
           </div>
           <div class="bh-r">
+            <button class="subject-return" id="subjectWorkspaceBtn" type="button" data-subject-view="workspace" hidden>Open workspace</button>
             <button class="trainer-toggle trainer-only" id="trainerLayerBtn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="trainerPanel" title="Trainer-only instructions">
               <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg><span>Trainer Notes</span>
             </button>
@@ -317,6 +320,144 @@
             </div>
             <button class="btn btn-coral btn-sm" id="quizNext" type="button">Next question</button>
           </div>
+        </div>
+      </section>
+
+      <!-- ==================== subject workspace: coding (server-selected) -->
+      <section class="subject-stage coding-stage" id="codingStage" aria-label="Coding workspace" hidden>
+        <header class="subject-stage-head">
+          <div class="subject-head-l">
+            <span class="mono" id="codingModeLabel">Live IDE · coding</span>
+            <b>Coding workspace</b>
+            <span class="subject-chip" id="codingLanguageChip">JavaScript</span>
+          </div>
+          <div class="subject-head-r">
+            <span class="subject-sync" id="ideSyncStatus" role="status" aria-live="polite">IDE not linked yet</span>
+            <button class="btn btn-ghost btn-sm" id="codingPracticeExit" type="button" hidden>Finish practice</button>
+            <button class="btn btn-ghost btn-sm" id="codingBoardBtn" type="button" data-subject-view="board">Whiteboard</button>
+          </div>
+        </header>
+        <div class="coding-split">
+          <aside class="coding-prompt" aria-label="Challenge prompt">
+            <div class="coding-prompt-head">
+              <span class="mono">Challenge</span>
+              <span class="tests-hidden" id="codingTestsHidden">Hidden tests stay with your trainer</span>
+            </div>
+            <h2 id="codingChallengeTitle">No challenge loaded</h2>
+            <p class="coding-prompt-copy" id="codingChallengeText">Challenge not linked yet · run checks any time, or ask your trainer to set one.</p>
+            <pre class="coding-starter" id="codingStarter" hidden></pre>
+            <div class="coding-trainer trainer-only" id="codingTrainerControls">
+              <span class="mono">Trainer controls</span>
+              <form class="coding-challenge-form" id="codingChallengeForm">
+                <label>Challenge title <input type="text" id="codingChallengeTitleInput" maxlength="120" required></label>
+                <label>Prompt <textarea id="codingChallengePromptInput" rows="3" required></textarea></label>
+                <label>Starter code <textarea class="ide-mono" id="codingStarterInput" rows="3"></textarea></label>
+                <label>Hidden tests (JSON array, trainer only) <textarea class="ide-mono" id="codingTestsInput" rows="3" placeholder='[{"name":"returns 3","code":"return 3;"}]'></textarea></label>
+                <button class="btn btn-coral btn-sm" id="codingCreateChallenge" type="submit">Create challenge</button>
+              </form>
+              <div class="coding-control-row">
+                <button class="mini mini-dark" id="ideLockBtn" type="button" aria-pressed="false">Lock editor</button>
+                <button class="mini mini-dark" id="ideHandoverBtn" type="button">Hand over control</button>
+              </div>
+              <p class="coding-control-status" id="ideControlStatus" role="status" aria-live="polite"></p>
+            </div>
+          </aside>
+          <div class="coding-work">
+            <div class="ide-frame">
+              <div class="ide-tabs" role="tablist" aria-label="Editor files">
+                <button class="ide-tab is-on" id="ideTabMain" type="button" role="tab" aria-selected="true" aria-controls="ideMainPanel" data-ide-tab="main.js">main.js</button>
+                <button class="ide-tab" id="ideTabNotes" type="button" role="tab" aria-selected="false" aria-controls="ideNotesPanel" data-ide-tab="notes.txt">notes.txt</button>
+                <span class="ide-lock-note" id="ideLockNote" role="status" aria-live="polite" hidden>Trainer is editing</span>
+              </div>
+              <div class="ide-panels">
+                <div class="ide-panel" id="ideMainPanel" role="tabpanel" aria-labelledby="ideTabMain">
+                  <div class="ide-editor">
+                    <pre class="ide-lines" id="ideLines" aria-hidden="true">1</pre>
+                    <textarea class="ide-code" id="ideCode" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="JavaScript editor" wrap="off"></textarea>
+                  </div>
+                </div>
+                <div class="ide-panel" id="ideNotesPanel" role="tabpanel" aria-labelledby="ideTabNotes" hidden>
+                  <textarea class="ide-notes" id="ideNotes" spellcheck="false" aria-label="Session notes" placeholder="Notes for this practice · kept in this browser"></textarea>
+                </div>
+              </div>
+              <div class="ide-actions">
+                <button class="btn btn-coral btn-sm" id="ideRunBtn" type="button">Run checks</button>
+                <span class="ide-hint">Hidden tests are never shown to students.</span>
+              </div>
+            </div>
+            <section class="ide-console" aria-label="Check output">
+              <header><span class="mono">Console · check output</span><button class="mini" id="ideConsoleClear" type="button">Clear</button></header>
+              <div class="ide-console-log" id="ideConsoleLog" role="log" aria-live="polite">
+                <p class="ide-console-empty">Checks not linked yet · code has not been run.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== subject workspace: english (server-selected) -->
+      <section class="subject-stage english-stage" id="englishStage" aria-label="English communication workspace" hidden>
+        <header class="subject-stage-head">
+          <div class="subject-head-l">
+            <span class="mono">Communication workspace · english</span>
+            <b>Reading, writing &amp; speaking</b>
+            <span class="subject-chip" id="englishRoleChip">Student</span>
+          </div>
+          <div class="subject-head-r">
+            <span class="subject-sync" id="englishSaveStatus" role="status" aria-live="polite">Work not linked yet</span>
+            <button class="btn btn-ghost btn-sm" id="englishBoardBtn" type="button" data-subject-view="board">Whiteboard</button>
+          </div>
+        </header>
+        <div class="english-split">
+          <section class="english-read" aria-label="Reading passage and notes">
+            <header><span class="mono">Reading passage</span><span class="english-strands" id="englishStrands"></span></header>
+            <div class="english-passage" id="englishPassage">
+              <h2>Plan a community garden</h2>
+              <p>A school group wants a garden that uses less tap water. They collect rainwater from the roof in two tanks and use it during dry weeks. Each tank holds 90 litres. The group checks the level every Friday and records how many litres the plants used that week.</p>
+              <p>Before the next term, the group must explain two things to the principal: how the water supply works, and what the group will do if both tanks run low. Read once for the main idea, then read again and mark the details that support your answer.</p>
+            </div>
+            <label class="english-label" for="englishPassageNotes">Annotation notes</label>
+            <textarea class="english-notes" id="englishPassageNotes" rows="4" placeholder="Mark the main idea, then note two supporting details."></textarea>
+            <div class="english-vocab-head">
+              <span class="mono">Vocabulary chips</span>
+              <label class="visually-hidden" for="englishVocabInput">Add a vocabulary word</label>
+              <input type="text" id="englishVocabInput" maxlength="32" placeholder="Add a word">
+              <button class="mini" id="englishVocabAdd" type="button">Add</button>
+            </div>
+            <div class="english-chips" id="englishVocabChips"></div>
+          </section>
+          <section class="english-write" aria-label="Writing editor and revisions">
+            <header>
+              <span class="mono">Writing</span>
+              <button class="mini" id="englishRevisionAdd" type="button">Save revision</button>
+            </header>
+            <textarea class="english-writing" id="englishWriting" spellcheck="true" placeholder="Write a short explanation using the passage as evidence."></textarea>
+            <div class="english-revisions">
+              <span class="mono">Revision list</span>
+              <ol id="englishRevisionList" class="english-revision-list"></ol>
+            </div>
+          </section>
+          <section class="english-speak" aria-label="Speaking practice and trainer feedback">
+            <header>
+              <span class="mono">Speaking &amp; listening</span>
+              <span class="english-timer num" id="englishTimer">01:00</span>
+            </header>
+            <label class="english-label" for="englishSpeakingPrompt">Speaking prompt</label>
+            <textarea id="englishSpeakingPrompt" rows="2">Explain the garden plan in 60 seconds. Name the main idea, give one detail, and end with a question for your listener.</textarea>
+            <div class="english-timer-controls">
+              <button class="mini" id="englishTimerToggle" type="button">Start timer</button>
+              <button class="mini" id="englishTimerReset" type="button">Reset</button>
+            </div>
+            <label class="english-label" for="englishResponse">Response note</label>
+            <textarea id="englishResponse" rows="3" placeholder="Write what you said or heard, then note one thing to improve."></textarea>
+            <button class="mini" id="englishResponseAdd" type="button">Add response</button>
+            <ol id="englishResponseList" class="english-response-list"></ol>
+            <div class="english-trainer trainer-only" id="englishTrainerFeedback">
+              <span class="mono">Trainer feedback</span>
+              <textarea id="englishFeedback" rows="3" placeholder="Reading, writing, speaking, listening or vocabulary feedback."></textarea>
+              <button class="mini mini-dark" id="englishFeedbackSave" type="button">Save feedback</button>
+            </div>
+          </section>
         </div>
       </section>
 
@@ -906,6 +1047,8 @@
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>
+<script src="codingIde.js"></script>
+<script src="englishWorkspace.js"></script>
 <script src="../shared/fullBoard.js"></script>
 </body>
 </html>

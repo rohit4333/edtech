@@ -1,0 +1,174 @@
+/* ==========================================================================
+   MATHIFY — English communication live workspace
+   Reading, writing, public speaking, listening and vocabulary only. No
+   literature or grammar framing, and no student contact/private doc fields.
+   ========================================================================== */
+
+.english-split{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(240px,1.08fr) minmax(220px,1fr) minmax(220px,.94fr);
+  gap:12px;
+  padding:12px;
+}
+.english-read,.english-write,.english-speak{
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:13px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:linear-gradient(180deg,var(--paper) 0%,#FFFDF8 100%);
+}
+.english-read > header,
+.english-write > header,
+.english-speak > header{
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding-bottom:7px;
+  border-bottom:1px solid var(--line-soft);
+}
+.english-strands{
+  max-width:60%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.06em;
+  color:var(--teal-ink);
+}
+.english-passage{
+  flex:none;
+  max-height:38%;
+  overflow:auto;
+  padding:11px 12px;
+  border-left:2px solid var(--coral-deep);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:var(--card);
+  font-size:11.5px;
+  line-height:1.65;
+}
+.english-passage h2{
+  margin-bottom:5px;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:-.01em;
+}
+.english-passage p + p{margin-top:7px}
+.english-label{
+  flex:none;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.english-notes{min-height:82px}
+.english-vocab-head{display:flex;align-items:center;gap:6px}
+.english-vocab-head input{flex:1;min-width:0;height:30px;padding:4px 8px}
+.english-chips{display:flex;flex-wrap:wrap;gap:5px}
+.english-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  height:24px;
+  padding:0 8px;
+  border:1px solid rgba(18,150,140,.28);
+  border-radius:var(--r-full);
+  background:var(--teal-soft);
+  color:var(--teal-ink);
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:.04em;
+}
+.english-chip button{
+  padding:0;
+  color:var(--teal-ink);
+  font-size:12px;
+  line-height:1;
+}
+.english-chip.is-custom{border-color:rgba(255,91,46,.3);background:var(--coral-soft);color:var(--coral-deep)}
+.english-chip.is-custom button{color:var(--coral-deep)}
+
+.english-writing{
+  flex:1;
+  min-height:150px;
+  line-height:1.65;
+}
+.english-revisions{display:flex;flex-direction:column;gap:5px}
+.english-revision-list,.english-response-list{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  max-height:110px;
+  overflow:auto;
+}
+.english-revision-list li,.english-response-list li{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 7px;
+  border:1px solid var(--line-soft);
+  border-radius:var(--r-sm);
+  background:var(--card);
+  font-size:10px;
+  color:var(--muted);
+}
+.english-revision-list b,.english-response-list b{
+  flex:none;
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.06em;
+  color:var(--faint);
+}
+.english-revision-list span,.english-response-list span{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.english-empty{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+
+.english-timer{
+  padding:2px 8px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--coral-soft);
+  color:var(--coral-deep);
+  font-family:var(--mono);
+  font-size:10px;
+}
+.english-timer.is-running{border-color:rgba(18,150,140,.4);background:var(--teal-soft);color:var(--teal-ink)}
+.english-timer-controls{display:flex;gap:6px}
+.english-speak > .mini{align-self:flex-start}
+.english-trainer{
+  margin-top:auto;
+  padding-top:8px;
+  border-top:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.english-trainer textarea{min-height:66px}
+.english-trainer .mini{align-self:flex-start}
+
+@media (max-width:1100px){
+  .english-split{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto;overflow:auto}
+  .english-speak{grid-column:1 / -1}
+  .english-passage{max-height:none}
+  .english-writing{min-height:180px}
+}
+@media (max-width:640px){
+  .english-split{grid-template-columns:minmax(0,1fr);padding:8px;gap:8px}
+  .english-speak{grid-column:auto}
+  .english-read,.english-write,.english-speak{max-height:none;overflow:visible}
+}

@@ -7,6 +7,7 @@
 <meta name="description" content="Trainer console: next session, today's schedule, attendance register, teaching score and student roster.">
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="subjectPanels.css">
 <link rel="stylesheet" href="shell.css">
 <link rel="stylesheet" href="sections.css">
 <link rel="stylesheet" href="details.css">
@@ -250,6 +251,8 @@
         </div>
       </div>
 
+      <div class="subject-summary" id="subjectSummary" hidden aria-label="Subjects today"></div>
+
       <!-- ---------- hero ---------- -->
       <section class="hero" id="next-session" aria-label="Next session and today's schedule">
 
@@ -265,7 +268,8 @@
             <p class="next-meta" id="nextMeta">
               1:1 · Ishaan Verma
               <span class="dot-sep" aria-hidden="true"></span>
-              Mathematics · Ratios
+              <span class="subject-tag subject-math" id="nextSubjectTag" data-subject="math">Mathematics</span>
+              <span class="next-course-note"> · Ratios</span>
             </p>
             <div class="plan-chips" id="planChips" aria-label="Session plan">
               <span>Warm-up 8 min</span>
@@ -278,6 +282,8 @@
           <div class="next-foot">
             <button class="btn btn-coral" id="startClass">Start class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
             <button class="btn btn-light" data-ask="Review my plan for Fractions, decimals &amp; percentages.">Open planner</button>
+            <a class="btn btn-light subject-workspace-link" id="codingWorkspaceLink" href="../classroom/index.html" hidden>Coding workspace <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a>
+            <span class="english-indicators" id="englishIndicators" hidden aria-label="Reading, writing and speaking"><span>Reading</span><span>Writing</span><span>Speaking</span></span>
             <span class="next-note">Room opens 10 min before</span>
           </div>
         </article>
@@ -290,17 +296,17 @@
           <ul class="timeline" id="timeline">
             <li class="slot done">
               <span class="slot-time num">09:00</span>
-              <span class="slot-body"><b>Algebra · Lesson 14</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-body"><b>Algebra · Lesson 14</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
               <span class="slot-state s-done">Done</span>
             </li>
             <li class="slot is-next">
               <span class="slot-time num">16:30</span>
-              <span class="slot-body"><b>Ratios · Lesson 15</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-body"><b>Ratios · Lesson 15</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
               <span class="slot-state s-next">Next</span>
             </li>
             <li class="slot later">
               <span class="slot-time num">19:00</span>
-              <span class="slot-body"><b>Geometry · Lesson 16</b><span>1:1 · Ishaan Verma</span></span>
+              <span class="slot-body"><b>Geometry · Lesson 16</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
               <span class="slot-state s-later">Later</span>
             </li>
           </ul>
@@ -871,6 +877,7 @@
 <script src="../shared/demoStatus.js" defer></script>
 <link rel="stylesheet" href="../shared/demo-status.css">
 <script src="api.js?v=20261126" defer></script>
+<script src="subjectPanels.js" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="schedule.js" defer></script>
 <script src="app.js" defer></script>

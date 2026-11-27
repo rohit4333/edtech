@@ -24,10 +24,11 @@
     'Exam style set'
   ];
 
-  function seedCourse(id, code, title, blurb, status, level, modules, assets, progress, edited) {
+  function seedCourse(id, code, title, blurb, status, level, modules, assets, progress, edited, subject) {
     return {
       id: id, code: code, title: title, blurb: blurb, status: status, level: level,
-      modules: modules, assets: assets, progress: progress, edited: edited, custom: false
+      modules: modules, assets: assets, progress: progress, edited: edited,
+      subject: subject || 'math', custom: false
     };
   }
 
@@ -49,7 +50,13 @@
       'published', 'Class 6–8', 6, 30, 100, '18 Nov 2026'),
     seedCourse('word-problems', 'MTH-606', 'Word Problem Lab',
       'Turning language into equations, then checking whether the answer makes sense.',
-      'draft', 'Class 6–7', 6, 36, 12, '17 Nov 2026')
+      'draft', 'Class 6–7', 6, 36, 12, '17 Nov 2026'),
+    seedCourse('coding-foundations', 'COD-701', 'Unplugged Coding Foundations',
+      'Sequencing, simple choices and debugging through step cards and screen-free logic games.',
+      'progress', 'Class 6–7', 7, 28, 42, '26 Nov 2026', 'coding'),
+    seedCourse('english-communication', 'ENG-801', 'English Communication Foundations',
+      'Reading, writing, public speaking, listening and vocabulary for everyday school tasks.',
+      'progress', 'Class 6–7', 6, 24, 36, '26 Nov 2026', 'english')
   ];
 
   var STATUS_LABEL = {
@@ -72,6 +79,82 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
+
+  function gate() { return window.MathifyLmsAccess || null; }
+
+  function denied() {
+    var access = gate();
+    return Boolean(access && access.isDenied && access.isDenied());
+  }
+
+  function normalizeSubject(value) {
+    var client = window.mathifyLmsApi;
+    if (client && client.safeSubject) return client.safeSubject(value);
+    var access = gate();
+    if (access && access.normalize) return access.normalize(value) || 'math';
+    return value === 'coding' || value === 'english' ? value : 'math';
+  }
+
+  function currentSubject() {
+    var select = $('autoSubject');
+    return normalizeSubject(select && select.value ? select.value : 'math');
+  }
+
+  /* The whole library is scoped to the signed-in field. Founder keeps all
+     three; a trainer only ever sees their own courses. A legacy custom course
+     without a subject stays in the math view. */
+  function courseAllowed(course) {
+    var access = gate();
+    if (!access) return true;
+    if (access.isDenied()) return false;
+    var subject = access.normalize
+      ? access.normalize(course && course.subject) || 'math'
+      : (course && course.subject) || 'math';
+    if (access.role && access.role() === 'trainer') return subject === access.subject();
+    return true;
+  }
+
+  function scopedCourses() {
+    return courses.filter(courseAllowed);
+  }
+
+  var SUBJECT_LABEL = { math: 'Mathematics', coding: 'Coding', english: 'English Communication' };
+  var SUBJECT_PREFIX = { math: 'MTH-', coding: 'COD-', english: 'ENG-' };
+  var SUBJECT_TOPICS = {
+    math: ['Mathematics', 'Geometry', 'Mastery'],
+    coding: ['Coding'],
+    english: ['English Communication']
+  };
+
+  function applyNewCourseDefaults() {
+    var select = $('newTopic');
+    if (!select) return;
+    var subject = currentSubject();
+    var keep = SUBJECT_TOPICS[subject] || SUBJECT_TOPICS.math;
+    Array.prototype.forEach.call(select.options, function (option) {
+      var visible = keep.indexOf(option.value) !== -1;
+      option.hidden = !visible;
+      option.disabled = !visible;
+    });
+    select.value = SUBJECT_LABEL[subject] || 'Mathematics';
+    var name = $('newName');
+    if (name) {
+      name.placeholder = subject === 'coding' ? 'e.g. Step-by-step puzzles'
+        : subject === 'english' ? 'e.g. Say it clearly'
+          : 'e.g. Ratio word problems';
+    }
+  }
+
+  function refreshForSubject() {
+    applyNewCourseDefaults();
+    var selected = findCourse(state.selectedId);
+    if (!selected || !courseAllowed(selected)) {
+      state.selectedId = (scopedCourses()[0] || {}).id || state.selectedId;
+    }
+    renderCourses();
+    renderDetail();
+    renderHealth();
+  }
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -124,6 +207,7 @@
   }
 
   function matches(course) {
+    if (!courseAllowed(course)) return false;
     if (state.filter !== 'all' && course.status !== state.filter) return false;
     var query = state.query.trim().toLowerCase();
     if (!query) return true;
@@ -132,7 +216,7 @@
   }
 
   function visibleCourses() {
-    var list = courses.filter(matches);
+    var list = scopedCourses().filter(matches);
     var direction = state.sort === 'title' || state.sort === 'level' ? 1 : -1;
     return list.sort(function (a, b) {
       var left = state.sort === 'title' ? a.title : state.sort === 'level' ? a.level : a.edited;
@@ -163,12 +247,13 @@
   }
 
   function updateCounts() {
+    var pool = scopedCourses();
     ['all', 'progress', 'review', 'published', 'draft'].forEach(function (key) {
       var button = document.querySelector('[data-filter="' + key + '"]');
       if (!button) return;
       var count = key === 'all'
-        ? courses.length
-        : courses.filter(function (course) { return course.status === key; }).length;
+        ? pool.length
+        : pool.filter(function (course) { return course.status === key; }).length;
       var badge = button.querySelector('span');
       if (badge) badge.textContent = pad(count);
     });
@@ -177,10 +262,11 @@
   }
 
   function renderHealth() {
-    var assets = courses.reduce(function (sum, course) { return sum + Number(course.assets || 0); }, 0);
-    var modules = courses.reduce(function (sum, course) { return sum + Number(course.modules || 0); }, 0);
-    var reviewCount = courses.filter(function (course) { return course.status === 'review'; }).length;
-    var total = courses.length || 1;
+    var pool = scopedCourses();
+    var assets = pool.reduce(function (sum, course) { return sum + Number(course.assets || 0); }, 0);
+    var modules = pool.reduce(function (sum, course) { return sum + Number(course.modules || 0); }, 0);
+    var reviewCount = pool.filter(function (course) { return course.status === 'review'; }).length;
+    var total = pool.length || 1;
     var ready = Math.round((1 - reviewCount / total) * 100);
     var big = document.querySelector('#libraryHealth .health-big b');
     var caption = document.querySelector('#libraryHealth .health-card p, #libraryHealth p');
@@ -188,7 +274,7 @@
     var cap = document.querySelector('#libraryHealth .health-cap');
     var navCount = document.querySelector('[data-filter-jump="review"] .nav-count');
     if (big) big.textContent = assets;
-    if (caption) caption.textContent = 'Across ' + courses.length + ' courses and ' + modules +
+    if (caption) caption.textContent = 'Across ' + pool.length + ' courses and ' + modules +
       ' modules. ' + reviewCount + ' course' + (reviewCount === 1 ? '' : 's') + ' need a second look.';
     if (bar) bar.style.width = ready + '%';
     if (cap) cap.textContent = ready + '% publish-ready';
@@ -197,7 +283,7 @@
     var headModules = $('headModules');
     var headAssets = $('headAssets');
     var headReview = $('headReview');
-    if (headCourses) headCourses.textContent = courses.length + ' course' + (courses.length === 1 ? '' : 's');
+    if (headCourses) headCourses.textContent = pool.length + ' course' + (pool.length === 1 ? '' : 's');
     if (headModules) headModules.textContent = modules + ' modules';
     if (headAssets) headAssets.textContent = assets + ' typed assets';
     if (headReview) headReview.textContent = reviewCount + ' need review';
@@ -489,7 +575,8 @@
     var target = $('detailContent');
     if (!target) return;
     target.innerHTML = '';
-    var course = findCourse(state.selectedId) || courses[0];
+    var selected = findCourse(state.selectedId);
+    var course = selected && courseAllowed(selected) ? selected : scopedCourses()[0];
     if (course) target.appendChild(buildDetail(course, false));
     var label = $('contextLabel');
     if (label && course) label.textContent = course.title;
@@ -521,6 +608,7 @@
         window.mathifyPlanner.render();
       }
     }
+    if (name === 'new') applyNewCourseDefaults();
     if (name === 'course' && course) {
       var target = $('sheetDetailContent');
       if (target) {
@@ -566,7 +654,7 @@
     target.innerHTML = '';
     var query = ($('searchInput') || {}).value || '';
     var needle = query.trim().toLowerCase();
-    var rows = courses.filter(function (course) {
+    var rows = scopedCourses().filter(function (course) {
       return !needle || (course.title + ' ' + course.blurb + ' ' + course.code)
         .toLowerCase().indexOf(needle) !== -1;
     }).slice(0, 8);
@@ -600,14 +688,15 @@
     event.preventDefault();
     var name = ($('newName') || {}).value || '';
     var level = ($('newLevel') || {}).value || 'Class 6';
-    var topic = ($('newTopic') || {}).value || 'Mathematics';
+    var subject = currentSubject();
+    var topic = ($('newTopic') || {}).value || SUBJECT_LABEL[subject] || 'Mathematics';
     var title = name.trim();
     if (!title) return;
 
     var number = courses.length + 1;
     var course = {
       id: 'custom-' + Date.now(),
-      code: 'MTH-' + (600 + number),
+      code: (SUBJECT_PREFIX[subject] || 'MTH-') + (600 + number),
       title: title,
       blurb: 'A new ' + topic.toLowerCase() + ' course for ' + level + '. Add your first typed asset to begin.',
       status: 'draft',
@@ -616,12 +705,14 @@
       assets: 0,
       progress: 0,
       edited: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      subject: subject,
       custom: true
     };
     courses.unshift(course);
     persistCustom();
     var form = $('newCourseForm');
     if (form) form.reset();
+    applyNewCourseDefaults();
     closeSheet();
     state.filter = 'all';
     state.query = '';
@@ -727,6 +818,10 @@
       });
     }
 
+    var subjectSelect = $('autoSubject');
+    if (subjectSelect) subjectSelect.addEventListener('change', refreshForSubject);
+    document.addEventListener('mathify:subjectchange', refreshForSubject);
+
     var newCourse = $('newCourseBtn');
     if (newCourse) newCourse.addEventListener('click', function () { openSheet('new'); });
     var plannerButton = $('plannerBtn');
@@ -809,8 +904,21 @@
     });
   }
 
+  if (gate() && gate().detect) gate().detect();
+  if (denied()) {
+    var panel = $('lmsDenied');
+    document.body.classList.add('lms-denied');
+    if (panel) panel.hidden = false;
+    return;
+  }
+
   loadCustom();
   bind();
+  var selected = findCourse(state.selectedId);
+  if (!selected || !courseAllowed(selected)) {
+    state.selectedId = (scopedCourses()[0] || {}).id || state.selectedId;
+  }
+  applyNewCourseDefaults();
   renderCourses();
   renderDetail();
   renderHealth();

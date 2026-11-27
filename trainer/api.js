@@ -184,6 +184,11 @@
         method: 'POST',
         body: { question: question }
       });
+    },
+    /* Optional until the session-state endpoint ships; callers handle errors. */
+    getSessionState: function (sessionId) {
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/state')
+        .then(function (data) { return data && data.state ? data.state : data; });
     }
   };
 })();

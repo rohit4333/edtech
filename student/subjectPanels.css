@@ -1,0 +1,236 @@
+/* Mathify student desk — subject-aware panels only.
+   Every selector here is scoped to new subject/coding/english classes so the
+   existing mathematics panels keep their original styling. */
+[hidden]{display:none !important}
+
+.subject-strip{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:14px;
+}
+.subject-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:6px 12px;
+  border:1px solid var(--ink);
+  border-radius:var(--r-full);
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--mono);
+  font-size:9.5px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.subject-badge::before{
+  content:"";
+  width:5px;height:5px;
+  border-radius:50%;
+  background:var(--coral);
+}
+.subject-workspace{
+  padding:6px 11px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--card);
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.subject-strands{display:flex;flex-wrap:wrap;gap:6px}
+.subject-strand{
+  padding:5px 9px;
+  border:1px solid var(--line-soft);
+  border-radius:var(--r-full);
+  background:var(--cream);
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.subject-strip[data-subject="coding"] .subject-badge::before{background:var(--teal)}
+.subject-strip[data-subject="english"] .subject-badge::before{background:var(--amber)}
+
+/* ---------- panel host ---------- */
+.subject-panel-host{margin-top:34px}
+.subject-panel{
+  padding:22px 24px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  box-shadow:var(--shadow-raise);
+}
+.subject-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.subject-panel-titles .mono{font-size:8.5px;letter-spacing:.16em;color:var(--coral-deep)}
+.subject-panel h3{
+  margin-top:5px;
+  font-size:17px;
+  font-weight:500;
+  letter-spacing:-.015em;
+}
+.subject-panel-note{
+  margin-top:5px;
+  max-width:62ch;
+  font-size:11.5px;
+  line-height:1.5;
+  color:var(--muted);
+}
+.subject-room-link{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.ide-indicator{
+  display:inline-grid;
+  place-items:center;
+  min-width:22px;
+  height:18px;
+  padding:0 4px;
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  background:var(--cream);
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0;
+  color:var(--teal-ink);
+}
+
+/* ---------- coding practice ---------- */
+.code-workspace{
+  margin-top:18px;
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  overflow:hidden;
+  background:#141B28;
+}
+.code-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 12px;
+  background:#1F2939;
+  color:rgba(253,250,243,.72);
+}
+.code-toolbar .mono{font-size:8.5px;letter-spacing:.14em;color:rgba(253,250,243,.72)}
+.code-editor{
+  display:block;
+  width:100%;
+  min-height:190px;
+  padding:14px 16px;
+  border:0;
+  resize:vertical;
+  outline:none;
+  background:transparent;
+  color:#F8F5EE;
+  font-family:var(--mono);
+  font-size:12px;
+  line-height:1.6;
+  tab-size:2;
+}
+.code-editor::placeholder{color:rgba(253,250,243,.38)}
+.code-editor:focus{box-shadow:inset 0 0 0 2px rgba(255,91,46,.42)}
+.code-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border-top:1px solid rgba(253,250,243,.12);
+  background:#1F2939;
+}
+.code-hint{font-size:11px;color:rgba(253,250,243,.6)}
+.code-output{
+  min-height:72px;
+  max-height:220px;
+  margin:0;
+  overflow:auto;
+  padding:12px 16px;
+  border-top:1px solid rgba(253,250,243,.12);
+  background:#0E1420;
+  color:rgba(253,250,243,.86);
+  font-family:var(--mono);
+  font-size:11px;
+  line-height:1.55;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+/* ---------- communication practice ---------- */
+.english-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:18px;
+  margin-top:18px;
+}
+.english-grid .mono{font-size:8.5px;letter-spacing:.16em;color:var(--coral-deep)}
+.english-grid h4{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:-.005em;
+}
+.english-reading,.english-writing{
+  min-width:0;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  background:var(--paper);
+}
+.english-passage{
+  margin-top:9px;
+  max-height:240px;
+  overflow:auto;
+  font-size:12px;
+  line-height:1.65;
+  color:var(--ink);
+}
+.english-editor{
+  display:block;
+  width:100%;
+  margin-top:9px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  background:var(--card);
+  font:inherit;
+  font-size:12px;
+  line-height:1.6;
+  color:var(--ink);
+  resize:vertical;
+}
+.english-editor:focus{outline:none;border-color:rgba(14,20,32,.34)}
+.english-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.english-status{font-size:10.5px;line-height:1.4;color:var(--muted)}
+.english-vocab-wrap,.english-speaking{margin-top:16px}
+.english-vocab-wrap .mono,.english-speaking .mono{font-size:8.5px;letter-spacing:.16em;color:var(--faint)}
+.vocab-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.vocab-chip{
+  padding:5px 10px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--teal-soft);
+  font-size:11px;
+  color:var(--teal-ink);
+  transition:border-color .18s ease;
+}
+.vocab-chip:hover{border-color:var(--teal-ink)}
+.english-speaking p{
+  margin-top:7px;
+  font-size:12px;
+  line-height:1.55;
+  color:var(--ink);
+}
+
+@media (max-width:720px){
+  .english-grid{grid-template-columns:1fr}
+  .subject-panel{padding:18px 16px}
+  .subject-room-link{width:100%;justify-content:center}
+}

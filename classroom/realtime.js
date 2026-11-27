@@ -12,6 +12,24 @@
   'use strict';
 
   var link = null;
+  var ideSubscribers = [];
+
+  /* IDE ownership events are small, key-free and idempotent. Both the polling
+     event stream and the Supabase broadcast feed these subscribers; version
+     checks in the IDE module absorb any duplicate delivery. */
+  function emitIdeState(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    ideSubscribers.slice().forEach(function (callback) { callback(payload); });
+  }
+
+  function onIdeState(callback) {
+    if (typeof callback !== 'function') return function () {};
+    ideSubscribers.push(callback);
+    return function () {
+      var index = ideSubscribers.indexOf(callback);
+      if (index >= 0) ideSubscribers.splice(index, 1);
+    };
+  }
 
   function isUuid(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -33,6 +51,7 @@
           (events || []).forEach(function (event) {
             if (!event || typeof event.seq !== 'number' || event.seq <= since) return;
             since = event.seq;
+            if (event.event === 'ide.state.updated') emitIdeState(event.payload || {});
             if (options && options.onEvent) options.onEvent(event);
           });
         })
@@ -113,6 +132,9 @@
           if (options.onStroke) options.onStroke(payload.new);
         }
       );
+      channel.on('broadcast', { event: 'ide.state.updated' }, function (payload) {
+        emitIdeState(payload && payload.payload ? payload.payload : payload);
+      });
       channel.subscribe(function (status) {
         if (status === 'SUBSCRIBED' && options.onStatus) options.onStatus('live');
       });
@@ -145,5 +167,10 @@
     }
   }
 
-  window.classroomRealtime = { connect: connect, isUuid: isUuid };
+  window.classroomRealtime = {
+    connect: connect,
+    isUuid: isUuid,
+    onIdeState: onIdeState,
+    emitIdeState: emitIdeState
+  };
 })();

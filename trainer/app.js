@@ -1107,8 +1107,12 @@
     activeSessionStartedAt = session.startsAt || session.scheduledAt || null;
     setText('#nextTime', fmtTime(session.startsAt) + ' · live 1:1');
     setText('#nextTopic', session.title);
-    setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
-      ' · ' + (session.code || 'Session') + ' · link active for 50 min');
+    if (window.MathifySubjects && typeof window.MathifySubjects.setNextMeta === 'function') {
+      window.MathifySubjects.setNextMeta(session, dashboardSnapshot && dashboardSnapshot.trainer);
+    } else {
+      setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
+        ' · ' + (session.code || 'Session') + ' · link active for 50 min');
+    }
     renderPlan(session);
     setText('#countdownLabel', session.status === 'live' ? 'session' : 'starts in');
     setText('#countdown', session.status === 'live' ? 'LIVE NOW' : 'SOON');
@@ -1163,6 +1167,9 @@
     if (!rolloverTimer) rolloverTimer = window.setInterval(checkActiveLinkRollover, 1000);
 
     renderTimeline(dashboard.today);
+    if (window.MathifySubjects && typeof window.MathifySubjects.decorateTrainer === 'function') {
+      window.MathifySubjects.decorateTrainer(dashboard);
+    }
     renderMetrics(dashboard, score, payout);
     renderPayoutTrend(payout);
     renderAttention((attention && attention.items) || dashboard.attention);

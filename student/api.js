@@ -145,6 +145,24 @@
         method: 'POST',
         body: { questionId: questionId, optionIndex: optionIndex }
       });
+    },
+    /* Subject endpoints are optional until the server ships them. Callers wrap
+       these in try/catch and show a "not linked yet" state on failure. */
+    getSessionState: function (sessionId) {
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/state')
+        .then(function (data) { return data && data.state ? data.state : data; });
+    },
+    checkCode: function (body) {
+      return request('/code/check', { method: 'POST', body: body });
+    },
+    getEnglishWork: function (sessionId) {
+      return request('/english/work?sessionId=' + encodeURIComponent(sessionId));
+    },
+    saveEnglishWork: function (sessionId, draft) {
+      return request('/english/work?sessionId=' + encodeURIComponent(sessionId), {
+        method: 'POST',
+        body: { sessionId: sessionId, draft: draft }
+      });
     }
   };
 })();

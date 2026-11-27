@@ -9,6 +9,7 @@ const announcementService = require('../services/announcementService');
 const founderAdmin = require('../services/founderAdminService');
 const adminAudit = require('../services/adminAuditService');
 const demoService = require('../services/demoService');
+const subjectCatalog = require('../services/subjectCatalog');
 
 const router = express.Router();
 
@@ -78,6 +79,34 @@ router.get(
   founderRole,
   function (req, res) {
     return res.json(founderSettings.view());
+  }
+);
+
+/* Founder-only field assignment. A trainer sees only this subject in LMS and
+   in AI prompts; RM cannot reach the route at all. */
+router.put(
+  '/trainers/:trainerId/subject',
+  auth.requireAuth,
+  founderRole,
+  function (req, res) {
+    const trainer = db.findUserById(req.params.trainerId);
+    if (!trainer || trainer.role !== 'trainer') {
+      return res.status(404).json({ error: 'TRAINER_NOT_FOUND', message: 'Unknown trainer.' });
+    }
+    const subject = subjectCatalog.normalize((req.body || {}).subject);
+    const updated = db.updateUser(trainer.id, function (current) {
+      return Object.assign({}, current, {
+        subject: subject,
+        subjectUpdatedAt: new Date().toISOString(),
+        subjectUpdatedBy: req.user.id
+      });
+    });
+    audit(req, 'assign_trainer_field', 'trainer', trainer.id, trainer.name,
+      subjectCatalog.subjectLabel(subject));
+    return res.json({
+      trainer: { id: trainer.id, name: updated.name, role: 'trainer' },
+      subject: subjectCatalog.publicView(subject)
+    });
   }
 );
 

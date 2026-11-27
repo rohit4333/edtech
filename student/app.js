@@ -704,10 +704,26 @@
     });
   }
 
+  /* Subject is server-owned. An optional session-state call only enriches the
+     panel; its failure must never block the desk or claim a linked class. */
+  function hydrateSubject(dashboard) {
+    if (!window.MathifySubjects || typeof window.MathifySubjects.mountStudent !== 'function') return;
+    window.MathifySubjects.mountStudent(dashboard);
+    var next = dashboard && dashboard.nextSession;
+    var sessionId = next && (next.id || next.sessionId);
+    if (!sessionId || !api || typeof api.getSessionState !== 'function') return;
+    try {
+      api.getSessionState(sessionId).then(function (state) {
+        window.MathifySubjects.mountStudent(dashboard, state);
+      }).catch(function () { /* optional state is not linked yet */ });
+    } catch (error) { /* keep the server-owned dashboard fallback */ }
+  }
+
   if (api && typeof api.request === 'function') {
     api.request('/student/dashboard').then(function (data) {
       renderWallet(data && data.dashboard);
       renderTrophies(data && data.dashboard);
+      hydrateSubject(data && data.dashboard);
       var profileName = document.getElementById('profileName');
       var student = data && data.dashboard && data.dashboard.student;
       if (profileName && student && student.name) profileName.textContent = student.name;

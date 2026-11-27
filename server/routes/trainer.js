@@ -16,6 +16,8 @@ const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
 const chatAssistant = require('../services/chatAssistantService');
 const curriculumRepository = require('../db/curriculum');
+const subjectService = require('../services/subjectService');
+const subjectCatalog = require('../services/subjectCatalog');
 const sessionParty = require('../services/sessionPartyService');
 const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
@@ -379,7 +381,21 @@ router.post('/sessions', async function (req, res) {
     ? (body.trainer_id || body.trainerId || req.user.id)
     : req.user.id;
   const studentId = body.student_id || body.studentId;
-  const title = body.title || '1-on-1 maths session';
+  let subject = subjectCatalog.normalize(body.subject || req.user.subject);
+  if (req.user.role === 'founder' && !body.subject) {
+    const student = await db.findUserById(studentId);
+    subject = subjectCatalog.normalize(student && student.subject);
+  }
+  if (req.user.role === 'trainer' &&
+      subject !== subjectCatalog.normalize(req.user.subject)) {
+    return res.status(403).json({
+      error: 'FORBIDDEN_SUBJECT',
+      message: 'You can schedule sessions only in your own field.'
+    });
+  }
+  const subjectWord = subject === 'math'
+    ? 'maths' : subject === 'coding' ? 'coding' : 'English';
+  const title = body.title || '1-on-1 ' + subjectWord + ' session';
 
   const parties = sessionParty.validate(trainerId, studentId);
   if (parties.error) {
@@ -391,6 +407,7 @@ router.post('/sessions', async function (req, res) {
       trainerId: trainerId,
       studentId: studentId,
       title: title,
+      subject: subject,
       status: 'scheduled'
     });
     return res.status(201).json({
@@ -913,6 +930,36 @@ router.put('/students/:studentId/curriculum', async function (req, res, next) {
   }
 });
 
+/* A trainer may enrol a rostered child only in their own field. Founder can
+   assign any subject. This is academic metadata, never a role or policy flag. */
+router.put('/students/:studentId/subject', async function (req, res, next) {
+  try {
+    const requested = subjectCatalog.normalize((req.body || {}).subject);
+    if (req.user.role === 'trainer' &&
+        subjectCatalog.normalize(req.user.subject) !== requested) {
+      return res.status(403).json({
+        error: 'FORBIDDEN_SUBJECT',
+        message: 'You can assign students only in your own field.'
+      });
+    }
+    const student = await db.findUserById(req.params.studentId);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({ error: 'STUDENT_NOT_FOUND', message: 'Unknown student.' });
+    }
+    const sessions = await db.listSessionsForUser(req.user);
+    const assigned = sessions.some(function (session) {
+      return session.studentId === student.id;
+    });
+    if (!assigned && req.user.role !== 'founder') {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Student is not on your roster.' });
+    }
+    const result = await subjectService.setForStudent(student.id, requested, req.user.id);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 /* Cloudflare-backed planner copilot. Academic context comes from an assigned
    session only; contact details never enter the prompt. */
 router.post('/copilot/query', async function (req, res, next) {
@@ -943,7 +990,10 @@ router.post('/copilot/query', async function (req, res, next) {
 
     const result = await chatAssistant.reply('trainer', body.question, {
       studentId: studentId,
-      sessionId: body.sessionId || null
+      sessionId: body.sessionId || null,
+      /* A trainer's own field is authoritative. Founder may use any field. */
+      subject: req.user.role === 'trainer' ? req.user.subject : undefined,
+      actor: req.user
     });
     return res.json({ reply: result.reply, source: result.source });
   } catch (error) {

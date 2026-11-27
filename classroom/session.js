@@ -1018,8 +1018,34 @@
     toast('Quiz complete · responses saved.');
   }
 
+  /* Subject-specific practice stays inside the shared quiz launcher. Coding
+     uses the IDE/check endpoints; English uses reading/listening/vocabulary
+     prompts. Mathematics keeps the existing static bank as its fallback. */
+  function subjectQuizPreflight() {
+    var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
+    if (!info || info.subject === 'math') return true;
+    if (info.subject === 'coding') {
+      if (window.classroomCoding && typeof window.classroomCoding.launchQuizChallenge === 'function') {
+        window.classroomCoding.launchQuizChallenge();
+      }
+      return false;
+    }
+    if (info.subject === 'english' && window.classroomEnglish &&
+        typeof window.classroomEnglish.prepareQuizBank === 'function') {
+      var bank = window.classroomEnglish.prepareQuizBank();
+      if (Array.isArray(bank) && bank.length) {
+        questions = bank;
+        baseQuestions = bank.map(function (question) {
+          return Object.assign({}, question, { options: question.options.slice() });
+        });
+      }
+    }
+    return true;
+  }
+
   function launchQuiz() {
-    if (!quizStage || document.body.classList.contains('quiz-live')) return;
+    if (!quizStage || document.body.classList.contains('quiz-live')) return false;
+    if (!subjectQuizPreflight()) return false;
     setNotes(false);
     closeSheet();
     initRealtime();
@@ -1051,6 +1077,7 @@
     toast(studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.');
     var first = $('button', quizOptions);
     if (first) setTimeout(function () { first.focus(); }, 30);
+    return true;
   }
 
   function exitQuiz() {
@@ -1741,7 +1768,7 @@
   } else if (quizQA) {
     quizReady.then(function () {
       setTimeout(function () {
-        launchQuiz();
+        if (!launchQuiz()) return;
         var first = $('button[data-opt="0"]', quizOptions) || $('button', quizOptions);
 
         if (quizQA !== 'reteach' && quizQA !== 'recheck' && first) {
@@ -1801,6 +1828,7 @@
 
   /* Expose quiz controls for QA and future real-time wiring. */
   api.openQuiz = launchQuiz;
+  api.isTrainer = function () { return isTrainer; };
   api.sendPresence = sendPresence;
   api.closeQuiz = exitQuiz;
   api.renderInstructions = renderInstructions;

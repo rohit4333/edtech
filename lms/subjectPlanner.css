@@ -1,0 +1,38 @@
+/* Subject framing inside the generated planner preview. Text only. */
+.wp-subject-focus{
+  margin-top:12px;padding:12px 14px;border:1px solid var(--line);
+  border-left:3px solid var(--coral);border-radius:var(--r-sm);background:#FCF9F3
+}
+.wp-subject-kicker{
+  display:block;font:500 9px var(--mono);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--coral-deep)
+}
+.wp-subject-focus h3{margin:5px 0 4px;font:600 13px var(--sans);color:var(--ink)}
+.wp-subject-focus p{margin:0;font:400 11px/1.55 var(--sans);color:var(--muted)}
+.wp-subject-strands{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.wp-subject-strand{
+  padding:3px 7px;border:1px solid var(--line);border-radius:999px;
+  background:var(--paper);font:500 9px var(--mono);color:var(--muted)
+}
+.wp-subject-cards{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.wp-subject-card{
+  padding:5px 8px;border:1px dashed var(--line);border-radius:var(--r-xs);
+  background:var(--paper);font:500 10px var(--sans);color:var(--ink)
+}
+
+/* RM gate: the rail, brand, footer and policy links stay exactly as they are. */
+.lms-denied{
+  margin:0 0 18px;padding:20px;border:1px solid var(--line);
+  border-left:3px solid var(--coral);border-radius:var(--r-sm);background:var(--paper)
+}
+.lms-denied h2{margin:0 0 8px;font:600 18px var(--sans);color:var(--ink)}
+.lms-denied p{margin:0;font:400 12px/1.6 var(--sans);color:var(--muted)}
+body.lms-denied .page-head,
+body.lms-denied .library-toolbar,
+body.lms-denied .library-layout,
+body.lms-denied .sheet-layer{display:none !important}
+
+@media print{
+  .wp-subject-focus{border-left-color:var(--line);background:none}
+  .wp-subject-cards{display:none}
+}

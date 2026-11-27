@@ -11,10 +11,13 @@ const db = require('../db');
 const curriculumRepository = require('../db/curriculum');
 const cloudflareAiService = require('./cloudflareAiService');
 const curriculumContext = require('./curriculumContext');
+const subjects = require('./subjectCatalog');
+const subjectService = require('./subjectService');
+const subjectPrompts = require('./subjectPromptService');
 
 const MAX_QUESTION_CHARS = 600;
 const MAX_REPLY_CHARS = 900;
-const ACADEMIC_KEYS = ['curriculum', 'board', 'grade', 'language', 'schoolChapter', 'school_chapter'];
+const ACADEMIC_KEYS = ['subject', 'curriculum', 'board', 'grade', 'language', 'schoolChapter', 'school_chapter'];
 /* Input-side DLP. The model must never receive a session id, a name, contact
    detail, answer key, hint or trainer-only note — even if a browser supplies
    it inside the free-text question. */
@@ -142,11 +145,23 @@ async function reply(role, question, options) {
   }
 
   const trainer = role === 'trainer';
+  const subjectView = settings.subject
+    ? subjects.publicView(settings.subject)
+    : settings.studentId
+      ? await subjectService.forStudent(settings.studentId)
+      : subjects.publicView(settings.student && settings.student.subject);
+  /* A trainer can never switch field through an AI prompt. Founder override is
+     handled by the caller, which passes founder as the actor. */
+  const subject = subjectPrompts.assertAllowed(settings.actor, subjectView.subject);
   const profile = await academicStudent(settings.student, settings.studentId);
+  profile.subject = subjects.subjectLabel(subject);
   const curriculum = curriculumContext.getCurriculumContext(profile);
-  const system = trainer ? TRAINER_SYSTEM : STUDENT_SYSTEM + '\n' + curriculum.promptInjection;
+  const system = subjectPrompts.systemFor(
+    role, subject, trainer ? '' : curriculum.promptInjection
+  );
   const userPrompt = JSON.stringify({
     question: questionEnvelope(text),
+    subject: subjects.subjectLabel(subject),
     curriculum: curriculum.curriculum,
     grade: curriculum.grade || null,
     chapter: curriculum.currentTopic,

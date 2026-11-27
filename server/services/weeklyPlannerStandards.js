@@ -1,12 +1,16 @@
-/* Approved strand codes for the auto-generated early-years planner.
+/* Approved strand codes for the auto-generated weekly planner.
  *
  * The model may only use entries from this registry. Where a framework
  * publishes a code (for example CCSS), the exact published identifier is used.
  * Elsewhere the official strand name itself is the code: Mathify never invents
  * a framework code or accepts a code the catalogue has not approved.
+ *
+ * The math registry is unchanged. Coding and English have their own strand
+ * names so a planner for one subject cannot borrow another subject's codes.
  */
 
 const catalog = require('./curriculumCatalog');
+const subjects = require('./subjectCatalog');
 
 const GLOBAL_STRANDS = [
   { code: 'Number sense and counting', label: 'Number sense and counting', strand: 'Number' },
@@ -85,17 +89,60 @@ const FAMILY_STRANDS = {
   local: GLOBAL_STRANDS
 };
 
-function allowedStandards(curriculumSlug, gradeSlug) {
-  const item = catalog.findCurriculum(curriculumSlug);
-  const family = item ? item.family : 'local';
-  const familyList = FAMILY_STRANDS[family] || GLOBAL_STRANDS;
-  const grade = gradeSlug ? catalog.findGrade(curriculumSlug, gradeSlug) : null;
-  const output = familyList.concat(GLOBAL_STRANDS).map(function (entry) {
+const SUBJECT_STRANDS = {
+  coding: [
+    { code: 'Coding sequences', label: 'Coding sequences', strand: 'Sequencing' },
+    { code: 'Coding variables', label: 'Coding variables', strand: 'Variables' },
+    { code: 'Coding choices', label: 'Coding choices', strand: 'Conditions' },
+    { code: 'Coding repeats', label: 'Coding repeats', strand: 'Loops' },
+    { code: 'Coding functions', label: 'Coding functions', strand: 'Functions' },
+    { code: 'Coding debugging', label: 'Coding debugging', strand: 'Debugging' }
+  ],
+  english: [
+    { code: 'Reading a passage', label: 'Reading a passage', strand: 'Reading' },
+    { code: 'Writing a sentence', label: 'Writing a sentence', strand: 'Writing' },
+    { code: 'Speaking clearly', label: 'Speaking clearly', strand: 'Public speaking' },
+    { code: 'Listening and responding', label: 'Listening and responding', strand: 'Listening' },
+    { code: 'Using new words', label: 'Using new words', strand: 'Vocabulary' },
+    { code: 'Sharing an idea', label: 'Sharing an idea', strand: 'Expression' }
+  ]
+};
+
+function argumentsFor(first, second, third) {
+  if (first && typeof first === 'object') {
+    return {
+      subject: subjects.normalize(first.subject),
+      curriculumSlug: first.curriculumSlug,
+      gradeSlug: first.gradeSlug
+    };
+  }
+  /* Backward-compatible two-argument math call: (curriculumSlug, gradeSlug). */
+  if (third === undefined) {
+    return { subject: 'math', curriculumSlug: first, gradeSlug: second };
+  }
+  return {
+    subject: subjects.normalize(first),
+    curriculumSlug: second,
+    gradeSlug: third
+  };
+}
+
+function allowedStandards(first, second, third) {
+  const input = argumentsFor(first, second, third);
+  const item = catalog.findCurriculum(input.curriculumSlug);
+  const grade = input.gradeSlug ? catalog.findGrade(input.curriculumSlug, input.gradeSlug) : null;
+  const familyList = input.subject === 'math'
+    ? (FAMILY_STRANDS[item ? item.family : 'local'] || GLOBAL_STRANDS).concat(GLOBAL_STRANDS)
+    : SUBJECT_STRANDS[input.subject];
+  const framework = input.subject === 'math'
+    ? (item ? item.standardsFramework : 'Mathify global early-years mathematics strands')
+    : subjects.get(input.subject).label + ' skills';
+  const output = familyList.map(function (entry) {
     return {
       code: entry.code,
       label: entry.label,
       strand: entry.strand,
-      framework: item ? item.standardsFramework : 'Mathify global early-years mathematics strands',
+      framework: framework,
       ageBand: grade ? grade.band : '3–18 years'
     };
   });
@@ -107,12 +154,13 @@ function allowedStandards(curriculumSlug, gradeSlug) {
   });
 }
 
-function codesFor(curriculumSlug, gradeSlug) {
-  return allowedStandards(curriculumSlug, gradeSlug).map(function (entry) { return entry.code; });
+function codesFor(subject, curriculumSlug, gradeSlug) {
+  return allowedStandards(subject, curriculumSlug, gradeSlug).map(function (entry) { return entry.code; });
 }
 
 module.exports = {
   allowedStandards: allowedStandards,
   codesFor: codesFor,
-  GLOBAL_STRANDS: GLOBAL_STRANDS
+  GLOBAL_STRANDS: GLOBAL_STRANDS,
+  SUBJECT_STRANDS: SUBJECT_STRANDS
 };

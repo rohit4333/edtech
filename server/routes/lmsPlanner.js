@@ -9,18 +9,66 @@
 
 const express = require('express');
 const auth = require('../middleware/auth');
+const token = require('../auth/token');
 const db = require('../db');
 const curriculumRepository = require('../db/curriculum');
 const catalog = require('../services/curriculumCatalog');
+const subjects = require('../services/subjectCatalog');
 const planner = require('../services/weeklyPlannerService');
 
 const router = express.Router();
 
+/* LMS is founder/trainer-only for staff. Relationship managers never see a
+   course, a planner, a selector or a mutation endpoint. The catalogue stays
+   readable without a token for the public LMS preview, but a signed-in RM is
+   refused before any payload is built. */
+async function optionalUser(req) {
+  const header = String((req.headers && req.headers.authorization) || '');
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const payload = token.verify(match[1]);
+  if (!payload) return null;
+  const user = await db.findUserById(payload.sub);
+  if (!user || Number(payload.ver || 0) !== Number(user.tokenVersion || 0)) return null;
+  return user;
+}
+
+router.use(async function lmsStaffGate(req, res, next) {
+  try {
+    const user = await optionalUser(req);
+    if (user && user.role === 'relationship_manager') {
+      return res.status(403).json({
+        error: 'FORBIDDEN',
+        message: 'LMS access is founder and trainer only.'
+      });
+    }
+    req.lmsUser = user;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+
+function subjectsVisibleTo(user) {
+  const all = subjects.list();
+  if (!user || user.role === 'founder') return all;
+  if (user.role === 'trainer') {
+    const own = subjects.normalize(user.subject);
+    return all.filter(function (item) { return item.subject === own; });
+  }
+  /* Student and parent desks see their own child's course only; the subject
+     itself is already resolved server-side from stored family data. */
+  return all;
+}
+
 router.get('/curriculum-catalog', function (req, res) {
   const curricula = catalog.list();
+  const visible = subjectsVisibleTo(req.lmsUser);
   return res.json({
     curricula: curricula,
     count: curricula.length,
+    subjects: visible,
+    subjectCount: visible.length,
     promptVersion: planner.PROMPT_VERSION
   });
 });
@@ -92,6 +140,9 @@ async function selectionFor(req) {
   const requestedTopic = founder
     ? String((req.query && req.query.topic) || (req.body && req.body.topic) || '').trim()
     : '';
+  const requestedSubject = founder
+    ? String((req.query && req.query.subject) || (req.body && req.body.subject) || '').trim()
+    : '';
   const curriculum = requestedCurriculum || (profile && profile.curriculum) || null;
   const grade = requestedGrade || (profile && profile.grade) || (student && student.grade) || null;
   if (!curriculum || !grade) {
@@ -101,12 +152,22 @@ async function selectionFor(req) {
     throw error;
   }
   const selection = planner.resolveSelection({
+    subject: requestedSubject || (student && student.subject) || 'math',
     curriculum: curriculum,
     grade: grade,
     topic: requestedTopic || (profile && profile.schoolChapter)
   });
+  /* A trainer can only open the field they teach. Founder override is allowed
+     above; roster membership was already checked in studentIdFor. */
+  if (req.user.role === 'trainer' &&
+      subjects.normalize(req.user.subject) !== selection.subject) {
+    const error = new Error('This course belongs to another trainer field.');
+    error.code = 'FORBIDDEN_SUBJECT';
+    error.status = 403;
+    throw error;
+  }
   return Object.assign({}, selection, {
-    source: requestedCurriculum || requestedGrade || requestedTopic ? 'request' : 'profile'
+    source: requestedCurriculum || requestedGrade || requestedTopic || requestedSubject ? 'request' : 'profile'
   });
 }
 
@@ -115,6 +176,7 @@ async function founderSelection(req) {
   const query = req.query || {};
   if (body.studentId || query.studentId) return selectionFor(req);
   return planner.resolveSelection({
+    subject: body.subject || query.subject,
     curriculum: body.curriculum || query.curriculum,
     grade: body.grade || query.grade,
     topic: body.topic || query.topic

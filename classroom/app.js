@@ -57,6 +57,126 @@
     renderChat();
   }
 
+  /* -------------------------------------------------- subject (server-owned)
+     The browser never selects the subject. A missing or unknown subject is
+     always mathematics, so existing maths screens render exactly as before. */
+  var SUBJECT_DEFAULTS = {
+    math: { subject: 'math', label: 'Mathematics', shortLabel: 'Math', workspace: 'board', strands: [] },
+    coding: { subject: 'coding', label: 'Coding', shortLabel: 'Coding', workspace: 'ide', strands: [] },
+    english: { subject: 'english', label: 'English Communication', shortLabel: 'English', workspace: 'literacy', strands: [] }
+  };
+  var SUBJECT_ALIASES = {
+    math: 'math', maths: 'math', mathematics: 'math', numeracy: 'math',
+    coding: 'coding', code: 'coding', programming: 'coding', javascript: 'coding',
+    english: 'english', communication: 'english', 'english communication': 'english'
+  };
+  var subjectState = SUBJECT_DEFAULTS.math;
+  var subjectBaseTitles = {
+    lesson: $('.lesson-line b') && $('.lesson-line b').textContent,
+    board: $('.board-head h1') && $('.board-head h1').textContent
+  };
+
+  function normalizeSubject(value) {
+    var raw = value;
+    if (value && typeof value === 'object') {
+      raw = value.subject || value.slug || value.name || 'math';
+    }
+    var key = String(raw || 'math').trim().toLowerCase().replace(/[_-]+/g, ' ');
+    key = SUBJECT_ALIASES[key] || (SUBJECT_DEFAULTS[key] ? key : 'math');
+    var base = SUBJECT_DEFAULTS[key];
+    var next = {
+      subject: base.subject,
+      label: base.label,
+      shortLabel: base.shortLabel,
+      workspace: base.workspace,
+      strands: []
+    };
+    if (value && typeof value === 'object') {
+      if (typeof value.label === 'string' && value.label.trim()) next.label = value.label.trim();
+      if (typeof value.shortLabel === 'string' && value.shortLabel.trim()) {
+        next.shortLabel = value.shortLabel.trim();
+      }
+      if (typeof value.workspace === 'string' && value.workspace.trim()) {
+        next.workspace = value.workspace.trim();
+      }
+      if (Array.isArray(value.strands)) next.strands = value.strands.slice();
+    }
+    return next;
+  }
+
+  function paintSubjectTitles(next) {
+    var lesson = $('.lesson-line b');
+    var boardTitle = $('.board-head h1');
+    if (lesson) {
+      lesson.textContent = next.subject === 'math' && subjectBaseTitles.lesson
+        ? subjectBaseTitles.lesson
+        : '1:1 · ' + (next.label || 'Session');
+    }
+    if (boardTitle) {
+      boardTitle.textContent = next.subject === 'math' && subjectBaseTitles.board
+        ? subjectBaseTitles.board
+        : (next.shortLabel || next.label) + ' practice';
+    }
+  }
+
+  function applySubject(value) {
+    subjectState = normalizeSubject(value);
+    window.MATHIFY_SESSION_SUBJECT = subjectState;
+    document.body.setAttribute('data-subject', subjectState.subject);
+    paintSubjectTitles(subjectState);
+
+    var coding = document.getElementById('codingStage');
+    var english = document.getElementById('englishStage');
+    var board = $('.board');
+    [coding, english].forEach(function (panel) {
+      if (panel) panel.hidden = panel === coding
+        ? subjectState.subject !== 'coding'
+        : subjectState.subject !== 'english';
+    });
+    /* Keep the whiteboard out of the stage while a subject workspace is
+       active. An in-progress math quiz owns board visibility, so do not
+       override it on a state refresh. */
+    if (board && !document.body.classList.contains('quiz-live')) {
+      board.hidden = subjectState.subject !== 'math';
+    }
+    var workspaceBtn = $('#subjectWorkspaceBtn');
+    if (workspaceBtn) workspaceBtn.hidden = subjectState.subject === 'math';
+    document.body.classList.remove('subject-board-open');
+
+    if (window.classroomCoding && typeof window.classroomCoding.setSubject === 'function') {
+      window.classroomCoding.setSubject(subjectState);
+    }
+    if (window.classroomEnglish && typeof window.classroomEnglish.setSubject === 'function') {
+      window.classroomEnglish.setSubject(subjectState);
+    }
+    window.dispatchEvent(new CustomEvent('mathify:subjectchange', { detail: subjectState }));
+    return subjectState;
+  }
+
+  /* Shared whiteboard/workspace switch for the two subject panels. RTC, the
+     PiP, full board and every shared sheet stay mounted throughout. */
+  document.addEventListener('click', function (event) {
+    var button = event.target.closest && event.target.closest('[data-subject-view]');
+    if (!button) return;
+    var view = button.getAttribute('data-subject-view');
+    if (subjectState.subject === 'math') return;
+    var coding = document.getElementById('codingStage');
+    var english = document.getElementById('englishStage');
+    var board = $('.board');
+    var target = view === 'board' ? board
+      : (subjectState.subject === 'coding' ? coding : english);
+    if (!target) return;
+    [board, coding, english].forEach(function (panel) {
+      if (panel) panel.hidden = panel !== target;
+    });
+    var boardOpen = view === 'board';
+    document.body.classList.toggle('subject-board-open', boardOpen);
+    if (boardOpen && typeof window.classroomSession !== 'undefined' &&
+        window.classroomSession && typeof window.classroomSession.fitCanvas === 'function') {
+      setTimeout(window.classroomSession.fitCanvas, 40);
+    }
+  });
+
   var founderObserverOptIn = false;
 
   function applyObserverState(state) {
@@ -96,6 +216,7 @@
       if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
       if (state && state.network) applyNetworkState(state.network);
       if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
+      applySubject(state && state.subject);
       applyObserverState(state);
       return true;
     }).catch(function (error) {
@@ -1283,6 +1404,7 @@
     });
   }
 
+  applySubject(null);
   loadSessionContext();
 
   /* Live 1:1 call. The existing floating PiP is the call surface; the SDK is
@@ -1490,7 +1612,9 @@
     applyNetworkState: applyNetworkState,
     networkState: function () { return networkState; },
     applyObserverState: applyObserverState,
-    sessionTiming: function () { return timingState; }
+    sessionTiming: function () { return timingState; },
+    subject: function () { return subjectState; },
+    setSubject: applySubject
   };
 
 })();

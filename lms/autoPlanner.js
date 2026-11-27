@@ -1,19 +1,14 @@
 /* LMS auto-selected weekly planner.
  *
- * Reads the public curriculum catalogue, then asks the signed-in Mathify API
- * for the planner that matches the child's registered board and grade. All
- * generated strings are inserted with textContent; no AI text becomes HTML.
+ * Reads the role-filtered curriculum catalogue, then asks the signed-in Mathify
+ * API for the planner that matches the subject, board and grade. All generated
+ * strings are inserted with textContent; no AI text becomes HTML. A trainer is
+ * pinned to the one subject returned for their account; founder may switch
+ * freely; relationship managers never reach this code path.
  */
 (function () {
   'use strict';
 
-  var BASE = window.MATHIFY_API_BASE || '/api';
-  var TOKEN_KEYS = [
-    'mathify.student.token', 'mathify.classroom.token.student',
-    'mathify.parent.token', 'mathify.trainer.token',
-    'mathify.classroom.token.trainer', 'mathify.classroom.token.founder',
-    'mathify.rm.token', 'mathify.classroom.token.relationship_manager'
-  ];
   var PALETTE = {
     sunflower: ['#FFF3C4', '#FFD166', '#6B4A00'],
     seafoam: ['#DCF7EE', '#9AE6C9', '#14563F'],
@@ -23,32 +18,19 @@
   };
   var state = {
     catalog: [],
+    subjects: [],
     selection: null,
     page: null,
     loading: false
   };
 
   function $(id) { return document.getElementById(id); }
+  function access() { return window.MathifyLmsAccess || null; }
+  function api() { return window.mathifyLmsApi || null; }
 
-  function token() {
-    for (var index = 0; index < TOKEN_KEYS.length; index += 1) {
-      try {
-        var value = window.localStorage.getItem(TOKEN_KEYS[index]);
-        if (value) return value;
-      } catch (error) { /* private mode */ }
-    }
-    return null;
-  }
-
-  async function getJSON(path, authenticated) {
-    var headers = { accept: 'application/json' };
-    var authToken = token();
-    if (authenticated && authToken) headers.authorization = 'Bearer ' + authToken;
-    var response = await fetch(BASE + path, { headers: headers, credentials: 'same-origin' });
-    var text = await response.text();
-    var body;
-    try { body = JSON.parse(text); } catch (error) { body = null; }
-    return { ok: response.ok, status: response.status, body: body };
+  function denied() {
+    var gate = access();
+    return Boolean(gate && gate.isDenied && gate.isDenied());
   }
 
   function element(tag, className, textValue) {
@@ -56,6 +38,16 @@
     if (className) node.className = className;
     if (textValue !== undefined && textValue !== null) node.textContent = String(textValue);
     return node;
+  }
+
+  function notifySubject() {
+    var event;
+    try { event = new CustomEvent('mathify:subjectchange', { bubbles: true }); }
+    catch (error) {
+      event = document.createEvent('Event');
+      event.initEvent('mathify:subjectchange', true, true);
+    }
+    document.dispatchEvent(event);
   }
 
   function status(message, tone) {
@@ -67,6 +59,19 @@
 
   function curriculumSelect() { return $('autoCurriculum'); }
   function gradeSelect() { return $('autoGrade'); }
+  function subjectSelect() { return $('autoSubject'); }
+
+  function currentSubject() {
+    var select = subjectSelect();
+    var value = select && select.value ? select.value : (access() && access().subject()) || 'math';
+    var client = api();
+    return client && client.safeSubject ? client.safeSubject(value) : value;
+  }
+
+  function subjectLabel(subject) {
+    var planner = window.mathifySubjectPlanner;
+    return planner && planner.label ? planner.label(subject, state.subjects) : subject;
+  }
 
   function populateDropdowns(preferred) {
     if (!window.MathifyCurriculums) return Promise.resolve([]);
@@ -84,8 +89,39 @@
     });
   }
 
+  function populateSubjects() {
+    if (!window.MathifyCurriculums || !window.MathifyCurriculums.populateSubjects) {
+      return Promise.resolve([]);
+    }
+    var select = subjectSelect();
+    var gate = access();
+    return window.MathifyCurriculums.populateSubjects(select, {
+      subject: gate && gate.subject ? gate.subject() : 'math',
+      onChange: function (slug) {
+        state.subject = currentSubject();
+        status('Subject set to ' + subjectLabel(state.subject) + '.', 'ok');
+        var curriculum = curriculumSelect();
+        var grade = gradeSelect();
+        if (curriculum && curriculum.value && grade && grade.value) loadPlanner(true);
+      }
+    }).then(function (list) {
+      /* A trainer has exactly one field; the selector is shown but locked so
+         the label is visible without offering a forbidden switch. */
+      if (select && gate && gate.role && gate.role() === 'trainer') select.disabled = true;
+      return list;
+    });
+  }
+
   function setSelection(selection) {
     state.selection = selection;
+    var chosen = selection.subject || (state.page && state.page.cache && state.page.cache.subject)
+      || currentSubject();
+    state.subject = api() && api().safeSubject ? api().safeSubject(chosen) : chosen;
+    var subject = subjectSelect();
+    if (subject && (!access() || access().canUse(state.subject))) {
+      subject.value = state.subject;
+      notifySubject();
+    }
     var curriculum = curriculumSelect();
     var grade = gradeSelect();
     if (curriculum && selection.curriculumSlug) curriculum.value = selection.curriculumSlug;
@@ -96,45 +132,63 @@
     if (state.page) renderPlanner(state.page);
   }
 
-  async function loadPlanner(useQuery) {
-    if (state.loading) return;
+  function loadPlanner(useQuery) {
+    if (denied() || state.loading) return Promise.resolve(null);
     var curriculum = curriculumSelect();
     var grade = gradeSelect();
     if (useQuery && (!curriculum || !curriculum.value || !grade || !grade.value)) {
       status('Choose a curriculum, then choose its grade.', 'warn');
-      return;
+      return Promise.resolve(null);
     }
-    if (!token()) {
+    var client = api();
+    if (!client || !client.plannerGet) {
+      status('Planner is unavailable right now.', 'warn');
+      return Promise.resolve(null);
+    }
+    if (!client.token()) {
       status('Sign in to Mathify to auto-select the child’s planner.', 'warn');
-      return;
+      return Promise.resolve(null);
     }
     state.loading = true;
     status('Loading planner…');
-    try {
-      var query = useQuery
-        ? '?curriculum=' + encodeURIComponent(curriculum.value) + '&grade=' + encodeURIComponent(grade.value)
-        : '';
-      var result = await getJSON('/lms/planner' + query, true);
-      if (!result.ok || !result.body || !result.body.planner) {
-        var message = result.body && result.body.message
-          ? result.body.message
-          : 'Sign in to Mathify to auto-select the child’s planner.';
-        status(message, 'warn');
-        state.loading = false;
-        return;
-      }
-      state.page = result.body;
-      var selection = result.body.selection;
-      setSelection(selection);
-      renderPlanner(result.body);
-      status(selection.source === 'profile'
-        ? 'Auto-selected from the child’s registered ' + selection.curriculumLabel + ' · ' + selection.gradeLabel + '.'
-        : 'Planner set to ' + selection.curriculumLabel + ' · ' + selection.gradeLabel + '.', 'ok');
-    } catch (error) {
-      status('Planner is unavailable right now.', 'warn');
-    } finally {
-      state.loading = false;
+    var params = { subject: currentSubject() };
+    if (useQuery) {
+      params.curriculum = curriculum.value;
+      params.grade = grade.value;
     }
+    return client.plannerGet(params).then(function (result) {
+      if (!result || !result.planner) {
+        status('Sign in to Mathify to auto-select the child’s planner.', 'warn');
+        return null;
+      }
+      state.page = result;
+      var selection = result.selection || {};
+      setSelection(selection);
+      renderPlanner(result);
+      var label = selection.subjectLabel || subjectLabel(currentSubject());
+      status(selection.source === 'profile'
+        ? 'Auto-selected from the child’s registered ' + label + ' · ' +
+          selection.curriculumLabel + ' · ' + selection.gradeLabel + '.'
+        : 'Planner set to ' + label + ' · ' + selection.curriculumLabel + ' · ' +
+          selection.gradeLabel + '.', 'ok');
+      return result;
+    }).catch(function (error) {
+      if (error && error.status === 403) {
+        var gate = access();
+        if (gate && gate.role && gate.role() === 'trainer' && subjectSelect()) {
+          subjectSelect().value = gate.subject() || 'math';
+          state.subject = gate.subject() || 'math';
+          notifySubject();
+        }
+        status(error.message || 'LMS access is founder/trainer only.', 'warn');
+        return null;
+      }
+      status('Planner is unavailable right now.', 'warn');
+      return null;
+    }).then(function (result) {
+      state.loading = false;
+      return result;
+    });
   }
 
   function listNode(items, className) {
@@ -288,6 +342,13 @@
     if (!target || !page || !page.planner) return;
     target.textContent = '';
 
+    var selection = page.selection || {};
+    var cache = page.cache || {};
+    var subject = api() && api().safeSubject
+      ? api().safeSubject(selection.subject || cache.subject || currentSubject())
+      : 'math';
+    var label = selection.subjectLabel || cache.subjectLabel || subjectLabel(subject);
+
     var shell = element('div', 'wp-shell');
     shell.appendChild(heroNode(page));
 
@@ -295,16 +356,22 @@
     var heading = element('div', '');
     heading.appendChild(element('h3', '', page.planner.meta.title));
     heading.appendChild(element('p', '',
-      page.selection.curriculumLabel + ' · ' + page.selection.gradeLabel +
-      ' · ' + (page.cache.topic || page.planner.meta.topic || 'General Mathematics') +
+      label + ' · ' + selection.curriculumLabel +
+      ' · ' + (cache.topic || page.planner.meta.topic ||
+        (window.mathifySubjectPlanner ? window.mathifySubjectPlanner.defaultTopic(subject) : 'General Mathematics')) +
       ' · ' + page.planner.meta.ageBand));
     header.appendChild(heading);
     var badges = element('div', 'wp-badges');
-    [page.planner.meta.promptVersion, page.cache.cacheKey, page.cache.provider].forEach(function (value) {
-      badges.appendChild(element('span', 'wp-badge', value));
+    /* The cache key string itself is untouched — math stays planner:v1:... */
+    [label, page.planner.meta.promptVersion, cache.cacheKey, cache.provider].forEach(function (value) {
+      if (value !== undefined && value !== null) badges.appendChild(element('span', 'wp-badge', value));
     });
     header.appendChild(badges);
     shell.appendChild(header);
+
+    if (window.mathifySubjectPlanner && window.mathifySubjectPlanner.node) {
+      shell.appendChild(window.mathifySubjectPlanner.node(subject, state.subjects));
+    }
 
     var layout = element('div', 'wp-layout');
     var main = element('div', 'wp-main');
@@ -346,17 +413,37 @@
   }
 
   function boot() {
+    if (access() && access().detect) access().detect();
+    var deniedPanel = $('lmsDenied');
+    if (denied()) {
+      var gate = access();
+      document.body.classList.add('lms-denied');
+      if (deniedPanel) deniedPanel.hidden = false;
+      status(gate.message(), 'warn');
+      return;
+    }
+
     var curriculum = curriculumSelect();
     var grade = gradeSelect();
+    var subject = subjectSelect();
     var load = $('autoPlannerLoad');
     if (!curriculum || !grade || !load) return;
 
     load.addEventListener('click', function () {
       loadPlanner(Boolean(curriculum.value && grade.value));
     });
+    if (subject) {
+      subject.addEventListener('change', function () {
+        state.subject = currentSubject();
+        status('Subject set to ' + subjectLabel(state.subject) + '.', 'ok');
+        if (curriculum.value && grade.value) loadPlanner(true);
+      });
+    }
 
-    populateDropdowns().then(function (list) {
-      state.catalog = list || [];
+    Promise.all([populateDropdowns(), populateSubjects()]).then(function (results) {
+      state.catalog = results[0] || [];
+      state.subjects = results[1] || [];
+      state.subject = currentSubject();
       return loadPlanner(false);
     }).catch(function () {
       status('Curriculum catalogue is unavailable.', 'warn');
@@ -366,9 +453,11 @@
   window.mathifyAutoPlanner = {
     boot: boot,
     render: function () {
-      if (state.page) renderPlanner(state.page);
+      if (state.page && !denied()) renderPlanner(state.page);
     },
-    load: loadPlanner
+    load: loadPlanner,
+    subject: currentSubject,
+    label: function () { return subjectLabel(currentSubject()); }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

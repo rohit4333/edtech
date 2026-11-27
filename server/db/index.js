@@ -833,6 +833,10 @@ function saveWeeklyPlannerPointer(record) {
 }
 
 const mockApi = {
+  getRecord: store.getRecord,
+  putRecord: store.putRecord,
+  deleteRecord: store.deleteRecord,
+  listRecords: store.listRecords,
   listBatches,
   findBatch,
   findBatchByCode,

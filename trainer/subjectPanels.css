@@ -1,0 +1,98 @@
+/* Mathify trainer console — subject markers only.
+   Scoped to new classes; existing attendance, planner, payout, KYC, parent-chat,
+   scheduling and onboarding panels keep their original styling. */
+[hidden]{display:none !important}
+
+.subject-tag{
+  display:inline-flex;
+  align-items:center;
+  padding:3px 9px;
+  border:1px solid rgba(253,250,243,.28);
+  border-radius:var(--r-full);
+  background:rgba(253,250,243,.12);
+  color:var(--paper);
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.subject-tag.subject-coding{border-color:rgba(18,150,140,.5);color:var(--teal-soft)}
+.subject-tag.subject-english{border-color:rgba(138,82,0,.42);color:#F7DCAA}
+.next-course-note{white-space:nowrap}
+
+.next-foot .subject-workspace-link .ide-indicator{
+  display:inline-grid;
+  place-items:center;
+  min-width:22px;
+  height:18px;
+  padding:0 4px;
+  border:1px solid rgba(253,250,243,.28);
+  border-radius:var(--r-xs);
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0;
+  color:var(--teal-soft);
+}
+.english-indicators{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.english-indicators span{
+  padding:3px 8px;
+  border:1px solid rgba(253,250,243,.24);
+  border-radius:var(--r-full);
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(253,250,243,.78);
+}
+
+/* ---------- today's subject markers ---------- */
+.slot-body .slot-subject{
+  display:inline-flex;
+  align-items:center;
+  width:auto;
+  margin-top:3px;
+  padding:2px 7px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--cream);
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:visible;
+}
+.slot-body .slot-subject.subject-coding{border-color:rgba(18,150,140,.4);background:var(--teal-soft);color:var(--teal-ink)}
+.slot-body .slot-subject.subject-english{border-color:rgba(138,82,0,.32);background:var(--amber-soft);color:var(--amber)}
+
+.subject-summary{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:12px;
+}
+.subject-summary-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:5px 10px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--card);
+  font-family:var(--mono);
+  font-size:8.5px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.subject-summary-chip b{font-weight:500;color:var(--ink)}
+.subject-summary-chip.subject-coding{border-color:rgba(18,150,140,.4);background:var(--teal-soft);color:var(--teal-ink)}
+.subject-summary-chip.subject-english{border-color:rgba(138,82,0,.32);background:var(--amber-soft);color:var(--amber)}

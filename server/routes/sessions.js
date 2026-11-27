@@ -96,7 +96,7 @@ const SHARED_EVENTS = [
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
-  'founder.observer.changed'
+  'founder.observer.changed', 'ide.state.updated', 'challenge.published'
 ];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 

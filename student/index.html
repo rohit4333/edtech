@@ -7,6 +7,7 @@
 <meta name="description" content="Student desk: next class, pending work, recordings and practice.">
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="subjectPanels.css">
 <link rel="stylesheet" href="../shared/leave-calendar.css">
 <link rel="stylesheet" href="../shared/announcements.css">
 <link rel="stylesheet" href="../shared/profilePassword.css">
@@ -1399,6 +1400,11 @@
         <p class="eyebrow">Wednesday, 25 November 2026</p>
         <h1>Good afternoon, Ishaan<em>.</em></h1>
         <p class="sub">Your week is on track <span class="dot-sep" aria-hidden="true"></span> 3 items need attention</p>
+        <div class="subject-strip" id="subjectStrip" data-subject="math" aria-label="Your subject">
+          <span class="subject-badge" id="subjectBadge">Mathematics</span>
+          <span class="subject-workspace" id="subjectWorkspace">Math workspace</span>
+          <span class="subject-strands" id="subjectStrands" hidden></span>
+        </div>
       </div>
 
       <!-- ---------- demo desk ---------- -->
@@ -1608,6 +1614,9 @@
         </article>
 
       </section>
+
+      <!-- ---------- subject-aware practice (server-owned subject) ---------- -->
+      <section class="subject-panel-host" id="subjectPanels" aria-label="Subject practice" hidden></section>
 
       <!-- ---------- reward trophies ---------- -->
       <section class="trophies" id="trophies" aria-labelledby="trophiesTitle">
@@ -1823,6 +1832,7 @@
 <script src="../shared/demoStatus.js" defer></script>
 <link rel="stylesheet" href="../shared/demo-status.css">
 <script src="api.js?v=20261126" defer></script>
+<script src="subjectPanels.js" defer></script>
 <script src="../shared/leave-calendar.js" defer></script>
 <script src="app.js" defer></script>
 <script>
