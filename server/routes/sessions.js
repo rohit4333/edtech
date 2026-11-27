@@ -218,9 +218,10 @@ router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), f
   });
 });
 
-/* Full-board ink is session-scoped and trainer-owned. Coordinates are
-   normalised 0–1, colours and tools are allowlisted, and payload sizes are
-   bounded. No text, answer key or trainer note is accepted here. */
+/* Full-board ink, laser cues and viewport changes are session-scoped and
+   trainer-owned. Coordinates are normalised 0–1, colours, tools and view
+   values are allowlisted, and payload sizes are bounded. No text, answer key
+   or trainer note is accepted here. */
 const BOARD_SHAPES = new Set([
   'square', 'rectangle', 'circle', 'triangle', 'diamond', 'pentagon',
   'hexagon', 'star', 'parallelogram', 'line', 'arrow', 'double-arrow',
@@ -291,6 +292,44 @@ function cleanSnapshotItem(value) {
   return ink ? { kind: 'stroke', ink: ink } : null;
 }
 
+function bounded(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+/* A laser is a short-lived cue the child can see but never draw. It stays out
+   of saved ink and out of the snapshot; only its bounded points are relayed. */
+function cleanLaserTrail(value) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.points)) return null;
+  const points = value.points.slice(0, 2000).map(function (point) {
+    if (!Array.isArray(point) || point.length < 2) return null;
+    const x = Number(point[0]);
+    const y = Number(point[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
+  }).filter(Boolean);
+  if (!points.length) return null;
+  return { points: points, duration: bounded(value.duration, 2400, 400, 5000) };
+}
+
+/* Viewport is sent with the same board channel so the child sees the trainer's
+   zoom and pan. Pan is a fraction of the canvas, not device pixels, and is
+   clamped so a malformed event cannot push content off-screen. */
+function cleanView(value) {
+  if (!value || typeof value !== 'object') return null;
+  const zoom = Number(value.zoom);
+  if (!Number.isFinite(zoom)) return null;
+  const pan = value.pan && typeof value.pan === 'object' ? value.pan : {};
+  return {
+    zoom: bounded(zoom, 1, 0.5, 2.5),
+    pan: {
+      x: bounded(pan.x, 0, -2, 2),
+      y: bounded(pan.y, 0, -2, 2)
+    }
+  };
+}
+
 /* The trainer's pointer is a live teaching cue, not board content. It uses an
    ephemeral latest-position relay so high-frequency moves never flood the
    durable event stream that also carries the class warning and close cues. */
@@ -346,6 +385,8 @@ router.post('/:sessionId/board/ink', auth.requireRole('trainer', 'founder'), fun
         .map(function (item) { return item.ink; }),
       page: page
     };
+    const view = cleanView(body.view);
+    if (view) payload.view = view;
   } else if (type === 'image') {
     const image = cleanImage(body.image);
     if (!image) {
@@ -357,6 +398,18 @@ router.post('/:sessionId/board/ink', auth.requireRole('trainer', 'founder'), fun
     payload = { type: 'image', image: image, page: page };
   } else if (type === 'clear') {
     payload = { type: 'clear', page: page };
+  } else if (type === 'laser') {
+    const laser = cleanLaserTrail(body.laser);
+    if (!laser) {
+      return res.status(422).json({ error: 'INVALID_LASER', message: 'A bounded laser trail is required.' });
+    }
+    payload = { type: 'laser', laser: laser, page: page };
+  } else if (type === 'view') {
+    const view = cleanView(body.view);
+    if (!view) {
+      return res.status(422).json({ error: 'INVALID_VIEW', message: 'A normalised board view is required.' });
+    }
+    payload = { type: 'view', view: view, page: page };
   } else {
     return res.status(422).json({ error: 'INVALID_INK_TYPE', message: 'Unknown board action.' });
   }

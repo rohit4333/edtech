@@ -99,13 +99,37 @@ async function main() {
     }, trainer);
     ok(snapshot.status === 200, 'a board snapshot keeps strokes and images together');
 
+    const laser = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
+      type: 'laser', page: 1,
+      laser: { points: [[0.1, 0.2], [0.7, 0.3]], duration: 2400, answer: 'hidden' }
+    }, trainer);
+    ok(laser.status === 200, 'a fading laser cue reaches the shared board without becoming ink');
+
+    const badLaser = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
+      type: 'laser', page: 1, laser: { points: [[2, 'bad']] }
+    }, trainer);
+    ok(badLaser.status === 422 && badLaser.body.error === 'INVALID_LASER',
+      'a malformed laser trail is rejected');
+
+    const view = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
+      type: 'view', page: 1,
+      view: { zoom: 1.6, pan: { x: 0.12, y: -0.08 }, answer: 'hidden' }
+    }, trainer);
+    ok(view.status === 200, 'trainer zoom and pan are shared with the student board');
+
+    const badView = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
+      type: 'view', page: 1, view: { zoom: 'wide' }
+    }, trainer);
+    ok(badView.status === 422 && badView.body.error === 'INVALID_VIEW',
+      'a malformed board view is rejected');
+
     const events = await request('GET', '/api/sessions/' + SESSION + '/events?since=' + since,
       undefined, student);
     ok(events.status === 200, 'student reads the scrubbed session event stream');
     const ink = (events.body.events || []).filter(function (event) {
       return event.event === 'board.ink';
     });
-    ok(ink.length >= 4, 'each board action appears as a session-scoped event');
+    ok(ink.length >= 6, 'each board action, laser cue and viewport change appears as a session-scoped event');
 
     const thick = ink.find(function (event) {
       return event.payload && event.payload.ink && event.payload.ink.tool === 'highlighter';
@@ -134,6 +158,25 @@ async function main() {
       'a returning student can restore the board from one snapshot');
     ok(restored && restored.payload.items.some(function (item) { return item.kind === 'image'; }),
       'the snapshot keeps pasted screenshots in order with ink');
+
+    const laserEvent = ink.find(function (event) {
+      return event.payload && event.payload.type === 'laser';
+    });
+    ok(laserEvent && laserEvent.payload.laser &&
+      laserEvent.payload.laser.points.length === 2 &&
+      Number(laserEvent.payload.laser.duration) === 2400 &&
+      !/answer|correct|hint/i.test(JSON.stringify(laserEvent.payload)),
+    'the student receives the exact fading laser cue without hidden teaching fields');
+
+    const viewEvent = ink.find(function (event) {
+      return event.payload && event.payload.type === 'view';
+    });
+    ok(viewEvent && viewEvent.payload.view &&
+      Number(viewEvent.payload.view.zoom) === 1.6 &&
+      Number(viewEvent.payload.view.pan.x) === 0.12 &&
+      Number(viewEvent.payload.view.pan.y) === -0.08 &&
+      !/answer|correct|hint/i.test(JSON.stringify(viewEvent.payload)),
+    'the student receives the trainer zoom and normalised pan');
 
     const safeKeys = restored.payload.items.every(function (item) {
       const keys = Object.keys(item).concat(Object.keys(item.ink || item.image || {}));
@@ -202,6 +245,7 @@ async function main() {
     const room = readAsset('classroom/room.css');
     const fullBoardCss = readAsset('shared/fullBoard.css');
     const callCss = readAsset('classroom/call.css');
+    const sessionCss = readAsset('classroom/session.css');
     const classroom = readAsset('classroom/index.html');
     const classroomApp = readAsset('classroom/app.js');
     const sessionJs = readAsset('classroom/session.js');
@@ -235,6 +279,43 @@ async function main() {
       classroom.indexOf('data-board-tool="select" aria-pressed="true"') !== -1 &&
       classroom.indexOf('data-board-tool="pen" aria-pressed="false"') !== -1,
     'the trainer whiteboard opens in select mode, never already sketching');
+    ok(fullBoardJs.indexOf('function eraserRadius()') !== -1 &&
+      fullBoardJs.indexOf('function distanceSqToSegment(') !== -1 &&
+      fullBoardJs.indexOf('function eraserTouches(') !== -1 &&
+      fullBoardJs.indexOf('function eraseAt(p)') !== -1 &&
+      fullBoardJs.indexOf("if (tool === 'eraser') {") !== -1 &&
+      fullBoardJs.indexOf('eraseDrag.removed = eraseDrag.removed.concat(eraseAt([') !== -1 &&
+      fullBoardJs.indexOf('deleteUndo.push(erased)') !== -1 &&
+      fullBoardJs.indexOf("COLORS[stroke.tool === 'eraser' ? 'paper'") === -1 &&
+      fullBoardJs.indexOf("? 'grab' : '');") !== -1,
+    'the eraser deletes whole drawn strokes and empty canvas keeps the compact select cursor');
+    ok(fullBoardJs.indexOf("push('stroke', { ink: completed, page: 1 })") !== -1 &&
+      fullBoardJs.indexOf("push('image', { image: record.image, page: 1 })") !== -1 &&
+      fullBoardJs.indexOf("push('clear', { page: 1 })") !== -1 &&
+      fullBoardJs.indexOf('function pushBoardSnapshot()') !== -1 &&
+      fullBoardJs.indexOf("push('view', { view: viewPayload(), page: 1 })") !== -1 &&
+      fullBoardJs.indexOf("push('laser', { laser: { points: trail.points, duration: trail.duration }, page: 1 })") !== -1 &&
+      fullBoardJs.indexOf('view: viewPayload()') !== -1 &&
+      fullBoardJs.indexOf('function applyView(view)') !== -1 &&
+      fullBoardJs.indexOf('function showRemoteLaser(laser, at)') !== -1 &&
+      fullBoardJs.indexOf("payload.type === 'view'") !== -1 &&
+      fullBoardJs.indexOf("payload.type === 'laser'") !== -1,
+    'every trainer board action, including zoom, pan and laser cues, has a student-facing transport');
+    ok(classroom.indexOf('<div class="full-board-tools" role="toolbar"') !== -1 &&
+      classroom.indexOf('class="trainer-only" data-board-tool="laser"') !== -1 &&
+      classroom.indexOf('class="trainer-only" id="fullBoardZoomIn"') !== -1 &&
+      classroom.indexOf('class="trainer-only" id="fullBoardZoomOut"') !== -1 &&
+      sessionJs.indexOf("$$('.trainer-only').forEach(function (el) { el.remove(); });") !== -1 &&
+      fullBoardCss.indexOf('body.board-open.view-student .full-board-tools') !== -1,
+    'laser pen and zoom controls stay on the trainer dashboard, never on the child board');
+    ok(fullBoardJs.indexOf('var ratio = (image.naturalWidth || 16) / (image.naturalHeight || 9);') !== -1 &&
+      fullBoardJs.indexOf('imageHeight = imageWidth / ratio;') !== -1 &&
+      fullBoardJs.indexOf('if (imageWidth > maxWidth) {') !== -1 &&
+      fullBoardJs.indexOf('if (w > maxW) {') !== -1 &&
+      sessionCss.indexOf('max-width:min(100%,420px);width:auto;height:auto;') !== -1 &&
+      sessionCss.indexOf('object-fit:contain') !== -1 &&
+      sessionCss.indexOf('width:min(100%,420px);max-height:220px') === -1,
+    'uploaded images and question cards keep their natural aspect ratio on both screens');
     ok(fullBoardCss.indexOf('body.board-open .top .full-board-tools') !== -1 &&
       /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss) &&
       fullBoardCss.indexOf('dock-left') === -1 &&

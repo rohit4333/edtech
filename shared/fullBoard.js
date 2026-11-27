@@ -82,9 +82,12 @@
   var deleteRedo = [];
   var selection = [];
   var pan = { x: 0, y: 0 };
+  var layoutSize = { w: 0, h: 0 };
+  var lastViewPush = 0;
   var panDrag = null;
   var moveDrag = null;
   var resizeDrag = null;
+  var eraseDrag = null;
   var laserItems = [];
   var laserFrame = null;
   var zoom = 1;
@@ -113,6 +116,14 @@
     var width = canvas.clientWidth;
     var height = canvas.clientHeight;
     if (!width || !height) return;
+    /* Keep the visible point of the board steady when the window changes size;
+       the view sent to the student is stored as a fraction of these dimensions. */
+    if (layoutSize.w && layoutSize.h) {
+      pan.x *= width / layoutSize.w;
+      pan.y *= height / layoutSize.h;
+    }
+    layoutSize.w = width;
+    layoutSize.h = height;
     var ratio = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
@@ -126,6 +137,7 @@
     canvas.style.transform = 'scale(' + zoom + ')';
     if (zoomValue) zoomValue.textContent = Math.round(zoom * 100) + '%';
     if (announce) say('Whiteboard zoom ' + Math.round(zoom * 100) + '% · Ctrl+0 resets.');
+    pushView(true);
   }
 
   function drawArrowHead(x, y, angle, head) {
@@ -238,7 +250,7 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.setLineDash([]);
-    ctx.strokeStyle = COLORS[stroke.tool === 'eraser' ? 'paper' : (stroke.color || 'ink')] || COLORS.ink;
+    ctx.strokeStyle = COLORS[stroke.color || 'ink'] || COLORS.ink;
     ctx.fillStyle = ctx.strokeStyle;
     if (SHAPES.indexOf(stroke.tool) !== -1 && stroke.points.length > 1) {
       drawShape(stroke, stroke.points);
@@ -453,6 +465,66 @@
     return null;
   }
 
+  /* The eraser removes complete ink items rather than laying paper-coloured ink
+     over them. Distance is measured in unzoomed canvas pixels so the hit area
+     matches the drawn stroke at every board zoom level. */
+  function eraserRadius() {
+    return (WIDTHS.eraser * 0.5) + 5;
+  }
+
+  function distanceSqToSegment(px, py, ax, ay, bx, by) {
+    var dx = bx - ax;
+    var dy = by - ay;
+    var lengthSq = dx * dx + dy * dy;
+    if (!lengthSq) {
+      var pointDx = px - ax;
+      var pointDy = py - ay;
+      return pointDx * pointDx + pointDy * pointDy;
+    }
+    var t = ((px - ax) * dx + (py - ay) * dy) / lengthSq;
+    t = Math.max(0, Math.min(1, t));
+    var nearestX = ax + t * dx;
+    var nearestY = ay + t * dy;
+    return (px - nearestX) * (px - nearestX) + (py - nearestY) * (py - nearestY);
+  }
+
+  function eraserTouches(item, p) {
+    var stroke = item.ink || item;
+    if (!p || !stroke || !stroke.points || !stroke.points.length) return false;
+    var width = canvas.clientWidth || 1;
+    var height = canvas.clientHeight || 1;
+    var radius = eraserRadius();
+    var px = p[0] * width;
+    var py = p[1] * height;
+    if (SHAPES.indexOf(stroke.tool) !== -1) {
+      var bounds = itemBounds(item);
+      if (!bounds) return false;
+      return px >= bounds.left * width - radius && px <= bounds.right * width + radius &&
+        py >= bounds.top * height - radius && py <= bounds.bottom * height + radius;
+    }
+    var radiusSq = radius * radius;
+    for (var i = 0; i < stroke.points.length - 1; i += 1) {
+      if (distanceSqToSegment(
+        px, py,
+        stroke.points[i][0] * width, stroke.points[i][1] * height,
+        stroke.points[i + 1][0] * width, stroke.points[i + 1][1] * height
+      ) <= radiusSq) return true;
+    }
+    var only = stroke.points[0];
+    return distanceSqToSegment(px, py, only[0] * width, only[1] * height,
+      only[0] * width, only[1] * height) <= radiusSq;
+  }
+
+  function eraseAt(p) {
+    var removed = [];
+    for (var i = items.length - 1; i >= 0; i -= 1) {
+      if (!eraserTouches(items[i], p)) continue;
+      removed.push({ index: i, item: items[i] });
+      items.splice(i, 1);
+    }
+    return removed;
+  }
+
   function limit(value, min, max) {
     return Math.min(Math.max(value, min), Math.max(min, max));
   }
@@ -511,11 +583,32 @@
       });
   }
 
+  function viewPayload() {
+    return {
+      zoom: zoom,
+      /* Normalised pan keeps the same part of the board in view on a phone and
+         on a desktop, while pointer maths still works in local CSS pixels. */
+      pan: {
+        x: pan.x / (canvas.clientWidth || 1),
+        y: pan.y / (canvas.clientHeight || 1)
+      }
+    };
+  }
+
+  function pushView(force) {
+    if (!trainer) return;
+    var now = Date.now();
+    if (!force && now - lastViewPush < 180) return;
+    lastViewPush = now;
+    push('view', { view: viewPayload(), page: 1 });
+  }
+
   function snapshotPayload() {
     return {
       items: items,
       strokes: items.filter(function (item) { return item.kind !== 'image'; })
-        .map(function (item) { return item.ink || item; })
+        .map(function (item) { return item.ink || item; }),
+      view: viewPayload()
     };
   }
 
@@ -544,6 +637,19 @@
       };
       overlay.classList.add('is-panning');
       capturePointer(event);
+      event.preventDefault();
+      return;
+    }
+
+    if (tool === 'eraser') {
+      selection = [];
+      eraseDrag = { id: event.pointerId, last: p, removed: eraseAt(p) };
+      pointerId = event.pointerId;
+      capturePointer(event);
+      if (eraseDrag.removed.length) {
+        redraw();
+        say('Drawn stroke erased · Undo restores it.');
+      }
       event.preventDefault();
       return;
     }
@@ -599,6 +705,7 @@
       pan.x = panDrag.panX + (event.clientX - panDrag.x) / zoom;
       pan.y = panDrag.panY + (event.clientY - panDrag.y) / zoom;
       redraw();
+      pushView(false);
       return;
     }
     if (resizeDrag && event.pointerId === resizeDrag.id) {
@@ -674,12 +781,39 @@
       redraw();
       return;
     }
+    if (eraseDrag && event.pointerId === eraseDrag.id) {
+      var erasePoint = point(event);
+      if (!erasePoint) return;
+      var eraseWidth = canvas.clientWidth || 1;
+      var eraseHeight = canvas.clientHeight || 1;
+      var travel = Math.sqrt(
+        Math.pow((erasePoint[0] - eraseDrag.last[0]) * eraseWidth, 2) +
+        Math.pow((erasePoint[1] - eraseDrag.last[1]) * eraseHeight, 2)
+      );
+      /* Sample between events so a fast swipe cannot skip a thin stroke. */
+      var steps = Math.max(1, Math.ceil(travel / Math.max(eraserRadius() * 0.6, 1)));
+      var alreadyErased = eraseDrag.removed.length;
+      for (var step = 1; step <= steps; step += 1) {
+        var ratio = step / steps;
+        eraseDrag.removed = eraseDrag.removed.concat(eraseAt([
+          eraseDrag.last[0] + (erasePoint[0] - eraseDrag.last[0]) * ratio,
+          eraseDrag.last[1] + (erasePoint[1] - eraseDrag.last[1]) * ratio
+        ]));
+      }
+      eraseDrag.last = erasePoint;
+      if (eraseDrag.removed.length !== alreadyErased) {
+        redraw();
+        say(eraseDrag.removed.length + ' drawn stroke' +
+          (eraseDrag.removed.length === 1 ? '' : 's') + ' erased · Undo restores them.');
+      }
+      return;
+    }
     if (tool === 'select') {
       var hoverPoint = point(event);
       if (!hoverPoint) return;
       var hoverHandle = resizeHandleAt(hoverPoint);
       canvas.style.cursor = hoverHandle ? resizeCursor(hoverHandle)
-        : (hitTest(hoverPoint) ? 'grab' : 'default');
+        : (hitTest(hoverPoint) ? 'grab' : '');
       return;
     }
     if (!active || event.pointerId !== pointerId) return;
@@ -702,6 +836,7 @@
       panDrag = null;
       overlay.classList.remove('is-panning');
       releasePointer(event);
+      pushView(true);
       return;
     }
     if (resizeDrag && (!event || event.pointerId === resizeDrag.id)) {
@@ -727,13 +862,29 @@
       }
       return;
     }
+    if (eraseDrag && (!event || event.pointerId === eraseDrag.id)) {
+      var erased = eraseDrag.removed;
+      eraseDrag = null;
+      pointerId = null;
+      releasePointer(event);
+      if (erased.length) {
+        deleteUndo.push(erased);
+        deleteRedo = [];
+        redoStack = [];
+        redraw();
+        pushBoardSnapshot();
+        say(erased.length + ' drawn stroke' + (erased.length === 1 ? '' : 's') +
+          ' erased · Undo restores them.');
+      }
+      return;
+    }
     if (active && active.tool === 'laser' && (!event || event.pointerId === pointerId)) {
-      /* A laser trail is a pointer, not ink: it fades out and is never sent to
-         the server or to the student's board. */
+      /* A laser trail is a live pointer cue, not saved ink. The child sees the
+         same fading trail while sharing, but never gets a laser tool. */
       var trail = {
         points: clonePoints(active.points),
-        expires: Date.now() + 1500,
-        duration: 1500
+        expires: Date.now() + 2400,
+        duration: 2400
       };
       active = null;
       pointerId = null;
@@ -741,6 +892,7 @@
       redraw();
       if (!laserFrame) laserFrame = requestAnimationFrame(fadeLasers);
       releasePointer(event);
+      push('laser', { laser: { points: trail.points, duration: trail.duration }, page: 1 });
       return;
     }
     if (!active || (event && event.pointerId !== pointerId)) return;
@@ -1167,7 +1319,16 @@
         imageWidth = maxWidth;
         imageHeight = imageWidth / ratio;
         if (imageHeight > 520) { imageHeight = 520; imageWidth = imageHeight * ratio; }
-        if (imageHeight < 180) { imageHeight = 180; imageWidth = imageHeight * ratio; }
+        /* A very wide question must never be stretched taller just to meet the
+           minimum height: the uploaded ratio always wins. */
+        if (imageHeight < 180 && imageHeight * ratio <= maxWidth) {
+          imageHeight = 180;
+          imageWidth = imageHeight * ratio;
+        }
+        if (imageWidth > maxWidth) {
+          imageWidth = maxWidth;
+          imageHeight = imageWidth / ratio;
+        }
       }
       var textTop = pad + 52;
       var height = textTop + lines.length * lineHeight +
@@ -1281,8 +1442,13 @@
           var w = card.hasImage ? 0.42 : 0.36;
           var h = w / ratio;
           var maxH = card.hasImage ? 0.46 : 0.34;
+          var maxW = card.hasImage ? 0.62 : 0.52;
           if (h > maxH) { h = maxH; w = h * ratio; }
-          if (h < 0.12) { h = 0.12; w = h * ratio; }
+          /* The card is fitted, never stretched: a wide image stays wide. */
+          if (w > maxW) {
+            w = maxW;
+            h = w / ratio;
+          }
           var box = {
             x: Math.max(0, 0.97 - w),
             y: 0.035,
@@ -1583,9 +1749,43 @@
   }, true);
 
   /* The student board is read-only and follows the trainer's share state. */
+  function applyView(view) {
+    if (!view || typeof view !== 'object') return;
+    setZoom(Number(view.zoom) || 1, false);
+    var nextPan = view.pan || {};
+    var px = Number(nextPan.x);
+    var py = Number(nextPan.y);
+    pan.x = (Number.isFinite(px) ? px : 0) * (canvas.clientWidth || 1);
+    pan.y = (Number.isFinite(py) ? py : 0) * (canvas.clientHeight || 1);
+    redraw();
+  }
+
+  function showRemoteLaser(laser, at) {
+    if (!laser || !Array.isArray(laser.points) || !laser.points.length) return;
+    /* A cached replay must not flash a trail the trainer drew minutes ago. */
+    if (at && Date.now() - Date.parse(at) > 6000) return;
+    var duration = Number(laser.duration);
+    if (!Number.isFinite(duration) || duration < 400) duration = 2400;
+    laserItems.push({
+      points: laser.points,
+      expires: Date.now() + duration,
+      duration: duration
+    });
+    redraw();
+    if (!laserFrame) laserFrame = requestAnimationFrame(fadeLasers);
+  }
+
   function applyInk(event) {
     var payload = event.payload || {};
     if (payload.page && payload.page !== 1) return;
+    if (payload.type === 'view') {
+      applyView(payload.view);
+      return;
+    }
+    if (payload.type === 'laser') {
+      showRemoteLaser(payload.laser, event.at);
+      return;
+    }
     if (payload.type === 'stroke' && payload.ink) {
       items.push({ kind: 'stroke', ink: payload.ink });
     } else if (payload.type === 'image' && payload.image) {
@@ -1600,6 +1800,13 @@
           return { kind: 'stroke', ink: ink };
         });
       }
+      selection = [];
+      redoStack = [];
+      deleteUndo = [];
+      deleteRedo = [];
+      if (payload.view) applyView(payload.view);
+      else redraw();
+      return;
     } else if (payload.type === 'clear') {
       items = [];
       imageCache = {};
