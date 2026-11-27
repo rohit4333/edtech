@@ -101,7 +101,7 @@ async function sendPayout(req, res, period) {
   }
   const context = await payoutContext();
   const sessions = await sessionsFor(req.user);
-  context.slotPay = slotService.unutilisedPayForPeriod(req.user, sessions, period);
+  context.slotPay = await slotService.unutilisedPayForPeriod(req.user, sessions, period);
 
   return res.json({
     payout: payoutService.buildPayout(
@@ -858,9 +858,9 @@ router.get('/slots', async function (req, res, next) {
   }
 });
 
-router.post('/slots', function (req, res) {
+router.post('/slots', async function (req, res) {
   try {
-    return res.status(201).json({ slot: slotService.addSlot(req.user, req.body || {}) });
+    return res.status(201).json({ slot: await slotService.addSlot(req.user, req.body || {}) });
   } catch (error) {
     return res.status(error.status || 400).json({
       error: error.code || 'SLOT_FAILED',
@@ -869,9 +869,9 @@ router.post('/slots', function (req, res) {
   }
 });
 
-router.delete('/slots/:slotId', function (req, res) {
+router.delete('/slots/:slotId', async function (req, res) {
   try {
-    return res.json(slotService.removeSlot(req.user, req.params.slotId));
+    return res.json(await slotService.removeSlot(req.user, req.params.slotId));
   } catch (error) {
     return res.status(error.status || 400).json({
       error: error.code || 'SLOT_FAILED',
@@ -885,7 +885,7 @@ router.get('/schedule/week', async function (req, res, next) {
     const start = req.query.start || new Date().toISOString().slice(0, 10);
     const sessions = await sessionsFor(req.user);
     return res.json({
-      schedule: slotService.weekView(req.user, start, sessions, new Date().toISOString())
+      schedule: await slotService.weekView(req.user, start, sessions, new Date().toISOString())
     });
   } catch (error) {
     return next(error);
@@ -897,7 +897,7 @@ router.get('/schedule', async function (req, res, next) {
     const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(String(req.query.month || ''))
       ? String(req.query.month) : currentPeriod();
     const sessions = await sessionsFor(req.user);
-    return res.json({ schedule: slotService.monthView(req.user, month, sessions) });
+    return res.json({ schedule: await slotService.monthView(req.user, month, sessions) });
   } catch (error) {
     return next(error);
   }

@@ -75,6 +75,11 @@
       </div>
     </div>
     <div class="top-r">
+      <div class="session-warning trainer-only" id="sessionWarning" role="status" aria-live="polite" hidden>
+        <span class="warn-dot" aria-hidden="true"></span>
+        <span id="sessionWarningText">Class ends in 5 minutes</span>
+        <span class="warn-count" id="sessionWarningCount">05:00</span>
+      </div>
       <span class="rec" title="Recording"><i aria-hidden="true"></i><span class="rec-label">REC</span><span class="num" id="recTime">42:18</span></span>
       <button class="people" id="peopleBtn" type="button" aria-haspopup="dialog" title="Open session details for Ishaan Verma">
         <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
@@ -511,13 +516,27 @@
         <div class="full-board-actions">
           <button type="button" class="trainer-only" id="fullBoardShare" aria-pressed="false">Share with student</button>
           <button type="button" id="fullBoardFullscreen">Full screen</button>
-          <button type="button" id="fullBoardClose">Close</button>
         </div>
       </header>
       <div class="full-board-tools" role="toolbar" aria-label="Teaching whiteboard tools">
-        <button type="button" class="trainer-only" data-board-tool="pen" aria-pressed="true">Pen</button>
-        <button type="button" class="trainer-only" data-board-tool="marker" aria-pressed="false">Marker</button>
-        <button type="button" class="trainer-only" data-board-tool="eraser" aria-pressed="false">Eraser</button>
+        <button type="button" class="trainer-only" data-board-tool="pen" aria-pressed="true" aria-label="Pen" title="Pen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M4 20l4.2-1 10.2-10.2a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L5 15.8 4 20Z"></path>
+            <path d="M14.5 5.5l4 4"></path>
+          </svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="marker" aria-pressed="false" aria-label="Marker" title="Marker">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M14 4l6 6-9.5 9.5H5v-5.5L14 4Z"></path>
+            <path d="M5 19h14"></path>
+          </svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="eraser" aria-pressed="false" aria-label="Eraser" title="Eraser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M3 15.5l8.5-8.5a2 2 0 0 1 2.8 0l5.2 5.2a2 2 0 0 1 0 2.8L14.5 20H7l-4-4.5Z"></path>
+            <path d="M9 17l6-6"></path>
+          </svg>
+        </button>
         <span class="board-rule trainer-only" aria-hidden="true"></span>
         <button type="button" class="trainer-only" data-board-color="ink" aria-label="Ink" aria-pressed="true"></button>
         <button type="button" class="trainer-only" data-board-color="coral" aria-label="Coral" aria-pressed="false"></button>
@@ -1042,6 +1061,7 @@
 <div class="engagement-layer" id="reactionLayer" hidden></div>
 
 <script src="../shared/sessionKeepalive.js"></script>
+<script src="../shared/sessionAlerts.js"></script>
 <script src="api.js"></script>
 <script src="https://unpkg.com/livekit-client@2.25.0/dist/livekit-client.umd.js" integrity="sha256-Ra51QKs/7e0e50D9yipZByF5gz9hWbwE8TezYf4iTgI=" crossorigin="anonymous"></script>
 <script src="livekit.js"></script>
@@ -1054,5 +1074,7 @@
 <script src="codingIde.js"></script>
 <script src="englishWorkspace.js"></script>
 <script src="../shared/fullBoard.js"></script>
+<script src="../shared/cursorRelay.js"></script>
+<script src="../shared/cursorSetup.js"></script>
 </body>
 </html>

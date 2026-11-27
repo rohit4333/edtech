@@ -15,3 +15,7 @@ server/logs/
 .env.*
 !.env.example
 server/.env
+
+# Locally installed agent skill artifacts are not application source
+.agents/skills/
+skills-lock.json

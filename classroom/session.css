@@ -568,7 +568,7 @@ body.quiz-live.view-student .quiz-stage{border-color:rgba(255,91,46,.34)}
   background-image:radial-gradient(rgba(14,20,32,.07) .8px,transparent .8px);
   background-size:18px 18px;
 }
-.view-student .student-ink canvas{touch-action:none;cursor:crosshair}
+.view-student .student-ink canvas{touch-action:none;cursor:var(--ink-cross,crosshair)}
 
 .quiz-trainer{
   position:relative;
@@ -733,7 +733,7 @@ body.quiz-live.view-student .quiz-stage{border-color:rgba(255,91,46,.34)}
   background-image:radial-gradient(rgba(14,20,32,.07) .8px,transparent .8px);
   background-size:18px 18px;
   touch-action:none;
-  cursor:crosshair;
+  cursor:var(--ink-cross,crosshair);
 }
 .scratch > .mini{margin-top:8px;border-color:rgba(253,250,243,.18);background:transparent;color:rgba(253,250,243,.65)}
 .scratch > .mini:hover{border-color:rgba(253,250,243,.4);color:var(--paper)}
@@ -883,3 +883,22 @@ body.quiz-reteach .student-opts button{opacity:.55}
 }
 
 @keyframes notesUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+/* Server-driven five-minute class-end warning. It is staff-only and visually
+   warmer than the neutral recording clock so it cannot be mistaken for it. */
+.session-warning{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px;border-radius:999px;
+  background:linear-gradient(135deg,#fff1ef,#ffd9d3);
+  border:1px solid #f3a79c;color:#8b2d21;
+  box-shadow:0 6px 18px rgba(180,55,40,.14);
+  font-size:12px;font-weight:600;white-space:nowrap;
+}
+.session-warning[hidden]{display:none}
+.session-warning .warn-dot{
+  width:8px;height:8px;border-radius:50%;background:#c94230;
+  box-shadow:0 0 0 3px rgba(201,66,48,.16);
+  animation:warnPulse 1.4s ease-in-out infinite;
+}
+.session-warning .warn-count{font-variant-numeric:tabular-nums;font-weight:800}
+@keyframes warnPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}

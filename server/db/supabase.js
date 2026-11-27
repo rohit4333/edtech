@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const config = require('../config');
 const password = require('../auth/password');
+const identity = require('./identity');
 
 /*
  * Supabase live data adapter.
@@ -13,6 +14,10 @@ const password = require('../auth/password');
  * Only the server-side secret key is used here. No key value is ever returned
  * to a browser, logged, or included in an API response.
  */
+
+function available() {
+  return Boolean(config.supabase.url && config.supabase.publishableKey && config.supabase.secretKey);
+}
 
 function assertConfigured() {
   if (!config.supabase.url || !config.supabase.publishableKey || !config.supabase.secretKey) {
@@ -92,6 +97,18 @@ async function getRecord(collection, key) {
   const rows = await request('/rest/v1/mathify_records?collection=eq.' + encode(collection) +
     '&key=eq.' + encode(key) + '&select=data&limit=1');
   return rows && rows[0] && rows[0].data ? copy(rows[0].data) : null;
+}
+
+/* Normalized relations use public.users UUIDs. An older live project may have
+   UUIDs that were not derived from the readable app ids, so hydrate the mapping
+   from the service-only user record before writing any FK-backed row. */
+async function resolveNormalizedUserId(appId) {
+  const cached = identity.mappedUuid(appId);
+  if (cached) return cached;
+  const stored = await getRecord('users', String(appId || ''));
+  const resolved = (stored && stored.normalizedUserId) || identity.stableUuid(appId);
+  identity.setMapping(appId, resolved);
+  return resolved;
 }
 
 async function putRecord(collection, key, value) {
@@ -359,6 +376,8 @@ async function insertSession(input) {
     endsAt: row.ends_at || null,
     elapsedSeconds: 0,
     durationMinutes: input.durationMinutes || 50,
+    classType: input.classType || (input.demoId ? 'demo' : 'regular'),
+    demoId: input.demoId || null,
     batchId: input.batchId || null,
     batchCode: input.batchCode || null,
     batchSlotKey: input.batchSlotKey || null,
@@ -969,21 +988,96 @@ async function seedDemo() {
   let users = 0;
   for (const user of mock.users) {
     const secured = password.hashPassword(process.env.DEMO_PASSWORD || 'mathify-demo');
-    await putRecord('users', user.id, Object.assign({}, copy(user), secured));
+    /* Reuse an existing normalized identity when this project already holds one
+       for the email. Upsert-by-email never rewrites a primary key, so deriving
+       a new UUID here would break FK-backed curriculum rows on live projects. */
+    const existing = user.role === 'parent' ? [] : await request(
+      '/rest/v1/users?email=eq.' + encode(user.email) + '&select=id&limit=1',
+      { method: 'GET' }
+    );
+    const normalizedId = existing && existing[0] && existing[0].id
+      ? existing[0].id : identity.stableUuid(user.id);
+    identity.setMapping(user.id, normalizedId);
+    await putRecord('users', user.id, Object.assign(
+      {}, copy(user), secured, { normalizedUserId: normalizedId }
+    ));
+    /* Normalized relations such as student_curriculum use uuid keys. Mirror the
+       seed identities there so a fresh live database keeps both stores in step.
+       Parent is a desk alias of the student record, not a normalized user. */
+    if (user.role !== 'parent') {
+      await request('/rest/v1/users?on_conflict=email', {
+        method: 'POST',
+        prefer: 'resolution=merge-duplicates,return=minimal',
+        body: [{
+          id: normalizedId,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          password_hash: secured.salt + ':' + secured.hash,
+          status: user.status || 'active',
+          title: user.title || null,
+          grade: user.grade || null,
+          created_at: user.createdAt || new Date().toISOString()
+        }]
+      });
+    }
     users += 1;
   }
   let sessions = 0;
+  const seedNow = new Date().toISOString();
   for (const session of mock.sessions) {
-    await putRecord('sessions', session.id, copy(session));
+    const seeded = copy(session);
+    /* A seeded live session must stay live for a full demo window. Without a
+       fresh start timestamp the reminder worker would auto-close it before the
+       E2E suite reaches its RTC checks. */
+    if (seeded.status === 'live') {
+      seeded.startedAt = seedNow;
+      seeded.startsAt = seedNow;
+      await releaseReminderClaim(seeded.id + ':session_warning:demo');
+      await releaseReminderClaim(seeded.id + ':session_warning:regular');
+      await releaseReminderClaim(seeded.id + ':session_auto_close');
+    }
+    await putRecord('sessions', session.id, seeded);
     sessions += 1;
   }
-  return { users: users, sessions: sessions, mode: 'supabase' };
+  /* Academic profiles live in the normalized curriculum table. Seed the same
+     academic-only record the mock store exposes so a fresh live database
+     behaves like the reviewed demo. */
+  const curriculumRepository = require('./curriculum');
+  const curriculumAdapter = curriculumRepository.selectAdapter('supabase');
+  let curricula = 0;
+  for (const record of mock.studentCurriculum || []) {
+    await curriculumAdapter.upsert(record.studentId, {
+      curriculum: record.curriculum,
+      grade: record.grade,
+      language: record.language,
+      schoolChapter: record.schoolChapter
+    }, record.updatedBy);
+    curricula += 1;
+  }
+  /* Staff desks require a submitted KYC record in addition to the founder
+     grant already present on the seeded user. Without this, a fresh live
+     database boots with every trainer endpoint correctly locked. */
+  let onboarding = 0;
+  for (const record of mock.trainerOnboarding || []) {
+    await putRecord('trainer_onboarding', record.trainerId, copy(record));
+    onboarding += 1;
+  }
+  return {
+    users: users,
+    sessions: sessions,
+    curricula: curricula,
+    onboarding: onboarding,
+    mode: 'supabase'
+  };
 }
 
 module.exports = {
   assertConfigured,
+  available,
   getRecord,
   putRecord,
+  resolveNormalizedUserId,
   insertRecordOnce,
   deleteRecord,
   listRecords,

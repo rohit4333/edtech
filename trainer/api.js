@@ -189,6 +189,25 @@
     getSessionState: function (sessionId) {
       return request('/sessions/' + encodeURIComponent(sessionId) + '/state')
         .then(function (data) { return data && data.state ? data.state : data; });
+    },
+    /* Polling fallback for staff cues. The server filters child-only and
+       trainer-only events before this list is returned. */
+    getSessionEvents: function (sessionId, since) {
+      var query = Number(since) > 0 ? '?since=' + encodeURIComponent(since) : '';
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/events' + query)
+        .then(function (data) { return data && Array.isArray(data.events) ? data.events : []; });
+    },
+    /* Ephemeral teaching pointer; never part of the durable event stream. */
+    pushCursor: function (sessionId, payload) {
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/cursor', {
+        method: 'POST',
+        body: payload || {}
+      });
+    },
+    getCursor: function (sessionId, since) {
+      var query = Number(since) > 0 ? '?since=' + encodeURIComponent(since) : '';
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/cursor' + query)
+        .then(function (data) { return data && data.cursor ? data.cursor : null; });
     }
   };
 })();

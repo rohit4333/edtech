@@ -11,10 +11,21 @@
   function TZ() { return window.MATHIFY_TZ || 'Asia/Kolkata'; }
   var activeSessionId = window.MATHIFY_SESSION_ID || null;
   var ACTIVE_LINK_MINUTES = 50;
+  var activeLinkMinutes = ACTIVE_LINK_MINUTES;
   var dashboardSnapshot = null;
   var activeSessionStartedAt = null;
   var rolledSessionIds = {};
   var rolloverTimer = null;
+  var sessionEventCursor = 0;
+  var sessionEventTimer = null;
+  var sessionEventPollingId = null;
+  var sessionEventCursorReady = false;
+  var warningEl = $('#sessionWarning');
+  var warningTextEl = $('#sessionWarningText');
+  var warningCountEl = $('#sessionWarningCount');
+  var warningAnchorAt = null;
+  var warningRemainingSeconds = null;
+  var warningAnnounced = false;
 
   function parts(value) {
     if (!value) return null;
@@ -42,6 +53,14 @@
     var p = parts(value);
     if (!p) return '—';
     return String(p.hour).padStart(2, '0') + ':' + String(p.minute).padStart(2, '0');
+  }
+
+  /* Reverse countdown for the five-minute end warning. */
+  function clock(seconds) {
+    var value = Math.max(0, Math.floor(Number(seconds) || 0));
+    var m = Math.floor(value / 60);
+    var s = value % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
   function plural(value, word) {
@@ -1101,17 +1120,110 @@
     });
   }
 
+  /* ------------------------------------------------- live session cues */
+  function showDeskWarning(payload, withSound) {
+    if (!warningEl) return;
+    var details = payload || {};
+    var seconds = Number(details.countdownSeconds);
+    if (!Number.isFinite(seconds)) seconds = 5 * 60;
+    warningRemainingSeconds = Math.max(0, Math.floor(seconds));
+    warningAnchorAt = Date.now();
+    if (warningTextEl) {
+      warningTextEl.textContent = details.classType === 'demo'
+        ? 'Demo class ends in 5 minutes' : 'Class ends in 5 minutes';
+    }
+    if (warningCountEl) warningCountEl.textContent = clock(warningRemainingSeconds);
+    warningEl.hidden = false;
+    if (withSound && !warningAnnounced && window.MathifySessionAlerts) {
+      window.MathifySessionAlerts.ping('warning');
+      warningAnnounced = true;
+    }
+  }
+
+  function clearDeskWarning() {
+    warningAnchorAt = null;
+    warningRemainingSeconds = null;
+    if (warningEl) warningEl.hidden = true;
+  }
+
+  function paintDeskWarning() {
+    if (!warningEl || warningEl.hidden || warningAnchorAt === null) return;
+    var remaining = Math.max(0,
+      (warningRemainingSeconds || 0) - Math.floor((Date.now() - warningAnchorAt) / 1000));
+    if (warningCountEl) warningCountEl.textContent = clock(remaining);
+    if (remaining === 0) clearDeskWarning();
+  }
+
+  function handleDeskEvent(event) {
+    if (!event || !event.event) return;
+    if (event.event === 'session.warning') {
+      showDeskWarning(event.payload || {}, true);
+      toast('Five minutes left. Wrap up the class now.');
+    } else if (event.event === 'participant.joined' || event.event === 'participant.left') {
+      if (window.MathifySessionAlerts) {
+        window.MathifySessionAlerts.ping(
+          event.event === 'participant.joined' ? 'join' : 'leave');
+      }
+    } else if (event.event === 'session.ended' || event.event === 'session.auto_closed') {
+      clearDeskWarning();
+      if (event.event === 'session.auto_closed') toast('Session closed at the scheduled end time.');
+    }
+  }
+
+  function pollSessionEvents() {
+    if (!activeSessionId || !api.getSessionEvents) return;
+    api.getSessionEvents(activeSessionId, sessionEventCursor).then(function (events) {
+      var maxSeq = sessionEventCursor;
+      events.forEach(function (event) {
+        var seq = Number(event.seq) || 0;
+        if (seq > maxSeq) maxSeq = seq;
+        if (sessionEventCursorReady) handleDeskEvent(event);
+      });
+      sessionEventCursor = maxSeq;
+      sessionEventCursorReady = true;
+    }).catch(function () { /* transient polling failure; next tick retries */ });
+  }
+
+  function startSessionEventPolling(sessionId) {
+    if (!sessionId) return;
+    if (sessionEventPollingId === sessionId && sessionEventTimer) return;
+    sessionEventPollingId = sessionId;
+    sessionEventCursor = 0;
+    sessionEventCursorReady = false;
+    warningAnnounced = false;
+    clearDeskWarning();
+    if (sessionEventTimer) window.clearInterval(sessionEventTimer);
+    pollSessionEvents();
+    sessionEventTimer = window.setInterval(pollSessionEvents, 1500);
+    if (api.getSessionState) {
+      api.getSessionState(sessionId).then(function (state) {
+        var timing = state && state.sessionTiming;
+        if (timing && timing.warningReached && !timing.closeReached) {
+          showDeskWarning({
+            classType: timing.classType,
+            countdownSeconds: timing.secondsUntilClose
+          }, false);
+        }
+      }).catch(function () { /* dashboard remains usable without session state */ });
+    }
+  }
+
   function applyActiveSession(session) {
     if (!session) return;
     activeSessionId = session.id;
     activeSessionStartedAt = session.startsAt || session.scheduledAt || null;
+    activeLinkMinutes = Number(session.durationMinutes) > 0
+      ? Number(session.durationMinutes) : (session.classType === 'demo' ? 45 : ACTIVE_LINK_MINUTES);
+    startSessionEventPolling(session.id);
     setText('#nextTime', fmtTime(session.startsAt) + ' · live 1:1');
     setText('#nextTopic', session.title);
     if (window.MathifySubjects && typeof window.MathifySubjects.setNextMeta === 'function') {
       window.MathifySubjects.setNextMeta(session, dashboardSnapshot && dashboardSnapshot.trainer);
     } else {
+      var minutes = Number(session.durationMinutes) > 0
+        ? Number(session.durationMinutes) : (session.classType === 'demo' ? 45 : 50);
       setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
-        ' · ' + (session.code || 'Session') + ' · link active for 50 min');
+        ' · ' + (session.code || 'Session') + ' · link active for ' + minutes + ' min');
     }
     renderPlan(session);
     setText('#countdownLabel', session.status === 'live' ? 'session' : 'starts in');
@@ -1131,12 +1243,14 @@
     })[0] || null;
   }
 
-  /* Dashboard link promotion is exactly 50 minutes from session start. Pay
-     still uses the 55-minute audit window on the server; the two stay separate. */
+  /* Dashboard link promotion follows the booked class length (demo 45,
+     regular 50). Pay still uses the server's audit window; the two stay
+     separate. */
   function checkActiveLinkRollover() {
+    paintDeskWarning();
     if (!activeSessionStartedAt) return;
     var started = new Date(activeSessionStartedAt).getTime();
-    if (isNaN(started) || Date.now() - started < ACTIVE_LINK_MINUTES * 60000) return;
+    if (isNaN(started) || Date.now() - started < activeLinkMinutes * 60000) return;
     var nextSession = nextScheduledSession(activeSessionId);
     if (!nextSession) return;
     rolledSessionIds[activeSessionId] = true;

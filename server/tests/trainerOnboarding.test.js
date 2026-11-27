@@ -154,7 +154,7 @@ async function main() {
   equal(trainerBatch.studentId, undefined, 'trainer roster payload withholds the student id');
   equal(JSON.stringify(trainerBatch).indexOf('@'), -1, 'trainer roster carries no contact details');
 
-  const week = slotService.weekView({ id: trainerId, role: 'trainer' }, iso(1, 10).slice(0, 10), [booked]);
+  const week = await slotService.weekView({ id: trainerId, role: 'trainer' }, iso(1, 10).slice(0, 10), [booked]);
   equal(week.days.length, 7, 'week timetable returns exactly seven days');
   equal(new Date(week.start + 'T00:00:00.000Z').getUTCDay(), 1, 'the seven-day window starts on Monday');
   ok(week.days.some(function (day) { return day.classes.some(function (item) { return item.batchCode === batch.code; }); }),
@@ -166,22 +166,28 @@ async function main() {
     if (candidate.toISOString().slice(0, 10) === today) return candidate.toISOString();
     return today + 'T23:59:00.000Z';
   }
-  /* Both sessions stay inside the dashboard's today window. The live one has
-     passed 50 minutes so its link must roll to the next scheduled session. */
+  /* Both sessions stay inside the dashboard's today window. The live one still
+     owns the desk link through the 55-minute server close so the trainer cannot
+     miss the minute-50 warning or the auto-close event. */
   const liveStart = todayInstant(-51 * 60000);
   const nextStart = todayInstant(30 * 60000);
-  const dashboard = serializers.toTrainerDashboard(
-    { id: trainerId, role: 'trainer', name: 'Ananya Rao' },
-    [
-      { id: 'ses_active_50', status: 'live', startedAt: liveStart, studentId: studentId, code: 'LIVE' },
-      { id: 'ses_next', status: 'scheduled', startedAt: nextStart, studentId: studentId, code: 'NEXT', planner: [] }
-    ],
-    []
-  );
+  const liveSessions = [
+    { id: 'ses_active_50', status: 'live', startedAt: liveStart, studentId: studentId, code: 'LIVE', planner: [] },
+    { id: 'ses_next', status: 'scheduled', startedAt: nextStart, studentId: studentId, code: 'NEXT', planner: [] }
+  ];
+  const viewer = { id: trainerId, role: 'trainer', name: 'Ananya Rao' };
+  const dashboard = serializers.toTrainerDashboard(viewer, liveSessions, []);
   equal(dashboard.summary.sessionsTaken, 1, 'a session past 50 minutes counts as taken');
   equal(dashboard.summary.sessionsRemaining, 1, 'the remaining counter excludes the taken session');
-  equal(dashboard.nextSession.id, 'ses_next', 'the next session link is promoted after exactly 50 minutes');
-  equal(dashboard.nextSession.activeThroughMinutes, 50, 'dashboard advertises the 50-minute link window');
+  equal(dashboard.nextSession.id, 'ses_active_50', 'the desk stays with the live class through the warning window');
+  equal(dashboard.nextSession.activeThroughMinutes, 55, 'dashboard advertises the 55-minute server close window');
+
+  const closedStart = todayInstant(-56 * 60000);
+  const afterClose = serializers.toTrainerDashboard(viewer, [
+    Object.assign({}, liveSessions[0], { startedAt: closedStart }),
+    liveSessions[1]
+  ], []);
+  equal(afterClose.nextSession.id, 'ses_next', 'the next session link is promoted after the server close window');
 
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () { resolve(instance); });

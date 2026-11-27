@@ -46,6 +46,8 @@ body.board-shared .stage{display:none}
   background:var(--paper);color:var(--ink);font:500 11px/1 var(--mono);cursor:pointer
 }
 .full-board-tools button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.full-board-tools [data-board-tool]{display:inline-flex;align-items:center;justify-content:center;width:34px;height:32px;padding:0}
+.full-board-tools [data-board-tool] svg{display:block;width:18px;height:18px}
 .full-board-tools [data-board-color]{width:22px;min-width:22px;height:22px;border-radius:50%;padding:0}
 .full-board-tools [data-board-color][data-board-color="ink"]{background:#0E1420}
 .full-board-tools [data-board-color][data-board-color="coral"]{background:#FF5B2E}
@@ -53,7 +55,8 @@ body.board-shared .stage{display:none}
 .full-board-tools [data-board-color][data-board-color="amber"]{background:#B4740B}
 .full-board-canvas-wrap{position:relative;flex:1;min-height:0;background:#fff}
 .full-board-canvas-wrap canvas{
-  display:block;width:100%;height:100%;touch-action:none;cursor:crosshair
+  display:block;width:100%;height:100%;touch-action:none;
+  cursor:var(--ink-cross,crosshair)
 }
 .full-board-status{
   position:absolute;left:18px;bottom:18px;margin:0;padding:8px 10px;

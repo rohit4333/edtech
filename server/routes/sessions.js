@@ -19,6 +19,8 @@ const reactionPermission = require('../services/reactionPermissionService');
 const appPolicy = require('../config/policy.json');
 const requireTrainerAccess = require('../middleware/trainerAccess');
 const demoService = require('../services/demoService');
+const sessionTiming = require('../services/sessionTimingService');
+const cursorRelay = require('../services/cursorRelay');
 
 const router = express.Router();
 
@@ -98,8 +100,13 @@ const SHARED_EVENTS = [
   'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
-  'founder.observer.changed', 'ide.state.updated', 'challenge.published'
+  'founder.observer.changed', 'ide.state.updated', 'challenge.published',
+  'session.warning', 'session.auto_closed', 'participant.joined', 'participant.left'
 ];
+/* The five-minute class-end ping is a staff cue only. It stays in the durable
+   outbox for the trainer desk, but the browser-safe events route never releases
+   it to a child. Join and leave pings are deliberately shared with both peers. */
+const TRAINER_ONLY_EVENTS = ['session.warning'];
 const FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
 function safePayload(value, depth) {
@@ -118,17 +125,16 @@ function safePayload(value, depth) {
 /* A celebration is a server-owned recognition event, never a client-written
    message. The client may only offer a preference id, which the service
    validates against the config allowlist. */
-async function fireCelebration(req, triggerName) {
-  const session = req.sessionRecord;
-  const body = req.body || {};
+async function fireCelebration(session, body, triggerName) {
+  const preferences = body || {};
   const student = await db.findUserById(session.studentId);
   const payload = celebrations.evaluateTrigger(triggerName, {
     sessionId: session.id,
     trigger: triggerName,
     studentName: student && student.name ? student.name : 'Student',
     quizActive: Boolean(session.quiz && (session.quiz.phase === 'answering' || session.quiz.phase === 'reteach')),
-    studentPref: body.studentPref,
-    trainerPref: body.trainerPref,
+    studentPref: preferences.studentPref,
+    trainerPref: preferences.trainerPref,
     now: Date.now()
   });
   if (!payload) return Promise.resolve(null);
@@ -142,8 +148,16 @@ router.get('/:sessionId/events', async function (req, res) {
   /* Live mode reads the Supabase outbox asynchronously; the allowlist and
      scrub below see the resolved events either way. */
   const events = await realtime.forSession(req.sessionRecord.id, since, req.query.limit);
+  /* The desk and classroom poll this route. Conditional caching would let a
+     browser keep serving an empty 304 after a new warning or join/leave ping
+     is appended, so every poll must reach the server. */
+  res.set('Cache-Control', 'no-store');
+  const staffView = Boolean(req.user && (req.user.role === 'trainer' || req.user.role === 'founder'));
   const visible = (Array.isArray(events) ? events : [])
-    .filter(function (message) { return SHARED_EVENTS.indexOf(message.event) !== -1; })
+    .filter(function (message) {
+      return SHARED_EVENTS.indexOf(message.event) !== -1 &&
+        (staffView || TRAINER_ONLY_EVENTS.indexOf(message.event) === -1);
+    })
     .map(function (message) {
       return {
         seq: message.seq,
@@ -246,6 +260,34 @@ function cleanSnapshotItem(value) {
   const ink = cleanInkStroke(value.ink || value);
   return ink ? { kind: 'stroke', ink: ink } : null;
 }
+
+/* The trainer's pointer is a live teaching cue, not board content. It uses an
+   ephemeral latest-position relay so high-frequency moves never flood the
+   durable event stream that also carries the class warning and close cues. */
+router.post('/:sessionId/cursor', auth.requireRole('trainer', 'founder'), function (req, res) {
+  const body = req.body || {};
+  const cursor = cursorRelay.publish(req.sessionRecord.id, {
+    surface: body.surface,
+    x: body.x,
+    y: body.y,
+    active: body.active
+  });
+  if (!cursor) {
+    return res.status(422).json({
+      error: 'INVALID_CURSOR',
+      message: 'A normalised board or sketch pointer position is required.'
+    });
+  }
+  return res.json({ ok: true, cursor: cursor });
+});
+
+/* Both verified participants may read the same pointer. A null cursor means
+   "nothing newer than this seq", which lets a child hide a stale pointer. */
+router.get('/:sessionId/cursor', function (req, res) {
+  res.set('Cache-Control', 'no-store');
+  const cursor = cursorRelay.latest(req.sessionRecord.id, req.query.since);
+  return res.json({ sessionId: req.sessionRecord.id, cursor: cursor });
+});
 
 router.post('/:sessionId/board/ink', auth.requireRole('trainer', 'founder'), function (req, res) {
   const body = req.body || {};
@@ -467,7 +509,7 @@ router.post('/:sessionId/celebrate', auth.requireRole('trainer', 'founder'), fun
       message: 'Only trainer kudos can be started from the classroom.'
     });
   }
-  return fireCelebration(req, trigger).then(function (result) {
+  return fireCelebration(req.sessionRecord, req.body, trigger).then(function (result) {
     return res.json({ fired: Boolean(result), celebration: result ? result.payload : null, seq: result && result.seq });
   });
 });
@@ -538,14 +580,16 @@ router.post('/:sessionId/presence/finalize', auth.requireRole('trainer', 'founde
   return res.json({ snapshot: await presenceService.finalize(req.sessionRecord) });
 });
 
-router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
-  try {
-    const session = req.sessionRecord;
-    if (session.status === 'ended') {
-      return res.status(409).json({ error: 'SESSION_ALREADY_ENDED', message: 'This session is already ended.' });
-    }
+/* A single close path is shared by the trainer's button and the server-owned
+   auto-close job. Recording stop, presence finalization, demo access, mastery
+   update and the end event must happen identically in both cases. */
+async function closeSession(session, options) {
+  const input = options || {};
+  if (session.status === 'ended') {
+    return { error: { status: 409, code: 'SESSION_ALREADY_ENDED', message: 'This session is already ended.' } };
+  }
 
-    const body = req.body || {};
+  const body = input.body || {};
     /* The trainer may attach a recap and recording link. Only small, scalar
        fields are persisted; status, score and answer data stay server-owned. */
     const RECAP_KEYS = ['summary', 'highlights', 'homework', 'pagesCompleted', 'durationSeconds'];
@@ -567,16 +611,10 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
     if (hasScoreOverride) {
       if (typeof body.currentQuizScore !== 'number' || !Number.isFinite(body.currentQuizScore) ||
           body.currentQuizScore < 0 || body.currentQuizScore > 100) {
-        return res.status(400).json({
-          error: 'INVALID_SCORE',
-          message: 'currentQuizScore must be a number from 0 to 100.'
-        });
+        return { error: { status: 400, code: 'INVALID_SCORE', message: 'currentQuizScore must be a number from 0 to 100.' } };
       }
       if (config.isProduction && !String(body.overrideReason || '').trim()) {
-        return res.status(400).json({
-          error: 'OVERRIDE_REASON_REQUIRED',
-          message: 'A trainer override requires an audit reason in production.'
-        });
+        return { error: { status: 400, code: 'OVERRIDE_REASON_REQUIRED', message: 'A trainer override requires an audit reason in production.' } };
       }
     }
     const scoreOverride = hasScoreOverride ? body.currentQuizScore : serializers.readiness(session);
@@ -584,12 +622,15 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
     const topicId = session.topicId || session.title || 'general-mathematics';
     const currentLevel = masteryGating.levelFromSession(session);
     const pendingCheck = masteryGating.pendingParallelCheck(session);
-    if (pendingCheck && body.force !== true) {
-      return res.status(409).json({
-        error: 'PARALLEL_CHECK_REQUIRED',
-        message: 'Solve the parallel check before ending the session, or force with trainer override.',
-        questionId: pendingCheck.id
-      });
+    if (pendingCheck && input.force !== true && body.force !== true) {
+      return {
+        error: {
+          status: 409,
+          code: 'PARALLEL_CHECK_REQUIRED',
+          message: 'Solve the parallel check before ending the session, or force with trainer override.',
+          questionId: pendingCheck.id
+        }
+      };
     }
     const unlockThreshold = masteryGating.configuredThreshold(
       appPolicy.quiz && appPolicy.quiz.unlockThreshold
@@ -605,7 +646,10 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
 
     const endedAt = new Date().toISOString();
     const observerWasActive = Boolean(session.founderObserver && session.founderObserver.active);
-    const updated = await db.updateSession(session.id, function (current) {
+    /* Finish every side effect before the status becomes ended. If recording
+       stop, mastery, presence or demo access throws, the server-owned retry can
+       run again instead of being refused by an already-ended session. */
+    function applyEndState(current) {
       current.status = 'ended';
       current.founderObserver = sessionAccess.clearObserver(current, endedAt).session.founderObserver;
       current.endsAt = endedAt;
@@ -628,7 +672,8 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
         current.recap = Object.assign({}, current.recap || {}, safeRecap, { savedAt: endedAt });
       }
       return current;
-    });
+    }
+    const closing = applyEndState(JSON.parse(JSON.stringify(session || {})));
 
     /* A tab close or missed click must never strand an active Egress or leave
        a recording row permanently marked as recording. */
@@ -658,12 +703,12 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
       return student;
     });
 
-    const presence = await presenceService.finalize(updated, endedAt);
+    const presence = await presenceService.finalize(closing, endedAt);
 
     /* A finished demo closes demo-only class access but keeps payments and
        policies reachable. Notification failures never fail the session end. */
     try {
-      await demoService.onSessionEnded(session);
+      await demoService.onSessionEnded(closing);
     } catch (error) {
       console.error('[demo] session completion update failed:', error.message);
     }
@@ -677,15 +722,27 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
     const endTrigger = priorEnded === 0
       ? 'first_session_completed'
       : (gating.unlockedNext ? 'mastery_gate_crossed' : 'session_complete');
-    await fireCelebration(req, endTrigger);
+    await fireCelebration(closing, body, endTrigger);
+
+    /* Only now is the session durably ended. A failure above leaves it live so
+       the lifetime job can retry the whole close instead of a half-written end. */
+    const updated = await db.updateSession(session.id, applyEndState);
 
     realtime.publish(updated.id, 'session.ended', {
       endedAt: endedAt,
       unlockedNext: gating.unlockedNext,
-      reteachRequired: gating.reteachRequired
+      reteachRequired: gating.reteachRequired,
+      reason: input.reason || 'manual'
     });
+    if (input.reason === 'auto_close') {
+      realtime.publish(updated.id, 'session.auto_closed', {
+        endedAt: endedAt,
+        classType: sessionTiming.isDemoSession(session) ? 'demo' : 'regular'
+      });
+    }
 
-    return res.json({
+    return {
+      response: {
       recap: Object.assign({
         id: updated.id,
         title: updated.title,
@@ -704,17 +761,38 @@ router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async fun
         rule: gating.rule,
         masteryGating: gating,
         presence: presence,
-        trainerView: req.user.role === 'trainer' || req.user.role === 'founder'
+        trainerView: input.actorRole === 'trainer' || input.actorRole === 'founder'
       }, updated.recap || {}),
       presence: presence,
       unlockedNext: gating.unlockedNext,
       reteachRequired: gating.reteachRequired,
       currentScore: gating.currentScore,
       currentLevel: currentLevel
+      }
+    };
+}
+
+router.post('/:sessionId/end', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const result = await closeSession(req.sessionRecord, {
+      body: req.body,
+      actorRole: req.user.role,
+      reason: 'manual'
     });
+    if (result.error) {
+      return res.status(result.error.status).json({
+        error: result.error.code,
+        message: result.error.message,
+        questionId: result.error.questionId
+      });
+    }
+    return res.json(result.response);
   } catch (error) {
     return next(error);
   }
 });
+
+/* Exposed for the in-process session-lifetime job only. */
+router.closeSession = closeSession;
 
 module.exports = router;

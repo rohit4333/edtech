@@ -183,6 +183,13 @@ cross-role identity builder, and `public.session_participant_names` is the only
 browser-readable Supabase view for session partners. Face, voice, names, role and
 whiteboard/Wacom activity are the only shared signals.
 
+The black cross pointer on every ink surface is a separate, ephemeral teaching cue:
+`POST /api/sessions/:id/cursor` is trainer/founder-only and accepts a normalised
+`{ surface, x, y, active }` point, while `GET` returns only the newest point to the
+two verified participants. It is deliberately kept out of the durable session event
+outbox so frequent movement cannot evict the minute-40/50 warning or the auto-close
+event, and no pointer position is written to the database.
+
 ### Public
 
 | Method | Path | Purpose |
@@ -293,8 +300,10 @@ Required in production: `AUTH_SECRET`, `CORS_ORIGIN`, `DATABASE_MODE=supabase`,
 `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
 the full AI chain (`GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`,
 `CLOUDFLARE_ACCOUNT_ID`) plus `FREELM_MODEL`, `FREELM_TIMEOUT_SECONDS`,
-`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `TWILIO_AUTH_TOKEN`,
-`TWILIO_WEBHOOK_URL`. `FREELM_KEYLESS` and non-chain provider keys are rejected.
+`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
+`FREELM_KEYLESS` and non-chain provider keys are rejected. Twilio is dormant:
+`TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are optional and only enable webhook
+signature verification; the webhook still fails closed in production.
 
 Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape hatch),
 `APP_ORIGIN`, `RESEND_API_KEY`, `RESEND_FROM`, `CHAT_WORKER_URL`, `TWILIO_ACCOUNT_SID`,

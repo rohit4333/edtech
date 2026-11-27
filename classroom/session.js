@@ -1490,12 +1490,26 @@
           typeof window.classroomEngagement.onCelebration === 'function') {
         window.classroomEngagement.onCelebration(event.payload || {});
       }
+    } else if (event.event === 'session.warning') {
+      /* Staff-only server event: the browser only paints and plays the cue. */
+      if (api.showSessionWarning) api.showSessionWarning(event.payload || {}, true);
+    } else if (event.event === 'participant.joined' || event.event === 'participant.left') {
+      var joining = event.event === 'participant.joined';
+      if (window.MathifySessionAlerts) {
+        window.MathifySessionAlerts.ping(joining ? 'join' : 'leave');
+      }
+      var who = (event.payload && event.payload.role) === 'student' ? 'Student' : 'Trainer';
+      toast(who + (joining ? ' joined the room.' : ' left the room.'));
     } else if (event.event === 'session.ended') {
       document.body.classList.add('is-ended');
       var word = $('#liveWord');
       var button = $('#endBtn');
       if (word) word.textContent = 'Ended';
       if (button) { button.disabled = true; button.textContent = 'Ended'; }
+      if (api.clearSessionWarning) api.clearSessionWarning();
+      if (event.payload && event.payload.reason === 'auto_close') {
+        toast('Session closed automatically at the scheduled end time.');
+      }
     }
   }
 
@@ -1606,6 +1620,9 @@
   }
 
   function closeScratchOverlay() {
+    if (window.MathifyCursor && typeof window.MathifyCursor.hide === 'function') {
+      window.MathifyCursor.hide('sketch');
+    }
     if (scratchOverlay) scratchOverlay.hidden = true;
     if (studentInkMode && quizLive()) studentInkMode.textContent = 'Ready for trainer sketch';
     setDoubtMenu(false);

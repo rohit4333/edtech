@@ -11,6 +11,8 @@
 
 const config = require('../config');
 const store = require('./mock');
+const identity = require('./identity');
+const supabaseDb = require('./supabase');
 const curriculumContext = require('../services/curriculumContext');
 
 const ALLOWED_KEYS = ['curriculum', 'grade', 'language', 'schoolChapter'];
@@ -82,22 +84,31 @@ const memory = {
 };
 
 /* ----------------------------------------------------------- Supabase adapter */
-function toRow(record) {
+async function normalizedId(appId) {
+  if (!appId) return null;
+  /* Live projects may already own a different UUID for the same email. Ask the
+     Supabase adapter for the persisted mapping before writing an FK row. */
+  return supabaseDb.available()
+    ? supabaseDb.resolveNormalizedUserId(appId)
+    : identity.stableUuid(appId);
+}
+
+async function toRow(record) {
   return {
-    student_id: record.studentId,
+    student_id: await normalizedId(record.studentId),
     curriculum: record.curriculum,
     grade: record.grade,
     language: record.language,
     school_chapter: record.schoolChapter || null,
-    updated_by: record.updatedBy || null,
+    updated_by: record.updatedBy ? await normalizedId(record.updatedBy) : null,
     updated_at: record.updatedAt
   };
 }
 
-function fromRow(row) {
+function fromRow(row, requestedStudentId) {
   if (!row) return null;
   return {
-    studentId: row.student_id,
+    studentId: requestedStudentId || row.student_id,
     curriculum: row.curriculum,
     grade: row.grade,
     language: row.language,
@@ -113,7 +124,7 @@ async function rest(pathname, options) {
     {
       method: options.method,
       headers: {
-        apikey: config.supabase.publishableKey,
+        apikey: config.supabase.secretKey,
         Authorization: 'Bearer ' + config.supabase.secretKey,
         'Content-Type': 'application/json',
         Prefer: 'return=representation,resolution=merge-duplicates'
@@ -140,10 +151,11 @@ const supabase = {
     return Boolean(config.supabase.url && config.supabase.publishableKey && config.supabase.secretKey);
   },
   get: async function (studentId) {
-    const rows = await rest('student_curriculum?student_id=eq.' + encodeURIComponent(studentId), {
+    const rows = await rest('student_curriculum?student_id=eq.' +
+      encodeURIComponent(await normalizedId(studentId)), {
       method: 'GET'
     });
-    return fromRow(Array.isArray(rows) ? rows[0] : null);
+    return fromRow(Array.isArray(rows) ? rows[0] : null, studentId);
   },
   upsert: async function (studentId, patch, actorId) {
     const clean = cleanPatch(patch);
@@ -153,8 +165,8 @@ const supabase = {
       updatedBy: actorId || null,
       updatedAt: new Date().toISOString()
     });
-    const rows = await rest('student_curriculum', { method: 'POST', body: [toRow(record)] });
-    return fromRow(Array.isArray(rows) ? rows[0] : record);
+    const rows = await rest('student_curriculum', { method: 'POST', body: [await toRow(record)] });
+    return fromRow(Array.isArray(rows) ? rows[0] : record, studentId);
   }
 };
 

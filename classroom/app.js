@@ -243,6 +243,12 @@
   var timerAnchorAt = null;
   var timerAnchorSeconds = null;
   var timingState = null;
+  var warningAnchorAt = null;
+  var warningRemainingSeconds = null;
+  var warningAnnounced = false;
+  var warningEl = $('#sessionWarning');
+  var warningTextEl = $('#sessionWarningText');
+  var warningCountEl = $('#sessionWarningCount');
 
   function timerClock(seconds) {
     var negative = seconds < 0;
@@ -253,6 +259,45 @@
       (s < 10 ? '0' : '') + s;
   }
 
+  /* The warning is a staff cue. The server filters it from child event streams;
+     this role check is a second boundary in case a cached event is replayed. */
+  function isStaffViewer() {
+    return viewerRole === 'trainer' || viewerRole === 'founder';
+  }
+
+  function showSessionWarning(payload, withSound) {
+    if (!isStaffViewer() || ended || !warningEl) return;
+    var details = payload || {};
+    var seconds = Number(details.countdownSeconds);
+    if (!Number.isFinite(seconds)) seconds = 5 * 60;
+    warningRemainingSeconds = Math.max(0, Math.floor(seconds));
+    warningAnchorAt = Date.now();
+    if (warningTextEl) {
+      warningTextEl.textContent = details.classType === 'demo'
+        ? 'Demo class ends in 5 minutes' : 'Class ends in 5 minutes';
+    }
+    if (warningCountEl) warningCountEl.textContent = timerClock(warningRemainingSeconds);
+    warningEl.hidden = false;
+    if (withSound && !warningAnnounced && window.MathifySessionAlerts) {
+      window.MathifySessionAlerts.ping('warning');
+      warningAnnounced = true;
+    }
+  }
+
+  function clearSessionWarning() {
+    warningAnchorAt = null;
+    warningRemainingSeconds = null;
+    if (warningEl) warningEl.hidden = true;
+  }
+
+  function paintSessionWarning() {
+    if (!warningEl || warningEl.hidden || warningAnchorAt === null) return;
+    var elapsed = Math.floor((Date.now() - warningAnchorAt) / 1000);
+    var remaining = Math.max(0, (warningRemainingSeconds || 0) - elapsed);
+    if (warningCountEl) warningCountEl.textContent = timerClock(remaining);
+    if (remaining === 0) clearSessionWarning();
+  }
+
   function paintSessionTimer() {
     if (!recTime) return;
     if (ended || timerAnchorAt === null || timerAnchorSeconds === null) {
@@ -261,6 +306,7 @@
     }
     var delta = Math.floor((Date.now() - timerAnchorAt) / 1000);
     recTime.textContent = timerClock(timerAnchorSeconds + Math.max(0, delta));
+    paintSessionWarning();
   }
 
   function applySessionTiming(value) {
@@ -269,11 +315,20 @@
         timingState.offsetSeconds === null || timingState.offsetSeconds === undefined) {
       timerAnchorAt = null;
       timerAnchorSeconds = null;
+      clearSessionWarning();
       paintSessionTimer();
       return;
     }
     timerAnchorAt = Date.now();
     timerAnchorSeconds = timingState.offsetSeconds;
+    if (timingState.warningReached && !timingState.closeReached) {
+      showSessionWarning({
+        classType: timingState.classType,
+        countdownSeconds: timingState.secondsUntilClose
+      }, false);
+    } else if (!timingState.warningReached) {
+      clearSessionWarning();
+    }
     paintSessionTimer();
   }
 
@@ -506,6 +561,7 @@
     }
     if (recapStatus) recapStatus.textContent = 'Session · ' + (savedText || 'saved');
     if (recapSaved) recapSaved.textContent = savedText || 'Saved just now';
+    clearSessionWarning();
     /* A 1:1 call does not stay open after the session is closed. */
     var endedCall = window.mathifyClassroomLiveKit;
     if (endedCall && typeof endedCall.leave === 'function') endedCall.leave();
@@ -1615,6 +1671,9 @@
     networkState: function () { return networkState; },
     applyObserverState: applyObserverState,
     sessionTiming: function () { return timingState; },
+    applySessionTiming: applySessionTiming,
+    showSessionWarning: showSessionWarning,
+    clearSessionWarning: clearSessionWarning,
     subject: function () { return subjectState; }
   };
 

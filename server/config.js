@@ -33,9 +33,7 @@ const PRODUCTION_REQUIRED_ENV = [
   'CLOUDFLARE_ACCOUNT_ID',
   'RAZORPAY_KEY_ID',
   'RAZORPAY_KEY_SECRET',
-  'RAZORPAY_WEBHOOK_SECRET',
-  'TWILIO_AUTH_TOKEN',
-  'TWILIO_WEBHOOK_URL'
+  'RAZORPAY_WEBHOOK_SECRET'
 ];
 
 /* Only the three approved AI chain providers are accepted. OpenRouter, Kilo,
@@ -101,12 +99,12 @@ function assertProductionConfig() {
     throw new Error(extraKey + ' is not part of the approved AI provider chain and must be empty in production.');
   }
 
-  /* Payments and parent notifications remain separate external integrations. */
+  /* Payments remain a separate external integration. Twilio/WhatsApp is
+     discontinued and dormant: its webhook code stays for historical evidence,
+     but missing Twilio credentials no longer block production boot. */
   requireEnv('RAZORPAY_KEY_ID');
   requireEnv('RAZORPAY_KEY_SECRET');
   requireEnv('RAZORPAY_WEBHOOK_SECRET');
-  requireEnv('TWILIO_AUTH_TOKEN');
-  requireEnv('TWILIO_WEBHOOK_URL');
 }
 
 function corsOrigins() {

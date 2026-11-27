@@ -24,7 +24,6 @@
   var fullscreenBtn = document.getElementById('fullBoardFullscreen');
   var undoBtn = document.getElementById('fullBoardUndo');
   var clearBtn = document.getElementById('fullBoardClear');
-  var closeBtn = document.getElementById('fullBoardClose');
   var statusNode = document.getElementById('fullBoardStatus');
 
   var params = new URLSearchParams(window.location.search);
@@ -339,9 +338,16 @@
     readFile(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]);
   });
 
+  function hideTrainerPointer() {
+    if (window.MathifyCursor && typeof window.MathifyCursor.hide === 'function') {
+      window.MathifyCursor.hide('board');
+    }
+  }
+
   if (shareBtn) shareBtn.addEventListener('click', function () {
     if (!trainer) return;
     sharing = !sharing;
+    if (!sharing) hideTrainerPointer();
     var state = api && typeof api.shareBoard === 'function' && sessionId
       ? api.shareBoard(sessionId, sharing)
       : Promise.resolve();
@@ -357,6 +363,12 @@
   });
 
   if (fullscreenBtn) fullscreenBtn.addEventListener('click', function () {
+    /* A student has no separate Close button: Exit full screen returns them to
+       the classroom. Trainers keep the full/docked toggle beside the planner. */
+    if (!trainer) {
+      close();
+      return;
+    }
     var full = overlay.classList.toggle('full');
     overlay.classList.toggle('docked', !full && trainer);
     if (fullscreenBtn) fullscreenBtn.textContent = full ? 'Exit full screen' : 'Full screen';
@@ -367,10 +379,20 @@
     }
     if (requestAnimationFrame) requestAnimationFrame(fit);
   });
-  if (closeBtn) closeBtn.addEventListener('click', function () { close(); });
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement && !trainer && !overlay.hidden) close();
+  });
   if (toggle) toggle.addEventListener('click', function () {
-    if (!overlay.hidden) close();
-    else open(trainer);
+    if (!overlay.hidden) {
+      close();
+      return;
+    }
+    /* The dashboard's Full whiteboard button means full screen immediately —
+       no second click on the in-board Full screen control. */
+    open(false);
+    if (overlay.requestFullscreen) {
+      overlay.requestFullscreen().catch(function () { /* CSS full view still applies */ });
+    }
   });
 
   function open(docked) {
@@ -385,6 +407,7 @@
     else fit();
   }
   function close() {
+    hideTrainerPointer();
     overlay.hidden = true;
     var body = document.querySelector('.body');
     if (body) body.classList.remove('teach-mode');
@@ -429,6 +452,7 @@
           if (!trainer) {
             document.body.classList.toggle('board-shared', shared);
             if (shared) open();
+            else close();
             say(shared
               ? 'Your trainer is sharing the board. The planner is hidden; only the whiteboard is shown.'
               : 'Board sharing stopped.');

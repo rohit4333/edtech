@@ -10,7 +10,25 @@
     "clockStartOffsetMinutes": -1,
     "requiredTeachingMinutes": 50,
     "completionWindowMinutes": 55,
-    "note": "The room clock starts at -00:01 one minute before the allotted time. The trainer must complete 50 teaching minutes within the first 55 minutes from the scheduled start."
+    "note": "The room clock starts at -00:01 one minute before the allotted time. The trainer must complete 50 teaching minutes within the first 55 minutes from the scheduled start.",
+    "lifetime": {
+      "regular": {
+        "durationMinutes": 50,
+        "warningAtMinutes": 50,
+        "closeAtMinutes": 55,
+        "requiredTeachingMinutes": 50,
+        "completionWindowMinutes": 55
+      },
+      "demo": {
+        "durationMinutes": 45,
+        "warningAtMinutes": 40,
+        "closeAtMinutes": 45,
+        "requiredTeachingMinutes": 40,
+        "completionWindowMinutes": 45,
+        "note": "A demo lasts 45 minutes; 40 teaching minutes are required. The trainer is warned at 40 and the server closes the class at 45."
+      },
+      "note": "Demo warns at 40 and closes at 45; regular warns at 50 and closes at 55. Timers run from the trainer's verified class clock, and the browser never owns the close."
+    }
   },
   "quiz": {
     "unlockThreshold": 80,
@@ -80,6 +98,8 @@
   },
   "payout": {
     "rateRange": [300, 400],
+    "demoPayPercent": 80,
+    "demoPayNote": "Demo sessions pay 80% of the regular session rate. Presence gates and cancellation-fine rules stay the same; demo uses its own single-tier late rule (5+ minutes late = no pay plus one-session fine) and has no 10+ minute regular late tier.",
     "maxHoursPerDay": 6,
     "minHoursPerDay": 3,
     "maxSessionsPerDay": 6,
@@ -100,6 +120,10 @@
       { "fromMinutes": 5, "toMinutes": 10, "payFactor": 0.5, "code": "half_pay", "label": "Half pay" },
       { "fromMinutes": 10, "toMinutes": 15, "payFactor": 0, "code": "no_pay", "label": "No pay" },
       { "fromMinutes": 15, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine_forfeited", "label": "No pay; no extra fine" }
+    ],
+    "lateJoinDemoBands": [
+      { "fromMinutes": 0, "toMinutes": 5, "payFactor": 1, "code": "on_time", "label": "Full pay", "fineSessions": 0 },
+      { "fromMinutes": 5, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine", "label": "No pay and one-session fine", "fineSessions": 1 }
     ],
     "stretchReward": {
       "startAfterMinutes": 50,

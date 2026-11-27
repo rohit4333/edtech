@@ -53,14 +53,15 @@ function leaveRules() {
   };
 }
 
-function balanceFor(user) {
+async function balanceFor(user) {
   if (!user || user.role !== 'trainer') return null;
 
   const configured = appPolicy.leaveBalances && appPolicy.leaveBalances.trainer;
   const total = Number(configured && configured.perMonth) || 8;
   const period = periodFrom(new Date());
   const chargeStudentInitiated = Boolean(configured && configured.chargeStudentInitiatedLeaves);
-  const used = db.listLeaveRequests().filter(function (request) {
+  const requests = await Promise.resolve(db.listLeaveRequests());
+  const used = requests.filter(function (request) {
     if (request.status !== 'approved') return false;
     if (request.trainerId !== user.id) return false;
     if (periodFrom(request.createdAt || request.date) !== period) return false;
@@ -77,12 +78,13 @@ function balanceFor(user) {
   };
 }
 
-function sessionOption(session) {
+async function sessionOption(session) {
   const start = startOf(session);
-  const trainer = db.findUserById(session.trainerId);
-  const student = db.findUserById(session.studentId);
+  const trainer = await Promise.resolve(db.findUserById(session.trainerId));
+  const student = await Promise.resolve(db.findUserById(session.studentId));
   const noticeHours = noticeHoursFor(session);
   const rules = leaveRules();
+  const existing = await Promise.resolve(db.findLeaveRequestForSession(session.id));
 
   return {
     id: session.id,
@@ -94,41 +96,47 @@ function sessionOption(session) {
     startsAt: start ? start.toISOString() : null,
     trainerName: trainer ? trainer.name : null,
     studentName: student ? student.name : null,
-    hasLeave: Boolean(db.findLeaveRequestForSession(session.id)),
-    eligible: Boolean(start && noticeHours !== null && noticeHours >= rules.noticeHours && !db.findLeaveRequestForSession(session.id))
+    hasLeave: Boolean(existing),
+    eligible: Boolean(start && noticeHours !== null && noticeHours >= rules.noticeHours && !existing)
   };
 }
 
-function list(user) {
+async function list(user) {
   if (!user || ['trainer', 'student', 'founder'].indexOf(user.role) === -1) {
     fail('FORBIDDEN', 'This role cannot view leave requests.', 403);
   }
 
-  const sessions = db.listSessionsForUser(user).filter(function (session) {
+  const allSessions = await Promise.resolve(db.listSessionsForUser(user));
+  const sessions = allSessions.filter(function (session) {
     const start = startOf(session);
     return Boolean(start && start.getTime() > Date.now() &&
       ['scheduled', 'live', 'leave'].indexOf(session.status) !== -1);
   });
+  const options = await Promise.all(sessions.map(sessionOption));
+  const [balance, requests] = await Promise.all([
+    balanceFor(user),
+    Promise.resolve(db.listLeaveRequestsForUser(user))
+  ]);
 
   return {
     role: user.role,
-    balance: balanceFor(user),
+    balance: balance,
     rules: leaveRules(),
-    sessions: sessions.map(sessionOption).sort(function (a, b) {
+    sessions: options.sort(function (a, b) {
       return String(a.startsAt).localeCompare(String(b.startsAt));
     }),
-    requests: db.listLeaveRequestsForUser(user)
+    requests: requests
   };
 }
 
-function apply(user, body) {
+async function apply(user, body) {
   if (!user || ['trainer', 'student'].indexOf(user.role) === -1) {
     fail('FORBIDDEN', 'Only trainers and students can apply for leave.', 403);
   }
 
   const input = body || {};
   const rules = leaveRules();
-  const sessions = db.listSessionsForUser(user);
+  const sessions = await Promise.resolve(db.listSessionsForUser(user));
   const sessionId = input.sessionId || input.session || input.id;
   let session = null;
 
@@ -152,7 +160,7 @@ function apply(user, body) {
   if (['scheduled', 'live'].indexOf(session.status) === -1) {
     fail('SESSION_NOT_OPEN', 'That session can no longer be changed.', 409);
   }
-  if (db.findLeaveRequestForSession(session.id)) {
+  if (await Promise.resolve(db.findLeaveRequestForSession(session.id))) {
     fail('LEAVE_EXISTS', 'Leave has already been applied for this session.', 409);
   }
 
@@ -162,7 +170,7 @@ function apply(user, body) {
   }
 
   if (user.role === 'trainer') {
-    const balance = balanceFor(user);
+    const balance = await balanceFor(user);
     if (balance && balance.remaining < 1) {
       fail('NO_LEAVE_BALANCE', 'No session leave credits remain this month.', 409);
     }
@@ -171,7 +179,7 @@ function apply(user, body) {
   const start = startOf(session);
   const now = new Date();
   const reason = String(input.reason || input.note || '').trim().slice(0, 240);
-  const request = db.insertLeaveRequest({
+  const request = await Promise.resolve(db.insertLeaveRequest({
     sessionId: session.id,
     trainerId: session.trainerId,
     studentId: session.studentId,
@@ -187,18 +195,18 @@ function apply(user, body) {
     trainerPayout: 0,
     packPenalty: false,
     decidedAt: now.toISOString()
-  });
+  }));
 
-  db.updateSession(session.id, function (current) {
+  await Promise.resolve(db.updateSession(session.id, function (current) {
     current.status = 'leave';
     current.cancelledBy = user.role;
     current.cancelledAt = now.toISOString();
     current.leaveRequestId = request.id;
     return current;
-  });
-  db.upsertAttendance(session.id, session.studentId, 'leave');
+  }));
+  await Promise.resolve(db.upsertAttendance(session.id, session.studentId, 'leave'));
 
-  return { request: request, balance: balanceFor(user) };
+  return { request: request, balance: await balanceFor(user) };
 }
 
 module.exports = {

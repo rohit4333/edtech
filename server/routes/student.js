@@ -135,9 +135,16 @@ router.get('/sessions/:sessionId/quiz/attempts/:attemptId', auth.loadSession, fu
 
 /* Academic-only curriculum profile for the signed-in student. */
 router.get('/me/curriculum', async function (req, res) {
-  const profile = await curriculumRepository.get(req.user.id);
-  if (!profile) return res.json({ curriculum: null, adapter: curriculumRepository.adapterName() });
-  return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
+  try {
+    const profile = await curriculumRepository.get(req.user.id);
+    if (!profile) return res.json({ curriculum: null, adapter: curriculumRepository.adapterName() });
+    return res.json({ curriculum: profile, adapter: curriculumRepository.adapterName() });
+  } catch (error) {
+    return res.status(error.status || 502).json({
+      error: error.code || 'CURRICULUM_REQUEST_FAILED',
+      message: error.message
+    });
+  }
 });
 
 /* Self-paced mastery practice. Each batch is ten student-safe questions, up to

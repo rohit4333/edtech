@@ -22,6 +22,7 @@ const BILLABLE_STATUSES = ['ended', 'completed'];
 const NO_SHOW_STATUSES = ['no_show', 'noshow', 'no-show'];
 const attendancePolicy = require('./attendancePolicy');
 const sessionTiming = require('./sessionTimingService');
+const policyFile = require('../config/policy.json');
 
 function pad(value) {
   return String(value).padStart(2, '0');
@@ -92,21 +93,32 @@ function isBillable(session) {
   return BILLABLE_STATUSES.indexOf(String(session && session.status || '').toLowerCase()) !== -1;
 }
 
-/* Late-join and 50-in-55 completion bands scale, but never increase, the
-   session rate. Sessions with no recorded presence timing keep full pay. */
+/* Late-join and completion bands scale, but never increase, the session rate.
+   Demo session pay is 80% of the regular rate; the 40-45 minute stretch is paid
+   at the same per-minute rate as a regular class. Sessions with no recorded
+   presence timing keep full pay. */
 function sessionPayout(session, rate) {
   const timing = sessionTiming.evaluatePayoutTiming(session);
   const stretch = sessionTiming.evaluateStretch(session);
+  const demo = sessionTiming.isDemoSession(session);
+  const configuredDemoPercent = Number(policyFile.payout && policyFile.payout.demoPayPercent);
+  const demoPercent = Number.isFinite(configuredDemoPercent) && configuredDemoPercent > 0
+    ? configuredDemoPercent : 80;
+  const demoFactor = demo ? demoPercent / 100 : 1;
   const factor = Math.max(0, Math.min(1, Number(timing.factor)));
-  const baseAmount = Math.round(rate * factor * 100) / 100;
+  const baseAmount = Math.round(rate * factor * demoFactor * 100) / 100;
+  const fine = Math.round(rate * Math.max(0, Number(timing.fine || 0)) * 100) / 100;
   return {
     sessionId: session.id,
     factor: factor,
+    demoFactor: demoFactor,
     baseAmount: baseAmount,
     stretchPay: stretch.amount,
     stretch: stretch,
+    fine: fine,
     amount: Math.round((baseAmount + stretch.amount) * 100) / 100,
-    timing: timing
+    timing: timing,
+    lifetime: sessionTiming.lifetimeFor(session)
   };
 }
 
@@ -351,16 +363,18 @@ function buildDailySeries(user, sessions, period, config, asOf) {
     const date = sessionDate(session);
     if (!date) return;
     const key = toYmd(date);
-    if (!byDate[key]) byDate[key] = { count: 0, factor: 0 };
+    if (!byDate[key]) byDate[key] = { count: 0, amount: 0 };
+    const pay = sessionPayout(session, rate);
     byDate[key].count += 1;
-    byDate[key].factor += Math.max(0, Math.min(1,
-      Number(sessionTiming.evaluatePayoutTiming(session).factor)));
+    /* Demonstration classes are paid at 80%; their 40-45 minute stretch is
+       paid at the regular per-minute rate. Fines stay out of this base trend. */
+    byDate[key].amount += pay.baseAmount + pay.stretchPay;
   });
 
   let cumulative = 0;
   const points = periodDays(period, asOf).map(function (day, index) {
-    const summary = byDate[day.date] || { count: 0, factor: 0 };
-    const daily = rulesConfigured ? Math.round(summary.factor * rate * 100) / 100
+    const summary = byDate[day.date] || { count: 0, amount: 0 };
+    const daily = rulesConfigured ? Math.round(summary.amount * 100) / 100
       : illustrativeDaily(index, rate);
     cumulative += daily;
     return {
@@ -415,7 +429,18 @@ function buildPayout(user, sessions, period, policy, context) {
     return sum + row.factor;
   }, 0) * 100) / 100;
 
-  const fines = cancellationFines(periodSessions, rate, config.fineRules);
+  const lateJoinFines = sessionPayouts.filter(function (row) { return row.fine > 0; })
+    .map(function (row) {
+      return {
+        sessionId: row.sessionId,
+        lateMinutes: row.timing.late.lateMinutes,
+        late: true,
+        amount: row.fine,
+        basis: 'demo_late_join_one_session_pay',
+        currency: INR
+      };
+    });
+  const fines = cancellationFines(periodSessions, rate, config.fineRules).concat(lateJoinFines);
   const fineTotal = fines.reduce(function (sum, entry) { return sum + entry.amount; }, 0);
 
   const attendance = attendanceBonusFor(
@@ -471,7 +496,7 @@ function buildPayout(user, sessions, period, policy, context) {
         slotPay: slotPay,
         fines: fineTotal
       },
-      note: 'Calculated from completed sessions, late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Mutual leave and no-shows are unpaid.'
+      note: 'Calculated from completed sessions, late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Demo sessions pay 80% of the regular rate, require 40 teaching minutes inside 45, pay the same 5 INR per extra minute from 40 to 45, and incur one session-pay if the trainer is five or more minutes late. Mutual leave and no-shows are unpaid.'
     },
     bonuses: {
       value: attendance.bonus,
@@ -507,13 +532,18 @@ function buildPayout(user, sessions, period, policy, context) {
       clockStartOffsetMinutes: sessionTiming.settings().clockStartOffsetMinutes,
       requiredTeachingMinutes: sessionTiming.settings().requiredTeachingMinutes,
       completionWindowMinutes: sessionTiming.settings().completionWindowMinutes,
+      lifetime: sessionTiming.settings().lifetime,
       stretchReward: config.stretchReward || null,
       sessions: sessionPayouts.map(function (row) {
         return {
           sessionId: row.sessionId,
           factor: row.factor,
+          demoFactor: row.demoFactor,
+          requiredTeachingMinutes: row.lifetime.requiredTeachingMinutes,
+          completionWindowMinutes: row.lifetime.completionWindowMinutes,
           baseAmount: row.baseAmount,
           stretchPay: row.stretchPay,
+          fine: row.fine,
           lateBand: row.timing.late.band,
           lateMinutes: row.timing.late.lateMinutes,
           completionCode: row.timing.completion.code

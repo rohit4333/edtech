@@ -184,9 +184,9 @@ function mondayOf(value) {
   return new Date(date.getTime() - weekday * 86400000);
 }
 
-function weekView(user, startDate, sessions, asOf) {
+async function weekView(user, startDate, sessions, asOf) {
   const config = rules();
-  const slots = db.listTrainerSlots(user.id);
+  const slots = await db.listTrainerSlots(user.id);
   const start = mondayOf(startDate);
   const days = [];
 
@@ -222,9 +222,9 @@ function weekView(user, startDate, sessions, asOf) {
   };
 }
 
-function monthView(user, month, sessions, asOf) {
+async function monthView(user, month, sessions, asOf) {
   const config = rules();
-  const slots = db.listTrainerSlots(user.id);
+  const slots = await db.listTrainerSlots(user.id);
   const parts = String(month).split('-').map(Number);
   const last = new Date(Date.UTC(parts[0], parts[1], 0)).getUTCDate();
   const days = [];
@@ -261,9 +261,9 @@ function monthView(user, month, sessions, asOf) {
   };
 }
 
-function unutilisedPayForPeriod(user, sessions, period, asOf) {
+async function unutilisedPayForPeriod(user, sessions, period, asOf) {
   const config = rules();
-  const slots = db.listTrainerSlots(user.id);
+  const slots = await db.listTrainerSlots(user.id);
   return round2(periodDays(period, asOf).reduce(function (total, date) {
     return total + daySummary(user, date, slots, sessions, config).unutilisedPay;
   }, 0));
@@ -299,12 +299,12 @@ function validateSlot(user, body) {
   };
 }
 
-function addSlot(user, body) {
+async function addSlot(user, body) {
   return db.insertTrainerSlot(validateSlot(user, body));
 }
 
-function removeSlot(user, slotId) {
-  if (!db.deleteTrainerSlot(user.id, String(slotId || ''))) {
+async function removeSlot(user, slotId) {
+  if (!await db.deleteTrainerSlot(user.id, String(slotId || ''))) {
     fail('SLOT_NOT_FOUND', 'That slot was not found.', 404);
   }
   return { removed: true };

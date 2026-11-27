@@ -5,6 +5,9 @@
 require('../config'); // Loads server/.env regardless of the working directory.
 
 const logger = require('../services/logger');
+const sessionTiming = require('../services/sessionTimingService');
+const presenceService = require('../services/presenceService');
+const realtime = require('../realtime');
 
 const RUN_ONCE = process.argv.includes('--once') ||
   String(process.env.REMINDER_RUN_ONCE || '').toLowerCase() === 'true';
@@ -472,15 +475,132 @@ async function checkRenewalReminders() {
   }
 }
 
+/* Class lifetime is enforced here, not by a browser timer. The warning ping is
+   staff-only; the close uses the same end path as the trainer's End button so
+   recording, presence, demo access and mastery are finalized identically. */
+async function checkSessionLifetime() {
+  const db = require('../db');
+  if (typeof db.listAllSessions !== 'function') return 0;
+  const sessions = await db.listAllSessions();
+  if (!Array.isArray(sessions)) return 0;
+  const now = Date.now();
+  let actions = 0;
+
+  for (const session of sessions) {
+    if (!session || !session.id) continue;
+    const status = String(session.status || '').toLowerCase();
+    if (status !== 'live' && status !== 'scheduled') continue;
+
+    let snapshot;
+    try {
+      snapshot = await presenceService.compute(session, now);
+    } catch (caught) {
+      logger.error('reminders', {
+        event: 'lifetime_presence_failed', sessionId: session.id,
+        error: caught && caught.message ? caught.message : 'unknown'
+      });
+      continue;
+    }
+    const joinedAt = snapshot.trainerJoinedAt ||
+      (status === 'live' ? session.startedAt : null);
+    const anchorMs = Date.parse(joinedAt || '');
+    /* Old demo fixtures and abandoned pre-lifetime records must not be closed
+       years later. A live classroom is only considered while it is current. */
+    if (!Number.isFinite(anchorMs) || anchorMs > now || now - anchorMs > 24 * 60 * 60 * 1000) {
+      continue;
+    }
+    const timing = sessionTiming.clock(session, now, joinedAt);
+    if (timing.waitingForTrainer || timing.lifetimeElapsedSeconds === null) continue;
+    const elapsed = timing.lifetimeElapsedSeconds;
+
+    if (elapsed >= timing.closeAtSeconds) {
+      const key = String(session.id) + ':session_auto_close';
+      const claimed = await claim(key, {
+        kind: 'session_auto_close',
+        sessionId: session.id,
+        classType: timing.classType,
+        at: new Date(now).toISOString()
+      });
+      if (!claimed.claimed) continue;
+      try {
+        const sessionsRoute = require('../routes/sessions');
+        if (typeof sessionsRoute.closeSession !== 'function') {
+          throw new Error('session close path unavailable');
+        }
+        const result = await sessionsRoute.closeSession(session, {
+          body: {},
+          actorRole: 'system',
+          reason: 'auto_close',
+          force: true
+        });
+        if (result && result.error) {
+          await release(key);
+          logger.warn('reminders', {
+            event: 'session_auto_close_deferred', sessionId: session.id,
+            code: result.error.code || 'CLOSE_FAILED'
+          });
+          continue;
+        }
+        actions += 1;
+        logger.info('reminders', {
+          event: 'session_auto_closed', sessionId: session.id,
+          classType: timing.classType, elapsedSeconds: elapsed
+        });
+      } catch (caught) {
+        await release(key);
+        logger.error('reminders', {
+          event: 'session_auto_close_failed', sessionId: session.id,
+          error: caught && caught.message ? caught.message : 'unknown'
+        });
+      }
+      continue;
+    }
+
+    if (elapsed >= timing.warningAtSeconds) {
+      const key = String(session.id) + ':session_warning:' + timing.classType;
+      const claimed = await claim(key, {
+        kind: 'session_warning',
+        sessionId: session.id,
+        classType: timing.classType,
+        at: new Date(now).toISOString()
+      });
+      if (!claimed.claimed) continue;
+      try {
+        await realtime.publish(session.id, 'session.warning', {
+          at: new Date(now).toISOString(),
+          classType: timing.classType,
+          warningAtMinutes: timing.lifetime.warningAtMinutes,
+          closeAtMinutes: timing.lifetime.closeAtMinutes,
+          countdownSeconds: Math.max(0, timing.closeAtSeconds - elapsed)
+        });
+        actions += 1;
+        logger.info('reminders', {
+          event: 'session_warning_sent', sessionId: session.id,
+          classType: timing.classType, elapsedSeconds: elapsed
+        });
+      } catch (caught) {
+        await release(key);
+        logger.error('reminders', {
+          event: 'session_warning_failed', sessionId: session.id,
+          error: caught && caught.message ? caught.message : 'unknown'
+        });
+      }
+    }
+  }
+  return actions;
+}
+
 async function runOnce() {
   const results = await Promise.all([
-    checkReminders(), checkAttentionQueue(), checkJoinReminders(), checkRenewalReminders()
+    checkReminders(), checkAttentionQueue(), checkJoinReminders(),
+    checkRenewalReminders(), checkSessionLifetime()
   ]);
   return {
     remindersSent: results[0],
     attentionDigestsSent: results[1],
     joinRemindersSent: results[2],
-    renewalRemindersSent: results[3]
+    renewalRemindersSent: results[3],
+    lifetimeActions: results[4]
   };
 }
 
@@ -491,7 +611,7 @@ function tick() {
   runOnce()
     .then(function (summary) {
       if (summary.remindersSent || summary.attentionDigestsSent ||
-          summary.joinRemindersSent || summary.renewalRemindersSent) {
+          summary.joinRemindersSent || summary.renewalRemindersSent || summary.lifetimeActions) {
         logger.info('reminders', { event: 'tick_complete', summary: summary });
       }
     })
@@ -544,5 +664,5 @@ if (require.main === module) {
 
 module.exports = {
   startReminders, stopReminders, checkReminders, checkAttentionQueue,
-  checkJoinReminders, runOnce
+  checkJoinReminders, checkSessionLifetime, runOnce
 };

@@ -3,6 +3,8 @@
    stroke and image is session-scoped and carries no answer key or trainer note. */
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const app = require('../app');
 
 let checks = 0;
@@ -120,6 +122,74 @@ async function main() {
       });
     });
     ok(safeKeys, 'board payload keys never include correctness or hidden trainer fields');
+
+    /* The visible pointer is a live cue, not durable ink. It is staff-written,
+       readable by the child, bounded to normalised coordinates, and separated
+       from the event stream so it cannot evict the class warning. */
+    const cursorPath = '/api/sessions/' + SESSION + '/cursor';
+    const cursorDenied = await request('POST', cursorPath,
+      { surface: 'board', x: 0.4, y: 0.4 }, student);
+    ok(cursorDenied.status === 403, 'a student cannot publish a trainer pointer');
+
+    const badSurface = await request('POST', cursorPath,
+      { surface: 'planner-notes', x: 0.4, y: 0.4 }, trainer);
+    ok(badSurface.status === 422 && badSurface.body.error === 'INVALID_CURSOR',
+      'only allowlisted teaching surfaces publish a pointer');
+
+    const moved = await request('POST', cursorPath,
+      { surface: 'board', x: 0.42, y: 0.31, active: true }, trainer);
+    ok(moved.status === 200 && Number(moved.body.cursor.seq) > 0,
+      'the trainer pointer publishes a monotonic position');
+
+    const childView = await request('GET', cursorPath + '?since=0', undefined, student);
+    ok(childView.status === 200 && childView.body.cursor &&
+      childView.body.cursor.surface === 'board' &&
+      childView.body.cursor.x === 0.42 && childView.body.cursor.y === 0.31,
+    'the child sees the trainer pointer on the shared board');
+
+    const hidden = await request('POST', cursorPath,
+      { surface: 'sketch', x: 0.2, y: 0.7, active: false }, trainer);
+    ok(hidden.status === 200 && Number(hidden.body.cursor.seq) > moved.body.cursor.seq,
+      'leaving a surface publishes a newer hide cue');
+
+    const concealed = await request('GET',
+      cursorPath + '?since=' + moved.body.cursor.seq, undefined, student);
+    ok(concealed.body.cursor && concealed.body.cursor.active === false &&
+      concealed.body.cursor.surface === 'sketch',
+    'the child hides the pointer when the trainer leaves the sketch');
+
+    const stale = await request('GET',
+      cursorPath + '?since=' + concealed.body.cursor.seq, undefined, student);
+    ok(stale.status === 200 && stale.body.cursor === null,
+      'an unchanged pointer is not replayed to the child');
+
+    const cursorKeys = Object.keys(concealed.body.cursor);
+    ok(cursorKeys.every(function (key) {
+      return !/answer|correct|hint|explain|trainer|note|instruction/i.test(key);
+    }), 'the pointer payload carries no hidden teaching fields');
+
+    const eventsAfterCursor = await request('GET',
+      '/api/sessions/' + SESSION + '/events?since=' + since, undefined, student);
+    ok((eventsAfterCursor.body.events || []).every(function (event) {
+      return event.event !== 'cursor.moved';
+    }), 'pointer moves never enter the durable session event stream');
+
+    const root = path.resolve(__dirname, '..', '..');
+    const readAsset = function (relative) {
+      return fs.readFileSync(path.join(root, relative), 'utf8');
+    };
+    const tokens = readAsset('shared/tokens.css');
+    const room = readAsset('classroom/room.css');
+    const fullBoardCss = readAsset('shared/fullBoard.css');
+    const classroom = readAsset('classroom/index.html');
+    ok(tokens.indexOf('--ink-cross:') !== -1 &&
+      room.indexOf('cursor:var(--ink-cross,crosshair)') !== -1 &&
+      room.indexOf('cursor:none') === -1 &&
+      fullBoardCss.indexOf('cursor:var(--ink-cross,crosshair)') !== -1,
+    'every board surface keeps a black cross pointer, including eraser mode');
+    ok(classroom.indexOf('shared/cursorRelay.js') !== -1 &&
+      classroom.indexOf('shared/cursorSetup.js') !== -1,
+    'the pointer relay is loaded on the verified classroom page');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

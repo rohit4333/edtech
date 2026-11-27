@@ -45,6 +45,22 @@
   .ai-modes button:hover{border-color:var(--ink);color:var(--ink)}
   .ai-modes button.active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
   [hidden]{display:none !important}
+  /* Staff-only five-minute end cue; deliberately warm, not a normal chip. */
+  .session-warning{
+    display:flex;align-items:center;gap:8px;margin:10px 0 2px;
+    padding:9px 12px;border-radius:12px;
+    background:linear-gradient(135deg,#fff1ef,#ffd9d3);
+    border:1px solid #f3a79c;color:#8b2d21;
+    box-shadow:0 6px 18px rgba(180,55,40,.12);
+    font-size:12px;font-weight:600;
+  }
+  .session-warning .warn-dot{
+    width:8px;height:8px;border-radius:50%;background:#c94230;
+    box-shadow:0 0 0 3px rgba(201,66,48,.16);
+    animation:warnPulse 1.4s ease-in-out infinite;
+  }
+  .session-warning .warn-count{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:800}
+  @keyframes warnPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
 </style>
 </head>
 <body>
@@ -260,6 +276,12 @@
           <div class="next-top">
             <span class="eyebrow live-eyebrow"><i class="dot"></i>Next session</span>
             <span class="chip-count"><span id="countdownLabel">starts in</span> <b id="countdown" class="num">42:00</b></span>
+          </div>
+
+          <div class="session-warning" id="sessionWarning" role="status" aria-live="polite" hidden>
+            <span class="warn-dot" aria-hidden="true"></span>
+            <span id="sessionWarningText">Class ends in 5 minutes</span>
+            <span class="warn-count" id="sessionWarningCount">05:00</span>
           </div>
 
           <div class="next-mid">
@@ -874,6 +896,7 @@
 
 <script src="../shared/viewerTimezone.js" defer></script>
 <script src="../shared/sessionKeepalive.js" defer></script>
+<script src="../shared/sessionAlerts.js" defer></script>
 <script src="../shared/demoStatus.js" defer></script>
 <link rel="stylesheet" href="../shared/demo-status.css">
 <script src="api.js?v=20261126" defer></script>

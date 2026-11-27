@@ -7,6 +7,11 @@
 
   var NS = window.MathifySubjects = window.MathifySubjects || {};
 
+  function activeMinutes(session) {
+    if (session && Number(session.durationMinutes) > 0) return Number(session.durationMinutes);
+    return session && session.classType === 'demo' ? 45 : 50;
+  }
+
   var ALIASES = {
     math: 'math', maths: 'math', mathematics: 'math',
     coding: 'coding', code: 'coding', programming: 'coding', computer: 'coding',
@@ -81,7 +86,8 @@
 
     var course = document.createElement('span');
     course.className = 'next-course-note';
-    course.textContent = ' · ' + ((session && session.code) || subject.workspace) + ' · link active for 50 min';
+    course.textContent = ' · ' + ((session && session.code) || subject.workspace) +
+      ' · link active for ' + activeMinutes(session) + ' min';
     meta.appendChild(course);
 
     var indicators = document.getElementById('englishIndicators');
@@ -102,7 +108,8 @@
 
     var course = document.querySelector('.next-course-note');
     if (course) {
-      course.textContent = ' · ' + ((next && next.code) || subject.workspace) + ' · link active for 50 min';
+      course.textContent = ' · ' + ((next && next.code) || subject.workspace) +
+        ' · link active for ' + activeMinutes(next) + ' min';
     }
 
     var link = document.getElementById('codingWorkspaceLink');

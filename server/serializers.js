@@ -718,20 +718,24 @@ function toTrainerDashboard(user, sessions, attendance) {
     return isNaN(start) ? 0 : (Date.now() - start) / 60000;
   }
   const eligible = todaySessions.filter(function (session) {
+    const required = sessionTiming.lifetimeFor(session).requiredTeachingMinutes;
     return session.status === 'completed'
       || session.status === 'ended'
-      || activityBySession[session.id] >= 50
-      || elapsedMinutes(session) >= 50;
+      || activityBySession[session.id] >= required
+      || elapsedMinutes(session) >= required;
   }).length;
   const taken = Math.max(completed, eligible);
   const remaining = Math.max(0, todaySessions.length - taken);
   const next = todaySessions.find(function (session) {
-    return session.status === 'live'
-      && (activityBySession[session.id] || 0) < 50
-      && elapsedMinutes(session) < 50;
+    /* Keep the desk attached to a live class through the warning and the
+       server-owned close window. Dropping it at the teaching-threshold would
+       hide the 40/50-minute cue and the auto-close event. */
+    const closeAt = sessionTiming.lifetimeFor(session).closeAtMinutes;
+    return session.status === 'live' && elapsedMinutes(session) < closeAt;
   }) || todaySessions.find(function (session) {
+    const duration = sessionTiming.lifetimeFor(session).durationMinutes;
     return session.status === 'scheduled'
-      && new Date(session.startedAt || 0) >= new Date(Date.now() - 50 * 60000);
+      && new Date(session.startedAt || 0) >= new Date(Date.now() - duration * 60000);
   }) || null;
 
   const today = todaySessions.map(function (session) {
@@ -743,6 +747,8 @@ function toTrainerDashboard(user, sessions, attendance) {
       status: session.status,
       subject: subjectView(session.subject || ownSubject.subject),
       startsAt: session.startedAt,
+      classType: sessionTiming.isDemoSession(session) ? 'demo' : 'regular',
+      durationMinutes: sessionTiming.lifetimeFor(session).durationMinutes,
       student: participant(session.studentId),
       attendance: attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy)
     };
@@ -798,7 +804,9 @@ function toTrainerDashboard(user, sessions, attendance) {
       status: next.status,
       subject: subjectView(next.subject || ownSubject.subject),
       startsAt: next.startedAt,
-      activeThroughMinutes: 50,
+      classType: sessionTiming.isDemoSession(next) ? 'demo' : 'regular',
+      durationMinutes: sessionTiming.lifetimeFor(next).durationMinutes,
+      activeThroughMinutes: sessionTiming.lifetimeFor(next).closeAtMinutes,
       currentPage: next.currentPage,
       student: participant(next.studentId),
       planner: next.planner.map(function (item) { return Object.assign({}, item); }),

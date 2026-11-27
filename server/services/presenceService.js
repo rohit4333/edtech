@@ -278,10 +278,12 @@ async function compute(session, now) {
   const sessionOpen = ['leave', 'cancelled', 'canceled', 'no_show', 'noshow', 'no-show']
     .indexOf(String(session.status || '').toLowerCase()) === -1;
   /* A student who never joins does not block pay, but the trainer still has to
-     be present. Once the student joins, the confirmed class is 50 minutes. */
+     be present. Once the student joins, the teaching requirement follows the
+     session lifetime: 50 minutes for a regular class, 40 for a demo. */
   const studentJoined = student.joinedAt !== null;
+  const lifetime = sessionTiming.lifetimeFor(session);
   const requiredTrainerMinutes = studentJoined
-    ? config.trainerMinPresentWithStudentMinutes : config.trainerMinPresentMinutes;
+    ? lifetime.requiredTeachingMinutes : config.trainerMinPresentMinutes;
   const trainerMeetsPayout = studentJoined
     ? trainer.activeSecondsInWindow >= requiredTrainerMinutes * MINUTE_MS / 1000
     : trainer.activeMinutes >= requiredTrainerMinutes;
@@ -311,8 +313,11 @@ async function compute(session, now) {
     },
     attendance: { trainer: trainer.attendance, student: student.attendance },
     rule: studentJoined
-      ? 'When the student joins, the trainer is paid after 50 active teaching minutes inside the first 55 minutes from the scheduled start.'
-      : 'When the student does not join, the trainer is paid after at least 15 active minutes.'
+      ? 'When the student joins, the trainer is paid after ' + requiredTrainerMinutes +
+        ' active teaching minutes inside the first ' + lifetime.completionWindowMinutes +
+        ' minutes from the scheduled start.'
+      : 'When the student does not join, the trainer is paid after at least ' +
+        config.trainerMinPresentMinutes + ' active minutes.'
   };
 }
 

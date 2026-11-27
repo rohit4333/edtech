@@ -17,6 +17,7 @@ const subjectCatalog = require('./subjectCatalog');
 const subjectService = require('./subjectService');
 
 const DEFAULT_DURATION_MINUTES = 50;
+const DEMO_DURATION_MINUTES = 45;
 const CLOSED_STATUSES = ['cancelled', 'canceled', 'ended', 'leave', 'no_show', 'noshow', 'no-show'];
 const PER_SESSION_KEY = 'batch_student_';
 
@@ -26,6 +27,11 @@ function text(value) {
 
 function code() {
   return 'TB-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+function isDemoRequest(request) {
+  const status = request && String(request.status || '');
+  return Boolean(status && ['booked', 'prepared', 'assigned'].indexOf(status) !== -1);
 }
 
 /* One tail promise for all batch writes. A rejected allotment must not jam the
@@ -238,7 +244,13 @@ function allot(batchRef, trainerId, slots) {
             throw fail('BATCH_SLOT_REQUIRED', 'At least one scheduled slot is required to allot a batch.', 422);
           }
 
-          return openIntervals(trainerId, batch.studentId).then(function (booked) {
+          return Promise.all([
+            openIntervals(trainerId, batch.studentId),
+            Promise.resolve(db.findContactRequestForStudent(batch.studentId))
+          ]).then(function (lists) {
+            const booked = lists[0];
+            const demoRequest = lists[1];
+            const demo = isDemoRequest(demoRequest);
             /* Validate every slot before writing any of them. A conflict in the
                last slot must never leave earlier sessions half-booked. */
             const subjectSlug = subjectCatalog.normalize(batch.subject);
@@ -251,12 +263,15 @@ function allot(batchRef, trainerId, slots) {
                 throw fail('BATCH_SLOT_INVALID', 'Each slot needs a valid startsAt timestamp.', 422);
               }
               const minutes = Number(slot.durationMinutes);
-              const durationMinutes = Number.isFinite(minutes) && minutes > 0
-                ? minutes : DEFAULT_DURATION_MINUTES;
+              const durationMinutes = demo
+                ? DEMO_DURATION_MINUTES
+                : (Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_DURATION_MINUTES);
               return {
                 startsAt: startsAt,
                 title: text(slot.title) || 'Batch ' + batch.code + ' · 1-on-1 ' + subjectWord,
                 durationMinutes: durationMinutes,
+                classType: demo ? 'demo' : 'regular',
+                demoId: demo && demoRequest ? demoRequest.id : null,
                 key: batch.id + '|' + startsAt,
                 start: start,
                 end: start + durationMinutes * 60000
@@ -269,7 +284,7 @@ function allot(batchRef, trainerId, slots) {
             if (repeated) {
               /* A retried founder request returns the original booking instead of
                  creating a second identical session. */
-              return finish(batch, trainer, trainerId, [], booked, false);
+              return finish(batch, trainer, trainerId, [], booked, false, demo);
             }
 
             const conflict = candidates.find(function (candidate) {
@@ -282,7 +297,7 @@ function allot(batchRef, trainerId, slots) {
                 409
               );
             }
-            return finish(batch, trainer, trainerId, candidates, booked, true);
+            return finish(batch, trainer, trainerId, candidates, booked, true, demo);
           });
         });
       });
@@ -290,7 +305,7 @@ function allot(batchRef, trainerId, slots) {
   });
 }
 
-function writeSlots(batch, trainerId, candidates) {
+function writeSlots(batch, trainerId, candidates, demo) {
   /* The child's registered zone travels with the booking. Reminders and every
      dashboard render the stored UTC instant in each viewer's own zone. */
   return Promise.all([
@@ -318,6 +333,10 @@ function writeSlots(batch, trainerId, candidates) {
           timezone: studentTimezone,
           studentTimezone: studentTimezone,
           durationMinutes: candidate.durationMinutes,
+          /* Demo sessions carry their own 40/45 timing and 80% pay contract.
+             This stays with the session even after the demo request closes. */
+          classType: candidate.classType || (demo ? 'demo' : 'regular'),
+          demoId: candidate.demoId || null,
           /* Server-derived and unique per session: parallel rooms can never
              share a LiveKit room or a webhook attribution. */
           rtc: { provider: 'livekit', roomName: 'mathify-' + id },
@@ -332,8 +351,8 @@ function writeSlots(batch, trainerId, candidates) {
   });
 }
 
-function finish(batch, trainer, trainerId, candidates, booked, create) {
-  const task = create ? writeSlots(batch, trainerId, candidates) : Promise.resolve([]);
+function finish(batch, trainer, trainerId, candidates, booked, create, demo) {
+  const task = create ? writeSlots(batch, trainerId, candidates, demo) : Promise.resolve([]);
   return task.then(function (bookings) {
     return Promise.resolve(db.findContactRequestForStudent(batch.studentId)).then(function (demoRequest) {
       const slots = bookings.length ? bookings : (batch.slots || []);
@@ -356,9 +375,7 @@ function finish(batch, trainer, trainerId, candidates, booked, create) {
           /* The trainer is emailed on every allotment — demo session or regular
              class — with the batch ID. Mail is best effort and never rolls back
              a calendar booking that has already been saved. */
-          const demoStatus = demoRequest && String(demoRequest.status || '');
-          const isDemo = Boolean(demoStatus &&
-            ['booked', 'prepared', 'assigned'].indexOf(demoStatus) !== -1);
+          const isDemo = typeof demo === 'boolean' ? demo : isDemoRequest(demoRequest);
           const assignmentKey = 'batch_assignment:' + batch.id + ':' + trainerId;
           return Promise.resolve(db.claimReminder(assignmentKey, {
             kind: 'trainer_assignment_email',

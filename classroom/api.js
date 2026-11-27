@@ -259,6 +259,18 @@
         body: { shared: shared !== false }
       });
     },
+    /* Live trainer pointer. It is ephemeral and never enters the durable ink
+       stream; the server derives the sender from the verified session. */
+    pushCursor: function (sessionId, payload) {
+      return request(sessionPath(sessionId) + '/cursor', {
+        method: 'POST',
+        body: payload || {}
+      });
+    },
+    getCursor: function (sessionId, since) {
+      return request(sessionPath(sessionId) + '/cursor?since=' + encodeURIComponent(since || 0))
+        .then(function (data) { return data && data.cursor ? data.cursor : null; });
+    },
     /* Full-screen board ink. Only the verified trainer or founder may write;
        the student receives the same scrubbed event stream as any participant. */
     pushBoardInk: function (sessionId, payload) {
