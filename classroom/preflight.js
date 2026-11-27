@@ -91,7 +91,7 @@
     });
     setText('#preflightRole', role === 'student' ? 'Student' : 'Trainer');
     setText('#preflightWaiting', role === 'student'
-      ? 'Waiting for your trainer to start the lesson…'
+      ? 'Your shared camera page opens as soon as these checks finish.'
       : '');
   }
 
@@ -164,12 +164,13 @@
         : canJoin ? 'Start the class clock and open the camera page'
         : 'Waiting for camera and connection checks';
     }
-    var continueBtn = $('#preflightContinue');
-    if (continueBtn) {
-      continueBtn.disabled = !canJoin;
-      continueBtn.title = canJoin
-        ? 'Open the shared camera feed with your chosen presets'
-        : 'Waiting for camera and connection checks';
+    /* A child has no second button. Once the local checks finish, the shared
+       camera page opens automatically with clock=check; the trainer alone
+       starts the clock from this gate. */
+    if (role === 'student' && canJoin) {
+      joining = true;
+      status('Checks complete. Opening the shared camera…');
+      openCameraPage(false);
     }
   }
 
@@ -263,18 +264,23 @@
     });
   }
 
+  function openCameraPage(clockStarted) {
+    stopStream();
+    /* The clock is server-owned; this flag only stops a page transition from
+       being mistaken for leaving the meeting. */
+    window.MATHIFY_STAY_PRESENT = true;
+    window.location.assign(cameraUrl(clockStarted === true));
+  }
+
   function enterCameraPage() {
-    if (joining || ended || !sessionId || !api) return;
+    if (joining || ended || !sessionId || !api || role !== 'trainer') return;
     joining = true;
     readyToJoin();
     var button = $('#preflightJoin');
     if (button) button.textContent = 'Starting the class clock…';
     status('Starting your class clock and opening the camera page…');
     startClock().then(function () {
-      /* The clock is server-owned; this flag only stops a page transition from
-         being mistaken for leaving the meeting. */
-      window.MATHIFY_STAY_PRESENT = true;
-      window.location.assign(cameraUrl(true));
+      openCameraPage(true);
     }).catch(function (error) {
       joining = false;
       if (button) button.textContent = 'Join the session';
@@ -298,12 +304,6 @@
     });
   }
 
-  function continueToCamera() {
-    if (ended || !sessionId) return;
-    window.MATHIFY_STAY_PRESENT = true;
-    window.location.assign(cameraUrl(false));
-  }
-
   function runChecks() {
     mediaChecked = false;
     networkChecked = false;
@@ -325,8 +325,6 @@
     if (sessionId) stateTimer = window.setInterval(loadState, 5000);
     var join = $('#preflightJoin');
     if (join) join.addEventListener('click', enterCameraPage);
-    var continueBtn = $('#preflightContinue');
-    if (continueBtn) continueBtn.addEventListener('click', continueToCamera);
     var retry = $('#preflightRetry');
     if (retry) retry.addEventListener('click', function () {
       stopStream();

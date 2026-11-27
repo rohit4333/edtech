@@ -40,6 +40,11 @@ async function main() {
     'the camera-check client never writes presence');
   check(/getPreviewToken/.test(connectJs) && /getSessionPresence/.test(connectJs),
     'the camera-check client uses only preview tokens and the safe handoff signal');
+  check(/board\/open/.test(connectJs) && /board\.opened/.test(connectJs) &&
+    /getSessionEvents/.test(connectJs),
+  'the trainer publishes board.opened and the child waits for that explicit handoff');
+  check(!/classroomOpen === true[\s\S]{0,200}window\.location\.assign/.test(connectJs),
+    'trainer presence alone never pushes the child out of the shared camera feed');
 
   check(connectHtml.indexOf('shared/rtcMediaUi.js') !== -1 &&
     connectHtml.indexOf('shared/rtcMediaUi.js') < connectHtml.indexOf('connect.js'),
@@ -180,6 +185,26 @@ async function main() {
     check(studentState.body.state.studentAttendance &&
       typeof studentState.body.state.studentAttendance.activeMinutes === 'number',
     'the child dashboard receives only its own attendance minutes');
+
+    const deniedBoardOpen = await request('POST', '/api/sessions/ses_math_001/board/open', {}, student);
+    check(deniedBoardOpen.status === 403,
+      'the child cannot publish the whiteboard handoff');
+
+    const boardOpen = await request('POST', '/api/sessions/ses_math_001/board/open', {}, trainer);
+    check(boardOpen.status === 200 && boardOpen.body.opened === true &&
+      Number.isFinite(boardOpen.body.seq),
+    'the trainer publishes an explicit board.opened handoff');
+
+    const boardEvents = await request('GET', '/api/sessions/ses_math_001/events?limit=200',
+      undefined, student);
+    const openedEvent = boardEvents.body.events.find(function (event) {
+      return event.event === 'board.opened';
+    });
+    check(Boolean(openedEvent) && openedEvent.payload.opened === true &&
+      Object.keys(openedEvent.payload).every(function (key) {
+        return !/answer|correct|hint|trainer|pay|clock|note/i.test(key);
+      }),
+    'the child sees a content-free board.opened notification');
 
     const http = await new Promise(function (resolve) {
       const client = require('http').get(base + '/classroom/connect.html', function (response) {

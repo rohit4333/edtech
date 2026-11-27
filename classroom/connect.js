@@ -29,6 +29,9 @@
   var ended = false;
   var ready = false;
   var presenceTimer = null;
+  var boardTimer = null;
+  var eventCursor = 0;
+  var enteringClassroom = false;
   var stateTimer = null;
   var networkMessage = 'Checking your connection…';
   var cameraMessage = 'Connecting cameras…';
@@ -489,6 +492,7 @@
 
   function stopPreview() {
     if (presenceTimer) window.clearInterval(presenceTimer);
+    if (boardTimer) window.clearInterval(boardTimer);
     if (stateTimer) window.clearInterval(stateTimer);
     if (room) {
       try { room.disconnect(); } catch (error) { /* already gone */ }
@@ -507,15 +511,24 @@
     if (role === 'student') search.set('view', 'student');
     var state = params.get('state');
     if (state) search.set('state', state);
-    ['clock', 'mic', 'cam'].forEach(function (key) {
+    /* The trainer has already started the server clock before this handoff. */
+    search.set('clock', 'started');
+    ['mic', 'cam'].forEach(function (key) {
       var value = params.get(key);
       if (value) search.set(key, value);
     });
     return 'index.html?' + search.toString();
   }
 
-  function enterClassroom() {
-    if (!sessionId || !ready || role !== 'trainer') return;
+  function publishBoardOpen() {
+    if (!api || typeof api.request !== 'function') return Promise.resolve(null);
+    return api.request('/sessions/' + encodeURIComponent(sessionId) + '/board/open', {
+      method: 'POST',
+      body: { open: true }
+    });
+  }
+
+  function goToClassroom() {
     stopPreview();
     /* Moving to the whiteboard is not leaving the meeting. The server clock
        keeps running until End session finalizes presence. */
@@ -523,22 +536,54 @@
     window.location.assign(classroomUrl());
   }
 
+  function enterClassroom(options) {
+    var automatic = Boolean(options && options.automatic);
+    if (!sessionId || enteringClassroom) return;
+    if (automatic) {
+      if (role !== 'student') return;
+      enteringClassroom = true;
+      goToClassroom();
+      return;
+    }
+    if (!ready || role !== 'trainer') return;
+    enteringClassroom = true;
+    publishBoardOpen().then(goToClassroom).catch(function () {
+      enteringClassroom = false;
+      cameraMessage = 'The whiteboard handoff could not be sent. Please try Open whiteboard again.';
+      renderStatus();
+    });
+  }
+
+  /* The child stays on the shared camera feed until the trainer explicitly
+     opens the whiteboard. Presence only changes the waiting copy; the safe
+     board.opened event is the sole automatic handoff signal. */
   function watchForTrainer() {
-    if (role !== 'student' || !api || typeof api.getSessionPresence !== 'function') return;
-    function check() {
+    if (role !== 'student') return;
+    function checkPresence() {
+      if (!api || typeof api.getSessionPresence !== 'function') return;
       api.getSessionPresence(sessionId).then(function (presence) {
-        if (!presence) return;
-        /* The server exposes only a boolean handoff signal to a child. No
-           join timestamp, attendance total, pay state or trainer note crosses
-           this boundary. */
-        if (presence.classroomOpen === true) {
-          stopPreview();
-          window.location.assign(classroomUrl());
-        }
+        if (!presence || enteringClassroom) return;
+        cameraMessage = presence.classroomOpen === true
+          ? 'Your trainer has joined. Waiting for them to open the whiteboard.'
+          : 'Waiting for your trainer to connect the cameras.';
+        renderStatus();
       }).catch(function () {});
     }
-    check();
-    presenceTimer = window.setInterval(check, 3000);
+    function checkBoard() {
+      if (!api || typeof api.getSessionEvents !== 'function') return;
+      api.getSessionEvents(sessionId, eventCursor).then(function (events) {
+        if (!Array.isArray(events)) return;
+        events.forEach(function (message) {
+          var seq = Number(message.seq) || 0;
+          if (seq > eventCursor) eventCursor = seq;
+          if (message.event === 'board.opened') enterClassroom({ automatic: true });
+        });
+      }).catch(function () {});
+    }
+    checkPresence();
+    checkBoard();
+    presenceTimer = window.setInterval(checkPresence, 3000);
+    boardTimer = window.setInterval(checkBoard, 2000);
   }
 
   function init() {

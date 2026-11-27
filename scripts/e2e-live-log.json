@@ -1,19 +1,19 @@
 {
-  "at": "2026-11-27T23:11:22.574Z",
+  "at": "2026-11-27T23:37:25.123Z",
   "base": "http://127.0.0.1:4004",
-  "total": 31,
-  "passed": 30,
+  "total": 32,
+  "passed": 31,
   "skipped": 1,
   "failed": 0,
   "results": [
     {
       "name": "health",
-      "at": "2026-11-27T23:11:20.735Z",
+      "at": "2026-11-27T23:37:23.179Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 73,
+        "ms": 58,
         "body": {
           "ok": true,
           "service": "mathify-server",
@@ -26,12 +26,12 @@
     },
     {
       "name": "private git config is not served",
-      "at": "2026-11-27T23:11:20.812Z",
+      "at": "2026-11-27T23:37:23.239Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 404,
-        "ms": 8,
+        "ms": 6,
         "body": {
           "error": "NOT_FOUND",
           "message": "No such endpoint."
@@ -40,12 +40,12 @@
     },
     {
       "name": "anonymous /api/auth/me is rejected",
-      "at": "2026-11-27T23:11:20.821Z",
+      "at": "2026-11-27T23:37:23.247Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 401,
-        "ms": 5,
+        "ms": 6,
         "body": {
           "error": "UNAUTHORIZED",
           "message": "Sign in to continue."
@@ -54,12 +54,12 @@
     },
     {
       "name": "login trainer",
-      "at": "2026-11-27T23:11:20.826Z",
+      "at": "2026-11-27T23:37:23.253Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 66,
+        "ms": 79,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -75,12 +75,12 @@
     },
     {
       "name": "login student",
-      "at": "2026-11-27T23:11:20.894Z",
+      "at": "2026-11-27T23:37:23.332Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 63,
+        "ms": 52,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -96,12 +96,12 @@
     },
     {
       "name": "login founder",
-      "at": "2026-11-27T23:11:20.957Z",
+      "at": "2026-11-27T23:37:23.385Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 61,
+        "ms": 51,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -117,12 +117,12 @@
     },
     {
       "name": "login parent",
-      "at": "2026-11-27T23:11:21.019Z",
+      "at": "2026-11-27T23:37:23.437Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 47,
+        "ms": 49,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -138,12 +138,12 @@
     },
     {
       "name": "login relationship_manager",
-      "at": "2026-11-27T23:11:21.066Z",
+      "at": "2026-11-27T23:37:23.487Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 45,
+        "ms": 49,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -159,12 +159,12 @@
     },
     {
       "name": "login planner",
-      "at": "2026-11-27T23:11:21.111Z",
+      "at": "2026-11-27T23:37:23.536Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 48,
+        "ms": 51,
         "body": {
           "token": "[redacted]",
           "refreshToken": "[redacted]",
@@ -180,12 +180,12 @@
     },
     {
       "name": "student dashboard credits are 8",
-      "at": "2026-11-27T23:11:21.159Z",
+      "at": "2026-11-27T23:37:23.587Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 5,
+        "ms": 4,
         "body": {
           "dashboard": {
             "student": {
@@ -212,8 +212,8 @@
             "streak": 12,
             "mastery": 72,
             "questionTotals": {
-              "attempted": 6,
-              "solved": 5
+              "attempted": 3,
+              "solved": 2
             },
             "nextSession": {
               "id": "ses_math_001",
@@ -302,22 +302,22 @@
     },
     {
       "name": "student dashboard has no private fields",
-      "at": "2026-11-27T23:11:21.164Z",
+      "at": "2026-11-27T23:37:23.591Z",
       "ok": true,
       "detail": {
         "ok": true,
         "leaked": [],
-        "ms": 4
+        "ms": 2
       }
     },
     {
       "name": "trainer dashboard",
-      "at": "2026-11-27T23:11:21.168Z",
+      "at": "2026-11-27T23:37:23.595Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 3,
+        "ms": 5,
         "body": {
           "dashboard": {
             "trainer": {
@@ -346,7 +346,7 @@
               "sessionsTaken": 0,
               "sessionsRemaining": 0,
               "studentsNext": 1,
-              "needsAttention": 4
+              "needsAttention": 5
             },
             "nextSession": null,
             "today": [],
@@ -403,6 +403,19 @@
                 "status": "today",
                 "action": "open_register",
                 "source": "attendance_records"
+              },
+              {
+                "id": "quiz_ses_math_001",
+                "kind": "quiz",
+                "title": "Quiz ready to launch",
+                "meta": "Ratios · Lesson 15",
+                "sessionId": "ses_math_001",
+                "student": {
+                  "name": "Ishaan Verma"
+                },
+                "status": "info",
+                "action": "launch_quiz",
+                "source": "quizzes"
               }
             ],
             "metrics": {
@@ -416,7 +429,7 @@
                 "note": "Scoring bands are not configured yet."
               },
               "toReview": {
-                "value": 6,
+                "value": 3,
                 "source": "quiz_attempts"
               },
               "payout": {
@@ -443,7 +456,7 @@
     },
     {
       "name": "announcements list + unread",
-      "at": "2026-11-27T23:11:21.171Z",
+      "at": "2026-11-27T23:37:23.600Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -455,7 +468,7 @@
     },
     {
       "name": "parent-chat unread summary",
-      "at": "2026-11-27T23:11:21.176Z",
+      "at": "2026-11-27T23:37:23.606Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -476,23 +489,23 @@
     },
     {
       "name": "session state is role-safe",
-      "at": "2026-11-27T23:11:21.179Z",
+      "at": "2026-11-27T23:37:23.609Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
         "leaks": [],
-        "ms": 4
+        "ms": 3
       }
     },
     {
       "name": "LMS catalog",
-      "at": "2026-11-27T23:11:21.184Z",
+      "at": "2026-11-27T23:37:23.614Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 7,
+        "ms": 10,
         "body": {
           "curricula": [
             {
@@ -5994,12 +6007,12 @@
     },
     {
       "name": "trainer assigned planners are read-only",
-      "at": "2026-11-27T23:11:21.191Z",
+      "at": "2026-11-27T23:37:23.625Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 200,
-        "ms": 2,
+        "ms": 3,
         "body": {
           "assignedPlanners": [],
           "count": 0,
@@ -6009,17 +6022,17 @@
     },
     {
       "name": "trainer cannot mutate a planner",
-      "at": "2026-11-27T23:11:21.193Z",
+      "at": "2026-11-27T23:37:23.628Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 403,
-        "ms": 2
+        "ms": 5
       }
     },
     {
       "name": "founder-only planner suggestions are gated",
-      "at": "2026-11-27T23:11:21.196Z",
+      "at": "2026-11-27T23:37:23.633Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6029,21 +6042,21 @@
     },
     {
       "name": "question totals present in student dashboard",
-      "at": "2026-11-27T23:11:21.199Z",
+      "at": "2026-11-27T23:37:23.636Z",
       "ok": true,
       "detail": {
         "ok": true,
         "totals": {
-          "attempted": 6,
-          "solved": 5
+          "attempted": 3,
+          "solved": 2
         },
         "status": 200,
-        "ms": 3
+        "ms": 2
       }
     },
     {
       "name": "preflight page served with Join and presets",
-      "at": "2026-11-27T23:11:21.204Z",
+      "at": "2026-11-27T23:37:23.640Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6053,32 +6066,48 @@
           "id=\"preflightJoin\"",
           ">Join the session<",
           "id=\"presetMic\"",
-          "id=\"presetCam\"",
-          "id=\"preflightContinue\""
+          "id=\"presetCam\""
         ],
         "missing": [],
+        "bypassPresent": false,
         "ms": 3
       }
     },
     {
       "name": "trainer Join heartbeat starts server-owned timer",
-      "at": "2026-11-27T23:11:21.208Z",
+      "at": "2026-11-27T23:37:23.644Z",
       "ok": true,
       "detail": {
         "ok": true,
         "joinedStatus": 200,
         "stateStatus": 200,
         "trainerState": "active",
-        "beforeRunning": true,
+        "beforeRunning": false,
         "timerRunning": true,
         "timerSeconds": 0,
         "presenceEnded": false,
-        "ms": 8
+        "ms": 9
+      }
+    },
+    {
+      "name": "trainer board.opened handoff is visible to the child, child cannot publish it",
+      "at": "2026-11-27T23:37:23.656Z",
+      "ok": true,
+      "detail": {
+        "ok": true,
+        "deniedStatus": 403,
+        "openedStatus": 200,
+        "handoffSeq": 1,
+        "handoffPayload": {
+          "opened": true
+        },
+        "safeKeys": true,
+        "ms": 10
       }
     },
     {
       "name": "temporary planner guide visible in trainer state",
-      "at": "2026-11-27T23:11:21.220Z",
+      "at": "2026-11-27T23:37:23.667Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6118,12 +6147,12 @@
         ],
         "trainerQuizKeyCount": 27,
         "canViewAnswerKey": true,
-        "ms": 5
+        "ms": 6
       }
     },
     {
       "name": "temporary planner guide is role-safe for student",
-      "at": "2026-11-27T23:11:21.226Z",
+      "at": "2026-11-27T23:37:23.674Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6132,8 +6161,8 @@
         "fixtureStatus": "temporary_dev_fixture",
         "guideId": "dev_ratio_railway_v1",
         "guideStatus": "temporary_dev_fixture",
-        "concepts": 2,
-        "beats": 2,
+        "concepts": 1,
+        "beats": 1,
         "leakedKeys": [],
         "safeFalsePermissionFlags": {
           "canViewAnswerKey": false,
@@ -6145,13 +6174,13 @@
     },
     {
       "name": "fixture quiz launch and wrong answer stay unrevealed to student",
-      "at": "2026-11-27T23:11:21.229Z",
+      "at": "2026-11-27T23:37:23.677Z",
       "ok": true,
       "detail": {
         "ok": true,
         "launchStatus": 200,
-        "forcedNextWithOverride": 2,
-        "questionId": "dev_ratio_q3",
+        "forcedNextWithOverride": 0,
+        "questionId": "dev_ratio_q1",
         "expectedFixtureIds": [
           "dev_ratio_q1",
           "dev_ratio_q2",
@@ -6163,18 +6192,18 @@
           "dev_ratio_q8",
           "dev_ratio_q9"
         ],
-        "wrongOptionIndex": 2,
+        "wrongOptionIndex": 1,
         "answerStatus": 200,
         "attemptStatus": 200,
         "revealedBeforeTrainer": false,
         "prematureLeaks": [],
         "studentPhase": "awaiting_reveal",
-        "ms": 9
+        "ms": 10
       }
     },
     {
       "name": "trainer reveal releases the attempted answer only after reveal",
-      "at": "2026-11-27T23:11:21.255Z",
+      "at": "2026-11-27T23:37:23.696Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6184,55 +6213,55 @@
         "correctAfterReveal": false,
         "trainerRevealRecorded": true,
         "studentRevealedIds": [
-          "dev_ratio_q3"
+          "dev_ratio_q1"
         ],
         "studentSessionAnswerKeyLeaks": [],
-        "ms": 9
+        "ms": 12
       }
     },
     {
       "name": "Retest new-check replaces within the same section",
-      "at": "2026-11-27T23:11:21.267Z",
+      "at": "2026-11-27T23:37:23.712Z",
       "ok": true,
       "detail": {
         "ok": true,
         "status": 201,
-        "generationMode": "fallback",
-        "originalQuestionId": "dev_ratio_q3",
-        "replacementId": "q_1795821082518_ufzxo",
+        "generationMode": "ai",
+        "originalQuestionId": "dev_ratio_q1",
+        "replacementId": "q_1795822645052_1vror",
         "replacementConcept": "What a ratio compares",
         "expectedConcept": "What a ratio compares",
-        "currentQuestionId": "q_1795821082518_ufzxo",
+        "currentQuestionId": "q_1795822645052_1vror",
         "phase": "recheck",
         "questionCountBefore": 9,
         "questionCountAfter": 9,
         "originalAttemptRemoved": true,
         "sectionId": "concept_compare",
-        "ms": 1252
+        "ms": 1343
       }
     },
     {
       "name": "correct answer advances fixture section progress",
-      "at": "2026-11-27T23:11:22.520Z",
+      "at": "2026-11-27T23:37:25.055Z",
       "ok": true,
       "detail": {
         "ok": true,
-        "questionId": "q_1795821082518_ufzxo",
+        "questionId": "q_1795822645052_1vror",
         "answerStatus": 200,
         "revealStatus": 200,
         "sectionCorrectBefore": 0,
         "sectionCorrectAfter": 1,
         "completedIncludesReplacement": true,
         "advanceStatus": 200,
-        "currentBeforeAdvance": "q_1795821082518_ufzxo",
-        "currentAfterAdvance": "q_1795821041214_f7r6k",
+        "currentBeforeAdvance": "q_1795822645052_1vror",
+        "currentAfterAdvance": "dev_ratio_q2",
         "sectionId": "concept_compare",
-        "ms": 12
+        "ms": 13
       }
     },
     {
       "name": "three correct answers unlock the next fixture section",
-      "at": "2026-11-27T23:11:22.535Z",
+      "at": "2026-11-27T23:37:25.074Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6242,11 +6271,11 @@
         "additionalCorrectAnswers": 2,
         "unlockedSnapshot": {
           "currentConceptId": "concept_compare",
-          "currentQuestionId": "q_1795821067426_n64ff",
+          "currentQuestionId": "dev_ratio_q3",
           "completedQuestionIds": [
-            "q_1795821041214_f7r6k",
-            "q_1795821067426_n64ff",
-            "q_1795821082518_ufzxo"
+            "q_1795822645052_1vror",
+            "dev_ratio_q2",
+            "dev_ratio_q3"
           ],
           "currentSolved": true,
           "sectionCorrect": 3,
@@ -6259,14 +6288,14 @@
         },
         "steps": [
           {
-            "questionId": "q_1795821041214_f7r6k",
+            "questionId": "dev_ratio_q2",
             "answerStatus": 200,
             "revealStatus": 200,
             "sectionCorrect": 2,
             "unlockedNext": false
           },
           {
-            "questionId": "q_1795821067426_n64ff",
+            "questionId": "dev_ratio_q3",
             "answerStatus": 200,
             "revealStatus": 200,
             "sectionCorrect": 3,
@@ -6280,7 +6309,7 @@
     },
     {
       "name": "student dashboard question totals increase after new-check attempts",
-      "at": "2026-11-27T23:11:22.564Z",
+      "at": "2026-11-27T23:37:25.111Z",
       "ok": true,
       "detail": {
         "ok": true,
@@ -6297,12 +6326,12 @@
         "attemptedDelta": 3,
         "solvedDelta": 3,
         "expectedMinimum": 3,
-        "ms": 2
+        "ms": 4
       }
     },
     {
       "name": "board share default off is reflected in fresh session state",
-      "at": "2026-11-27T23:11:22.567Z",
+      "at": "2026-11-27T23:37:25.115Z",
       "ok": false,
       "detail": {
         "skipped": true,

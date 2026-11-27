@@ -40,7 +40,12 @@ async function main() {
   ok(preflight.includes('>Join the session<'), 'Join action is labelled Join the session');
   ok(preflight.includes('id="presetMic"') && preflight.includes('id="presetCam"'),
     'preflight exposes mic and camera room presets');
-  ok(preflight.includes('id="preflightContinue"'), 'student can continue to the shared feed');
+  ok(!preflight.includes('id="preflightContinue"') &&
+    !preflight.includes('Continue to the camera'),
+  'readiness gate has no student bypass button');
+  ok(preflightJs.includes("role === 'student' && canJoin") &&
+    preflightJs.includes('openCameraPage(false)'),
+  'student continues automatically to the camera page after checks');
   ok(!preflight.includes('href="#"'), 'preflight has no dead links');
   ok(!/<iframe/i.test(preflight), 'preflight has no iframe');
   ok(preflightJs.includes("'/presence'") && preflightJs.includes("active: true"),

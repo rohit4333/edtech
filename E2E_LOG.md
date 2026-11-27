@@ -62,8 +62,8 @@ After all lanes report:
 ### Full automated suite
 
 - Command: `$env:DATABASE_MODE = "mock"; npm test` with portable Node 20.
-- Result: **exit 0**; log saved to `C:\Users\rohit\AppData\Local\Temp\opencode\npm-test-final.log`.
-- New/changed suites passed: `temporaryPlannerFlow` 92 assertions, `preflightFlow` 27, `cameraConnect` 46, `fullBoard` 107, `privacyBoundary` 234, `navContract` 225, `engagementControls` 83, `rewardDeck` 16, `liveReadiness` 98, `lmsClientContract` 30, `lmsPlannerAccess` 46, `plannerRead` 23, `plannerAgent` 42, `autoPlanner` 62, `subjectExpansion` 84, `webApp` 32, `mobileShell` 28, `subjectExpansion` 84.
+- Result: **exit 0**; latest log saved to `C:\Users\rohit\AppData\Local\Temp\opencode\npm-test-camera-wait.log`.
+- New/changed suites passed: `temporaryPlannerFlow` 92 assertions, `preflightFlow` 28, `cameraConnect` 51, `fullBoard` 107, `privacyBoundary` 234, `navContract` 225, `engagementControls` 83, `rewardDeck` 16, `liveReadiness` 98, `lmsClientContract` 30, `lmsPlannerAccess` 46, `plannerRead` 23, `plannerAgent` 42, `autoPlanner` 62, `subjectExpansion` 84, `webApp` 32, `mobileShell` 28.
 - Expected fallback noise only: AI provider chain falls back when provider credentials are absent, Supabase mock/offline notices, and the deliberate scrubber warning `[SECURITY] Trainer-only fields detected in student payload!`.
 
 ### Server restart used for live verification
@@ -87,10 +87,10 @@ All pages were opened with fresh cache-bust query strings, service workers unreg
 | 1 | `/index.html?review=1795820948633&live=1795820948634&devLabel=0` | PASS | `Mathify<i>.</i>`, exact LinkedIn URL, `#demoForm`, `50-MINUTE LIVE SESSION`, `EXACTLY 50 MIN`, `Book the 50-minute demo`, no `35 min`, no `href="#"`, no iframe, no console errors/bad requests. |
 | 2 | `/contact.html?review=1795820948635&live=1795820948636&devLabel=0` | PASS | Same `#demoForm` frame, `50 min. live demo`, no `35 min`, no `href="#"`, no iframe, no console errors/bad requests. |
 | 3 | `/trainer/today?review=1795820948637&live=1795820948638&devLabel=0` | PASS | `Start class`, real payout card `₹8,710` from signed-in trainer, Trainer Desk and notification surfaces present in DOM, `trainer/app.js` source targets `../classroom/preflight.html?sessionId=`, no console errors/bad requests. |
-| 4 | `/classroom/preflight.html?sessionId=ses_math_001&role=trainer&view=trainer&devLabel=0&review=1795820996808` | PASS | Title `Get ready for class`, Join visible, Continue hidden, camera/mic/network check rows, both preset controls; toggling changed `data-on` and labels `On → Off`. Network check reached `Connection checked for a private 1:1 class.`; camera permission promise stayed pending in the headless browser, so Join remained disabled there (environment limitation, not a page error). No console errors/bad requests. |
-| 5 | `/classroom/preflight.html?sessionId=ses_math_001&role=student&view=student&devLabel=0` | PASS | Role `student`, Join hidden, `Continue to the camera` visible, waiting copy present, no `href="#"`, no iframe. |
-| 6 | `/classroom/connect.html?sessionId=ses_math_001&role=trainer&view=trainer&clock=started&mic=on&cam=off` | PASS | Trainer control labelled `Open whiteboard`, tooltip says class clock already running, two camera tiles, `clock=started` preserved. Known mock LiveKit WebSocket `ERR_NAME_NOT_RESOLVED` only. |
-| 7 | `/classroom/connect.html?sessionId=ses_math_001&role=student&view=student&clock=check&mic=on&cam=on` | RENDERED → HANDOFF | Student camera page rendered with two tiles and no trainer handoff; then auto-advanced to the board because mock presence reports `classroomOpen === true`, as designed. |
+| 4 | `/classroom/preflight.html?sessionId=ses_math_002&role=trainer&view=trainer&devLabel=0&review=1795822668839` | PASS | Title `Get ready for class`, Join visible, **no `#preflightContinue` and no `Continue to the camera` text**, camera/mic/network check rows, both preset controls. Network check reached `Connection checked for a private 1:1 class.`; camera permission promise stayed pending in the headless browser, so Join remained disabled there (environment limitation, not a page error). No `href="#"`, no iframe. |
+| 5 | `/classroom/preflight.html?sessionId=ses_math_002&role=student&view=student&devLabel=0&review=1795822668840` | PASS | Role `student`, Join hidden, no Continue button/text, waiting copy `Your shared camera page opens as soon as these checks finish.`, no `href="#"`, no iframe. Checks must finish before the automatic `clock=check` camera navigation. |
+| 6 | `/classroom/connect.html?sessionId=ses_math_002&role=trainer&view=trainer&clock=started&mic=on&cam=on` | PASS | Trainer control labelled `Open whiteboard`, tooltip `Open the shared whiteboard · the class clock is already running`. Clicking it published a second `board.opened` event (`seq 24`) and navigated to `/classroom/index.html?...&clock=started...`. `MATHIFY_STAY_PRESENT` keeps the clock running. |
+| 7 | `/classroom/connect.html?sessionId=ses_math_002&role=student&view=student&clock=check&mic=on&cam=on` | PASS | With `classroomOpen === false` and no `board.opened` event, the child stayed on `/classroom/connect.html` with both camera tiles, no trainer controls and waiting copy. After the trainer published `board.opened`, the child navigated to `/classroom/index.html?...&clock=started...`. Trainer presence alone no longer pushes the child out of the camera feed. |
 | 8 | `/classroom/index.html?sessionId=ses_math_001&role=trainer&view=trainer&clock=started&devLabel=0&review=1795820948643` | PASS | Single front `Share with kid` control (Off, `aria-pressed=false`), `#shareBtn` and `#scBoardBtn` absent, close hint `back to camera`, REC/timer deck visible, `window.classroomSession.backToCamera()` exists and builds `connect.html?sessionId=...&clock=started...` with the stay-present guard, quiz has Push/Reveal/Retest/New check/Override and `0 / 3` section counter, no scratchpad, no `href="#"`, no iframe. `fullBoard.css` contains OFF `#DC2626` and ON `#15803D`; `room.css` grades `poor/fair/good/strong/excellent`; `rtcMediaUi.css` uses teal `#12968C` for active speaker and reserves coral for muted/attention. Reward badge, Star moment and 13 reaction buttons visible. Zero console errors/bad requests. |
 | 9 | `/classroom/index.html?sessionId=ses_math_001&role=student&view=student&devLabel=0&review=1795820948644` | PASS | No balance/credits/Shared board link text, floating End/hand/chat and REC visible, quiz Submit present with options empty until a question loads, all trainer-only actions hidden, no `href="#"`, no iframe, zero console errors/bad requests. |
 | 10 | `/lms/index.html?role=trainer&review=1795820948639&live=1795820948640&devLabel=0` | PASS | Assigned planner, view-only banner, no `New course` / `Import pack` / `Generate planner` mutation UI, no `href="#"`, no iframe, zero console errors/bad requests. |
@@ -99,13 +99,17 @@ All pages were opened with fresh cache-bust query strings, service workers unreg
 - Screenshots captured outside the repo for review (not committed): `preflight-trainer`, `board-trainer-quiz`, `board-student`, `lms-trainer` under `C:\Users\rohit\.cache\opencode\browser-exports\...\screenshot.jpeg`.
 - A browser-only verification subagent was blocked because its session lacked the browser skill/tool catalog; the main session performed every render check above directly.
 - Browser limitations noted: no real camera permission in the headless browser, and mock LiveKit has no resolvable signaling host. Neither affects the server-owned clock/recording contract, which is covered by `preflightFlow`, `cameraConnect`, `sessionLifetime`, `presenceService` and the live API probe.
+- The first camera-page render after the code change used a stale service-worker copy of `connect.js` and made no `events?since=` requests. The service worker was unregistered and the tab reloaded with `ignoreCache:true`; the fresh source then polled events and handed off on `board.opened` exactly as verified above.
+- `ses_math_002` is a scheduled mock session, so its preview-token call returned `409` in the headless browser. This is session-state noise, not a regression; the signed-in API checks and the live `ses_math_001` preview-token path pass.
+
 ### Extended live API probe
 
 - Command: `node scripts/e2e-live.js` against `http://127.0.0.1:4004`.
-- Log: `scripts/e2e-live-log.json` — **31 checks, 30 passed, 1 skipped, 0 failed**, process exit 0.
+- Log: `scripts/e2e-live-log.json` — **32 checks, 31 passed, 1 skipped, 0 failed**, process exit 0.
 - The original 20 checks are unchanged. Added checks all passed:
-  - `preflight page served with Join and presets`
+  - `preflight page served with Join and presets` (now also proves the Continue bypass is absent)
   - `trainer Join heartbeat starts server-owned timer`
+  - `trainer board.opened handoff is visible to the child, child cannot publish it`
   - `temporary planner guide visible in trainer state`
   - `temporary planner guide is role-safe for student`
   - `fixture quiz launch and wrong answer stay unrevealed to student`

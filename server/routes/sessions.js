@@ -114,7 +114,7 @@ const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
   'quiz.assistance.granted', 'quiz.completed', 'quiz.ended', 'session.ended', 'page.changed',
-  'chat.sent', 'board.shared', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
+  'chat.sent', 'board.shared', 'board.opened', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
   'founder.observer.changed', 'ide.state.updated', 'challenge.published',
   'session.warning', 'session.auto_closed', 'participant.joined', 'participant.left'
@@ -206,6 +206,15 @@ router.post('/:sessionId/chat', function (req, res) {
   };
   return realtime.publish(req.sessionRecord.id, 'chat.sent', message).then(function (event) {
     return res.status(201).json({ message: message, seq: event.seq });
+  });
+});
+
+/* The camera page → whiteboard handoff is trainer-only. A child follows the
+   safe board.opened notification, which carries no clock, pay, planner or
+   teaching content. The child cannot publish this transition. */
+router.post('/:sessionId/board/open', auth.requireRole('trainer', 'founder'), function (req, res) {
+  return realtime.publish(req.sessionRecord.id, 'board.opened', { opened: true }).then(function (event) {
+    return res.json({ ok: true, opened: true, seq: event.seq });
   });
 });
 

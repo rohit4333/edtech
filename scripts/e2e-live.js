@@ -339,17 +339,21 @@ async function main() {
     const r = await req('GET', '/classroom/preflight.html');
     const served = typeof r.body === 'string' ? r.body : '';
     const markers = repo.ok
-      ? ['id="preflightJoin"', '>Join the session<', 'id="presetMic"', 'id="presetCam"', 'id="preflightContinue"']
+      ? ['id="preflightJoin"', '>Join the session<', 'id="presetMic"', 'id="presetCam"']
       : [];
     const missing = markers.filter(function (marker) {
       return repo.text.indexOf(marker) === -1 || served.indexOf(marker) === -1;
     });
+    const bypassPresent = /preflightContinue|Continue to the camera/.test(repo.text) ||
+      /preflightContinue|Continue to the camera/.test(served);
     return {
-      ok: repo.ok && r.status === 200 && served.indexOf('Get ready for class') !== -1 && missing.length === 0,
+      ok: repo.ok && r.status === 200 && served.indexOf('Get ready for class') !== -1 &&
+        missing.length === 0 && !bypassPresent,
       status: r.status,
       repoRead: repo.ok,
       markers: markers,
       missing: missing,
+      bypassPresent: bypassPresent,
       ms: r.ms
     };
   });
@@ -376,6 +380,29 @@ async function main() {
       timerSeconds: timing && timing.timerSeconds,
       presenceEnded: false,
       ms: joined.ms + after.ms
+    };
+  });
+
+  await check('trainer board.opened handoff is visible to the child, child cannot publish it', async function () {
+    const denied = await req('POST', '/api/sessions/' + SESSION_ID + '/board/open', {}, tokens.student);
+    const opened = await req('POST', '/api/sessions/' + SESSION_ID + '/board/open', {}, tokens.trainer);
+    const events = await req('GET', '/api/sessions/' + SESSION_ID + '/events?limit=200',
+      undefined, tokens.student);
+    const list = events.body && Array.isArray(events.body.events) ? events.body.events : [];
+    const handoff = list.filter(function (event) { return event.event === 'board.opened'; }).pop();
+    const safeKeys = handoff && handoff.payload
+      ? Object.keys(handoff.payload).every(function (key) {
+        return !/answer|correct|hint|trainer|pay|clock|note/i.test(key);
+      }) : false;
+    return {
+      ok: denied.status === 403 && opened.status === 200 && opened.body.opened === true &&
+        events.status === 200 && !!handoff && handoff.payload.opened === true && safeKeys,
+      deniedStatus: denied.status,
+      openedStatus: opened.status,
+      handoffSeq: handoff && handoff.seq,
+      handoffPayload: handoff && handoff.payload,
+      safeKeys: safeKeys,
+      ms: denied.ms + opened.ms + events.ms
     };
   });
 
