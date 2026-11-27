@@ -1027,6 +1027,10 @@
   .ai-attach:hover{border-color:var(--ink);color:var(--ink)}
   .ai-attach svg{width:16px;height:16px}
   .ai-attach-row{padding:0 11px 10px;background:var(--card)}
+  .ai-quota{
+    margin:0;padding:0 11px 10px;background:var(--card);
+    font:500 9px/1.4 var(--mono);letter-spacing:.02em;color:var(--muted);
+  }
   .attach-chip{
     display:inline-flex;align-items:center;gap:8px;
     max-width:100%;padding:5px 6px 5px 10px;
@@ -1771,7 +1775,7 @@
     </button>
   </div>
   <div class="ai-body" id="aiBody">
-    <p class="msg bot">Hi! I&rsquo;m your Study Buddy 📐 Drop a question or a photo of your working, and we&rsquo;ll figure out the first step together.</p>
+    <p class="msg bot">Hi! I&rsquo;m your Study Buddy 📐 Drop a question or a photo of your working, and we&rsquo;ll figure out the first step together. Text is unlimited; you get 10 photo questions each day.</p>
     <div class="ai-chips">
       <button type="button">Give me a hint 😊</button>
       <button type="button">Explain this like a story</button>
@@ -1781,6 +1785,7 @@
   <div class="ai-attach-row" id="aiAttachRow" hidden>
     <span class="attach-chip"><span id="aiAttachName">Image ready</span><button type="button" id="aiAttachClear" aria-label="Remove attached image">&times;</button></span>
   </div>
+  <p class="ai-quota" id="aiQuota" hidden></p>
   <form class="ai-form" id="aiForm">
     <label class="ai-attach" title="Attach a maths image" aria-label="Attach a maths image">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8.8" cy="10" r="1.5"/><path d="m4.5 17 4.3-4 3.4 3 2.7-2.5 4.6 4"/></svg>

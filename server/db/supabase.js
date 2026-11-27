@@ -984,6 +984,7 @@ module.exports = {
   assertConfigured,
   getRecord,
   putRecord,
+  insertRecordOnce,
   deleteRecord,
   listRecords,
   isUuid,

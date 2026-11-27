@@ -151,6 +151,7 @@
     panel.hidden = false;
     fab.setAttribute('aria-expanded', 'true');
     fab.setAttribute('aria-label', 'Close Study Buddy');
+    refreshQuota();
     window.setTimeout(function () {
       if (input) input.focus();
     }, 30);
@@ -185,8 +186,25 @@
   var attachName = document.getElementById('aiAttachName');
   var attachClear = document.getElementById('aiAttachClear');
   var pendingImage = null;
+  var quotaNode = document.getElementById('aiQuota');
+  var remainingImages = null;
   var MAX_IMAGE_BYTES = 1024 * 1024;
   var ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+  function showQuota(quota) {
+    if (!quotaNode || !quota || typeof quota.remaining !== 'number') return;
+    remainingImages = quota.remaining;
+    quotaNode.hidden = false;
+    quotaNode.textContent = quota.remaining === 0
+      ? 'Photo questions finished for today. Text questions are still unlimited - come back tomorrow!'
+      : quota.remaining + ' of ' + quota.limit + ' photo questions left today - text questions are unlimited.';
+  }
+
+  function refreshQuota() {
+    var api = window.mathifyStudentApi;
+    if (!api || typeof api.getStudyBuddyQuota !== 'function') return;
+    api.getStudyBuddyQuota().then(showQuota).catch(function () {});
+  }
 
   function addMessage(text, who) {
     if (!body) return null;
@@ -220,6 +238,10 @@
       var file = imageInput.files && imageInput.files[0];
       imageInput.value = '';
       if (!file) return;
+      if (remainingImages === 0) {
+        addMessage("That's 10 photo questions for today. Come back tomorrow - you can still ask me anything in text!", 'bot');
+        return;
+      }
       if (ALLOWED_IMAGE_TYPES.indexOf(file.type) === -1) {
         addMessage('I can read PNG, JPG, WEBP or GIF photos 📎', 'bot');
         return;
@@ -263,11 +285,19 @@
         if (!pending) return;
         pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
         if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
-      }).catch(function () {
-        if (pending) {
-          pending.textContent = 'Study Buddy could not be reached. Please retry in a moment.';
-          pending.dataset.source = 'offline';
+        if (data && data.quota) showQuota(data.quota);
+      }).catch(function (error) {
+        if (!pending) return;
+        var code = error && (error.code || (error.data && error.data.error));
+        if (code === 'IMAGE_QUOTA_EXCEEDED' || (error && error.status === 400)) {
+          pending.textContent = (error && error.message) ||
+            "That's 10 photo questions for today. Come back tomorrow!";
+          pending.dataset.source = 'quota';
+          if (code === 'IMAGE_QUOTA_EXCEEDED') remainingImages = 0;
+          return;
         }
+        pending.textContent = 'Study Buddy could not be reached. Please retry in a moment.';
+        pending.dataset.source = 'offline';
       });
     });
   }

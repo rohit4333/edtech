@@ -455,6 +455,19 @@ function putRecord(collection, key, value) {
   return cloneRecord(stored);
 }
 
+/* Strict insert used for one-shot claims such as the Study Buddy daily image
+   allowance. In mock mode this is synchronous, but it has the same semantics
+   as the live adapter: a second claim for the same key never succeeds. */
+function insertRecordOnce(collection, key, value) {
+  const composite = recordKey(collection, key);
+  if (genericRecords.has(composite)) {
+    return { claimed: false, data: cloneRecord(genericRecords.get(composite)) };
+  }
+  const stored = cloneRecord(value);
+  genericRecords.set(composite, stored);
+  return { claimed: true, data: cloneRecord(stored) };
+}
+
 function deleteRecord(collection, key) {
   return genericRecords.delete(recordKey(collection, key));
 }
@@ -471,6 +484,7 @@ function listRecords(collection) {
 module.exports = {
   getRecord: getRecord,
   putRecord: putRecord,
+  insertRecordOnce: insertRecordOnce,
   deleteRecord: deleteRecord,
   listRecords: listRecords,
   users: users,

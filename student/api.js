@@ -134,6 +134,11 @@
         body: { question: question, image: image || null }
       });
     },
+    getStudyBuddyQuota: function () {
+      return request('/chat/student-doubt/quota').then(function (data) {
+        return data && data.quota ? data.quota : null;
+      });
+    },
     fetchPracticeBatch: function (topic, previousBatchId) {
       return request('/student/practice/batch', {
         method: 'POST',

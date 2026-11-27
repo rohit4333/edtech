@@ -835,6 +835,7 @@ function saveWeeklyPlannerPointer(record) {
 const mockApi = {
   getRecord: store.getRecord,
   putRecord: store.putRecord,
+  insertRecordOnce: store.insertRecordOnce,
   deleteRecord: store.deleteRecord,
   listRecords: store.listRecords,
   listBatches,

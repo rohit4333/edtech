@@ -47,7 +47,7 @@ to the Data API automatically, so the academic columns are explicitly granted to
 
 `server/tests/liveReadiness.test.js` and `server/tests/livePersistence.test.js`
 check the transaction wrapper, checksum drift guards, service-only grants and
-outbox shape. They are part of 53 Node suites run with plain `node` + `assert`
+outbox shape. They are part of 54 Node suites run with plain `node` + `assert`
 (no Jest/Vitest/Playwright/Cypress); current results are in `LIVE_QA_REPORT.md`. The first
 seven SQL files, including `0007` and `0008`, are review-only in this workspace:
 no runner-based live apply occurred during the recorded checks. `0009` is the
