@@ -221,9 +221,17 @@ router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), f
 /* Full-board ink is session-scoped and trainer-owned. Coordinates are
    normalised 0–1, colours and tools are allowlisted, and payload sizes are
    bounded. No text, answer key or trainer note is accepted here. */
-const BOARD_SHAPES = new Set(['line', 'arrow', 'rectangle', 'circle', 'triangle']);
-const BOARD_TOOLS = new Set(['pen', 'marker', 'eraser'].concat(Array.from(BOARD_SHAPES)));
-const BOARD_COLORS = new Set(['ink', 'coral', 'teal', 'amber', 'blue']);
+const BOARD_SHAPES = new Set([
+  'square', 'rectangle', 'circle', 'triangle', 'diamond', 'pentagon',
+  'hexagon', 'star', 'parallelogram', 'line', 'arrow', 'double-arrow',
+  'dashed', 'dotted'
+]);
+const BOARD_TOOLS = new Set(['pen', 'highlighter', 'marker', 'eraser'].concat(Array.from(BOARD_SHAPES)));
+const BOARD_COLORS = new Set([
+  'ink', 'coral', 'teal', 'amber', 'blue', 'violet',
+  'green', 'pink', 'orange', 'slate'
+]);
+const BOARD_WEIGHTS = new Set(['thin', 'normal', 'bold']);
 
 function cleanInkStroke(value) {
   if (!value || typeof value !== 'object') return null;
@@ -238,6 +246,7 @@ function cleanInkStroke(value) {
   const ink = {
     tool: BOARD_TOOLS.has(value.tool) ? value.tool : 'pen',
     color: BOARD_COLORS.has(value.color) ? value.color : 'ink',
+    weight: BOARD_WEIGHTS.has(value.weight) ? value.weight : 'normal',
     points: points
   };
   /* Shape geometry is two endpoints; the shape name is allowlisted so no free

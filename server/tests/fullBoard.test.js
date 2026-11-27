@@ -66,15 +66,15 @@ async function main() {
     const stroke = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
       type: 'stroke',
       page: 1,
-      ink: { tool: 'marker', color: 'coral', points: [[0.1, 0.2], [0.7, 0.8]] }
+      ink: { tool: 'highlighter', color: 'violet', weight: 'bold', points: [[0.1, 0.2], [0.7, 0.8]] }
     }, trainer);
     ok(stroke.status === 200, 'trainer ink is accepted');
 
     const shape = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
       type: 'stroke', page: 1,
-      ink: { tool: 'circle', shape: 'circle', color: 'blue', points: [[0.2, 0.2], [0.8, 0.8]], note: 'hidden answer' }
+      ink: { tool: 'star', color: 'blue', weight: 'thin', points: [[0.2, 0.2], [0.8, 0.8]], note: 'hidden answer' }
     }, trainer);
-    ok(shape.status === 200, 'maths shapes are accepted on the shared board');
+    ok(shape.status === 200, 'every grouped maths shape is accepted on the shared board');
 
     const badImage = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
       type: 'image', image: { data: 'data:text/html;base64,PHNjcmlwdD4=' }
@@ -107,11 +107,17 @@ async function main() {
     });
     ok(ink.length >= 4, 'each board action appears as a session-scoped event');
 
-    const shaped = ink.find(function (event) {
-      return event.payload && event.payload.ink && event.payload.ink.tool === 'circle';
+    const thick = ink.find(function (event) {
+      return event.payload && event.payload.ink && event.payload.ink.tool === 'highlighter';
     });
-    ok(shaped && shaped.payload.ink.shape === 'circle' && shaped.payload.ink.color === 'blue',
-      'the maths shape and fifth colour reach the student');
+    ok(thick && thick.payload.ink.color === 'violet' && thick.payload.ink.weight === 'bold',
+      'the expanded colour palette and stroke thickness reach the student');
+    const shaped = ink.find(function (event) {
+      return event.payload && event.payload.ink && event.payload.ink.tool === 'star';
+    });
+    ok(shaped && shaped.payload.ink.shape === 'star' && shaped.payload.ink.color === 'blue' &&
+      shaped.payload.ink.weight === 'thin',
+    'the grouped maths shape, colour and thin weight reach the student');
     ok(shaped && !/note|answer|hint/i.test(JSON.stringify(shaped.payload.ink)),
       'shape ink drops hidden note fields');
 
@@ -209,9 +215,10 @@ async function main() {
     'the pointer relay is loaded on the verified classroom page');
 
     const fullBoardJs = readAsset('shared/fullBoard.js');
-    ok(/\.full-board-tools\{[^}]*left:16px[^}]*flex-direction:column/.test(fullBoardCss) &&
+    ok(/\.full-board-tools\.dock-top\{[^}]*top:16px[^}]*flex-direction:row/.test(fullBoardCss) &&
+      /\.full-board-tools\.dock-left\{[^}]*left:16px[^}]*flex-direction:column/.test(fullBoardCss) &&
       /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss),
-    'the canvas fills the viewport while the tools dock vertically on the left');
+    'the canvas fills the viewport while the tools dock horizontally at the top by default');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .brand') !== -1 &&
       fullBoardCss.indexOf('body.board-open .call-pip') !== -1 &&
@@ -261,17 +268,34 @@ async function main() {
       classroom.indexOf('data-board-tool="marker"') === -1 &&
       fullBoardJs.indexOf('function drawLaser') !== -1 &&
       fullBoardJs.indexOf('var laserItems') !== -1 &&
-      fullBoardJs.indexOf("active.tool === 'laser'") !== -1,
-    'the marker is replaced by a highlighter and a temporary laser pen');
+      fullBoardJs.indexOf("active.tool === 'laser'") !== -1 &&
+      fullBoardJs.indexOf('var fadeEdge = 1 - remaining') !== -1 &&
+      fullBoardJs.indexOf('(t - fadeEdge)') !== -1 &&
+      fullBoardJs.indexOf('for (var i = 0; i < last; i += 1)') !== -1,
+    'the marker is replaced by a highlighter and a laser pen that fades from the tail');
     ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
       fullBoardCss.indexOf('bottom:12px;left:auto;z-index:215') !== -1 &&
-      fullBoardCss.indexOf('top:16px;left:16px;bottom:auto;transform:none') !== -1 &&
+      fullBoardCss.indexOf('.full-board-tools.dock-top{') !== -1 &&
+      fullBoardCss.indexOf('.full-board-tools.dock-left{') !== -1 &&
+      fullBoardCss.indexOf('dock-right') === -1 &&
+      fullBoardCss.indexOf('dock-bottom') === -1 &&
       fullBoardCss.indexOf('bottom:76px;z-index:225') !== -1,
-    'board controls sit lower-right and the palette docks at the upper-left');
-    ['ink', 'coral', 'teal', 'amber', 'blue'].forEach(function (color) {
+    'board controls sit lower-right and the palette docks only at top or left');
+    [
+      'ink', 'coral', 'teal', 'amber', 'blue', 'violet',
+      'green', 'pink', 'orange', 'slate'
+    ].forEach(function (color) {
       ok(classroom.indexOf('data-board-color="' + color + '"') !== -1,
         'the maths board offers the ' + color + ' ink');
     });
+    ok(classroom.indexOf('id="fullBoardInkPanel"') !== -1 &&
+      classroom.indexOf('data-board-weight="thin"') !== -1 &&
+      classroom.indexOf('data-board-weight="normal"') !== -1 &&
+      classroom.indexOf('data-board-weight="bold"') !== -1 &&
+      fullBoardJs.indexOf('INK_TOOLS') !== -1 &&
+      fullBoardJs.indexOf('inkPanel.hidden') !== -1 &&
+      fullBoardJs.indexOf('WEIGHTS[stroke.weight]') !== -1,
+    'colours and Thin/Normal/Bold thickness live in a pen-only ink panel');
     ok(classroom.indexOf('id="fullBoardRedo"') !== -1 &&
       fullBoardJs.indexOf('redoStack') !== -1,
     'undo and redo are icon-only board controls');
@@ -299,27 +323,48 @@ async function main() {
       fullBoardJs.indexOf("key === '='") !== -1 &&
       fullBoardJs.indexOf("key === '-'") !== -1 &&
       fullBoardJs.indexOf("key === '0'") !== -1 &&
-      fullBoardJs.indexOf('transform-origin:center center') === -1 &&
+      fullBoardJs.indexOf("overlay.addEventListener('wheel'") !== -1 &&
+      fullBoardJs.indexOf("overlay.addEventListener('gesturestart'") !== -1 &&
+      classroom.indexOf('id="fullBoardZoomIn"') !== -1 &&
+      classroom.indexOf('id="fullBoardZoomOut"') !== -1 &&
+      classroom.indexOf('id="fullBoardZoomReset"') !== -1 &&
       fullBoardCss.indexOf('transform-origin:center center') !== -1,
-    'Ctrl+plus, Ctrl+minus and Ctrl+0 zoom the whiteboard canvas');
+    'board zoom icons, shortcuts and Ctrl+scroll scale only the whiteboard canvas');
     ok(classroomApp.indexOf('function setDeskZoom') !== -1 &&
       classroomApp.indexOf("event.code === 'NumpadAdd'") !== -1 &&
       classroomApp.indexOf("shortcutKey === '0'") !== -1,
     'the desk whiteboard supports the same keyboard zoom controls');
-    ok(fullBoardJs.indexOf('function resizeHandleAt') !== -1 &&
+    ok(classroom.indexOf('id="fullBoardDockToggle"') !== -1 &&
+      fullBoardJs.indexOf("edge !== 'top' && edge !== 'left'") !== -1 &&
+      fullBoardJs.indexOf('function setDockEdge') !== -1 &&
+      fullBoardJs.indexOf('full-board-tools dock-top') === -1,
+    'the dock toggles only between top and left, defaulting to top');
+    ok(fullBoardJs.indexOf('function selectionBounds') !== -1 &&
+      fullBoardJs.indexOf('function selectionCorners') !== -1 &&
+      fullBoardJs.indexOf('function resizeHandleAt') !== -1 &&
       fullBoardJs.indexOf('function resizeCursor') !== -1 &&
-      fullBoardJs.indexOf('var resizeDrag') !== -1 &&
-      fullBoardJs.indexOf("['top-left', bounds.left, bounds.top]") !== -1 &&
-      fullBoardJs.indexOf("['top-right', bounds.right, bounds.top]") !== -1 &&
-      fullBoardJs.indexOf("['bottom-left', bounds.left, bounds.bottom]") !== -1 &&
-      fullBoardJs.indexOf("['bottom-right', bounds.right, bounds.bottom]") !== -1 &&
-      fullBoardJs.indexOf('image.w = width') !== -1 &&
-      fullBoardJs.indexOf('inner.x = limit') !== -1,
-    'selected images can be dragged and resized from all four corner grips');
+      fullBoardJs.indexOf('function selectionEntries') !== -1 &&
+      fullBoardJs.indexOf('resizeDrag.entries.forEach') !== -1 &&
+      fullBoardJs.indexOf('entry.points.forEach') !== -1 &&
+      fullBoardJs.indexOf('entry.w * scale') !== -1 &&
+      fullBoardJs.indexOf('moveDrag.entries.forEach') !== -1 &&
+      fullBoardJs.indexOf('Selection resized · Undo restores the board state.') !== -1,
+    'every selected stroke, shape, line, image and group resizes from four corner grips');
     ok(fullBoardJs.indexOf("overlay.querySelector('.full-board-tools')") !== -1 &&
       fullBoardJs.indexOf('paletteDrag') !== -1 &&
       fullBoardJs.indexOf("classList.add('is-dragging')") !== -1,
     'the trainer can drag the floating tool palette');
+    ok(fullBoardCss.indexOf('body.board-open #fullBoardShare.is-sharing') !== -1 &&
+      fullBoardCss.indexOf('background:#15803D') !== -1 &&
+      fullBoardCss.indexOf('background:#DC2626') !== -1,
+    'the Share control is red while private and green while sharing');
+    var topRStart = classroom.indexOf('class="top-r"');
+    var topR = classroom.slice(topRStart, classroom.indexOf('</header>', topRStart));
+    ok(topR.indexOf('id="recTime"') < topR.indexOf('id="fullBoardShare"') &&
+      topR.indexOf('id="fullBoardShare"') < topR.indexOf('id="fullBoardFullscreen"') &&
+      topR.indexOf('id="fullBoardFullscreen"') < topR.indexOf('id="peopleBtn"') &&
+      topR.indexOf('id="peopleBtn"') < topR.indexOf('id="netMeter"'),
+    'the deck keeps REC, Share/Close, session details and network meter in order');
     ok(fullBoardJs.indexOf("document.body.classList.add('board-open')") !== -1 &&
       fullBoardJs.indexOf("document.body.classList.remove('board-open')") !== -1,
     'opening and closing the board toggles the clean session layout');

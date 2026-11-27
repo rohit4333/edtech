@@ -32,14 +32,29 @@
 .full-board.tool-hand .full-board-canvas-wrap canvas{cursor:grab}
 .full-board.tool-hand.is-panning .full-board-canvas-wrap canvas{cursor:grabbing}
 .full-board-tools{
-  position:absolute;top:16px;left:16px;bottom:auto;transform:none;z-index:3;
-  display:flex;flex-direction:column;align-items:center;gap:5px;flex-wrap:nowrap;
-  max-height:calc(100% - 32px);max-width:none;padding:6px;overflow:visible;
+  position:absolute;z-index:3;
+  display:flex;align-items:center;gap:5px;flex-wrap:nowrap;
+  padding:6px;overflow:visible;
   border:1px solid var(--line);border-radius:var(--r-sm);
   background:rgba(255,255,255,.96);box-shadow:0 10px 30px rgba(14,20,32,.18);
   backdrop-filter:blur(6px);user-select:none;touch-action:none
 }
+.full-board-tools.dock-top{
+  top:16px;left:50%;right:auto;bottom:auto;transform:translateX(-50%);
+  flex-direction:row;flex-wrap:wrap;justify-content:center;
+  max-width:calc(100% - 32px);max-height:none
+}
+.full-board-tools.dock-left{
+  top:50%;left:16px;right:auto;bottom:auto;transform:translateY(-50%);
+  flex-direction:column;max-width:none;max-height:calc(100% - 32px)
+}
 .full-board-tools.is-dragging{cursor:grabbing;box-shadow:0 16px 42px rgba(14,20,32,.28)}
+.full-board-tools .board-rule{flex:none}
+.full-board-tools.dock-left .board-rule{width:1px;height:20px}
+.board-zoom-value{
+  min-width:34px;text-align:center;color:var(--muted);
+  font:600 10px/1 var(--mono)
+}
 .board-drag-handle{
   display:inline-flex;align-items:center;justify-content:center;
   width:16px;color:var(--muted);font-size:16px;line-height:1;cursor:grab;touch-action:none
@@ -54,23 +69,53 @@
 .full-board-tools button:hover{border-color:var(--coral-deep);color:var(--coral-deep)}
 .full-board-tools button svg{display:block;width:16px;height:16px}
 .full-board-tools button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-#fullBoardShare.is-sharing{
-  background:var(--coral-deep);color:var(--paper);border-color:var(--coral-deep)
+/* Share is red while the board is private and green while the student sees it. */
+body.board-open #fullBoardShare{
+  background:#DC2626;color:#fff;border-color:#DC2626
+}
+body.board-open #fullBoardShare.is-sharing{
+  background:#15803D;color:#fff;border-color:#15803D
 }
 .full-board-tools [data-board-tool]{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0}
 .full-board-tools [data-board-color]{width:20px;min-width:20px;height:20px;border-radius:50%;padding:0}
+.board-ink-panel{
+  position:absolute;left:0;top:calc(100% + 8px);z-index:5;
+  display:flex;flex-direction:column;gap:9px;padding:10px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:rgba(255,255,255,.98);box-shadow:0 12px 30px rgba(14,20,32,.2)
+}
+.full-board-tools.dock-left .board-ink-panel{left:calc(100% + 8px);top:-6px}
+.board-ink-panel[hidden]{display:none}
+.ink-panel-head{font:600 9px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ink-swatches{display:grid;grid-template-columns:repeat(5,22px);gap:7px}
+.ink-swatches button{width:22px;min-width:22px;height:22px;padding:0;border-radius:50%}
+.ink-swatches button[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:2px}
+.ink-widths{display:flex;gap:5px}
+.ink-widths button{
+  display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 7px;
+  font:600 9px/1 var(--mono)
+}
+.ink-widths button svg{width:20px;height:20px}
 .full-board-tools [data-board-color][data-board-color="ink"]{background:#0E1420}
 .full-board-tools [data-board-color][data-board-color="coral"]{background:#FF5B2E}
 .full-board-tools [data-board-color][data-board-color="teal"]{background:#12968C}
 .full-board-tools [data-board-color][data-board-color="amber"]{background:#B4740B}
 .full-board-tools [data-board-color][data-board-color="blue"]{background:#2563EB}
+.full-board-tools [data-board-color][data-board-color="violet"]{background:#7C3AED}
+.full-board-tools [data-board-color][data-board-color="green"]{background:#15803D}
+.full-board-tools [data-board-color][data-board-color="pink"]{background:#DB2777}
+.full-board-tools [data-board-color][data-board-color="orange"]{background:#EA580C}
+.full-board-tools [data-board-color][data-board-color="slate"]{background:#475569}
 .board-group{position:relative;display:flex}
 .board-group > button.is-active{background:var(--ink);color:var(--paper)}
 .board-group-menu{
-  position:absolute;left:calc(100% + 8px);top:-6px;z-index:5;
+  position:absolute;left:-6px;top:calc(100% + 8px);z-index:5;
   display:grid;grid-template-columns:repeat(3,30px);gap:5px;
   padding:7px;border:1px solid var(--line);border-radius:var(--r-sm);
   background:rgba(255,255,255,.98);box-shadow:0 12px 30px rgba(14,20,32,.2)
+}
+.full-board-tools.dock-left .board-group-menu{
+  left:calc(100% + 8px);top:-6px
 }
 .board-group-menu[hidden]{display:none}
 .board-group-menu button{min-width:30px;height:30px;padding:5px}

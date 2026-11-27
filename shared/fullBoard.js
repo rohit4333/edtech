@@ -26,7 +26,13 @@
   var undoBtn = document.getElementById('fullBoardUndo');
   var redoBtn = document.getElementById('fullBoardRedo');
   var clearBtn = document.getElementById('fullBoardClear');
+  var zoomInBtn = document.getElementById('fullBoardZoomIn');
+  var zoomOutBtn = document.getElementById('fullBoardZoomOut');
+  var zoomResetBtn = document.getElementById('fullBoardZoomReset');
+  var zoomValue = document.getElementById('fullBoardZoomValue');
+  var dockToggle = document.getElementById('fullBoardDockToggle');
   var statusNode = document.getElementById('fullBoardStatus');
+  var inkPanel = document.getElementById('fullBoardInkPanel');
   var toolPalette = overlay.querySelector('.full-board-tools');
   var toolHandle = document.getElementById('fullBoardToolHandle');
 
@@ -44,7 +50,8 @@
 
   var COLORS = {
     ink: '#0E1420', coral: '#FF5B2E', teal: '#12968C', amber: '#B4740B',
-    blue: '#2563EB', paper: '#FFFFFF'
+    blue: '#2563EB', violet: '#7C3AED', green: '#15803D', pink: '#DB2777',
+    orange: '#EA580C', slate: '#475569', paper: '#FFFFFF'
   };
   var SHAPE_TOOLS = [
     'square', 'rectangle', 'circle', 'triangle', 'diamond',
@@ -53,6 +60,8 @@
   var LINE_TOOLS = ['line', 'arrow', 'double-arrow', 'dashed', 'dotted'];
   var SHAPES = SHAPE_TOOLS.concat(LINE_TOOLS);
   var WIDTHS = { pen: 2.6, highlighter: 18, marker: 17, eraser: 26, laser: 4 };
+  var WEIGHTS = { thin: 0.55, normal: 1, bold: 1.9 };
+  var INK_TOOLS = ['pen', 'highlighter', 'marker'];
   var items = [];
   var redoStack = [];
   var deleteUndo = [];
@@ -70,6 +79,7 @@
   var pointerId = null;
   var tool = 'pen';
   var color = 'ink';
+  var weight = 'normal';
   var sharing = false;
   var since = 0;
   var imageCount = 0;
@@ -96,9 +106,9 @@
 
   function setZoom(next, announce) {
     var value = Math.min(2.5, Math.max(0.5, Math.round(next * 10) / 10));
-    if (value === zoom) return;
     zoom = value;
     canvas.style.transform = 'scale(' + zoom + ')';
+    if (zoomValue) zoomValue.textContent = Math.round(zoom * 100) + '%';
     if (announce) say('Whiteboard zoom ' + Math.round(zoom * 100) + '% · Ctrl+0 resets.');
   }
 
@@ -208,7 +218,7 @@
       ctx.globalAlpha = 0.34;
       ctx.globalCompositeOperation = 'multiply';
     }
-    ctx.lineWidth = WIDTHS[stroke.tool] || WIDTHS.pen;
+    ctx.lineWidth = (WIDTHS[stroke.tool] || WIDTHS.pen) * (WEIGHTS[stroke.weight] || 1);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.setLineDash([]);
@@ -271,6 +281,33 @@
     return { left: left, top: top, right: right, bottom: bottom };
   }
 
+  function selectionBounds() {
+    var left = Infinity;
+    var top = Infinity;
+    var right = -Infinity;
+    var bottom = -Infinity;
+    selection.forEach(function (item) {
+      var bounds = itemBounds(item);
+      if (!bounds) return;
+      left = Math.min(left, bounds.left);
+      top = Math.min(top, bounds.top);
+      right = Math.max(right, bounds.right);
+      bottom = Math.max(bottom, bounds.bottom);
+    });
+    if (left === Infinity) return null;
+    return { left: left, top: top, right: right, bottom: bottom };
+  }
+
+  function selectionCorners(bounds) {
+    if (!bounds) return [];
+    return [
+      ['top-left', bounds.left, bounds.top],
+      ['top-right', bounds.right, bounds.top],
+      ['bottom-left', bounds.left, bounds.bottom],
+      ['bottom-right', bounds.right, bounds.bottom]
+    ];
+  }
+
   function drawSelectionOutlines(width, height) {
     if (!selection.length) return;
     ctx.save();
@@ -287,29 +324,21 @@
         (bounds.bottom - bounds.top + pad * 2) * height
       );
     });
-    /* A single selected image gets four solid corner grips. They are drawn on
-       the same canvas as the ink, so they zoom and pan with the board. */
-    if (selection.length === 1) {
-      var only = selection[0];
-      var onlyBounds = itemBounds(only);
-      if (only.kind === 'image' && onlyBounds) {
-        var corners = [
-          [onlyBounds.left, onlyBounds.top],
-          [onlyBounds.right, onlyBounds.top],
-          [onlyBounds.left, onlyBounds.bottom],
-          [onlyBounds.right, onlyBounds.bottom]
-        ];
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = COLORS.coral;
-        ctx.lineWidth = 1.5;
-        corners.forEach(function (corner) {
-          var hx = corner[0] * width;
-          var hy = corner[1] * height;
-          ctx.fillRect(hx - 7, hy - 7, 14, 14);
-          ctx.strokeRect(hx - 7, hy - 7, 14, 14);
-        });
-      }
+    /* Every selected item — ink, shape, line, image or a group — shares one
+       bounding box, so the same four solid corner grips resize all of them.
+       They are drawn on the canvas, so they zoom and pan with the board. */
+    var bounds = selectionBounds();
+    if (bounds) {
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = COLORS.coral;
+      ctx.lineWidth = 1.5;
+      selectionCorners(bounds).forEach(function (corner) {
+        var hx = corner[1] * width;
+        var hy = corner[2] * height;
+        ctx.fillRect(hx - 7, hy - 7, 14, 14);
+        ctx.strokeRect(hx - 7, hy - 7, 14, 14);
+      });
     }
     ctx.restore();
   }
@@ -317,26 +346,42 @@
   function drawLaser(trail, now) {
     if (!trail || !trail.points || !trail.points.length) return false;
     var remaining = (trail.expires - now) / trail.duration;
+    if (!isFinite(remaining)) remaining = 1;
     if (remaining <= 0) return false;
     var w = canvas.clientWidth;
     var h = canvas.clientHeight;
+    var points = trail.points;
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, remaining));
     ctx.strokeStyle = '#FF3B30';
     ctx.lineWidth = WIDTHS.laser;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.shadowColor = 'rgba(255,59,48,.95)';
     ctx.shadowBlur = 16;
-    ctx.beginPath();
-    ctx.moveTo(trail.points[0][0] * w, trail.points[0][1] * h);
-    for (var i = 1; i < trail.points.length; i += 1) {
-      ctx.lineTo(trail.points[i][0] * w, trail.points[i][1] * h);
+    if (points.length === 1) {
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(points[0][0] * w, points[0][1] * h);
+      ctx.lineTo(points[0][0] * w + 0.01, points[0][1] * h + 0.01);
+      ctx.stroke();
+      ctx.restore();
+      return true;
     }
-    if (trail.points.length === 1) {
-      ctx.lineTo(trail.points[0][0] * w + 0.01, trail.points[0][1] * h + 0.01);
+    /* The cutoff travels from the first point to the last, so an old tail
+       goes dark before the newest part of the laser stroke. */
+    var fadeEdge = 1 - remaining;
+    var last = points.length - 1;
+    for (var i = 0; i < last; i += 1) {
+      var t = (i + 0.5) / last;
+      if (t < fadeEdge) continue;
+      var alpha = Math.min(1, (t - fadeEdge) / 0.18);
+      if (alpha <= 0) continue;
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(points[i][0] * w, points[i][1] * h);
+      ctx.lineTo(points[i + 1][0] * w, points[i + 1][1] * h);
+      ctx.stroke();
     }
-    ctx.stroke();
     ctx.restore();
     return true;
   }
@@ -402,19 +447,14 @@
   }
 
   function resizeHandleAt(p) {
-    if (tool !== 'select' || selection.length !== 1) return null;
-    var item = selection[0];
-    if (!item || item.kind !== 'image') return null;
-    var bounds = itemBounds(item);
+    if (tool !== 'select' || !selection.length) return null;
+    var bounds = selectionBounds();
     if (!bounds) return null;
-    var padX = 14 / (canvas.clientWidth || 1);
-    var padY = 14 / (canvas.clientHeight || 1);
-    var corners = [
-      ['top-left', bounds.left, bounds.top],
-      ['top-right', bounds.right, bounds.top],
-      ['bottom-left', bounds.left, bounds.bottom],
-      ['bottom-right', bounds.right, bounds.bottom]
-    ];
+    /* The point() helper already removes the visual zoom, so convert the
+       on-screen grip size back into the same normalised, unzoomed space. */
+    var padX = 14 / ((canvas.clientWidth || 1) * zoom);
+    var padY = 14 / ((canvas.clientHeight || 1) * zoom);
+    var corners = selectionCorners(bounds);
     for (var i = 0; i < corners.length; i += 1) {
       if (Math.abs(p[0] - corners[i][1]) <= padX &&
           Math.abs(p[1] - corners[i][2]) <= padY) return corners[i][0];
@@ -424,6 +464,21 @@
 
   function clonePoints(points) {
     return points.map(function (p) { return [p[0], p[1]]; });
+  }
+
+  function selectionEntries() {
+    return selection.map(function (item) {
+      var inner = item.image || item.ink || item;
+      return {
+        item: item,
+        inner: inner,
+        x: typeof inner.x === 'number' ? inner.x : null,
+        y: typeof inner.y === 'number' ? inner.y : null,
+        w: inner.w,
+        h: inner.h,
+        points: inner.points ? clonePoints(inner.points) : null
+      };
+    });
   }
 
   /* Only a verified trainer can write. Content is only sent after Share is on,
@@ -480,12 +535,10 @@
     if (tool === 'select') {
       var handle = resizeHandleAt(p);
       if (handle) {
-        var image = selection[0].image || selection[0];
-        var imageBounds = itemBounds(selection[0]);
         resizeDrag = {
-          id: event.pointerId, origin: p, image: image, handle: handle,
-          bounds: imageBounds,
-          ratio: image.w / Math.max(image.h, 0.001), changed: false
+          id: event.pointerId, origin: p, handle: handle,
+          bounds: selectionBounds(), entries: selectionEntries(),
+          changed: false
         };
         canvas.style.cursor = resizeCursor(handle);
         capturePointer(event);
@@ -499,15 +552,12 @@
         var at = selection.indexOf(hit);
         if (at === -1) selection.push(hit);
         else if (event.shiftKey) selection.splice(at, 1);
-        if (selection.indexOf(hit) !== -1 && !event.shiftKey) {
-          var bounds = itemBounds(hit);
-          var inner = hit.image || hit.ink || hit;
+        if (selection.indexOf(hit) !== -1) {
+          /* A click on any member of a multi-selection moves the whole group. */
           moveDrag = {
-            id: event.pointerId, origin: p, item: hit,
-            x: typeof inner.x === 'number' ? inner.x : 0,
-            y: typeof inner.y === 'number' ? inner.y : 0,
-            points: inner.points ? clonePoints(inner.points) : null,
-            bounds: bounds, changed: false
+            id: event.pointerId, origin: p,
+            bounds: selectionBounds(), entries: selectionEntries(),
+            changed: false
           };
           canvas.style.cursor = 'grabbing';
         }
@@ -523,7 +573,7 @@
 
     selection = [];
     pointerId = event.pointerId;
-    active = { kind: 'stroke', tool: tool, color: color, points: [p] };
+    active = { kind: 'stroke', tool: tool, color: color, weight: weight, points: [p] };
     capturePointer(event);
     redraw();
   });
@@ -538,43 +588,48 @@
     if (resizeDrag && event.pointerId === resizeDrag.id) {
       var resizePoint = point(event);
       if (!resizePoint || !resizeDrag.bounds) return;
-      var image = resizeDrag.image;
       var bounds = resizeDrag.bounds;
-      var dx = resizePoint[0] - resizeDrag.origin[0];
-      var dy = resizePoint[1] - resizeDrag.origin[1];
       var dragLeft = resizeDrag.handle.indexOf('left') !== -1;
       var dragTop = resizeDrag.handle.indexOf('top') !== -1;
-      /* The opposite corner stays pinned. Horizontal and vertical drags are
-         both considered so a corner responds naturally however the trainer
-         moves the pointer; the image ratio decides the final size. */
+      /* One bounding box for every selected item. The opposite corner is the
+         fixed anchor, and a single scale keeps images, ink, shapes, lines and
+         groups in proportion while the pointer can use either axis. */
       var anchorX = dragLeft ? bounds.right : bounds.left;
       var anchorY = dragTop ? bounds.bottom : bounds.top;
-      var desiredW = dragLeft
-        ? anchorX - (bounds.left + dx) : (bounds.right + dx) - anchorX;
-      var desiredH = dragTop
-        ? anchorY - (bounds.top + dy) : (bounds.bottom + dy) - anchorY;
-      var ratio = resizeDrag.ratio;
-      var startW = Math.max(bounds.right - bounds.left, 0.001);
-      var startH = Math.max(bounds.bottom - bounds.top, 0.001);
-      var wDelta = Math.abs(desiredW - startW) / startW;
-      var hDelta = Math.abs(desiredH - startH) / startH;
-      var maxW = Math.min(
-        dragLeft ? anchorX : 1 - anchorX,
-        (dragTop ? anchorY : 1 - anchorY) * ratio
+      var startW = Math.max(bounds.right - bounds.left, 0);
+      var startH = Math.max(bounds.bottom - bounds.top, 0);
+      var safeW = Math.max(startW, 0.001);
+      var safeH = Math.max(startH, 0.001);
+      var desiredW = Math.max(dragLeft
+        ? anchorX - resizePoint[0] : resizePoint[0] - anchorX, 0.001);
+      var desiredH = Math.max(dragTop
+        ? anchorY - resizePoint[1] : resizePoint[1] - anchorY, 0.001);
+      var scaleX = desiredW / safeW;
+      var scaleY = startH < 0.001 ? scaleX : desiredH / safeH;
+      if (startW < 0.001) scaleX = scaleY;
+      var scale = Math.abs(scaleX - 1) >= Math.abs(scaleY - 1) ? scaleX : scaleY;
+      var maxScale = Math.min(
+        (dragLeft ? anchorX : 1 - anchorX) / safeW,
+        (dragTop ? anchorY : 1 - anchorY) / safeH,
+        12
       );
-      var minW = Math.min(maxW, Math.max(0.04, 0.05 * ratio));
-      var width = limit(hDelta > wDelta ? desiredH * ratio : desiredW, minW, maxW);
-      var height = width / ratio;
-      var x = dragLeft ? anchorX - width : anchorX;
-      var y = dragTop ? anchorY - height : anchorY;
-      if (Math.abs(image.w - width) > 0.0001 ||
-          Math.abs(image.h - height) > 0.0001 ||
-          Math.abs(image.x - x) > 0.0001 ||
-          Math.abs(image.y - y) > 0.0001) resizeDrag.changed = true;
-      image.x = x;
-      image.y = y;
-      image.w = width;
-      image.h = height;
+      var minScale = Math.min(0.02, maxScale);
+      scale = limit(scale, minScale, maxScale);
+      resizeDrag.entries.forEach(function (entry) {
+        var inner = entry.inner;
+        if (typeof entry.x === 'number') {
+          inner.x = limit(anchorX + (entry.x - anchorX) * scale, 0, 1);
+          inner.y = limit(anchorY + (entry.y - anchorY) * scale, 0, 1);
+          inner.w = Math.max(entry.w * scale, 0.001);
+          inner.h = Math.max(entry.h * scale, 0.001);
+        } else if (entry.points) {
+          entry.points.forEach(function (start, index) {
+            inner.points[index][0] = limit(anchorX + (start[0] - anchorX) * scale, 0, 1);
+            inner.points[index][1] = limit(anchorY + (start[1] - anchorY) * scale, 0, 1);
+          });
+        }
+      });
+      resizeDrag.changed = Math.abs(scale - 1) > 0.001;
       redraw();
       return;
     }
@@ -587,16 +642,18 @@
         dx = limit(dx, -moveDrag.bounds.left, 1 - moveDrag.bounds.right);
         dy = limit(dy, -moveDrag.bounds.top, 1 - moveDrag.bounds.bottom);
       }
-      var inner = moveDrag.item.image || moveDrag.item.ink || moveDrag.item;
-      if (typeof inner.x === 'number') {
-        inner.x = limit(moveDrag.x + dx, 0, 1 - (inner.w || 0));
-        inner.y = limit(moveDrag.y + dy, 0, 1 - (inner.h || 0));
-      } else if (moveDrag.points && inner.points) {
-        moveDrag.points.forEach(function (start, index) {
-          inner.points[index][0] = limit(start[0] + dx, 0, 1);
-          inner.points[index][1] = limit(start[1] + dy, 0, 1);
-        });
-      }
+      moveDrag.entries.forEach(function (entry) {
+        var inner = entry.inner;
+        if (typeof entry.x === 'number') {
+          inner.x = limit(entry.x + dx, 0, 1 - (inner.w || 0));
+          inner.y = limit(entry.y + dy, 0, 1 - (inner.h || 0));
+        } else if (entry.points) {
+          entry.points.forEach(function (start, index) {
+            inner.points[index][0] = limit(start[0] + dx, 0, 1);
+            inner.points[index][1] = limit(start[1] + dy, 0, 1);
+          });
+        }
+      });
       if (Math.abs(dx) > 0.0001 || Math.abs(dy) > 0.0001) moveDrag.changed = true;
       redraw();
       return;
@@ -639,7 +696,7 @@
       releasePointer(event);
       if (resized) {
         pushBoardSnapshot();
-        say('Image resized · Undo restores the board state.');
+        say('Selection resized · Undo restores the board state.');
       }
       return;
     }
@@ -698,6 +755,9 @@
     var button = overlay.querySelector('[data-board-tool="' + name + '"]');
     if (!button) return;
     closeToolGroups();
+    /* Colour and thickness belong to the pen/highlighter only, so they live in
+       a contextual panel instead of cluttering the main tool dock. */
+    if (inkPanel) inkPanel.hidden = INK_TOOLS.indexOf(name) === -1;
     tool = name;
     selection = [];
     moveDrag = null;
@@ -746,6 +806,43 @@
       });
     });
   });
+  overlay.querySelectorAll('[data-board-weight]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      weight = button.getAttribute('data-board-weight');
+      overlay.querySelectorAll('[data-board-weight]').forEach(function (item) {
+        item.setAttribute('aria-pressed', String(item === button));
+      });
+      say('Stroke thickness set to ' + weight + '.');
+    });
+  });
+
+  /* The dock starts at the top and toggles to the left edge and back. Right
+     and bottom edges are deliberately not offered. */
+  var dockEdge = 'top';
+  function setDockEdge(edge) {
+    if (!toolPalette || (edge !== 'top' && edge !== 'left')) return;
+    dockEdge = edge;
+    toolPalette.classList.toggle('dock-top', edge === 'top');
+    toolPalette.classList.toggle('dock-left', edge === 'left');
+    toolPalette.style.left = '';
+    toolPalette.style.top = '';
+    toolPalette.style.right = '';
+    toolPalette.style.bottom = '';
+    toolPalette.style.transform = '';
+    closeToolGroups();
+    if (dockToggle) {
+      dockToggle.setAttribute('aria-pressed', String(edge === 'left'));
+      dockToggle.setAttribute('aria-label',
+        edge === 'top' ? 'Move tool dock to left edge' : 'Move tool dock to top edge');
+      dockToggle.title = edge === 'top' ? 'Dock: top · click for left' : 'Dock: left · click for top';
+    }
+    say('Tool dock moved to the ' + edge + ' edge.');
+  }
+  if (dockToggle) {
+    dockToggle.addEventListener('click', function () {
+      setDockEdge(dockEdge === 'top' ? 'left' : 'top');
+    });
+  }
 
   /* The palette floats above the canvas and can be dragged anywhere on the
      board. Pointer capture keeps the drag alive when the cursor leaves it. */
@@ -870,6 +967,25 @@
     pushBoardSnapshot();
     say(removed.length + (removed.length === 1 ? ' item' : ' items') + ' deleted · Undo to restore.');
   }
+
+  if (zoomInBtn) zoomInBtn.addEventListener('click', function () { setZoom(zoom + 0.1, true); });
+  if (zoomOutBtn) zoomOutBtn.addEventListener('click', function () { setZoom(zoom - 0.1, true); });
+  if (zoomResetBtn) zoomResetBtn.addEventListener('click', function () { setZoom(1, true); });
+
+  /* Ctrl+scroll and Safari pinch over the board change the canvas scale only.
+     Without these handlers the browser zooms the whole classroom — camera deck,
+     side panels and lower controls included. */
+  overlay.addEventListener('wheel', function (event) {
+    if (overlay.hidden || !trainer || (!event.ctrlKey && !event.metaKey)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setZoom(zoom + (event.deltaY < 0 ? 0.1 : -0.1), true);
+  }, { passive: false, capture: true });
+  overlay.addEventListener('gesturestart', function (event) {
+    if (overlay.hidden || !trainer) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, { passive: false, capture: true });
 
   if (undoBtn) undoBtn.addEventListener('click', undoBoard);
   if (redoBtn) redoBtn.addEventListener('click', redoBoard);
@@ -1084,6 +1200,7 @@
     overlay.classList.add('full');
     document.body.classList.add('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'true');
+    setTool(tool);
     if (requestAnimationFrame) requestAnimationFrame(function () { fit(); clampPalette(); });
     else { fit(); clampPalette(); }
   }
@@ -1107,33 +1224,28 @@
     if (overlay.hidden || !trainer) return;
     var target = event.target;
     var tag = (target && target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' ||
-        (target && target.isContentEditable)) return;
     var key = (event.key || '').toLowerCase();
     var command = event.ctrlKey || event.metaKey;
+    var zoomIn = command && (key === '=' || key === '+' || event.key === 'Equal' ||
+      event.code === 'Equal' || event.code === 'NumpadAdd');
+    var zoomOut = command && (key === '-' || key === '_' || event.key === 'Minus' ||
+      event.code === 'Minus' || event.code === 'NumpadSubtract');
+    var zoomReset = command && (key === '0' || event.code === 'Numpad0');
+    /* Handle zoom before the editable-field guard: the browser's own Ctrl+zoom
+       must never fire while this board is open, even if focus is in a field. */
+    if (zoomIn || zoomOut || zoomReset) {
+      event.preventDefault();
+      event.stopPropagation();
+      setZoom(zoomIn ? zoom + 0.1 : (zoomOut ? zoom - 0.1 : 1), true);
+      return;
+    }
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' ||
+        (target && target.isContentEditable)) return;
 
     if (command && key === 'a') {
       event.preventDefault();
       event.stopPropagation();
       selectAll();
-      return;
-    }
-    if (command && (key === '=' || key === '+' || event.code === 'NumpadAdd')) {
-      event.preventDefault();
-      event.stopPropagation();
-      setZoom(zoom + 0.1, true);
-      return;
-    }
-    if (command && (key === '-' || key === '_' || event.code === 'NumpadSubtract')) {
-      event.preventDefault();
-      event.stopPropagation();
-      setZoom(zoom - 0.1, true);
-      return;
-    }
-    if (command && key === '0') {
-      event.preventDefault();
-      event.stopPropagation();
-      setZoom(1, true);
       return;
     }
     if (command && (key === 'z' || key === 'y')) {
