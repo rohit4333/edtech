@@ -46,7 +46,7 @@
     "studentMinPresentMinutes": 15,
     "learningEventsForPresent": 3,
     "trainerPayRequiresPresence": true,
-    "sourcePriority": ["agora_webhook", "heartbeat"]
+    "sourcePriority": ["livekit_webhook", "heartbeat"]
   },
   "networkCheck": {
     "minDownloadMbps": 15,

@@ -143,8 +143,6 @@ async function main() {
     'the payout total includes the stretch reward');
 
   /* HTTP proof: copied links, observer logging and the server-owned timer. */
-  process.env.AGORA_APP_ID = 'test-app-id';
-  process.env.AGORA_APP_CERTIFICATE = 'test-app-certificate';
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () { resolve(instance); });
   });

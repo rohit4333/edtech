@@ -81,7 +81,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 10, 'ten reviewed migrations are discovered');
+  check(migrations.length === 11, 'eleven reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -156,12 +156,23 @@ async function main() {
     baseline.sql.indexOf('grant select (id, quiz_id, prompt, options, position, status, source,') !== -1,
     'safe student view and column grant withhold hints until trainer release');
   const adapter = fs.readFileSync(path.join(__dirname, '..', 'db', 'supabase.js'), 'utf8');
-  check(/channel:\s*\(input\.rtc && input\.rtc\.channel\)\s*\|\|\s*\('mathify_' \+ row\.id\)/.test(adapter),
-    'live-created sessions get a unique server-owned Agora channel');
-  const agoraRoute = fs.readFileSync(path.join(__dirname, '..', 'routes', 'agora.js'), 'utf8');
-  check(agoraRoute.indexOf('matches.length > 1') !== -1 &&
-    agoraRoute.indexOf('ambiguous: true') !== -1,
-    'duplicated Agora channels fail closed instead of misattributing presence');
+  check(adapter.indexOf("roomName: (input.rtc && input.rtc.roomName) || ('mathify-' + row.id)") !== -1,
+    'live-created sessions get a unique server-owned LiveKit room');
+  const livekitService = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'livekitTokenService.js'), 'utf8');
+  check(livekitService.indexOf("return 'mathify-' + id") !== -1 &&
+    livekitService.indexOf('SESSION_ROOM_MISSING') !== -1,
+    'missing rooms fail closed instead of misattributing presence');
+  const relabel = migrations.find(function (migration) {
+    return migration.name === '0012_livekit_only_presence.sql';
+  });
+  check(Boolean(relabel), 'LiveKit-only presence relabel migration is present');
+  check(relabel && relabel.sql.indexOf('drop constraint if exists presence_events_kind_check') <
+    relabel.sql.indexOf("set kind = 'livekit_join'"),
+  'the legacy presence check is dropped before rows are relabelled');
+  check(relabel && relabel.sql.indexOf("column_name = 'agora_uid'") !== -1 &&
+    relabel.sql.indexOf('rename column agora_uid to participant_uid') !== -1,
+  'the legacy uid column is renamed only when present');
 
   check(adapter.indexOf("insertRecordOnce('packs'") !== -1 &&
     adapter.indexOf('data->>sessionsRemaining=eq.') !== -1 &&
@@ -205,10 +216,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 10,
-    'all ten migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 10,
-    'all ten migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 11,
+    'all eleven migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 11,
+    'all eleven migrations carry checksum drift guards');
   const kycMigration = migrations.find(function (migration) {
     return migration.name === '0006_trainer_onboarding_batches.sql';
   });

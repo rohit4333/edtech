@@ -1,7 +1,7 @@
 /* Mathify trainer live-call module — LiveKit edition.
  *
  * All LiveKit room, ink data and media state lives here; app.js only calls
- * window.MathifyAgora (kept as the compatibility global) or MathifyLiveKit.
+ * window.MathifyLiveKit.
  * Room, identity and grants are issued by /api/get-token from the verified
  * session; this page never creates a room or supplies credentials. */
 (function () {
@@ -503,6 +503,5 @@
   };
 
   window.MathifyLiveKit = api;
-  window.MathifyAgora = api;
   ready();
 })();

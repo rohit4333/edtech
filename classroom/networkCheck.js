@@ -33,7 +33,7 @@
   }
 
   function status(message) {
-    var node = document.getElementById('agoraCallStatus');
+    var node = document.getElementById('callStatus');
     if (node && message) node.textContent = message;
   }
 

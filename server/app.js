@@ -16,7 +16,6 @@ const sessionRoutes = require('./routes/sessions');
 const policyRoutes = require('./routes/policy');
 const webhookRoutes = require('./routes/webhooks');
 const adminRoutes = require('./routes/admin');
-const agoraRoutes = require('./routes/agora');
 const livekitRoutes = require('./routes/livekit');
 const livekitRecordingRoutes = require('./routes/livekitRecording');
 const recordingAccessRoutes = require('./routes/recordingAccess');
@@ -60,7 +59,6 @@ const contactThrottle = rateLimit.createLimiter({ name: 'contact', windowMs: 600
 const probeThrottle = rateLimit.createLimiter({ name: 'network-probe', windowMs: 60000, max: 40 });
 app.use('/api/network', probeThrottle);
 app.use('/api/razorpay/webhook', webhookThrottle);
-app.use('/api/agora/webhook', webhookThrottle);
 app.use('/api/webhooks/recording', webhookThrottle);
 app.use('/api/webhooks/livekit', webhookThrottle);
 app.use('/api/contact', contactThrottle);
@@ -68,9 +66,8 @@ app.use('/api/contact', contactThrottle);
 app.use(cors({
   origin: config.corsOrigins()
 }));
-/* Razorpay and Agora sign the raw body, so these routes must be read first. */
+/* Razorpay and LiveKit sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
-app.use('/api/agora/webhook', express.raw({ type: 'application/json' }));
 /* LiveKit signs the exact request bytes, so this route must also be read as a
    Buffer before the shared JSON parser touches it. */
 app.use('/api/webhooks/livekit', express.raw({ type: 'application/json', limit: '512kb' }));
@@ -114,7 +111,6 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/policy', policyRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/agora', agoraRoutes);
 app.use('/api/livekit/recording', livekitRecordingRoutes);
 app.use('/api/recordings', recordingAccessRoutes);
 app.use('/api/livekit', livekitRoutes);

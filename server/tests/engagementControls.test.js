@@ -11,9 +11,6 @@ const reactionPermission = require('../services/reactionPermissionService');
 const mediaPermission = require('../services/mediaPermissionService');
 
 const workspaceRoot = path.join(__dirname, '..', '..');
-const savedEnv = {};
-const envKeys = ['AGORA_APP_ID', 'AGORA_APP_CERTIFICATE'];
-envKeys.forEach(function (key) { savedEnv[key] = process.env[key]; });
 
 let assertions = 0;
 function check(condition, message) {
@@ -37,8 +34,6 @@ function forbiddenKeys(value) {
 }
 
 async function main() {
-  process.env.AGORA_APP_ID = 'test-app-id';
-  process.env.AGORA_APP_CERTIFICATE = 'test-app-certificate';
   celebrations.reset();
 
   const server = await new Promise(function (resolve) {
@@ -259,7 +254,7 @@ async function main() {
     const css = read('classroom/engagement.css');
     const engagement = read('classroom/engagement.js');
     const sessionLayer = read('classroom/session.js');
-    const agora = read('classroom/agora.js');
+    const livekit = read('classroom/livekit.js');
 
     check(html.indexOf('id="sheet-student-control"') >= 0 &&
       html.indexOf('Student Control') >= 0, 'Student Control is one dedicated section');
@@ -290,7 +285,7 @@ async function main() {
       'kid reactions still render while the quiz is active');
     check(/quiz\.launched/.test(sessionLayer) && /launchQuiz\(\)/.test(sessionLayer),
       'a server quiz launch also puts the student tab into quiz mode');
-    check(/applyTrainerMediaState/.test(agora) && /applyTrainerMediaState/.test(appJs),
+    check(/applyTrainerMediaState/.test(livekit) && /applyTrainerMediaState/.test(appJs),
       'trainer mute and camera-off reach the live local tracks');
     check(/forceStudentMediaOn\(\)[\s\S]*setMediaButtonsLocked\(true\)/.test(appJs),
       'Access revocation still forces tracks on before locking');
@@ -298,10 +293,6 @@ async function main() {
       'permission changes reach an open classroom live');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
-    envKeys.forEach(function (key) {
-      if (savedEnv[key] === undefined) delete process.env[key];
-      else process.env[key] = savedEnv[key];
-    });
   }
 }
 

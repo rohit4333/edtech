@@ -1,5 +1,11 @@
 # Mathify test report
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** This report captures an earlier
+> verification round. Agora/DeepSeek/Cloudflare-only references in it are historical
+> provider-round notes. The current stack is LiveKit for 1:1 calls, Resend for mail and
+> the freelm → Gemini → Groq → Cloudflare Workers AI chain. See `README.md`,
+> `PROJECT_GUIDE.md` and `LIVE_QA_REPORT.md` for the live contract.
+
 **Date:** 26 November 2026
 **Branch:** `feat/student-rtc-control-permission` (working tree based on `main` at `9838d0a`)
 **Scope:** Full Mathify stack — public site, shared assets, student desk with reward trophies and mastery self-practice, trainer console, 1:1 classroom with live Agora wiring, one Student Control surface, server-owned celebrations and role-scoped reactions, two-sided connection precondition, curriculum LMS preview with planner designer, founder settings drafts, Express API, completed Supabase adapter and event outbox, ordered migration plan, Cloudflare Workers AI chat assistants, Razorpay/Agora/Twilio boundaries, dependency audit, DX/DevOps extras.

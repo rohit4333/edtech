@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="panels.css">
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="session.css">
-<link rel="stylesheet" href="agora.css">
+<link rel="stylesheet" href="call.css">
 <link rel="stylesheet" href="engagement.css">
 <link rel="stylesheet" href="codingIde.css">
 <link rel="stylesheet" href="englishWorkspace.css">
@@ -475,23 +475,23 @@
         <div class="pip-body">
           <div class="dock-tile dock-trainer cam-on" title="You · Ananya Rao">
             <span class="dock-initials" aria-hidden="true">AR</span>
-            <div class="pip-video" data-agora-video="local" aria-hidden="true"></div>
+            <div class="pip-video" data-call-video="local" aria-hidden="true"></div>
             <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b>You</b>
           </div>
           <div class="dock-tile dock-student" title="Ishaan Verma">
             <span class="dock-initials" aria-hidden="true">IV</span>
-            <div class="pip-video" data-agora-video="remote" aria-hidden="true"></div>
+            <div class="pip-video" data-call-video="remote" aria-hidden="true"></div>
             <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
-            <b data-agora-peer-label>Ishaan</b>
+            <b data-call-peer-label>Ishaan</b>
           </div>
         </div>
         <div class="pip-call-bar" role="group" aria-label="Live call controls">
           <button class="pip-call-btn" id="networkCheckBtn" type="button" title="Check connection speed before class">Check speed</button>
-          <button class="pip-call-btn is-primary" id="agoraJoinBtn" type="button" title="Run the connection speed check before class">Join</button>
-          <button class="pip-call-btn" id="agoraLeaveBtn" type="button" disabled>Leave</button>
+          <button class="pip-call-btn is-primary" id="callJoinBtn" type="button" title="Run the connection speed check before class">Join</button>
+          <button class="pip-call-btn" id="callLeaveBtn" type="button" disabled>Leave</button>
         </div>
-        <p class="pip-call-status" id="agoraCallStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
+        <p class="pip-call-status" id="callStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
         <p class="pip-observer-notice" id="observerNotice" role="status" aria-live="polite" hidden>
           Observer in room: <b id="observerName">Founder</b>. This visit is logged and visible to both participants.
         </p>

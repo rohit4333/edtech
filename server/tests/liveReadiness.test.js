@@ -1,5 +1,5 @@
 /* Live-readiness regression suite.
-   Covers the production guard (LiveKit + freelm, not Agora/Cloudflare), salted
+   Covers the production guard (LiveKit + freelm, no legacy providers), salted
    passwords, demo disablement, LiveKit token ownership, webhook fail-closed
    paths, Razorpay order trust, session event scrubbing, score-override
    validation, migration checksum SQL and reviewed static serving. */
@@ -129,8 +129,8 @@ async function main() {
       return productionConfig.PRODUCTION_REQUIRED_ENV.indexOf(key) !== -1;
     }), 'production guard requires the full AI provider chain');
     check(!productionConfig.PRODUCTION_REQUIRED_ENV.some(function (key) {
-      return /AGORA|RECORDING_WEBHOOK_SECRET|OPENROUTER|NVIDIA|MISTRAL|CEREBRAS|ZAI|COHERE|KILO/.test(key);
-    }), 'production guard excludes Agora and non-chain AI providers');
+      return /RECORDING_WEBHOOK_SECRET|OPENROUTER|NVIDIA|MISTRAL|CEREBRAS|ZAI|COHERE|KILO/.test(key);
+    }), 'production guard excludes legacy and non-chain AI providers');
     check(productionConfig.FREELM_PROVIDER_KEYS.indexOf('OPENROUTER_API_KEY') === -1,
       'non-chain freelm providers are not part of the production contract');
 

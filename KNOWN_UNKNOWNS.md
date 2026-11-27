@@ -1,5 +1,11 @@
 # KNOWN UNKNOWNS REGISTER — §10 extract
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** This report captures an earlier
+> verification round. Agora/DeepSeek/Cloudflare-only references in it are historical
+> provider-round notes. The current stack is LiveKit for 1:1 calls, Resend for mail and
+> the freelm → Gemini → Groq → Cloudflare Workers AI chain. See `README.md`,
+> `PROJECT_GUIDE.md` and `LIVE_QA_REPORT.md` for the live contract.
+
 Source: `PROJECT_FLOW_FILE.md` §10; no claims added in this extract. [ev: section extraction, 2026-11-26] VERIFIED.
 
 ## 10. KNOWN UNKNOWNS REGISTER

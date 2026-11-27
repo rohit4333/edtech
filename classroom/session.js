@@ -48,7 +48,7 @@
      reaffirm the state the participant already chose. This covers mobile tab
      suspension and browser quirks without overriding an intentional mute. */
   function reaffirmCallMedia() {
-    var call = api.agora || window.mathifyClassroomAgora;
+    var call = api.livekit || window.mathifyClassroomLiveKit;
     if (call && typeof call.reaffirmMedia === 'function') call.reaffirmMedia();
   }
 

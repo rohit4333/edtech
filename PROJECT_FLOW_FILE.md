@@ -1,5 +1,12 @@
 # TOTAL PROJECT FLOW FILE (TPFF) — Mathify Learning OS
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** This report captures an earlier
+> verification round. Agora/DeepSeek/Cloudflare-only references in it are historical
+> provider-round notes. Blocks labelled "current state" are dated snapshots superseded
+> by the Agora removal. The current stack is LiveKit for 1:1 calls, Resend for mail and
+> the freelm → Gemini → Groq → Cloudflare Workers AI chain. See `README.md`,
+> `PROJECT_GUIDE.md` and `LIVE_QA_REPORT.md` for the live contract.
+
 ## 0. COVER
 
 | Field | Value | Tag | Source |
@@ -1195,12 +1202,14 @@ Legend: **A** = allow, **D** = deny, **N/I** = not implemented, **C** = conditio
 
 [CURRENT STATE — v4.0.2] **This block supersedes the older rows below for current-state naming.** The table that follows is the historical v4.0.0 evidence register and remains verbatim.
 
+[POST-CLEANUP NOTE — same branch, after v4.0.2] Agora transport, routes and services were removed. The Agora rows below remain as archived evidence only; they are not current endpoints, credentials or providers. LiveKit is the only 1:1 call stack.
+
 | Current concern | Provider / service | Current contract | Tag | Evidence |
 | --- | --- | --- | --- | --- |
-| 1:1 RTC | **LiveKit** | Server-signed `AccessToken`, room `mathify-<sessionId>`, `roomJoin: true`, `wss://` media URL; legacy Agora routes are compatibility/tests only | VERIFIED | `[src: LIVE_QA_REPORT.md:23-26]`; `[src: server/services/livekitTokenService.js]` |
+| 1:1 RTC | **LiveKit** | Server-signed `AccessToken`, room `mathify-<sessionId>`, `roomJoin: true`, `wss://` media URL; Agora transport has been removed | VERIFIED | `[src: LIVE_QA_REPORT.md:23-26]`; `[src: server/services/livekitTokenService.js]` |
 | Class recording | **LiveKit Egress → private S3-compatible/R2** | Trainer-only start/stop, server-derived object key, no browser credentials or permanent URL | VERIFIED | `[src: LIVE_QA_REPORT.md:72,92-96]`; `[src: server/services/livekitEgressService.js]` |
 | Recording playback | **Short-lived S3 SigV4 GET links** | Founder/RM any class; trainer/student/parent own class; 600 s default, 3600 s cap; failed/aborted Egress never watchable | VERIFIED | `[src: LIVE_QA_REPORT.md:92-95]`; `[src: server/routes/recordingAccess.js]` |
-| Webhooks | **Signed LiveKit webhooks** | `WebhookReceiver` with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`, exact raw-body `sha256`; `agora_join` is an internal compatibility label, not Agora | VERIFIED | `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]` |
+| Webhooks | **Signed LiveKit webhooks** | `WebhookReceiver` with `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`, exact raw-body `sha256`; `livekit_join`/`livekit_leave` are the internal presence labels | VERIFIED | `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]` |
 | Transactional email | **Resend** | All mail including password reset and reminders; unset keys fail closed with `EMAIL_NOT_CONFIGURED`; no SMTP/Nodemailer sender | VERIFIED | `[src: LIVE_QA_REPORT.md:73,87-88]`; `[src: server/services/emailService.js]` |
 | Model calls | **freelm → Gemini → Groq → Cloudflare Workers AI** | One chain on server and Worker source; image questions use Gemini → Cloudflare; OpenAI/DeepSeek unused | VERIFIED | `[src: LIVE_QA_REPORT.md:27-29]`; `[src: server/services/cloudflareAiService.js]` |
 | Persistence / payments / WhatsApp | **Supabase service role / Razorpay / Twilio** | Live mode never falls back to demo identities; payment and WhatsApp remain credential-gated | VERIFIED | `[src: LIVE_QA_REPORT.md:21,43-44,61-63]`; `[src: server/.env.example:70-98]` |
@@ -1241,7 +1250,7 @@ Legend: **A** = allow, **D** = deny, **N/I** = not implemented, **C** = conditio
 
 ### 9.3 Webhooks
 
-[CURRENT STATE — v4.0.2] The current webhook is `POST /api/webhooks/livekit`. It is verified with `livekit-server-sdk` `WebhookReceiver` using `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` and a `sha256` claim over the exact raw body; there is no separate LiveKit webhook secret. Valid events reconcile presence and Egress status/final object key; tampered or unsigned events return `401 INVALID_SIGNATURE`, replayed `event.id` values are deduplicated, and founder observers never count as participants. The `agora_join`/`agora_leave` presence labels are internal compatibility strings only. Rows below this note remain historical evidence. `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]`. VERIFIED.
+[CURRENT STATE — v4.0.2] The current webhook is `POST /api/webhooks/livekit`. It is verified with `livekit-server-sdk` `WebhookReceiver` using `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` and a `sha256` claim over the exact raw body; there is no separate LiveKit webhook secret. Valid events reconcile presence and Egress status/final object key; tampered or unsigned events return `401 INVALID_SIGNATURE`, replayed `event.id` values are deduplicated, and founder observers never count as participants. The `livekit_join`/`livekit_leave` presence labels record verified LiveKit events. Rows below this note remain historical evidence. `[src: LIVE_QA_REPORT.md:83-85,90-91]`; `[src: server/routes/livekitWebhooks.js]`. VERIFIED.
 
 | Webhook | Tag | Verification | Accepted event / effect | Rejection or down behavior | Source |
 |---|---|---|---|---|---|

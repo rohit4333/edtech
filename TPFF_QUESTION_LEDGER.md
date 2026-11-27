@@ -1,5 +1,7 @@
 # TPFF QUESTION LEDGER — v4.0.0
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** Agora/DeepSeek/Cloudflare-only references here are earlier provider-round notes. Agora transport has been removed; LiveKit is the only 1:1 call stack. See README.md and LIVE_QA_REPORT.md.
+
 ## Q0. HEADER
 
 | Field | Value |

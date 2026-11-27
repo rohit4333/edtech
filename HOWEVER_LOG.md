@@ -1,5 +1,7 @@
 # HOWEVER LOG — §11 extract
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** Agora/DeepSeek/Cloudflare-only references here are earlier provider-round notes. Agora transport has been removed; LiveKit is the only 1:1 call stack. See README.md and LIVE_QA_REPORT.md.
+
 Source: `PROJECT_FLOW_FILE.md` §11; 31 entries; no claims added in this extract. [ev: section extraction, 2026-11-26] VERIFIED.
 
 ## 11. HOWEVER LOG

@@ -14,7 +14,7 @@ assert.strictEqual(presenceService.roleForUser(sessionA, student), 'student');
 assert.strictEqual(presenceService.roleForUser(sessionA, { id: 'other', role: 'trainer' }), null);
 
 const withUids = Object.assign({}, sessionA, {
-  rtc: { provider: 'agora', uids: { trainer: 1001, student: 2001 } }
+  rtc: { provider: 'livekit', uids: { trainer: 1001, student: 2001 } }
 });
 assert.strictEqual(presenceService.roleForUid(withUids, 1001), 'trainer');
 assert.strictEqual(presenceService.roleForUid(withUids, 2001), 'student');
@@ -25,14 +25,14 @@ db.insertPresenceEvent({
   sessionId: sessionA.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_join',
+  kind: 'livekit_join',
   at: '2026-11-30T12:30:00.000Z'
 });
 db.insertPresenceEvent({
   sessionId: sessionA.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_leave',
+  kind: 'livekit_leave',
   at: '2026-11-30T12:46:00.000Z'
 });
 
@@ -48,14 +48,14 @@ db.insertPresenceEvent({
   sessionId: sessionB.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_join',
+  kind: 'livekit_join',
   at: '2026-12-03T12:30:00.000Z'
 });
 db.insertPresenceEvent({
   sessionId: sessionB.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_leave',
+  kind: 'livekit_leave',
   at: '2026-12-03T12:40:00.000Z'
 });
 
@@ -87,7 +87,7 @@ db.insertPresenceEvent({
   sessionId: sessionA.id,
   userId: student.id,
   role: 'student',
-  kind: 'agora_join',
+  kind: 'livekit_join',
   at: '2026-11-30T12:31:00.000Z'
 });
 const withStudent = await presenceService.compute(sessionA, '2026-11-30T12:46:00.000Z');
@@ -99,14 +99,14 @@ db.insertPresenceEvent({
   sessionId: sessionA.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_join',
+  kind: 'livekit_join',
   at: '2026-11-30T12:46:00.000Z'
 });
 db.insertPresenceEvent({
   sessionId: sessionA.id,
   userId: trainer.id,
   role: 'trainer',
-  kind: 'agora_leave',
+  kind: 'livekit_leave',
   at: '2026-11-30T13:25:00.000Z'
 });
 const fullClass = await presenceService.compute(sessionA, '2026-11-30T13:25:00.000Z');

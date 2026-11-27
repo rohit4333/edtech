@@ -1,5 +1,11 @@
 # Mathify Learning OS — Master End-to-End Integration Report (v6.0)
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** This report captures an earlier
+> verification round. Agora/DeepSeek/Cloudflare-only references in it are historical
+> provider-round notes. The current stack is LiveKit for 1:1 calls, Resend for mail and
+> the freelm → Gemini → Groq → Cloudflare Workers AI chain. See `README.md`,
+> `PROJECT_GUIDE.md` and `LIVE_QA_REPORT.md` for the live contract.
+
 - Date: 2026-11-27
 - Branch: `feat/student-rtc-control-perfection`
 - Commit under test: `ccdb581b62e2c88f4a8c87e39891a850da6abc47`

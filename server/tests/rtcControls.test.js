@@ -7,9 +7,6 @@ const path = require('path');
 const app = require('../app');
 
 const workspaceRoot = path.join(__dirname, '..', '..');
-const savedEnv = {};
-const envKeys = ['AGORA_APP_ID', 'AGORA_APP_CERTIFICATE'];
-envKeys.forEach(function (key) { savedEnv[key] = process.env[key]; });
 
 let assertions = 0;
 function check(condition, message) {
@@ -22,9 +19,6 @@ function read(relative) {
 }
 
 async function main() {
-  process.env.AGORA_APP_ID = 'test-app-id';
-  process.env.AGORA_APP_CERTIFICATE = 'test-app-certificate';
-
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () { resolve(instance); });
   });
@@ -138,8 +132,8 @@ async function main() {
     const studentToken = await request('POST', '/api/sessions/ses_math_001/rtc-token', {}, student);
     check(trainerToken.status === 200 && studentToken.status === 200,
       'the class opens only after both participants pass');
-    check(trainerToken.body.rtc.channel !== 'attacker-channel',
-      'browser-supplied channel is still ignored after the gate passes');
+    check(trainerToken.body.rtc.roomName !== 'attacker-channel',
+      'browser-supplied room name is still ignored after the gate passes');
 
     const readyState = await request('GET', '/api/sessions/ses_math_001/state', undefined, student);
     check(readyState.body.state.network.canStartCall === true,
@@ -203,23 +197,24 @@ async function main() {
 
     /* Browser contract: ordered revoke, persistent media, visible trophy UI. */
     const classroomApp = read('classroom/app.js');
-    const agora = read('classroom/agora.js');
+    const livekit = read('classroom/livekit.js');
     const sessionLayer = read('classroom/session.js');
     const classroomHtml = read('classroom/index.html');
     const studentHtml = read('student/index.html');
     const studentApp = read('student/app.js');
 
-    const observerBranchAt = agora.indexOf("rtc.role === 'subscriber'");
-    const tracksAt = agora.indexOf('createMicrophoneAndCameraTracks(');
-    const publishAt = agora.indexOf('client.publish(state.localTracks)');
-    check(observerBranchAt !== -1 && tracksAt !== -1 && observerBranchAt < tracksAt &&
-      tracksAt < publishAt,
-    'the subscriber/observer branch precedes local-track creation and publish');
-    check(!/client\.publish/.test(agora.slice(observerBranchAt, tracksAt)),
-      'the observer branch never publishes local tracks');
-    check(/Observing the 1:1 call/.test(agora),
+    const observerRoleAt = livekit.indexOf("rtc.role === 'subscriber'");
+    const observerGuardAt = livekit.indexOf(
+      'if (state.observer || !state.room || !state.room.localParticipant) return Promise.resolve(false);');
+    const publishAt = livekit.indexOf('setCameraEnabled(Boolean(enabled))');
+    check(observerRoleAt !== -1 && observerGuardAt !== -1 && publishAt !== -1,
+      'the LiveKit observer role, local-track guard and publish path are present');
+    check(observerGuardAt < publishAt &&
+      /if \(state\.observer[\s\S]{0,220}setCameraEnabled\(Boolean\(enabled\)\)/.test(livekit),
+      'the observer guard precedes local camera publication');
+    check(/Observing the 1:1 call/.test(livekit),
       'the observer status text says the user is observing');
-    check(!/if \(!keepAliveTimer\)/.test(agora),
+    check(!/if \(!keepAliveTimer\)/.test(livekit),
       'local-track keepalive is not started unconditionally');
 
     check(/forceStudentMediaOn\(\)[\s\S]*setMediaButtonsLocked\(true\)/.test(classroomApp),
@@ -230,8 +225,8 @@ async function main() {
       'trainer media access control is present');
     check(/id="networkCheckBtn"/.test(classroomHtml),
       'connection check control is present in the call panel');
-    check(/function reaffirmMedia\(\)/.test(agora) &&
-      /visibilitychange/.test(agora) && /setInterval/.test(agora),
+    check(/function reaffirmMedia\(\)/.test(livekit) &&
+      /visibilitychange/.test(livekit) && /setInterval/.test(livekit),
       'local tracks are reaffirmed on focus and while the call stays live');
     check(/launchQuiz\(\)[\s\S]*reaffirmCallMedia\(\)/.test(sessionLayer),
       'quiz launch reaffirms camera and microphone instead of switching them off');
@@ -243,10 +238,6 @@ async function main() {
       'student dashboard fills trophies from the server response');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
-    envKeys.forEach(function (key) {
-      if (savedEnv[key] === undefined) delete process.env[key];
-      else process.env[key] = savedEnv[key];
-    });
   }
 }
 

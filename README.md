@@ -2,7 +2,7 @@
 
 This repository contains the Mathify dashboard website and its API layer. Live teaching is strictly **1-on-1**; there are no group classes.
 
-> **Branch note:** current branch `feat/student-rtc-control-perfection`, reviewed at `5639127`. Live 1:1 video uses **LiveKit**, including server-owned **Egress** recording into private S3-compatible/R2 storage and signed LiveKit webhooks; role-scoped viewers receive short-lived signed links, never a permanent public URL. Transactional email uses **Resend** and fails closed when keys are absent. Every server-side AI call uses one chain: **freelm → Gemini → Groq → Cloudflare Workers AI**. The chat Worker source follows the same chain and builds cleanly; its live deploy remains gated by the existing Cloudflare token's permissions. Agora, Nodemailer/SMTP, OpenAI/DeepSeek and Cloudflare-only AI references in historical reports describe the earlier provider round, not current state. See [`LIVE_QA_REPORT.md`](LIVE_QA_REPORT.md) for the current redacted verification ledger.
+> **Branch note:** current branch `feat/student-rtc-control-perfection`. Live 1:1 video uses **LiveKit**, including server-owned **Egress** recording into private S3-compatible/R2 storage and signed LiveKit webhooks; role-scoped viewers receive short-lived signed links, never a permanent public URL. Transactional email uses **Resend** and fails closed when keys are absent. Every server-side AI call uses one chain: **freelm → Gemini → Groq → Cloudflare Workers AI**. The chat Worker source follows the same chain and builds cleanly; its live deploy remains gated by the existing Cloudflare token's permissions. Agora, Nodemailer/SMTP, OpenAI/DeepSeek and Cloudflare-only AI references in archived reports describe the earlier provider round, not current state. Agora transport has since been removed. See [`LIVE_QA_REPORT.md`](LIVE_QA_REPORT.md) for the current redacted verification ledger.
 
 > **Full project guide:** [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) explains what, why, how, where and when for every part of Mathify.
 
@@ -10,7 +10,7 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 | Concern | Current provider / service | What is true now |
 | --- | --- | --- |
-| 1:1 live video | **LiveKit** | Server-signed `AccessToken`, server-derived `mathify-<sessionId>` room, `wss://` media URL. Legacy Agora routes remain only for compatibility/tests. |
+| 1:1 live video | **LiveKit** | Server-signed `AccessToken`, server-derived `mathify-<sessionId>` room, `wss://` media URL. Agora transport has been removed. |
 | Class recording | **LiveKit Egress → private S3-compatible/R2 storage** | Trainer-only start/stop; signed LiveKit webhooks reconcile status and final object key; role-scoped short-lived SigV4 GET links. No public object URL is stored. |
 | Transactional email | **Resend** | All mail, including reminders and password resets. No SMTP/Nodemailer sender remains; missing keys fail closed. |
 | AI/LLM calls | **freelm → Gemini → Groq → Cloudflare Workers AI** | One chain for server and Worker source; image questions use Gemini → Cloudflare. OpenAI/DeepSeek are unused. |
@@ -30,7 +30,7 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 | `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
 | `lms/` | LMS surface (partial) with local planner designer. |
 | `founder/` | Founder settings drafts — policy, mastery and trainer policy; money widgets are read-only. |
-| `server/` | Express API, mock DB, auth/RBAC, quizzer, LiveKit tokens/egress/webhooks, the shared AI chain, Resend email and Razorpay seams. Legacy Agora routes remain only for compatibility/tests; Cloudflare Workers AI is a required final chain stage, not a legacy provider. |
+| `server/` | Express API, mock DB, auth/RBAC, quizzer, LiveKit tokens/egress/webhooks, the shared AI chain, Resend email and Razorpay seams. Cloudflare Workers AI is a required final chain stage, not a legacy provider. |
 | `worker-core.mjs`, `worker.js`, `wrangler.toml` | Cloudflare Worker source plus a platform-free shared prompt/validation core using the same freelm → Gemini → Groq → Cloudflare chain. Deployment remains permission-gated. |
 
 ## Current state
@@ -74,7 +74,7 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 
 ### Recordings, reminders and timezones
 
-- **Private Egress recording:** start/stop remains trainer-only; LiveKit writes to the configured private S3-compatible/R2 bucket, and the browser never receives storage credentials or a permanent URL. A verified LiveKit webhook reconciles Egress status and the final object key. Failed or aborted Egress without `fileResults` never becomes watchable. The internal `agora_join` presence label is retained only for legacy event compatibility; the transport is LiveKit.
+- **Private Egress recording:** start/stop remains trainer-only; LiveKit writes to the configured private S3-compatible/R2 bucket, and the browser never receives storage credentials or a permanent URL. A verified LiveKit webhook reconciles Egress status and the final object key. Failed or aborted Egress without `fileResults` never becomes watchable. The internal `livekit_join` presence label records verified LiveKit join evidence.
 - **Role-scoped playback:** founder and relationship manager may review any class; trainer, student and parent are confined to their own 1:1 session. `GET /api/recordings` lists only ready recordings, and `GET /api/recordings/:sessionId/url` mints a short-lived SigV4 GET link (10 minutes default, 1 hour cap) with no secret or bucket name in the browser payload.
 - **Reminders:** 15 minutes before class, parent and trainer receive a Resend join email and the parent also gets an in-app notification. If the trainer has not joined by 2 minutes before start, a second Resend warning tells them slots are appearing and to join now to avoid penalty. With Resend unset, delivery fails closed as `EMAIL_NOT_CONFIGURED`; no mail success is claimed.
 - **Timezones:** one absolute UTC instant is stored; each viewer sees it in their registered IANA zone, with the child's registration zone as the fallback for a shared parent login. Invalid zones are rejected with `INVALID_TIMEZONE`.

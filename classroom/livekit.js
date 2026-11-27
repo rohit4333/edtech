@@ -76,16 +76,16 @@
     if (!pip) return null;
     return {
       pip: pip,
-      local: pip.querySelector('[data-agora-video="local"]'),
-      remote: pip.querySelector('[data-agora-video="remote"]'),
+      local: pip.querySelector('[data-call-video="local"]'),
+      remote: pip.querySelector('[data-call-video="remote"]'),
       localTile: pip.querySelector('.dock-trainer'),
       remoteTile: pip.querySelector('.dock-student'),
-      peerLabel: pip.querySelector('[data-agora-peer-label]'),
-      joinBtn: document.getElementById('agoraJoinBtn'),
-      leaveBtn: document.getElementById('agoraLeaveBtn'),
+      peerLabel: pip.querySelector('[data-call-peer-label]'),
+      joinBtn: document.getElementById('callJoinBtn'),
+      leaveBtn: document.getElementById('callLeaveBtn'),
       live: document.getElementById('pipLive'),
       liveWord: document.getElementById('pipLiveWord'),
-      status: state.statusNode || document.getElementById('agoraCallStatus')
+      status: state.statusNode || document.getElementById('callStatus')
     };
   }
 
@@ -638,7 +638,7 @@
     var opts = options || {};
     unbind();
     state.sessionId = opts.sessionId || null;
-    state.statusNode = opts.statusNode || document.getElementById('agoraCallStatus') || null;
+    state.statusNode = opts.statusNode || document.getElementById('callStatus') || null;
     if (typeof opts.micEnabled === 'boolean') state.micEnabled = opts.micEnabled;
     if (typeof opts.cameraEnabled === 'boolean') state.cameraEnabled = opts.cameraEnabled;
     if (typeof opts.networkReady === 'boolean') state.networkReady = opts.networkReady;
@@ -688,9 +688,6 @@
     };
   }
 
-  /* Keep the historical global so existing classroom call sites keep working,
-     and expose the provider-neutral names for future callers. */
   window.mathifyClassroomLiveKit = api;
   window.mathifyClassroomRtc = api;
-  window.mathifyClassroomAgora = api;
 })();

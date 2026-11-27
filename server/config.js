@@ -15,8 +15,8 @@ const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'produ
 
 /* LiveKit is the only RTC provider. AI calls use one chain everywhere:
    freelm -> Gemini -> Groq -> Cloudflare Workers AI, so production requires
-   the three upstream provider credentials that freelm also reads. Agora and
-   recording-webhook credentials are deliberately absent. */
+   the three upstream provider credentials that freelm also reads. Agora credentials
+   are deliberately absent; the recording handoff secret is optional. */
 const PRODUCTION_REQUIRED_ENV = [
   'AUTH_SECRET',
   'CORS_ORIGIN',

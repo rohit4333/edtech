@@ -24,11 +24,25 @@ services:
         sync: false
       - key: SUPABASE_SECRET_KEY
         sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_PROJECT_ID
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
       - key: CLOUDFLARE_API_TOKEN
         sync: false
-      - key: CLOUDFLARE_MODEL
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
         sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
@@ -36,16 +50,30 @@ services:
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
-      - key: AGORA_APP_ID
+      - key: TWILIO_ACCOUNT_SID
         sync: false
-      - key: AGORA_APP_CERTIFICATE
+      - key: TWILIO_AUTH_TOKEN
         sync: false
-      - key: AGORA_WEBHOOK_SECRET
+      - key: TWILIO_WEBHOOK_URL
+        sync: false
+      - key: TWILIO_WHATSAPP_NUMBER
         sync: false
       - key: RECORDING_WEBHOOK_SECRET
         sync: false
-      - key: TWILIO_ACCOUNT_SID
+      # Optional LiveKit Egress recording destination. Leave unset to disable
+      # recording; the API then fails closed with RECORDING_NOT_CONFIGURED.
+      - key: LIVEKIT_EGRESS_BUCKET
         sync: false
+      - key: LIVEKIT_EGRESS_ACCESS_KEY
+        sync: false
+      - key: LIVEKIT_EGRESS_SECRET_KEY
+        sync: false
+      - key: LIVEKIT_EGRESS_ENDPOINT
+        sync: false
+      - key: LIVEKIT_EGRESS_REGION
+        sync: false
+      - key: LIVEKIT_EGRESS_FORCE_PATH_STYLE
+        value: "false"
       - key: OBSERVABILITY_WEBHOOK_URL
         sync: false
       # The web process stays timer-free; .github/workflows/ci.yml runs the
@@ -54,7 +82,3 @@ services:
         value: "false"
       - key: REMINDER_CHECK_MS
         value: "300000"
-      - key: TWILIO_AUTH_TOKEN
-        sync: false
-      - key: TWILIO_WEBHOOK_URL
-        sync: false

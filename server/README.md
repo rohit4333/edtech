@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`feat/student-rtc-control-perfection`, reviewed at `5639127`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; the earlier Agora routes remain only for compatibility and local tests. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 49 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
+This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; Agora transport has been removed. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 53 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
 **Current providers:** LiveKit (RTC, tokens, Egress, webhooks) · private S3-compatible/R2 storage with short-lived SigV4 links (recordings) · Resend (all mail) · freelm → Gemini → Groq → Cloudflare Workers AI (every model call) · Supabase service role (live persistence) · Razorpay (packs) · Twilio (WhatsApp). Agora, Nodemailer/SMTP, OpenAI and DeepSeek are not current providers.
 
@@ -115,7 +115,7 @@ Text is scanned by `services/parentChatDlp.js` before any write or delivery. Ema
 | `GET` | `/api/sessions/:sessionId/state` | Role-aware live state and permissions |
 | `GET` | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads |
 | `POST` | `/api/sessions/:sessionId/chat` | Participant-only chat; sender identity from the JWT |
-| `POST` | `/api/sessions/:sessionId/rtc-token` | Legacy server-signed Agora RTC/RTM token; retained for compatibility/tests |
+| `POST` | `/api/sessions/:sessionId/rtc-token` | Session-scoped LiveKit token with the same room/observer gate; canonical adapter path is `/api/get-token` |
 | `POST` | `/api/livekit/token` | Canonical LiveKit token: reads `roomName`/`participantName` from `req.body`, verifies them against the session, and returns JWT + WebSocket URL |
 | `POST` | `/api/get-token` | Alias of `/api/livekit/token`, used by the classroom/trainer adapters |
 | `POST` | `/api/sessions/:sessionId/media-permission` | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking |
@@ -191,7 +191,7 @@ whiteboard/Wacom activity are the only shared signals.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/policy/config` | Configurable rules; unresolved values are `null` |
-| `POST` | `/api/webhooks/recording` | Legacy Agora recording-ready webhook; retained for compatibility/tests, not the current LiveKit Egress path |
+| `POST` | `/api/webhooks/recording` | Recording-ready handoff; playback links are always short-lived signed URLs |
 | `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
 | `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
 | `GET` | `/api/admin/settings` | Founder-only runtime settings draft with read-only money widgets |
@@ -228,16 +228,13 @@ existing `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` and a `sha256` checksum of the
 exact raw body; there is no separate LiveKit webhook secret. A verified
 `egress_ended` event with `fileResults` writes the object key and marks the
 recording `stopped`; failed or aborted Egress without a file is `failed` and
-never watchable. The internal `agora_join`/`agora_leave` presence labels are
-legacy compatibility names, not Agora transport.
+never watchable. `livekit_join`/`livekit_leave` are the internal presence labels.
 
 `GET /api/recordings` and `GET /api/recordings/:sessionId/url` use `canAccessRecording()`:
 founder and relationship manager may review any class; trainer, student and
 parent are scoped to their own 1:1 session. Links are 600-second S3 SigV4 GET
 URLs (60–3600 second bounds) built by `recordingAccessService.js`; no permanent
-URL, bucket name in a browser payload, or secret key is returned. Legacy routes
-`GET /api/agora/token`, `POST /api/agora/recording/start|stop` and
-`/api/agora/webhook` are retained for compatibility/tests only.
+URL, bucket name in a browser payload, or secret key is returned.
 
 Curriculum path — `services/cloudflareService.js` generates curriculum in two model calls through
 the shared chain: `generatePlannerAndCurriculum(context)` returns the `curriculum_map` and planner
@@ -301,9 +298,8 @@ Optional: `LIVEKIT_AGENT_NAME`, `ALLOW_DIRECT_ROOM_TOKENS` (dev-only demo escape
 `TWILIO_WHATSAPP_NUMBER`, `WHATSAPP_DEMO_PARENT_PHONE`, `SLACK_WEBHOOK_URL`, `ADMIN_EMAIL`.
 All email, including password resets, reminders and human handoffs, goes through Resend. At T−15 minutes parent and trainer receive a join email with the batch ID and the parent also gets an in-app notification; at T−2 minutes an absent trainer gets a second warning. Every batch allotment also emails the trainer with the batch ID, labelled as a demo session or a regular class. At 2 and 1 remaining classes the parent gets renewal emails, followed by up to two spaced reminders (four total); a recent enrollment or renewed pack cancels the sequence. Missing `RESEND_API_KEY`/`RESEND_FROM` returns `EMAIL_NOT_CONFIGURED`; no delivery is mocked.
 
-Legacy and not required by the production guard: `AGORA_*`, `RECORDING_WEBHOOK_SECRET`.
-They are retained only for compatibility routes and local tests; Cloudflare Workers AI
-is a required member of the approved AI chain.
+`RECORDING_WEBHOOK_SECRET` is optional and not required by the production guard.
+Cloudflare Workers AI is a required member of the approved AI chain.
 
 ### Live session creation
 

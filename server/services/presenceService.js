@@ -2,7 +2,7 @@
    MATHIFY — automated presence tracking.
 
    Nobody manually checks who joined. Three signals feed an append-only event
-   log: browser heartbeats, learning interactions and verified Agora webhooks.
+   log: browser heartbeats, learning interactions and verified LiveKit webhooks.
    A state machine replays those events into a per-session snapshot.
 
    Confirmed payout rule: the trainer is paid only after being actively present
@@ -98,7 +98,7 @@ async function heartbeat(user, session, body, now) {
     ? Math.max(0, cumulative - previousCumulative)
     : 0;
   const at = now ? new Date(now).toISOString() : new Date().toISOString();
-  const uid = Number(input.agoraUid);
+  const uid = Number(input.participantUid);
   const event = {
     sessionId: session.id,
     userId: user.id,
@@ -108,24 +108,24 @@ async function heartbeat(user, session, body, now) {
     learningEvents: delta,
     cumulativeLearningEvents: Number.isFinite(cumulative)
       ? cumulative : previousCumulative,
-    agoraUid: Number.isFinite(uid) ? uid : null,
+    participantUid: Number.isFinite(uid) ? uid : null,
     leaving: input.leaving === true,
     at: at
   };
   return db.insertPresenceEvent(event);
 }
 
-const AGORA_KINDS = {
+const LIVEKIT_KINDS = {
   'user-joined': 'join',
   'join': 'join',
   'user-left': 'leave',
   'leave': 'leave'
 };
 
-async function agoraEvent(session, payload, now) {
+async function livekitEvent(session, payload, now) {
   const input = payload || {};
   const role = roleForUid(session, input.uid);
-  const kind = AGORA_KINDS[String(input.event || '').toLowerCase()];
+  const kind = LIVEKIT_KINDS[String(input.event || '').toLowerCase()];
   if (!role || !kind) return null;
 
   const timestamp = Number(input.timestamp);
@@ -137,7 +137,7 @@ async function agoraEvent(session, payload, now) {
     sessionId: session.id,
     userId: role === 'trainer' ? session.trainerId : session.studentId,
     role: role,
-    kind: 'agora_' + kind,
+    kind: 'livekit_' + kind,
     at: at
   });
 }
@@ -148,7 +148,7 @@ function toMs(value) {
 }
 
 /* Teaching-time evidence is counted only inside the scheduled 55-minute
-   window. Overlapping heartbeat and Agora evidence stay separate; the larger
+   window. Overlapping heartbeat and LiveKit evidence stay separate; the larger
    total wins, matching the existing active-seconds rule. */
 function secondsInWindow(intervals, start, end) {
   if (start === null || start === undefined) return 0;
@@ -176,20 +176,20 @@ function participantState(session, role, events, asOf, config) {
   let heartbeatSeconds = 0;
   let learningEvents = 0;
   const heartbeatIntervals = [];
-  const agoraIntervals = [];
-  let agoraJoinedAt = null;
+  const livekitIntervals = [];
+  let livekitJoinedAt = null;
 
   roleEvents.forEach(function (event) {
     const at = toMs(event.at);
     if (at === null) return;
     lastSeenAt = Math.max(lastSeenAt || 0, at);
 
-    if (event.kind === 'agora_join') {
-      agoraJoinedAt = agoraJoinedAt || at;
+    if (event.kind === 'livekit_join') {
+      livekitJoinedAt = livekitJoinedAt || at;
       joinedAt = joinedAt === null ? at : Math.min(joinedAt, at);
-    } else if (event.kind === 'agora_leave') {
-      if (agoraJoinedAt !== null) agoraIntervals.push([agoraJoinedAt, Math.max(at, agoraJoinedAt)]);
-      agoraJoinedAt = null;
+    } else if (event.kind === 'livekit_leave') {
+      if (livekitJoinedAt !== null) livekitIntervals.push([livekitJoinedAt, Math.max(at, livekitJoinedAt)]);
+      livekitJoinedAt = null;
       leftAt = leftAt === null ? at : Math.max(leftAt, at);
       lastActiveAt = null;
     } else if (event.kind === 'heartbeat') {
@@ -214,17 +214,17 @@ function participantState(session, role, events, asOf, config) {
     }
   });
 
-  if (agoraJoinedAt !== null) agoraIntervals.push([agoraJoinedAt, asOf]);
+  if (livekitJoinedAt !== null) livekitIntervals.push([livekitJoinedAt, asOf]);
 
-  const agoraSeconds = agoraIntervals.reduce(function (total, interval) {
+  const livekitSeconds = livekitIntervals.reduce(function (total, interval) {
     return total + Math.max(0, (interval[1] - interval[0]) / 1000);
   }, 0);
-  const activeSeconds = Math.max(heartbeatSeconds, agoraSeconds);
+  const activeSeconds = Math.max(heartbeatSeconds, livekitSeconds);
   const activeMinutes = Math.floor(activeSeconds / 60);
   const windowEnd = sessionTiming.completionWindowEnd(session);
   const activeSecondsInWindow = Math.max(
     secondsInWindow(heartbeatIntervals, start, windowEnd),
-    secondsInWindow(agoraIntervals, start, windowEnd)
+    secondsInWindow(livekitIntervals, start, windowEnd)
   );
 
   const noShow = joinedAt === null && graceEnd !== null && asOf >= graceEnd;
@@ -376,7 +376,7 @@ module.exports = {
   roleForUser: roleForUser,
   roleForUid: roleForUid,
   heartbeat: heartbeat,
-  agoraEvent: agoraEvent,
+  livekitEvent: livekitEvent,
   compute: compute,
   stateFor: stateFor,
   finalize: finalize

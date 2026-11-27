@@ -317,7 +317,7 @@ create index if not exists quiz_canvas_strokes_session_idx
   on public.quiz_canvas_strokes (session_id);
 
 -- Single merged recordings table (replaces the two conflicting definitions).
--- It carries both the live Agora channel fields and the finished playback
+-- It carries both the live LiveKit room fields and the finished playback
 -- fields, so old and new rows are represented by one relation.
 create table if not exists public.recordings (
   id uuid primary key default gen_random_uuid(),
@@ -328,8 +328,8 @@ create table if not exists public.recordings (
   sid text,
   status text not null default 'recording'
     check (status in ('recording', 'stopped')),
-  mode text not null default 'agora',
-  provider text not null default 'agora',
+  mode text not null default 'livekit',
+  provider text not null default 'livekit',
   url text,
   duration_seconds integer not null default 0,
   started_at timestamptz not null default now(),
@@ -342,8 +342,8 @@ create index if not exists recordings_session_idx on public.recordings (session_
 -- Upgrade path for databases created from the earlier split schema.
 alter table public.recordings add column if not exists resource_id text;
 alter table public.recordings add column if not exists sid text;
-alter table public.recordings add column if not exists mode text not null default 'agora';
-alter table public.recordings add column if not exists provider text not null default 'agora';
+alter table public.recordings add column if not exists mode text not null default 'livekit';
+alter table public.recordings add column if not exists provider text not null default 'livekit';
 alter table public.recordings add column if not exists url text;
 alter table public.recordings add column if not exists duration_seconds integer not null default 0;
 alter table public.recordings add column if not exists started_at timestamptz not null default now();
@@ -431,11 +431,11 @@ create table if not exists public.presence_events (
   session_id uuid not null references public.sessions(id) on delete cascade,
   user_id uuid not null references public.users(id),
   role text not null check (role in ('trainer', 'student')),
-  kind text not null check (kind in ('heartbeat', 'agora_join', 'agora_leave')),
+  kind text not null check (kind in ('heartbeat', 'livekit_join', 'livekit_leave')),
   active boolean,
   learning_events integer not null default 0,
   cumulative_learning_events integer not null default 0,
-  agora_uid bigint,
+  participant_uid bigint,
   leaving boolean not null default false,
   at timestamptz not null default now()
 );

@@ -105,11 +105,11 @@ async function main() {
     const first = await post(joined);
     equal(first.status, 200, 'a correctly signed join webhook is accepted');
     equal(first.body.role, 'trainer', 'the trainer role is derived from the participant identity');
-    equal(first.body.kind, 'agora_join', 'a join writes a verified presence join');
+    equal(first.body.kind, 'livekit_join', 'a join writes a verified presence join');
     equal(first.body.sessionId, sessionId, 'the room maps back to the server-owned session');
 
     const eventsAfterJoin = db.listPresenceEvents(sessionId);
-    equal(eventsAfterJoin.filter(function (item) { return item.kind === 'agora_join'; }).length, 1,
+    equal(eventsAfterJoin.filter(function (item) { return item.kind === 'livekit_join'; }).length, 1,
       'one verified join presence event is stored');
 
     const presenceSnapshot = await presence.compute(db.findSession(sessionId), Date.now());
@@ -120,7 +120,7 @@ async function main() {
     equal(replay.status, 200, 'a replay is answered without a retry storm');
     equal(replay.body.duplicate, true, 'the replay carries a duplicate marker');
     equal(db.listPresenceEvents(sessionId).filter(function (item) {
-      return item.kind === 'agora_join';
+      return item.kind === 'livekit_join';
     }).length, 1, 'a replayed event does not create a second presence event');
 
     const tampered = await post(eventBody('participant_joined', sessionId, 'trainer-usr_trainer_001'),
@@ -148,7 +148,7 @@ async function main() {
 
     const left = await post(eventBody('participant_left', sessionId,
       'trainer-usr_trainer_001', 'evt_leave'));
-    equal(left.body.kind, 'agora_leave', 'a verified leave writes a presence leave');
+    equal(left.body.kind, 'livekit_leave', 'a verified leave writes a presence leave');
 
     const egress = await post(eventBody('egress_ended', sessionId, 'simulator', 'evt_egress_end'));
     equal(egress.body.egressEvent, 'egress_ended', 'egress events are handled');

@@ -319,8 +319,8 @@ function writeSlots(batch, trainerId, candidates) {
           studentTimezone: studentTimezone,
           durationMinutes: candidate.durationMinutes,
           /* Server-derived and unique per session: parallel rooms can never
-             share an Agora channel or a webhook attribution. */
-          rtc: { provider: 'agora', channel: 'mathify_' + id },
+             share a LiveKit room or a webhook attribution. */
+          rtc: { provider: 'livekit', roomName: 'mathify-' + id },
           createdAt: new Date().toISOString()
         };
         return Promise.resolve(db.insertSession(session)).then(function () {

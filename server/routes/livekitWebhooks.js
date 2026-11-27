@@ -83,8 +83,8 @@ async function processParticipant(session, event, at) {
   if (!user || user.role !== parsed.role) return { ignored: 'participant_not_in_session' };
 
   let kind = null;
-  if (PRESENCE_JOIN.indexOf(event.event) !== -1) kind = 'agora_join';
-  if (PRESENCE_LEAVE.indexOf(event.event) !== -1) kind = 'agora_leave';
+  if (PRESENCE_JOIN.indexOf(event.event) !== -1) kind = 'livekit_join';
+  if (PRESENCE_LEAVE.indexOf(event.event) !== -1) kind = 'livekit_leave';
   if (!kind) return { ignored: 'unsupported_event' };
 
   await Promise.resolve(db.insertPresenceEvent({
@@ -92,12 +92,12 @@ async function processParticipant(session, event, at) {
     userId: user.id,
     role: parsed.role,
     kind: kind,
-    active: kind === 'agora_join',
-    leaving: kind === 'agora_leave',
+    active: kind === 'livekit_join',
+    leaving: kind === 'livekit_leave',
     at: at
   }));
   await Promise.resolve(realtime.publish(session.id,
-    kind === 'agora_join' ? 'participant.joined' : 'participant.left',
+    kind === 'livekit_join' ? 'participant.joined' : 'participant.left',
     { role: parsed.role, at: at }));
 
   return { role: parsed.role, kind: kind };

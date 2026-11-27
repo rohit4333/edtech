@@ -4,7 +4,7 @@ const config = require('../config');
 const auth = require('../middleware/auth');
 const serializers = require('../serializers');
 const realtime = require('../realtime');
-const agoraTokens = require('../services/agoraTokenService');
+const livekitTokens = require('../services/livekitTokenService');
 const masteryGating = require('../services/masteryGating');
 const presenceService = require('../services/presenceService');
 const notifications = require('../services/notificationService');
@@ -70,7 +70,9 @@ router.post('/:sessionId/rtc-token', async function (req, res) {
       ), { code: 'NETWORK_BELOW_MINIMUM', status: 409 });
     }
 
-    const rtc = agoraTokens.issueSessionToken(liveSession, req.user);
+    const rtc = await livekitTokens.issueSessionToken(liveSession, req.user, {
+      observer: access.observer === true
+    });
     const respond = function () {
       return res.json({ rtc: rtc, roomAccess: access });
     };

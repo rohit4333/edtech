@@ -507,7 +507,7 @@
     if (recapStatus) recapStatus.textContent = 'Session · ' + (savedText || 'saved');
     if (recapSaved) recapSaved.textContent = savedText || 'Saved just now';
     /* A 1:1 call does not stay open after the session is closed. */
-    var endedCall = window.mathifyClassroomAgora;
+    var endedCall = window.mathifyClassroomLiveKit;
     if (endedCall && typeof endedCall.leave === 'function') endedCall.leave();
   }
 
@@ -622,7 +622,7 @@
     if (use) use.setAttribute('href', id);
   }
 
-  function callModule() { return window.mathifyClassroomAgora; }
+  function callModule() { return window.mathifyClassroomLiveKit; }
 
   var micOn = true;
   var camOn = true;
@@ -1416,11 +1416,11 @@
   setMicVisual(true);
   setCameraVisual(true);
 
-  var classroomCall = window.mathifyClassroomAgora;
+  var classroomCall = window.mathifyClassroomLiveKit;
   if (classroomCall && typeof classroomCall.init === 'function') {
     classroomCall.init({
       sessionId: sessionId,
-      statusNode: $('#agoraCallStatus'),
+      statusNode: $('#callStatus'),
       micEnabled: micOn,
       cameraEnabled: camOn,
       networkReady: false,
@@ -1604,7 +1604,7 @@
     currentPage: function () { return page; },
     sessionId: sessionId,
     api: classroomApi,
-    agora: window.mathifyClassroomAgora,
+    livekit: window.mathifyClassroomLiveKit,
     studentName: function () { return studentName; },
     setStudentName: applyStudentName,
     applyMediaPermission: applyMediaPermission,

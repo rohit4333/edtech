@@ -701,12 +701,12 @@ function findBatchByCode(code) {
 function insertSession(record) {
   const stored = copy(record) || {};
   if (!stored.id) stored.id = 'ses_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  /* Match the live adapter: every session owns one Agora channel, so parallel
+  /* Match the live adapter: every session owns one LiveKit room, so parallel
      rooms can never share media or webhook attribution. */
-  if (!stored.rtc || !stored.rtc.channel) {
+  if (!stored.rtc || !stored.rtc.roomName) {
     stored.rtc = Object.assign({}, stored.rtc || {}, {
-      provider: 'agora',
-      channel: 'mathify_' + stored.id
+      provider: 'livekit',
+      roomName: 'mathify-' + stored.id
     });
   }
   store.sessions.push(stored);

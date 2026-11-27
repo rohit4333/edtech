@@ -345,11 +345,11 @@ async function insertSession(input) {
     /* The academic course is fixed when the slot is created, so a later change
        to the family's dashboard subject cannot rewrite a booked class. */
     subject: mirroredSubject(input),
-    /* Agora channels are server-derived and unique per session so live-created
+    /* LiveKit rooms are server-derived and unique per session so live-created
        sessions can issue tokens and attribute webhooks to exactly one pair. */
     rtc: {
-      provider: 'agora',
-      channel: (input.rtc && input.rtc.channel) || ('mathify_' + row.id)
+      provider: 'livekit',
+      roomName: (input.rtc && input.rtc.roomName) || ('mathify-' + row.id)
     },
     currentPage: 1,
     /* Mirror the booking metadata so the 7-day calendar and classroom access

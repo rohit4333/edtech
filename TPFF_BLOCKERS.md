@@ -1,5 +1,7 @@
 # TPFF BLOCKERS — v4.0 external/infra failure register
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** Agora/DeepSeek/Cloudflare-only references here are earlier provider-round notes. Agora transport has been removed; LiveKit is the only 1:1 call stack. See README.md and LIVE_QA_REPORT.md.
+
 **Date:** 26 November 2026  
 **Version:** v4.0.0 [U+2026-11-26]  
 **Rule:** U3 `BLOCKED_EXTERNAL` — do not halt, do not fake success, log exact status/payload, mark the feature `BLOCKED_EXTERNAL` in the canonical file. [ev: TPFF v4.0 update prompt U3, 2026-11-26]

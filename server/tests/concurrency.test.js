@@ -90,11 +90,11 @@ async function main() {
       equal(rows.length, 1, 'trainer ' + index + ' owns exactly one booked session');
       equal(rows[0].studentId, students[index], 'the booked session keeps its own student');
       equal(rows[0].batchId, batchIds[index].id, 'the booked session keeps its own batch');
-      ok(rows[0].rtc && rows[0].rtc.channel === 'mathify_' + rows[0].id,
-        'each room has a unique server-derived Agora channel');
+      ok(rows[0].rtc && rows[0].rtc.roomName === 'mathify-' + rows[0].id,
+        'each room has a unique server-derived LiveKit room');
     });
-    const channels = sessions.map(function (rows) { return rows[0].rtc.channel; });
-    equal(new Set(channels).size, 4, 'no two parallel rooms share a media channel');
+    const rooms = sessions.map(function (rows) { return rows[0].rtc.roomName; });
+    equal(new Set(rooms).size, 4, 'no two parallel rooms share a media room');
 
     /* Retrying the same allotment must not create a second booking. */
     await batches.allot(batchIds[0].id, trainers[0], [{ startsAt: starts[0] }]);

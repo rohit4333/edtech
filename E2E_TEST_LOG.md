@@ -1,5 +1,11 @@
 # MULTI-AGENT END-TO-END TEST LOG — Mathify
 
+> **ARCHIVED EVIDENCE — NOT CURRENT STATE.** This report captures an earlier
+> verification round. Agora/DeepSeek/Cloudflare-only references in it are historical
+> provider-round notes. The current stack is LiveKit for 1:1 calls, Resend for mail and
+> the freelm → Gemini → Groq → Cloudflare Workers AI chain. See `README.md`,
+> `PROJECT_GUIDE.md` and `LIVE_QA_REPORT.md` for the live contract.
+
 **Date:** 26 November 2026  
 **Branch:** `feat/student-rtc-control-permission`  
 **Evidence commit:** `3b9d597766358356d0d2bd9b555cf7a3614de205` (`3b9d597`)  

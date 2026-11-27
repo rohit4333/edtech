@@ -13,7 +13,7 @@
  *    from the scheduled start.
  *
  * Dashboard login and RTC token requests are not presence. Only verified
- * Agora webhooks and active heartbeats can supply `trainerJoinedAt` here.
+ * LiveKit webhooks and active heartbeats can supply `trainerJoinedAt` here.
  * Legacy sessions without timing evidence keep a neutral factor of 1 so old
  * payout statements are not rewritten silently. */
 const appPolicy = require('../config/policy.json');

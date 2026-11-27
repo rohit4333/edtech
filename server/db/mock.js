@@ -222,8 +222,8 @@ const sessions = [
     mastery: 72,
     recording: null,
     rtc: {
-      provider: 'agora',
-      channel: 'mathify-ses_math_001',
+      provider: 'livekit',
+      roomName: 'mathify-ses_math_001',
       status: 'waiting-for-token'
     }
   },
@@ -279,8 +279,8 @@ const sessions = [
       ]
     },
     rtc: {
-      provider: 'agora',
-      channel: 'mathify-ses_math_000',
+      provider: 'livekit',
+      roomName: 'mathify-ses_math_000',
       status: 'ended'
     }
   },
@@ -299,7 +299,7 @@ const sessions = [
     board: { version: 1, strokes: [] },
     pack: { id: 'pack_001', label: 'Ratios booster', remaining: 8, expiresAt: '2026-12-31T23:59:59.000Z' },
     mastery: 72,
-    rtc: { provider: 'agora', channel: 'mathify-ses_math_002', status: 'waiting-for-token' }
+    rtc: { provider: 'livekit', roomName: 'mathify-ses_math_002', status: 'waiting-for-token' }
   },
   {
     id: 'ses_math_003',
@@ -316,7 +316,7 @@ const sessions = [
     board: { version: 1, strokes: [] },
     pack: { id: 'pack_001', label: 'Ratios booster', remaining: 8, expiresAt: '2026-12-31T23:59:59.000Z' },
     mastery: 72,
-    rtc: { provider: 'agora', channel: 'mathify-ses_math_003', status: 'waiting-for-token' }
+    rtc: { provider: 'livekit', roomName: 'mathify-ses_math_003', status: 'waiting-for-token' }
   }
 ];
 
