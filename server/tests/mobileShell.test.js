@@ -37,6 +37,13 @@ function main() {
   check(/native=1/.test(configure) && !/plugins\.Camera|Plugins\.Camera/.test(configure),
     'install-time media access uses the web grant, not a duplicated camera plugin');
 
+  const prepare = read('mobile/scripts/prepare-native.js');
+  check(/isSymbolicLink/.test(prepare) && /chmodSync/.test(prepare),
+    'native sync clears read-only generated folders without following junctions');
+  const mobilePackage = JSON.parse(read('mobile/package.json'));
+  check(/prepare-native\.js/.test(mobilePackage.scripts.sync),
+    'every mobile sync starts with Windows-safe native preparation');
+
   const manifest = read('mobile/android/app/src/main/AndroidManifest.xml');
   [
     'android.permission.INTERNET',
@@ -74,6 +81,16 @@ function main() {
   'root scripts expose one mobile build path for both platforms');
   check(/node_modules\//.test(read('.gitignore')),
     'installed mobile dependencies are ignored by git');
+
+  const iosWorkflow = read('.github/workflows/ios-build.yml');
+  check(/runs-on: macos-26/.test(iosWorkflow) && /xcodebuild archive/.test(iosWorkflow),
+    'iPhone/iPad builds run on a GitHub-hosted Mac with the current iOS SDK');
+  check(/IOS_DIST_P12_BASE64/.test(iosWorkflow) &&
+    /IOS_PROVISIONING_PROFILE_BASE64/.test(iosWorkflow) &&
+    /exportArchive/.test(iosWorkflow),
+  'the no-Windows-Mac path produces a signed IPA from repository secrets');
+  check(/upload_to_testflight/.test(iosWorkflow) && /upload-artifact/.test(iosWorkflow),
+    'the iOS workflow can deliver to TestFlight and expose the built IPA');
 
   const connect = read('classroom/connect.html');
   check(/id="startSessionBtn"/.test(connect),

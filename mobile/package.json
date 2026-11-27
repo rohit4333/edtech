@@ -5,9 +5,10 @@
   "description": "Capacitor shell that serves the reviewed Mathify web app on Android and iOS.",
   "scripts": {
     "configure": "node scripts/configure.js",
-    "add:android": "node scripts/configure.js --platform android && cap add android && node scripts/native-permissions.js",
-    "add:ios": "node scripts/configure.js --platform ios && cap add ios && node scripts/native-permissions.js",
-    "sync": "node scripts/configure.js && cap sync && node scripts/native-permissions.js",
+    "prepare": "node scripts/prepare-native.js",
+    "add:android": "node scripts/prepare-native.js && node scripts/configure.js --platform android && cap add android && node scripts/prepare-native.js && node scripts/native-permissions.js",
+    "add:ios": "node scripts/prepare-native.js && node scripts/configure.js --platform ios && cap add ios && node scripts/prepare-native.js && node scripts/native-permissions.js",
+    "sync": "node scripts/prepare-native.js && node scripts/configure.js && cap sync && node scripts/native-permissions.js",
     "open:android": "cap open android",
     "open:ios": "cap open ios"
   },
