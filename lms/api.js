@@ -1,9 +1,10 @@
 /* LMS API client.
  *
- * One authenticated client for the planner reads and the founder-only mutation
- * calls. The subject is an academic parameter only: a trainer request is always
- * pinned to the trainer's own field, and RM requests are refused in the browser
- * before a request is made. The server repeats both checks.
+ * One authenticated client for planner reads, founder edits and the planner
+ * agent's academic design/review queue. The subject is an academic parameter
+ * only: a trainer request is always pinned to the trainer's own field, and RM
+ * requests are refused in the browser before a request is made. The server
+ * repeats both checks.
  */
 (function () {
   'use strict';
@@ -53,11 +54,11 @@
         var key = String(value === null || value === undefined ? '' : value).toLowerCase();
         return key === 'math' || key === 'coding' || key === 'english' ? key : null;
       };
-    var slug = normalize(requested) || (access && access.subject()) || 'math';
-    if (access && access.role && access.role() === 'trainer' && !access.canUse(slug)) {
-      slug = access.subject() || 'math';
-    }
-    return slug;
+    var verified = access && access.subject ? access.subject() : null;
+    /* A trainer's field comes from the verified token/catalogue, never from a
+       caller-supplied or browser-stored value. */
+    if (access && access.role && access.role() === 'trainer') return verified || null;
+    return normalize(requested) || verified || 'math';
   }
 
   function queryString(params) {
@@ -87,6 +88,31 @@
     return request(path, { method: method, body: withSubject(payload) });
   }
 
+  /* The agent gets its own gate rather than widening founderMutation. A signed
+     planner agent may design a planner or file an academic alternate idea; it
+     never gains a founder decision or a child-profile scope. */
+  function agentMutation(path, method, payload) {
+    var access = gate();
+    if (!access || access.role() !== 'planner_agent') {
+      var denied = new Error('Only the planner agent can use this desk.');
+      denied.status = 403;
+      denied.code = 'FORBIDDEN';
+      return Promise.reject(denied);
+    }
+    return request(path, { method: method, body: withSubject(payload) });
+  }
+
+  function ideaQuery(params) {
+    var source = params || {};
+    var query = [];
+    if (source.all !== true) query.push('subject=' + encodeURIComponent(safeSubject(source.subject)));
+    ['curriculum', 'grade'].forEach(function (key) {
+      if (source[key] === undefined || source[key] === null || source[key] === '') return;
+      query.push(key + '=' + encodeURIComponent(source[key]));
+    });
+    return query.join('&');
+  }
+
   window.mathifyLmsApi = {
     request: request,
     token: function () { var access = gate(); return access ? access.token() : null; },
@@ -97,6 +123,20 @@
     },
     plannerEdit: function (body) {
       return founderMutation('/lms/planner', 'PATCH', body);
+    },
+
+    /* Planner-agent design calls. Founder-only methods above are untouched. */
+    plannerAgentRegenerate: function (body) {
+      return agentMutation('/lms/planner/regenerate', 'POST', body);
+    },
+    plannerAgentEdit: function (body) {
+      return agentMutation('/lms/planner', 'PATCH', body);
+    },
+    plannerSuggest: function (body) {
+      return agentMutation('/lms/planner-suggestion', 'POST', body);
+    },
+    plannerSuggestions: function (query) {
+      return request('/lms/planner-suggestions?' + ideaQuery(query));
     }
   };
 }());

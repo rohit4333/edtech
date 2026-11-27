@@ -208,7 +208,7 @@ const publicFiles = new Set([
   'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
   'landing.css', 'landing.js', 'login.html'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'register', 'rm', 'shared', 'student', 'trainer']);
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer']);
 
 /* Each dashboard nav item is a real page URL. These routes serve the matching
    desk document; the shared section router then shows only that page's UI. */

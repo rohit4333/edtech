@@ -124,6 +124,11 @@
     window.MATHIFY_SESSION_SUBJECT = subjectState;
     document.body.setAttribute('data-subject', subjectState.subject);
     paintSubjectTitles(subjectState);
+    /* Overlay sheets and the end-of-class recap follow the same subject as the
+       stage, so a coding or English child never sees a ratio worksheet. */
+    if (window.mathifySubjectCopy && typeof window.mathifySubjectCopy.apply === 'function') {
+      window.mathifySubjectCopy.apply(subjectState);
+    }
 
     var coding = document.getElementById('codingStage');
     var english = document.getElementById('englishStage');
@@ -143,12 +148,8 @@
     if (workspaceBtn) workspaceBtn.hidden = subjectState.subject === 'math';
     document.body.classList.remove('subject-board-open');
 
-    if (window.classroomCoding && typeof window.classroomCoding.setSubject === 'function') {
-      window.classroomCoding.setSubject(subjectState);
-    }
-    if (window.classroomEnglish && typeof window.classroomEnglish.setSubject === 'function') {
-      window.classroomEnglish.setSubject(subjectState);
-    }
+    /* Subject travels one way: from verified server state into the modules.
+       There is deliberately no public setter to flip a live desk's subject. */
     window.dispatchEvent(new CustomEvent('mathify:subjectchange', { detail: subjectState }));
     return subjectState;
   }
@@ -524,13 +525,14 @@
     }
     if (recapStatus) recapStatus.textContent = 'Saving recap…';
 
-    var payload = {
-      recap: {
+    var recap = window.mathifySubjectCopy && typeof window.mathifySubjectCopy.recapFor === 'function'
+      ? window.mathifySubjectCopy.recapFor(subjectState, studentName)
+      : {
         summary: 'Ratios · Lesson 15 with ' + studentName,
         highlights: ['Bar models', 'Equivalent ratios'],
         homework: 'Practice sheet 3'
-      }
-    };
+      };
+    var payload = { recap: recap };
     /* The server owns the score unless a signed-in host supplies one. */
     if (typeof window.MATHIFY_QUIZ_SCORE === 'number') {
       payload.currentQuizScore = window.MATHIFY_QUIZ_SCORE;
@@ -1613,8 +1615,7 @@
     networkState: function () { return networkState; },
     applyObserverState: applyObserverState,
     sessionTiming: function () { return timingState; },
-    subject: function () { return subjectState; },
-    setSubject: applySubject
+    subject: function () { return subjectState; }
   };
 
 })();

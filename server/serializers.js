@@ -111,6 +111,68 @@ function subjectView(value) {
   return subjectCatalog.publicView(value);
 }
 
+/* Small, stable question bank for an English session that has no stored quiz
+   questions. It uses the same question shape as a math quiz; answerIndex and
+   explanation are trainer-only and every student view is scrubbed below. */
+const ENGLISH_QUIZ_BANK = [
+  {
+    id: 'eng_q_1',
+    prompt: 'Which sentence uses a describing word correctly?',
+    options: [
+      'The calm river moved slowly.',
+      'The river calm moved slowly.',
+      'The slowly river moved calm.',
+      'Calm the river moved slowly.'
+    ],
+    answerIndex: 0,
+    explanation: 'Calm describes the river and sits before the noun.',
+    source: 'template',
+    templateId: 'english_core',
+    status: 'active'
+  },
+  {
+    id: 'eng_q_2',
+    prompt: 'Which reply shows active listening?',
+    options: [
+      'I hear that you are worried about the test. Tell me more.',
+      'That is not a big deal.',
+      'You should not feel that way.',
+      'Let us talk about my day instead.'
+    ],
+    answerIndex: 0,
+    explanation: 'Naming the feeling and inviting more detail shows active listening.',
+    source: 'template',
+    templateId: 'english_core',
+    status: 'active'
+  },
+  {
+    id: 'eng_q_3',
+    prompt: "Which word best completes: 'Maya ___ the shelf for her brother'?",
+    options: ['helped', 'help', 'helping', 'helps'],
+    answerIndex: 0,
+    explanation: 'The past-tense verb helped matches a finished action.',
+    source: 'template',
+    templateId: 'english_core',
+    status: 'active'
+  }
+];
+
+function hasStoredQuizQuestions(session) {
+  return Boolean(session && session.quiz && Array.isArray(session.quiz.questions)
+    && session.quiz.questions.length);
+}
+
+/* One question source for both serializers and answer validation. Stored
+   questions always win; math and other subjects never borrow this bank. */
+function quizQuestionsFor(session) {
+  if (hasStoredQuizQuestions(session)) return session.quiz.questions;
+  if (session && subjectCatalog.normalize(session.subject) === 'english') {
+    return ENGLISH_QUIZ_BANK;
+  }
+  return session && session.quiz && Array.isArray(session.quiz.questions)
+    ? session.quiz.questions : [];
+}
+
 /* Trainer-only attendance rows need an opaque row key, never contact data. */
 function attendanceStudent(userId) {
   const user = db.findUserById(userId);
@@ -132,7 +194,7 @@ function trainerQuiz(session) {
     currentQuestionId: session.quiz.currentQuestionId,
     startedAt: session.quiz.startedAt,
     readiness: readiness(session),
-    questions: session.quiz.questions.map(function (question) {
+    questions: quizQuestionsFor(session).map(function (question) {
       return {
         id: question.id,
         prompt: question.prompt,
@@ -175,7 +237,7 @@ function studentQuiz(session, options) {
     currentQuestionId: session.quiz.currentQuestionId,
     startedAt: session.quiz.startedAt,
     revealedQuestionIds: Object.keys(revealed),
-    questions: session.quiz.questions.map(function (question) {
+    questions: quizQuestionsFor(session).map(function (question) {
       const answer = {
         id: question.id,
         prompt: question.prompt,
@@ -831,6 +893,7 @@ function toStudentDashboard(user, sessions) {
 
 module.exports = {
   readiness,
+  quizQuestionsFor,
   stripTrainerOnlyFields,
   stripStudentRestrictedFields,
   toStudentCurriculum,

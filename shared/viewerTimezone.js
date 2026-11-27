@@ -9,7 +9,8 @@
   var TOKEN_KEYS = [
     'mathify.student.token', 'mathify.trainer.token', 'mathify.parent.token',
     'mathify.rm.token', 'mathify.classroom.token.founder',
-    'mathify.classroom.token.relationship_manager'
+    'mathify.classroom.token.relationship_manager',
+    'mathify.planner.token', 'mathify.classroom.token.planner_agent'
   ];
 
   function valid(zone) {

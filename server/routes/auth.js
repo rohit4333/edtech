@@ -12,7 +12,9 @@ const router = express.Router();
 
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const LOGIN_LIMIT = 5;
-const LOGIN_ROLES = new Set(['student', 'trainer', 'founder', 'parent', 'relationship_manager']);
+const LOGIN_ROLES = new Set([
+  'student', 'trainer', 'founder', 'parent', 'relationship_manager', 'planner_agent'
+]);
 const loginAttempts = new Map();
 const registrationAttempts = new Map();
 
@@ -181,6 +183,7 @@ router.get('/demo', function (req, res) {
     accounts: [
       { role: 'founder' },
       { role: 'relationship_manager' },
+      { role: 'planner_agent' },
       { role: 'trainer' },
       { role: 'student' },
       /* Parent demo sign-in uses the same password; no contact detail is

@@ -550,6 +550,7 @@
   window.mathifyPlanner = {
     render: render,
     validate: validate,
+    buildPayload: buildPayload,
     buildStudentPayload: buildStudentPayload
   };
 

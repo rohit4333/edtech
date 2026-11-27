@@ -14,7 +14,8 @@
     trainer: ['mathify.trainer.token', 'mathify.classroom.token.trainer'],
     parent: ['mathify.parent.token'],
     relationship_manager: ['mathify.classroom.token.relationship_manager', 'mathify.rm.token'],
-    founder: ['mathify.classroom.token.founder']
+    founder: ['mathify.classroom.token.founder'],
+    planner_agent: ['mathify.planner.token', 'mathify.classroom.token.planner_agent']
   };
 
   function key(role) { return PREFIX + (role || 'student'); }

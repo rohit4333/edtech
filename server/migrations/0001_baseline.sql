@@ -36,7 +36,7 @@ create table if not exists public.users (
   title text,
   grade text,
   created_at timestamptz not null default now(),
-  constraint users_role_check check (role in ('founder', 'trainer', 'student')),
+  constraint users_role_check check (role in ('founder', 'trainer', 'student', 'relationship_manager', 'planner_agent')),
   constraint users_status_check check (status in ('active', 'suspended'))
 );
 
@@ -553,7 +553,7 @@ begin
     where conname = 'users_role_check' and conrelid = 'public.users'::regclass
   ) then
     alter table public.users add constraint users_role_check
-      check (role in ('founder', 'trainer', 'student'));
+      check (role in ('founder', 'trainer', 'student', 'relationship_manager', 'planner_agent'));
   end if;
   if not exists (
     select 1 from pg_constraint

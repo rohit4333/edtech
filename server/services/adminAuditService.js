@@ -14,7 +14,7 @@ const path = require('path');
 const LOG_FILE = path.join(__dirname, '..', 'logs', 'admin-actions.jsonl');
 const PUBLIC_PATH = 'server/logs/admin-actions.jsonl';
 const DETAIL_KEYS = [
-  'status', 'role', 'rate', 'amount', 'reason', 'batchId', 'trainerId',
+  'subject', 'status', 'role', 'rate', 'amount', 'reason', 'batchId', 'trainerId',
   'studentId', 'generated', 'generatedPasswordIssued', 'temporaryPasswordIssued',
   'locked', 'note'
 ];

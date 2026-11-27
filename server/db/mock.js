@@ -21,6 +21,11 @@ const users = [
   user('usr_founder_001', 'Rohit Vishwakarma', 'founder@mathify.app', 'founder', {
     title: 'Founder, Mathify'
   }),
+  /* Separate planner desk credential. Same LMS planner powers as the founder,
+     no people/payment/policy powers, and never an overwrite of founder work. */
+  user('usr_planner_001', 'Planner Agent', 'planner@mathify.app', 'planner_agent', {
+    title: 'LMS Planner Agent'
+  }),
   user('usr_rm_001', 'Meera Nair', 'rm@mathify.app', 'relationship_manager', {
     title: 'Relationship manager',
     monthlySalary: 35000,

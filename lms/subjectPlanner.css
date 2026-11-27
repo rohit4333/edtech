@@ -30,7 +30,10 @@
 body.lms-denied .page-head,
 body.lms-denied .library-toolbar,
 body.lms-denied .library-layout,
-body.lms-denied .sheet-layer{display:none !important}
+body.lms-denied .sheet-layer,
+body.lms-denied .wp-controls,
+body.lms-denied .wp-panel,
+body.lms-denied .wp-hero{display:none !important}
 
 @media print{
   .wp-subject-focus{border-left-color:var(--line);background:none}

@@ -5,6 +5,10 @@
    or grammar framing. Work is scoped to the session child; no contact, KYC,
    bank or private document data is read or sent. The server-selected subject
    is the only way this panel becomes visible.
+
+   Workspace fields follow the nested /api/english/work contract:
+   { reading:{title,text}, annotations, vocabulary:[], speaking:{prompt,
+   responses:[]}, writing:{draft,revisions:[]}, feedback }.
    ========================================================================== */
 (function () {
   'use strict';
@@ -13,33 +17,6 @@
   var noop = function () {};
 
   var DEFAULT_VOCAB = ['rainwater', 'supply', 'record', 'evidence', 'audience', 'concise'];
-  var QUIZ_BANK = [
-    {
-      id: 'eng_read_1',
-      q: 'What is the main idea of the garden passage?',
-      options: [
-        'A plan to collect and track rainwater for plants',
-        'A list of garden tools',
-        'A rule about school terms',
-        'A story about one rainy Friday'
-      ]
-    },
-    {
-      id: 'eng_listen_1',
-      q: 'A speaker says both tanks hold 90 litres. What should the group record next?',
-      options: [
-        'The litres used each week',
-        'The colour of the tanks',
-        'The name of the principal',
-        'The price of the roof'
-      ]
-    },
-    {
-      id: 'eng_vocab_1',
-      q: 'Which word describes a short explanation that stays on the main point?',
-      options: ['Concise', 'Silent', 'Random', 'Lengthy']
-    }
-  ];
 
   var state = {
     subject: 'math',
@@ -51,10 +28,14 @@
     loadAttempted: false,
     role: null,
     work: {
-      passageNotes: '',
-      writing: '',
-      speakingPrompt: '',
-      responses: []
+      reading: { title: '', text: '' },
+      annotations: '',
+      vocabulary: DEFAULT_VOCAB.slice(),
+      speaking: { prompt: '', responses: [] },
+      writing: { draft: '', revisions: [] },
+      feedback: '',
+      updatedAt: null,
+      updatedByRole: null
     },
     responses: [],
     revisions: [],
@@ -80,6 +61,15 @@
 
   function can(method) {
     return Boolean(state.client && typeof state.client[method] === 'function');
+  }
+
+  function currentRole() {
+    if (state.role) return String(state.role).toLowerCase();
+    return state.isTrainer ? 'trainer' : null;
+  }
+
+  function isTrainerRole(role) {
+    return role === 'trainer' || role === 'founder';
   }
 
   function setStatus(text, kind) {
@@ -111,42 +101,80 @@
     catch (error) { /* private mode: keep in memory */ }
   }
 
-  function normalizeResponses(value) {
-    if (Array.isArray(value)) return value.slice();
-    if (value && typeof value === 'object') {
-      return Object.keys(value).map(function (key) {
-        var item = value[key];
-        return {
-          name: key,
-          text: typeof item === 'string' ? item :
-            (item && (item.text || item.body || item.feedback) ?
-              String(item.text || item.body || item.feedback) : '')
-        };
-      });
-    }
-    return [];
+  function asString(value) {
+    return typeof value === 'string' ? value : '';
+  }
+
+  function stringList(value, limit) {
+    var max = limit || 8000;
+    var out = [];
+    if (!Array.isArray(value)) return out;
+    value.forEach(function (item) {
+      var text = typeof item === 'string' ? item :
+        (item && typeof item.text === 'string' ? item.text : '');
+      if (text.trim()) out.push(text.slice(0, max));
+    });
+    return out;
+  }
+
+  function unique(values) {
+    return values.filter(function (item, index) { return values.indexOf(item) === index; });
+  }
+
+  function normalizeWork(work) {
+    var src = work && typeof work === 'object' ? work : {};
+    var reading = src.reading && typeof src.reading === 'object' ? src.reading : {};
+    var speaking = src.speaking && typeof src.speaking === 'object' ? src.speaking : {};
+    var writing = src.writing && typeof src.writing === 'object' ? src.writing : {};
+    return {
+      reading: {
+        title: asString(reading.title),
+        text: asString(reading.text)
+      },
+      annotations: asString(src.annotations),
+      vocabulary: stringList(src.vocabulary, 120),
+      speaking: {
+        prompt: asString(speaking.prompt),
+        responses: stringList(speaking.responses)
+      },
+      writing: {
+        draft: asString(writing.draft),
+        revisions: stringList(writing.revisions)
+      },
+      feedback: asString(src.feedback),
+      updatedAt: src.updatedAt || null,
+      updatedByRole: src.updatedByRole || null
+    };
   }
 
   function applyWork(work) {
     if (!work || typeof work !== 'object') return false;
-    state.work.passageNotes = typeof work.passageNotes === 'string' ? work.passageNotes : '';
-    state.work.writing = typeof work.writing === 'string' ? work.writing : '';
-    if (typeof work.speakingPrompt === 'string' && work.speakingPrompt.trim()) {
-      state.work.speakingPrompt = work.speakingPrompt;
-    }
-    state.responses = normalizeResponses(work.responses);
-    state.work.responses = state.responses.slice();
+    state.work = normalizeWork(work);
+    state.responses = state.work.speaking.responses.slice();
+    state.revisions = state.work.writing.revisions.slice();
+    state.customVocab = state.work.vocabulary.filter(function (word) {
+      return DEFAULT_VOCAB.indexOf(word) < 0;
+    });
     paintFields();
     return true;
   }
 
+  function setValue(selector, value) {
+    var el = $(selector);
+    if (el && document.activeElement !== el && el.value !== value) el.value = value;
+  }
+
   function paintFields() {
-    var notes = $('#englishPassageNotes');
-    var writing = $('#englishWriting');
-    var prompt = $('#englishSpeakingPrompt');
-    if (notes && notes.value !== state.work.passageNotes) notes.value = state.work.passageNotes;
-    if (writing && writing.value !== state.work.writing) writing.value = state.work.writing;
-    if (prompt && prompt.value !== state.work.speakingPrompt) prompt.value = state.work.speakingPrompt;
+    var title = $('#englishPassageTitle');
+    var passage = $('#englishPassageText');
+    var view = $('#englishFeedbackView');
+    if (title) title.textContent = state.work.reading.title;
+    if (passage) passage.textContent = state.work.reading.text;
+    setValue('#englishPassageNotes', state.work.annotations);
+    setValue('#englishWriting', state.work.writing.draft);
+    setValue('#englishSpeakingPrompt', state.work.speaking.prompt);
+    setValue('#englishFeedback', state.work.feedback);
+    if (view) view.textContent = state.work.feedback || 'No trainer feedback yet.';
     paintResponses();
     paintRevisions();
     paintVocab();
@@ -156,8 +184,9 @@
     var chip = $('#englishRoleChip');
     if (!chip) return;
     var role = String(state.role || '').toLowerCase();
-    chip.textContent = role === 'trainer' || role === 'founder' || state.isTrainer
-      ? 'Trainer' : 'Student';
+    if (role === 'parent') chip.textContent = 'Parent · read only';
+    else if (isTrainerRole(role) || state.isTrainer) chip.textContent = 'Trainer';
+    else chip.textContent = 'Student';
   }
 
   function paintStrands(strands) {
@@ -179,8 +208,10 @@
       return;
     }
     state.client.getEnglishWork(state.sessionId).then(function (data) {
-      if (data && data.work) applyWork(data.work);
-      state.role = data && data.role ? data.role : null;
+      var envelope = data && typeof data === 'object' ? data : {};
+      var work = envelope.work && typeof envelope.work === 'object' ? envelope.work : null;
+      if (work) applyWork(work);
+      if (envelope.role) state.role = String(envelope.role).toLowerCase();
       paintRole();
       setStatus('Work loaded', 'ok');
     }).catch(function () {
@@ -189,33 +220,61 @@
     });
   }
 
+  /* Only fields the current role may write are sent: students own annotations,
+     writing.draft/revisions and speaking.responses; trainers and founders own
+     reading, vocabulary, speaking.prompt and feedback. */
   function collectWork() {
+    var role = currentRole();
     var notes = $('#englishPassageNotes');
     var writing = $('#englishWriting');
     var prompt = $('#englishSpeakingPrompt');
+    var feedback = $('#englishFeedback');
+    if (!isTrainerRole(role)) {
+      return {
+        annotations: notes ? notes.value : state.work.annotations,
+        writing: {
+          draft: writing ? writing.value : state.work.writing.draft,
+          revisions: state.revisions.slice()
+        },
+        speaking: {
+          responses: state.responses.slice()
+        }
+      };
+    }
     return {
-      passageNotes: notes ? notes.value : state.work.passageNotes,
-      writing: writing ? writing.value : state.work.writing,
-      speakingPrompt: prompt ? prompt.value : state.work.speakingPrompt,
-      responses: state.responses.slice()
+      reading: {
+        title: state.work.reading.title,
+        text: state.work.reading.text
+      },
+      vocabulary: state.work.vocabulary.slice(),
+      speaking: {
+        prompt: prompt ? prompt.value : state.work.speaking.prompt
+      },
+      feedback: feedback ? feedback.value : state.work.feedback
     };
   }
 
   function saveWork() {
+    if (currentRole() === 'parent') {
+      setStatus('Read-only for your role.', 'error');
+      return Promise.resolve(false);
+    }
     var work = collectWork();
-    state.work.passageNotes = work.passageNotes;
-    state.work.writing = work.writing;
-    state.work.speakingPrompt = work.speakingPrompt;
     if (!can('saveEnglishWork') || !state.sessionId) {
       setStatus('Save not linked yet · work stays in this browser.', 'error');
       return Promise.resolve(false);
     }
     return state.client.saveEnglishWork(state.sessionId, work).then(function (saved) {
-      state.dirty = false;
-      if (saved && typeof saved === 'object') {
-        state.role = saved.role || state.role;
-        applyWork(saved);
+      var envelope = saved && typeof saved === 'object' ? saved : null;
+      var persisted = envelope && envelope.work && typeof envelope.work === 'object'
+        ? envelope.work : null;
+      if (!persisted) {
+        setStatus('Save not acknowledged · work stays in this browser.', 'error');
+        return false;
       }
+      state.dirty = false;
+      if (envelope.role) state.role = String(envelope.role).toLowerCase();
+      applyWork(persisted);
       paintRole();
       setStatus('Work saved', 'ok');
       return true;
@@ -248,21 +307,18 @@
       var stamp = document.createElement('b');
       stamp.textContent = 'R' + Math.max(1, state.revisions.length - index);
       var text = document.createElement('span');
-      text.textContent = String(revision.text || '').slice(0, 90) || '(empty draft)';
-      var time = document.createElement('b');
-      time.textContent = revision.time || '';
+      text.textContent = String(revision || '').slice(0, 90) || '(empty draft)';
       var restore = document.createElement('button');
       restore.type = 'button';
       restore.className = 'mini';
       restore.textContent = 'Restore';
       restore.addEventListener('click', function () {
         var writing = $('#englishWriting');
-        if (writing) writing.value = revision.text || '';
+        if (writing) writing.value = revision || '';
         queueSave();
       });
       li.appendChild(stamp);
       li.appendChild(text);
-      li.appendChild(time);
       li.appendChild(restore);
       list.appendChild(li);
     });
@@ -270,17 +326,14 @@
 
   function addRevision() {
     var writing = $('#englishWriting');
-    var text = writing ? writing.value : state.work.writing;
-    var now = new Date();
-    state.revisions.push({
-      text: text,
-      at: now.toISOString(),
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    if (state.revisions.length > 30) state.revisions.shift();
+    var text = writing ? writing.value : state.work.writing.draft;
+    state.revisions.push(text);
+    if (state.revisions.length > 20) state.revisions.shift();
+    state.work.writing.revisions = state.revisions.slice();
     writeLocal('revisions', state.revisions);
     paintRevisions();
-    state.toast('Revision saved in this browser.');
+    queueSave();
+    state.toast('Revision queued for save.');
   }
 
   /* --------------------------------------------------------------- vocab */
@@ -288,22 +341,26 @@
     var hostEl = $('#englishVocabChips');
     if (!hostEl) return;
     hostEl.textContent = '';
-    DEFAULT_VOCAB.concat(state.customVocab).forEach(function (word) {
+    state.work.vocabulary.forEach(function (word) {
       var chip = document.createElement('span');
-      chip.className = 'english-chip' + (state.customVocab.indexOf(word) >= 0 ? ' is-custom' : '');
+      chip.className = 'english-chip' + (DEFAULT_VOCAB.indexOf(word) < 0 ? ' is-custom' : '');
       chip.textContent = word;
-      if (state.customVocab.indexOf(word) >= 0) {
-        var remove = document.createElement('button');
-        remove.type = 'button';
-        remove.setAttribute('aria-label', 'Remove ' + word);
-        remove.textContent = '×';
-        remove.addEventListener('click', function () {
-          state.customVocab = state.customVocab.filter(function (item) { return item !== word; });
-          writeLocal('vocab', state.customVocab);
-          paintVocab();
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', 'Remove ' + word);
+      remove.textContent = '×';
+      remove.addEventListener('click', function () {
+        state.work.vocabulary = state.work.vocabulary.filter(function (item) {
+          return item !== word;
         });
-        chip.appendChild(remove);
-      }
+        state.customVocab = state.work.vocabulary.filter(function (item) {
+          return DEFAULT_VOCAB.indexOf(item) < 0;
+        });
+        writeLocal('vocab', state.customVocab);
+        paintVocab();
+        queueSave();
+      });
+      chip.appendChild(remove);
       hostEl.appendChild(chip);
     });
   }
@@ -312,11 +369,19 @@
     var input = $('#englishVocabInput');
     var word = input ? input.value.trim().replace(/[<>\n]/g, '') : '';
     if (!word) return;
-    if (DEFAULT_VOCAB.indexOf(word) >= 0 || state.customVocab.indexOf(word) >= 0) return;
-    state.customVocab.push(word.slice(0, 32));
+    word = word.slice(0, 32);
+    if (state.work.vocabulary.indexOf(word) >= 0) return;
+    state.work.vocabulary.push(word);
+    state.customVocab = state.work.vocabulary.filter(function (item) {
+      return DEFAULT_VOCAB.indexOf(item) < 0;
+    });
     writeLocal('vocab', state.customVocab);
     if (input) input.value = '';
     paintVocab();
+    queueSave();
+    state.toast(isTrainerRole(currentRole())
+      ? 'Word added · save status shows the link.'
+      : 'Word added here · the word bank is trainer-managed.');
   }
 
   /* -------------------------------------------------------------- responses */
@@ -334,9 +399,9 @@
     state.responses.slice(-8).reverse().forEach(function (response) {
       var li = document.createElement('li');
       var who = document.createElement('b');
-      who.textContent = String(response.name || 'Note').slice(0, 18);
+      who.textContent = 'Note';
       var text = document.createElement('span');
-      text.textContent = String(response.text || '').slice(0, 100);
+      text.textContent = String(response || '').slice(0, 100);
       li.appendChild(who);
       li.appendChild(text);
       list.appendChild(li);
@@ -347,32 +412,26 @@
     var field = $('#englishResponse');
     var text = field ? field.value.trim() : '';
     if (!text) return;
-    state.responses.push({
-      name: state.isTrainer ? 'Trainer' : 'Student',
-      text: text,
-      at: new Date().toISOString()
-    });
-    state.work.responses = state.responses.slice();
+    state.responses.push(text);
+    if (state.responses.length > 20) state.responses.shift();
+    state.work.speaking.responses = state.responses.slice();
     if (field) field.value = '';
     paintResponses();
     queueSave();
   }
 
   function saveFeedback() {
+    if (!isTrainerRole(currentRole())) {
+      state.toast('Only trainers can save feedback.');
+      return;
+    }
     var field = $('#englishFeedback');
     var text = field ? field.value.trim() : '';
     if (!text) return;
-    state.responses = state.responses.filter(function (item) {
-      return String(item && item.name) !== 'Trainer feedback';
-    });
-    state.responses.push({
-      name: 'Trainer feedback',
-      text: text,
-      at: new Date().toISOString()
-    });
-    state.work.responses = state.responses.slice();
+    state.work.feedback = text;
+    paintFields();
     queueSave();
-    state.toast('Feedback added locally · save status shows the link.');
+    state.toast('Feedback queued for save.');
   }
 
   /* ------------------------------------------------------------------ timer */
@@ -420,30 +479,21 @@
     paintTimer();
   }
 
-  /* -------------------------------------------------------------- quiz bank */
-  function prepareQuizBank() {
-    readContext();
-    return QUIZ_BANK.map(function (question) {
-      return {
-        id: question.id,
-        q: question.q,
-        options: question.options.slice()
-      };
-    });
-  }
-
   /* ------------------------------------------------------------------- init */
   function attach() {
-    ['#englishPassageNotes', '#englishWriting', '#englishSpeakingPrompt'].forEach(function (sel) {
-      var field = $(sel);
+    [
+      { selector: '#englishPassageNotes', field: 'annotations' },
+      { selector: '#englishWriting', field: 'draft' },
+      { selector: '#englishSpeakingPrompt', field: 'prompt' },
+      { selector: '#englishFeedback', field: 'feedback' }
+    ].forEach(function (entry) {
+      var field = $(entry.selector);
       if (!field) return;
       field.addEventListener('input', function () {
-        state.work.passageNotes = $('#englishPassageNotes')
-          ? $('#englishPassageNotes').value : state.work.passageNotes;
-        state.work.writing = $('#englishWriting')
-          ? $('#englishWriting').value : state.work.writing;
-        state.work.speakingPrompt = $('#englishSpeakingPrompt')
-          ? $('#englishSpeakingPrompt').value : state.work.speakingPrompt;
+        if (entry.field === 'annotations') state.work.annotations = field.value;
+        else if (entry.field === 'draft') state.work.writing.draft = field.value;
+        else if (entry.field === 'prompt') state.work.speaking.prompt = field.value;
+        else state.work.feedback = field.value;
         queueSave();
       });
     });
@@ -470,6 +520,8 @@
     });
   }
 
+  /* Internal only: the subject controller drives this through the
+     mathify:subjectchange event, so no subject setter is exported. */
   function setSubject(value) {
     var raw = value && typeof value === 'object' ? value.subject : value;
     var key = String(raw || 'math').trim().toLowerCase();
@@ -478,11 +530,15 @@
     if (!state.booted) {
       state.booted = true;
       readContext();
-      state.revisions = readLocal('revisions');
-      state.customVocab = readLocal('vocab');
+      state.revisions = stringList(readLocal('revisions'));
+      state.customVocab = stringList(readLocal('vocab'), 32);
+      state.work.writing.revisions = state.revisions.slice();
+      state.work.speaking.responses = state.responses.slice();
+      state.work.vocabulary = unique(DEFAULT_VOCAB.concat(state.customVocab));
       var promptField = $('#englishSpeakingPrompt');
-      if (promptField) state.work.speakingPrompt = promptField.value;
+      if (promptField) state.work.speaking.prompt = promptField.value;
       attach();
+      paintFields();
       paintTimer();
       paintRole();
     }
@@ -493,8 +549,6 @@
   }
 
   window.classroomEnglish = {
-    setSubject: setSubject,
-    prepareQuizBank: prepareQuizBank,
     saveWork: saveWork
   };
   setSubject(host().subject && typeof host().subject === 'function' ? host().subject() : null);

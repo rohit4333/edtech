@@ -17,6 +17,7 @@ plan.
 | `0008_payment_idempotency.sql` | Adds service-only Razorpay payment/order-credit relations and unique payment/order-credit indexes for exactly-once crediting; no anon/authenticated Data API grants. |
 | `0009_recordings_storage.sql` | Creates the private `recordings` Storage bucket, a security-definer boolean helper and one `SELECT` policy on `storage.objects`. Objects are named `<session-uuid>/<filename>`; only that session's student, trainer or an `app_metadata` founder can read. No anon policy or table grants; writes stay service-role-only. |
 | `0010_weekly_planner_cache.sql` | Documents the service-only `mathify_records` collections for immutable weekly planners: `weekly_planner_cache`, `weekly_planner_archive` and `weekly_planner_pointer`. Generated JSON is never overwritten; regeneration archives the prior version and moves the active pointer. No anon/authenticated Data API grants. |
+| `0011_planner_agent.sql` | Adds the staff-only `planner_agent` role to the normalized `users` role check where that relation exists. Documents the service-only `planner_agent_suggestion` collection in `public.mathify_records`: the agent proposes changes to founder-authored plans but cannot replace them. Live auth reads the record store, not the browser table; no anon/authenticated Data API grants. |
 
 ## Review before applying
 
@@ -62,5 +63,7 @@ v4.0.0 dry-run context [U+2026-11-26]: `node server/migrate.js --dry-run` return
 omitting `0008`) was fixed by the v3.1.0 documentation pass and is recorded, not
 re-applied. [src: E2E_TEST_LOG.md:78]; [src: TPFF_BLOCKERS.md:15,32]
 
-**No live migration has been applied.** Review the SQL above before setting the
-confirmation variable.
+**No runner-based live migration has been applied.** `0010` and the new `0011`
+remain review-only after the recorded `0009` MCP application. Review the SQL
+above, including the planner-agent role check and suggestion collection in
+`0011`, before setting the confirmation variable.

@@ -71,7 +71,7 @@
           <span class="live" id="liveTag"><i aria-hidden="true"></i><span id="liveWord">Live</span></span>
           <b>1:1 · Class 6 Mathematics</b>
         </div>
-        <span class="lesson-sub">Ratios · Lesson 15 <span aria-hidden="true">·</span> <span data-student-name>Student</span></span>
+        <span class="lesson-sub"><span id="lessonSubject">Ratios · Lesson 15</span> <span aria-hidden="true">·</span> <span data-student-name>Student</span></span>
       </div>
     </div>
     <div class="top-r">
@@ -96,7 +96,7 @@
           <div class="bh-l">
             <span class="board-tag"><svg class="icon" aria-hidden="true"><use href="#i-pen"/></svg>Board</span>
             <h1>Ratio bar models</h1>
-            <span class="board-sub">Lesson 15</span>
+            <span class="board-sub" id="boardSub">Lesson 15</span>
           </div>
           <div class="bh-r">
             <button class="subject-return" id="subjectWorkspaceBtn" type="button" data-subject-view="workspace" hidden>Open workspace</button>
@@ -412,9 +412,8 @@
           <section class="english-read" aria-label="Reading passage and notes">
             <header><span class="mono">Reading passage</span><span class="english-strands" id="englishStrands"></span></header>
             <div class="english-passage" id="englishPassage">
-              <h2>Plan a community garden</h2>
-              <p>A school group wants a garden that uses less tap water. They collect rainwater from the roof in two tanks and use it during dry weeks. Each tank holds 90 litres. The group checks the level every Friday and records how many litres the plants used that week.</p>
-              <p>Before the next term, the group must explain two things to the principal: how the water supply works, and what the group will do if both tanks run low. Read once for the main idea, then read again and mark the details that support your answer.</p>
+              <h2 id="englishPassageTitle"></h2>
+              <p id="englishPassageText"></p>
             </div>
             <label class="english-label" for="englishPassageNotes">Annotation notes</label>
             <textarea class="english-notes" id="englishPassageNotes" rows="4" placeholder="Mark the main idea, then note two supporting details."></textarea>
@@ -452,6 +451,10 @@
             <textarea id="englishResponse" rows="3" placeholder="Write what you said or heard, then note one thing to improve."></textarea>
             <button class="mini" id="englishResponseAdd" type="button">Add response</button>
             <ol id="englishResponseList" class="english-response-list"></ol>
+            <div class="english-trainer" id="englishFeedbackReadout">
+              <span class="mono">Trainer feedback</span>
+              <p id="englishFeedbackView"></p>
+            </div>
             <div class="english-trainer trainer-only" id="englishTrainerFeedback">
               <span class="mono">Trainer feedback</span>
               <textarea id="englishFeedback" rows="3" placeholder="Reading, writing, speaking, listening or vocabulary feedback."></textarea>
@@ -693,12 +696,12 @@
 
         <div class="block">
           <span class="block-label">What landed</span>
-          <div class="chips"><span>Bar models</span><span>Equivalent ratios</span><span>Unit labels</span></div>
+          <div class="chips" id="recapChips"><span>Bar models</span><span>Equivalent ratios</span><span>Unit labels</span></div>
         </div>
 
         <div class="block">
           <div class="block-top"><span class="block-label">Session log</span><span class="mono" id="recapSaved">Auto-saving</span></div>
-          <ol class="log">
+          <ol class="log" id="recapLog">
             <li><time>4:30</time><div><b>Session opened</b><span>Ishaan joined · 1:1 room</span></div></li>
             <li><time>4:38</time><div><b>Bar model marked complete</b><span>Split the ribbon into 8 parts</span></div></li>
             <li><time>4:46</time><div><b>Quiz ready</b><span>Level 2 · one question</span></div></li>
@@ -709,7 +712,7 @@
 
         <div class="flag">
           <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
-          <p><b>One follow-up</b><span>Ishaan missed 1 of the last 6 sessions. Assign a short practice set after this one.</span></p>
+          <p><b>One follow-up</b><span id="recapFollowup">Ishaan missed 1 of the last 6 sessions. Assign a short practice set after this one.</span></p>
           <button class="mini-btn" type="button" data-sheet="sheet-health">Open progress</button>
         </div>
       </div>
@@ -722,14 +725,14 @@
     <section class="sheet" id="sheet-planner" role="dialog" aria-modal="true" aria-labelledby="plannerTitle" hidden>
       <header class="sheet-head">
         <div>
-          <span class="sheet-eyebrow">Lesson 15 · Shared plan</span>
+          <span class="sheet-eyebrow" id="plannerEyebrow">Lesson 15 · Shared plan</span>
           <h2 id="plannerTitle">Today’s arc</h2>
         </div>
         <button class="sheet-x" type="button" data-close-sheet aria-label="Close planner"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
       </header>
       <div class="sheet-body">
         <div class="planner-top">
-          <div><span class="mono">Objective</span><p>Use bar models to solve ratio problems when one part is known.</p></div>
+          <div><span class="mono">Objective</span><p id="plannerObjective">Use bar models to solve ratio problems when one part is known.</p></div>
           <span class="plan-total">47 min</span>
         </div>
 
@@ -761,7 +764,7 @@
           </li>
         </ol>
 
-        <p class="plan-note"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg>Pace is 4 minutes behind plan. The extra bar-model example is worth it — trim the quiz to one question.</p>
+        <p class="plan-note"><svg class="icon" aria-hidden="true"><use href="#i-spark"/></svg><span id="planNoteText">Pace is 4 minutes behind plan. The extra bar-model example is worth it — trim the quiz to one question.</span></p>
       </div>
       <footer class="sheet-foot">
         <a class="btn btn-light btn-sm" href="../lms/index.html">Open full plan</a>
@@ -783,7 +786,7 @@
           <span class="delta">+3 this week</span>
         </div>
 
-        <div class="bars">
+        <div class="bars" id="healthBars">
           <div class="bar-row"><span>Equivalent ratios</span><div class="bar-track"><i style="width:82%"></i></div><b class="num">82</b></div>
           <div class="bar-row"><span>Bar models</span><div class="bar-track"><i style="width:74%"></i></div><b class="num">74</b></div>
           <div class="bar-row is-low"><span>Unit rates</span><div class="bar-track"><i style="width:58%"></i></div><b class="num">58</b></div>
@@ -793,7 +796,7 @@
           <div class="watch-head"><span class="block-label">Next focus</span><span class="mono">1 topic</span></div>
           <div class="person">
             <span class="av">IV</span>
-            <div><b>Unit rates</b><span>Slowest bar · assign 6 questions before the next session</span></div>
+            <div><b id="healthFocus">Unit rates</b><span id="healthFocusNote">Slowest bar · assign 6 questions before the next session</span></div>
             <a class="mini-btn" href="../lms/index.html?practice=1">Assign</a>
           </div>
         </div>
@@ -1044,6 +1047,7 @@
 <script src="livekit.js"></script>
 <script src="networkCheck.js"></script>
 <script src="engagement.js"></script>
+<script src="subjectCopy.js"></script>
 <script src="app.js"></script>
 <script src="realtime.js"></script>
 <script src="session.js"></script>

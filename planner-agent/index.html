@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Planner agent desk</title>
+<meta name="description" content="Mathify planner agent desk: design academic planners across every subject and file alternate ideas for founder review.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../lms/planner.css">
+<link rel="stylesheet" href="../lms/subjectPlanner.css">
+<link rel="stylesheet" href="plannerAgent.css">
+</head>
+<body data-role="planner_agent">
+
+<button class="skip" type="button" data-skip="main">Skip to content</button>
+
+<header class="topbar">
+  <a class="brand" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
+  <span class="crumb mono">Planner agent · curriculum design desk</span>
+  <div class="top-actions">
+    <a class="top-link" href="../apps.html">All surfaces ↗</a>
+    <button class="avatar avatar-btn" id="profileBtn" aria-label="Planner agent — open profile" aria-expanded="false">PA</button>
+    <div class="top-popover" id="profilePanel" hidden>
+      <span class="mono" id="profileName">Planner agent</span>
+      <p>Academic design · founder review only</p>
+      <button type="button" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail" aria-label="Planner desk sections">
+    <p class="rail-title mono">Planner desk</p>
+    <nav class="nav" aria-label="Planner sections">
+      <button class="active" type="button" data-nav data-target="workspace" aria-current="page">Designer</button>
+      <button type="button" data-nav data-target="ideas">Alternate ideas</button>
+    </nav>
+    <div class="rail-note">
+      <span class="mono">Design boundary</span>
+      <p>Use the academic catalogue and planner endpoints only. Founder-created plans stay untouched; an alternate idea waits for founder review.</p>
+    </div>
+    <a class="rail-back" href="../apps.html">Back to surfaces</a>
+  </aside>
+
+  <main class="page" id="main">
+    <section class="intro" id="workspace" aria-labelledby="agentTitle">
+      <p class="eyebrow">Planner agent · academic-only design</p>
+      <h1 id="agentTitle">Design the week. Let the founder approve it<em>.</em></h1>
+      <p class="lede">Choose any subject, registered board and grade. Work from the generated planner, keep trainer guidance out of student copy, and file an alternate idea whenever a founder-authored plan needs a change.</p>
+
+      <div class="immutable-banner" role="alert">
+        <strong>Founder-created planners are immutable on this desk.</strong>
+        <p>Direct edit and regenerate are disabled for founder-authored plans. Your proposal becomes a review suggestion; only the founder can accept or reject it.</p>
+      </div>
+
+      <p class="status" id="agentStatus" role="status" aria-live="polite">Opening your planner desk…</p>
+
+      <section class="workspace-card" aria-labelledby="agentWorkspaceTitle">
+        <p class="mono">01 · Academic selection</p>
+        <h2 id="agentWorkspaceTitle">Subject, curriculum and grade</h2>
+        <div class="wp-panel">
+          <div class="wp-panel-head">
+            <div>
+              <span class="mono">Auto planner · registered board and grade</span>
+              <h3>A ready week for the selected field.</h3>
+              <p>Every subject stays selectable here. The planner designer below keeps trainer notes separate from student-facing copy.</p>
+            </div>
+          </div>
+          <div class="wp-controls">
+            <label class="field">
+              <span>Subject</span>
+              <select id="autoSubject" name="subject" required>
+                <option value="math" selected>Mathematics</option>
+                <option value="coding">Coding</option>
+                <option value="english">English Communication</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Curriculum</span>
+              <select id="autoCurriculum" name="curriculum" required>
+                <option value="">Select a curriculum</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Grade</span>
+              <select id="autoGrade" name="grade" required>
+                <option value="">Choose a curriculum first</option>
+              </select>
+            </label>
+            <button class="btn btn-coral btn-sm" type="button" id="autoPlannerLoad">Load planner</button>
+          </div>
+          <p class="wp-status" id="autoPlannerStatus" role="status" aria-live="polite"></p>
+          <div id="autoPlannerView" aria-live="polite"></div>
+        </div>
+
+        <div class="designer" aria-labelledby="agentDesignerTitle">
+          <p class="mono">02 · Lesson designer</p>
+          <h2 id="agentDesignerTitle">Planner draft</h2>
+          <p class="lede">This draft is validated before it can be used as a proposed planner. Trainer-only guidance is never copied into the student view.</p>
+          <div id="plannerSheetContent"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="idea-section" id="ideas" aria-labelledby="ideasTitle">
+      <div class="card-head">
+        <div>
+          <span class="mono">03 · Review queue</span>
+          <h2 id="ideasTitle">Your alternate ideas</h2>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" id="ideaRefresh">Refresh queue</button>
+      </div>
+      <p class="status" id="ideaStatus" role="status" aria-live="polite">Loading your ideas…</p>
+      <div class="idea-list" id="ideaQueue" aria-live="polite"></div>
+    </section>
+
+    <footer class="foot">
+      <span class="c">Curriculum design · © 2026 Mathify</span>
+    </footer>
+  </main>
+</div>
+
+<script src="../shared/sessionKeepalive.js"></script>
+<script src="../shared/viewerTimezone.js"></script>
+<script src="../lms/access.js"></script>
+<script src="../shared/curriculumOptions.js"></script>
+<script src="../lms/api.js"></script>
+<script src="../lms/subjectPlanner.js"></script>
+<script src="../lms/planner.js"></script>
+<script src="../lms/autoPlanner.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

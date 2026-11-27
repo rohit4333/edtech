@@ -33,6 +33,9 @@
     syncing: false,
     errorNotified: Object.create(null),
     saveTimer: null,
+    ideRefetchQueued: false,
+    preserveOnRefetch: false,
+    loadGeneration: 0,
     ide: {
       code: '',
       language: 'javascript',
@@ -240,11 +243,16 @@
     var currentVersion = Number(state.ide.version) || 0;
     if (Number.isFinite(incomingVersion) && incomingVersion < currentVersion) return false;
 
-    /* An empty initial server draft must not wipe a starter challenge that
-       has already been painted into the editor. */
-    var preserveInitial = settings.initial === true && typeof next.code === 'string' &&
-      !next.code.trim() && String(state.ide.code || '').trim().length > 0;
-    var takeCode = typeof next.code === 'string' && !preserveInitial &&
+    /* An empty initial server draft, or an untouched version-0 draft, must
+       not wipe a starter challenge already painted into the editor. A pending
+       local edit is never dropped by a refetch either. */
+    var localDraft = String(state.ide.code || '').trim().length > 0;
+    var preserveInitial = settings.initial === true && localDraft && (
+      (typeof next.code === 'string' && !next.code.trim()) ||
+      (incomingVersion === 0 && Boolean(state.challenge && state.challenge.starterCode))
+    );
+    var preserveCode = settings.preserveCode === true && state.dirty;
+    var takeCode = typeof next.code === 'string' && !preserveInitial && !preserveCode &&
       (settings.initial === true || !state.dirty || incomingVersion > currentVersion);
     state.ide = {
       code: takeCode ? next.code : state.ide.code,
@@ -264,20 +272,33 @@
   }
 
   function fetchIdeState(options) {
-    if (!can('getIdeState') || !state.sessionId || state.syncing) {
+    var settings = options || {};
+    if (!can('getIdeState') || !state.sessionId) {
       notifyOnce('ide', 'IDE not linked yet · changes stay in this browser.');
       return Promise.resolve(false);
     }
+    if (state.syncing) {
+      /* A GET is already in flight. Queue one follow-up instead of reporting
+         a false "not linked" error for a realtime signal. */
+      state.ideRefetchQueued = true;
+      if (settings.preserveCode === true || state.dirty) state.preserveOnRefetch = true;
+      return Promise.resolve(false);
+    }
     state.syncing = true;
+    function finish(result) {
+      state.syncing = false;
+      if (!state.ideRefetchQueued) return result;
+      state.ideRefetchQueued = false;
+      var preserve = settings.preserveCode === true || state.preserveOnRefetch === true;
+      state.preserveOnRefetch = false;
+      return fetchIdeState({ silent: true, preserveCode: preserve });
+    }
     return state.client.getIdeState(state.sessionId).then(function (ide) {
-      return applyIdeState(ide, options || {});
+      return applyIdeState(ide, settings);
     }).catch(function () {
       notifyOnce('ide', 'IDE not linked yet · changes stay in this browser.');
       return false;
-    }).then(function (result) {
-      state.syncing = false;
-      return result;
-    }, function (error) {
+    }).then(finish, function (error) {
       state.syncing = false;
       throw error;
     });
@@ -297,16 +318,36 @@
       consoleLine(NOT_LINKED + ' · code has not been run.');
       return;
     }
+    var generation = ++state.loadGeneration;
+    var challengeReady = Promise.resolve();
     if (can('getCodeChallenge')) {
-      state.client.getCodeChallenge(state.sessionId).then(applyChallenge).catch(challengeUnlinked);
+      challengeReady = state.client.getCodeChallenge(state.sessionId).then(function (challenge) {
+        if (generation !== state.loadGeneration || state.subject !== 'coding') return false;
+        return applyChallenge(challenge);
+      }).catch(challengeUnlinked);
     } else {
       challengeUnlinked();
     }
-    if (can('getIdeState')) fetchIdeState({ initial: true });
-    else notifyOnce('ide', 'IDE not linked yet · changes stay in this browser.');
+    /* Resolve the challenge first, then fetch the IDE draft. A racing IDE
+       response must not overwrite a starter draft before it is painted. */
+    challengeReady.then(function () {
+      if (generation !== state.loadGeneration || state.subject !== 'coding') return false;
+      if (can('getIdeState')) {
+        return fetchIdeState({ initial: true, preserveCode: state.dirty });
+      }
+      notifyOnce('ide', 'IDE not linked yet · changes stay in this browser.');
+      return false;
+    }).catch(noop);
   }
 
   /* ------------------------------------------------------------------- save */
+  function clearPendingSave() {
+    if (state.saveTimer !== null) {
+      clearTimeout(state.saveTimer);
+      state.saveTimer = null;
+    }
+  }
+
   function saveIde(patch, options) {
     var settings = options || {};
     if (!can('saveIdeState') || !state.sessionId) {
@@ -314,24 +355,49 @@
       if (settings.control) setControlStatus('Save not linked yet · editor state unchanged.');
       return Promise.resolve(false);
     }
-    var body = Object.assign({
-      code: state.ide.code,
-      locked: state.ide.locked
-    }, patch || {});
-    if (typeof body.ownerId === 'undefined' && state.viewerId) body.ownerId = state.viewerId;
-    if (typeof body.ownerId !== 'undefined') body.ownerId = safeOwner(body.ownerId) || null;
+    var body = Object.assign({}, patch || {});
+    if (settings.control) {
+      /* Lock and hand-over are the only requests allowed to carry control
+         fields. A pending keystroke autosave is cancelled, not sent as code. */
+      clearPendingSave();
+      delete body.code;
+      delete body.expectedVersion;
+      if (body.ownerId !== undefined && body.ownerId !== null) {
+        body.ownerId = safeOwner(body.ownerId);
+      }
+    } else {
+      /* An autosave is exactly {code, expectedVersion}: no lock field and no
+         owner id, so a student request cannot be rejected as trainer-only. */
+      delete body.locked;
+      delete body.ownerId;
+      if (typeof body.code !== 'string') body.code = state.ide.code;
+      body.expectedVersion = Number(state.ide.version) || 0;
+    }
 
     return state.client.saveIdeState(state.sessionId, body).then(function (ide) {
+      if (!ide || typeof ide !== 'object') {
+        setStatus('Save not linked yet · changes stay in this browser.', 'error');
+        if (settings.control) setControlStatus('Editor control not linked yet · state unchanged.');
+        return false;
+      }
+      applyIdeState(ide, { silent: settings.control !== true });
       state.dirty = false;
-      applyIdeState(ide || body, { silent: settings.control !== true });
       if (settings.control) {
         setControlStatus(settings.success || 'Editor state updated.');
       } else {
         setStatus('IDE synced' + (state.ide.version ? ' · v' + state.ide.version : ''), 'ok');
       }
       return true;
-    }).catch(function () {
-      state.dirty = false;
+    }).catch(function (error) {
+      var conflict = Boolean(error && (error.status === 409 || error.code === 'IDE_VERSION_CONFLICT'));
+      if (conflict) {
+        /* Keep the draft, advance the base version with a refetch, and never
+           claim that the save succeeded. */
+        setStatus('IDE changed elsewhere · your edits are still pending.', 'error');
+        if (settings.control) setControlStatus('IDE changed elsewhere · try again.');
+        fetchIdeState({ silent: true, preserveCode: true });
+        return false;
+      }
       setStatus('Save not linked yet · changes stay in this browser.', 'error');
       if (settings.control) setControlStatus('Editor control not linked yet · state unchanged.');
       return false;
@@ -341,11 +407,12 @@
   function queueSave() {
     if (!canEdit()) return;
     state.dirty = true;
-    clearTimeout(state.saveTimer);
+    clearPendingSave();
     state.saveTimer = setTimeout(function () {
+      state.saveTimer = null;
       var field = editor();
       if (field) state.ide.code = field.value;
-      saveIde({ code: state.ide.code });
+      saveIde({ code: state.ide.code, expectedVersion: Number(state.ide.version) || 0 });
     }, 900);
   }
 
@@ -433,6 +500,10 @@
         return;
       }
     }
+    if (!testList.length) {
+      setControlStatus('Add at least one hidden check before creating a challenge.');
+      return;
+    }
     if (!can('createCodeChallenge') || !state.sessionId) {
       setControlStatus('Challenge creation not linked yet · no challenge was created.');
       return;
@@ -452,8 +523,12 @@
       if (tests) tests.value = '';
       setControlStatus('Challenge ready. Hidden tests stayed on the server.');
       state.toast('Challenge created · hidden tests were not shared.');
-    }).catch(function () {
-      setControlStatus('Challenge creation not linked yet · no challenge was created.');
+    }).catch(function (error) {
+      if (error && (error.code === 'TEST_REQUIRED' || error.code === 'INVALID_TEST')) {
+        setControlStatus('Add at least one hidden check before creating a challenge.');
+      } else {
+        setControlStatus('Challenge creation not linked yet · no challenge was created.');
+      }
     }).then(function () {
       if (button) button.disabled = false;
     });
@@ -493,7 +568,6 @@
       ? host().subject() : null;
     if (!info || info.subject !== 'coding') return false;
     readContext();
-    setSubject(info);
     var stage = $('#codingStage');
     var board = $('.board');
     if (board) board.hidden = true;
@@ -596,11 +670,18 @@
       realtime.onIdeState(function (payload) {
         if (state.subject !== 'coding') return;
         if (!payload || typeof payload !== 'object') return;
+        if (state.syncing) {
+          /* A GET is in flight: queue one refetch rather than painting a stale
+             signal or claiming the IDE is not linked. */
+          state.ideRefetchQueued = true;
+          if (state.dirty) state.preserveOnRefetch = true;
+          return;
+        }
         if (typeof payload.code === 'string') {
-          applyIdeState(payload, { fromEvent: true });
+          applyIdeState(payload, { fromEvent: true, preserveCode: state.dirty });
         } else {
           /* The event is a signal only; full code comes from the scoped GET. */
-          fetchIdeState({ silent: true });
+          fetchIdeState({ silent: true, preserveCode: state.dirty });
         }
       });
     }
@@ -612,7 +693,12 @@
   function setSubject(value) {
     var raw = value && typeof value === 'object' ? value.subject : value;
     var key = String(raw || 'math').trim().toLowerCase();
-    state.subject = key === 'coding' ? 'coding' : (key === 'english' ? 'english' : 'math');
+    var next = key === 'coding' ? 'coding' : (key === 'english' ? 'english' : 'math');
+    if (next !== state.subject) {
+      clearPendingSave();
+      state.loadGeneration += 1;
+    }
+    state.subject = next;
     if (state.subject !== 'coding') {
       setQuizMode(false);
       return state.subject;
@@ -634,8 +720,9 @@
     return state.subject;
   }
 
+  /* Subject is never set by a public caller: it only comes from the server
+     state delivered through the subjectchange listener. */
   window.classroomCoding = {
-    setSubject: setSubject,
     launchQuizChallenge: launchQuizChallenge,
     exitQuizChallenge: exitQuizChallenge,
     applyIdeState: applyIdeState,

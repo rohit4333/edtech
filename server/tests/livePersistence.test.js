@@ -81,7 +81,7 @@ async function main() {
 
   /* Migration ships the service-only tables and safe participant policy. */
   const migrations = migrate.discover();
-  check(migrations.length === 9, 'nine reviewed migrations are discovered');
+  check(migrations.length === 10, 'ten reviewed migrations are discovered');
   const live = migrations.find(function (migration) {
     return migration.name === '0003_live_persistence.sql';
   });
@@ -205,10 +205,10 @@ async function main() {
     'normalized schema is committed alongside the adapter');
 
   const sql = migrate.buildSql(migrations);
-  check((sql.match(/do \$mathify\$ begin/g) || []).length === 9,
-    'all nine migrations are wrapped in checked transactions');
-  check((sql.match(/Migration checksum changed/g) || []).length === 9,
-    'all nine migrations carry checksum drift guards');
+  check((sql.match(/do \$mathify\$ begin/g) || []).length === 10,
+    'all ten migrations are wrapped in checked transactions');
+  check((sql.match(/Migration checksum changed/g) || []).length === 10,
+    'all ten migrations carry checksum drift guards');
   const kycMigration = migrations.find(function (migration) {
     return migration.name === '0006_trainer_onboarding_batches.sql';
   });
@@ -248,6 +248,16 @@ async function main() {
     paymentIdempotency.sql.indexOf('grant all on public.mathify_razorpay_payments to service_role') !== -1 &&
     paymentIdempotency.sql.indexOf('grant all on public.mathify_razorpay_order_credits to service_role') !== -1,
   'payment idempotency tables stay service-role-only');
+  const plannerAgent = migrations.find(function (migration) {
+    return migration.name === '0011_planner_agent.sql';
+  });
+  check(Boolean(plannerAgent), 'planner agent migration is present');
+  check(plannerAgent && plannerAgent.sql.indexOf(
+    "check (role in ('founder', 'trainer', 'student', 'relationship_manager', 'planner_agent'))"
+  ) !== -1, 'planner_agent is allowed by the normalized users role check');
+  check(plannerAgent && plannerAgent.sql.indexOf('planner_agent_suggestion') !== -1 &&
+    plannerAgent.sql.indexOf('public.mathify_records') !== -1,
+  'planner suggestions are documented as service-only mathify records');
 
   console.log('livePersistence: ' + assertions + ' assertions passed');
 }

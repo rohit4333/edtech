@@ -342,6 +342,9 @@
       return request('/code/sessions/' + encodeURIComponent(sessionId) + '/ide')
         .then(function (data) { return data && data.ide; });
     },
+    /* Autosaves send {code, expectedVersion}; trainer controls send
+       {locked, ownerId}. A mismatched expectedVersion rejects with 409 and
+       IDE_VERSION_CONFLICT, carrying the current ide for a safe refetch. */
     saveIdeState: function (sessionId, patch) {
       var body = Object.assign({}, patch || {});
       return request('/code/sessions/' + encodeURIComponent(sessionId) + '/ide', {
@@ -353,12 +356,16 @@
        Body fields are safe work artifacts only: no contact or private docs. */
     getEnglishWork: function (sessionId) {
       return request('/english/work?sessionId=' + encodeURIComponent(sessionId))
-        .then(function (data) { return data && data.work; });
+        .then(function (data) {
+          return { work: data && data.work, role: data && data.role };
+        });
     },
     saveEnglishWork: function (sessionId, work) {
       var body = Object.assign({}, work || {}, { sessionId: sessionId });
       return request('/english/work', { method: 'POST', body: body })
-        .then(function (data) { return data && data.work; });
+        .then(function (data) {
+          return { work: data && data.work, role: data && data.role };
+        });
     }
   };
 })();

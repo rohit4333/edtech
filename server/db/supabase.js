@@ -342,6 +342,9 @@ async function insertSession(input) {
     studentId: row.student_id,
     title: row.title,
     status: row.status,
+    /* The academic course is fixed when the slot is created, so a later change
+       to the family's dashboard subject cannot rewrite a booked class. */
+    subject: mirroredSubject(input),
     /* Agora channels are server-derived and unique per session so live-created
        sessions can issue tokens and attribute webhooks to exactly one pair. */
     rtc: {
@@ -363,7 +366,12 @@ async function insertSession(input) {
     pages: []
   });
 
-  return row;
+  return Object.assign({}, row, { subject: mirroredSubject(input) });
+}
+
+function mirroredSubject(input) {
+  return input && (input.subject === 'coding' || input.subject === 'english')
+    ? input.subject : 'math';
 }
 
 /* ---------------------------------------------------------------- attendance */

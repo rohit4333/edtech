@@ -36,6 +36,12 @@
       demoEmail: 'rm@mathify.app',
       tokenKeys: ['mathify.classroom.token.relationship_manager', 'mathify.rm.token']
     },
+    planner_agent: {
+      label: 'Planner agent desk',
+      destination: 'planner-agent/index.html',
+      demoEmail: 'planner@mathify.app',
+      tokenKeys: ['mathify.planner.token', 'mathify.classroom.token.planner_agent']
+    },
     parent: {
       label: 'Parent app',
       demoEmail: 'student@mathify.app',
@@ -52,7 +58,7 @@
     if (typeof value !== 'string' || !value) return null;
     if (value.indexOf('//') !== -1 || value.indexOf('\\') !== -1 || value.indexOf(':') !== -1) return null;
     var clean = value.replace(/^\/+/, '');
-    if (/^(student|trainer|founder|parent|rm|classroom|lms)\/[\w\-./?=&%]*$/.test(clean)) return clean;
+    if (/^(student|trainer|founder|parent|rm|classroom|lms|planner-agent)\/[\w\-./?=&%]*$/.test(clean)) return clean;
     if (clean === 'apps.html' || clean === 'index.html') return clean;
     return null;
   }
@@ -62,8 +68,10 @@
   function requestedRole() {
     var fromParam = String(params.get('role') || '').toLowerCase();
     if (fromParam === 'rm') fromParam = 'relationship_manager';
+    if (fromParam === 'planner-agent') fromParam = 'planner_agent';
     if (ROLES[fromParam]) return fromParam;
     var prefix = next ? next.split('/')[0] : '';
+    if (prefix === 'planner-agent') prefix = 'planner_agent';
     return ROLES[prefix] ? prefix : 'student';
   }
 

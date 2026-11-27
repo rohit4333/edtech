@@ -70,10 +70,18 @@
     return result;
   }
 
-  function subjectFromDashboard(dashboard) {
+  /* The batch/session field outranks the profile field: a child can be moved
+     between subjects without the profile catching up. Session state is the next
+     best server-owned hint when the dashboard has no active session subject. */
+  function subjectFromDashboard(dashboard, sessionState) {
     var student = dashboard && dashboard.student;
     var next = dashboard && dashboard.nextSession;
-    return normalize((student && student.subject) || (next && next.subject) || 'math');
+    return normalize(
+      (next && next.subject) ||
+      (sessionState && sessionState.subject) ||
+      (student && student.subject) ||
+      'math'
+    );
   }
 
   function subjectFromSessionState(state) {
@@ -96,10 +104,7 @@
   function mountIdentity(dashboard, sessionState) {
     var strip = document.getElementById('subjectStrip');
     if (!strip) return;
-    var subject = subjectFromDashboard(dashboard);
-    if (sessionState && sessionState.subject && !(dashboard && dashboard.student && dashboard.student.subject)) {
-      subject = subjectFromSessionState(sessionState) || subject;
-    }
+    var subject = subjectFromDashboard(dashboard, sessionState);
     strip.setAttribute('data-subject', subject.key);
     setText(document.getElementById('subjectBadge'), subject.label);
     setText(document.getElementById('subjectWorkspace'), subject.workspace);
@@ -164,9 +169,12 @@
       (work.speaking && work.speaking.prompt) || work.speakingPrompt || work.prompt,
       'Speak for one minute about what you read.'
     ));
-    if (typeof work.draft === 'string' && refs.editor) {
-      refs.editor.value = work.draft;
-      englishDraft = work.draft;
+    var returnedDraft = work.writing && typeof work.writing.draft === 'string'
+      ? work.writing.draft
+      : (typeof work.draft === 'string' ? work.draft : null);
+    if (returnedDraft !== null && refs.editor) {
+      refs.editor.value = returnedDraft;
+      englishDraft = returnedDraft;
     }
 
     if (refs.vocab) {
@@ -354,8 +362,21 @@
           return;
         }
         setText(refs.status, 'Saving draft…');
-        api.saveEnglishWork(sessionId, refs.editor ? refs.editor.value : '').then(function () {
-          setText(refs.status, 'Your draft was accepted.');
+        var submitted = refs.editor ? refs.editor.value : '';
+        api.saveEnglishWork(sessionId, submitted).then(function (data) {
+          var work = data && typeof data === 'object' ? data.work : null;
+          var saved = work && work.writing && typeof work.writing.draft === 'string'
+            ? work.writing.draft
+            : null;
+          /* Only the server's stored draft counts as a save. A bare success
+             response means the class did not record the text at all. */
+          if (saved === null) {
+            setText(refs.status, 'The class did not return a saved draft — your text is still on this page.');
+            return;
+          }
+          englishDraft = saved;
+          if (refs.editor && refs.editor.value !== saved) refs.editor.value = saved;
+          setText(refs.status, 'Draft saved' + (saved === submitted ? '.' : ' — the class kept its own copy.'));
         }).catch(function () {
           setText(refs.status, 'Draft could not be sent yet — it is still on this page.');
         });
@@ -371,10 +392,7 @@
     var host = document.getElementById('subjectPanels');
     if (!host) return;
 
-    var subject = subjectFromDashboard(dashboard);
-    if (sessionState && sessionState.subject && !(dashboard && dashboard.student && dashboard.student.subject)) {
-      subject = subjectFromSessionState(sessionState) || subject;
-    }
+    var subject = subjectFromDashboard(dashboard, sessionState);
     if (subject.key === 'math') {
       host.hidden = true;
       host.textContent = '';

@@ -7,6 +7,7 @@
  * loaded, so the 45-file test suite never spends a live provider key. */
 
 const config = require('../config');
+const subjectCatalog = require('./subjectCatalog');
 
 const PROVIDER_KEYS = config.FREELM_PROVIDER_KEYS;
 
@@ -77,9 +78,13 @@ function mockFeedback(input) {
   };
 }
 
-function systemPrompt() {
+function systemPrompt(subject) {
+  const view = subjectCatalog.publicView(subject || 'math');
+  const role = view.subject === 'math'
+    ? 'a private maths tutor for school students'
+    : 'a private ' + view.label + ' tutor for school students';
   return [
-    'You are Mathify, a private maths tutor for school students.',
+    'You are Mathify, ' + role + '.',
     'Return ONLY a JSON object with keys: verdict, headline, detail, hint, nextStep.',
     'Use short, kind, age-appropriate language. Never ask for or repeat a name,',
     'phone number, email, social profile, school, session id or trainer note.',
@@ -103,7 +108,7 @@ function parseFeedback(text) {
 
 /* Returns a safe feedback envelope. Provider failures become a generic 503;
    raw provider text and error messages never reach the client. */
-async function generateFeedback(input) {
+async function generateFeedback(input, subject) {
   const clean = cleanInput(input);
   if (!liveMode() || !hasProviderKey()) return mockFeedback(clean);
 
@@ -112,7 +117,7 @@ async function generateFeedback(input) {
        Cloudflare. Only allowlisted lesson fields cross this boundary. */
     const providerOut = {};
     const raw = await require('./cloudflareAiService').generateAIResponse(
-      systemPrompt(),
+      systemPrompt(subject),
       JSON.stringify(clean),
       { jsonOnly: true, allowFallback: false, maxOutputTokens: 400, providerOut: providerOut }
     );
@@ -133,6 +138,12 @@ async function generateFeedback(input) {
 const TUTOR_SYSTEM_PROMPT =
   "You are a helpful edtech tutor providing brief, constructive feedback based on the student's practice session.";
 
+function tutorSystemPrompt(subject) {
+  const view = subjectCatalog.publicView(subject || 'math');
+  if (view.subject === 'math') return TUTOR_SYSTEM_PROMPT;
+  return "You are a helpful " + view.label + " tutor providing brief, constructive feedback based on the student's practice session.";
+}
+
 function sanitizeTranscript(value) {
   return String(value == null ? '' : value)
     .replace(/https?:\/\/\S+/gi, '')
@@ -145,7 +156,7 @@ function sanitizeTranscript(value) {
 
 /* Transcript variant used by /api/generate-feedback when the caller sends a
    practice-session transcript. Returns the plain provider text. */
-async function generateTranscriptFeedback(input) {
+async function generateTranscriptFeedback(input, subject) {
   const transcript = sanitizeTranscript(input && input.transcript);
   if (!transcript) {
     throw Object.assign(new Error('transcript is required.'), {
@@ -165,7 +176,7 @@ async function generateTranscriptFeedback(input) {
   try {
     const providerOut = {};
     const raw = await require('./cloudflareAiService').generateAIResponse(
-      TUTOR_SYSTEM_PROMPT,
+      tutorSystemPrompt(subject),
       transcript,
       { jsonOnly: false, allowFallback: false, maxOutputTokens: 300, providerOut: providerOut }
     );

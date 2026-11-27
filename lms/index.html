@@ -34,6 +34,34 @@
   }
   .preview-banner b{color:var(--ink);font-weight:600}
   .lms-popover a{display:inline-block;margin-top:10px;border-bottom:1px solid var(--coral)}
+  .wp-agent-tools{
+    margin-top:18px;padding:14px 16px;border:1px solid var(--line);
+    border-radius:var(--r-sm);background:var(--paper)
+  }
+  .wp-lock-banner{
+    padding:12px 14px;border:2px solid var(--coral-deep);border-left:6px solid var(--coral-deep);
+    border-radius:var(--r-xs);background:#FFF0E9
+  }
+  .wp-lock-banner strong{display:block;font-size:13px;color:var(--coral-deep)}
+  .wp-lock-banner p{margin:5px 0 0;font-size:11px;line-height:1.55;color:var(--ink)}
+  .wp-own-banner{
+    margin:0 0 10px;padding:9px 11px;border-left:3px solid var(--teal, #12968c);
+    background:var(--cream);font-size:11px;color:var(--muted)
+  }
+  .wp-agent-actions{display:flex;flex-wrap:wrap;gap:8px}
+  .wp-agent-actions button[disabled]{opacity:.5;cursor:not-allowed}
+  .wp-alternate-form{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;
+    margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)
+  }
+  .wp-alternate-label{display:block;font:500 9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .wp-alternate-note{
+    display:block;width:100%;margin-top:6px;padding:8px 10px;resize:vertical;
+    border:1px solid var(--line);border-radius:var(--r-xs);background:var(--paper);
+    font:400 11px/1.5 var(--sans);color:var(--ink)
+  }
+  .wp-alternate-form .btn{white-space:nowrap}
+  @media (max-width:720px){.wp-alternate-form{grid-template-columns:1fr}}
   [hidden]{display:none !important}
 </style>
 </head>
@@ -146,7 +174,7 @@
       <p class="preview-banner" role="status"><b>Curriculum preview.</b> The course library is partial: course, module, review and planner designer are usable; pack import and publish controls are not yet enabled.</p>
 
       <div class="lms-denied" id="lmsDenied" role="alert" hidden>
-        <h2>LMS access is founder/trainer only.</h2>
+        <h2>LMS access is founder, trainer and planner agent only.</h2>
         <p>Relationship managers cannot open courses, modules or planners. No LMS request was made for this account.</p>
       </div>
 
@@ -300,7 +328,7 @@
           <div>
             <span class="mono">Auto planner · registered board and grade</span>
             <h3 id="autoPlannerTitle">A ready week for the child.</h3>
-            <p>Choices come from the child's Mathify profile. Only a founder can edit or regenerate.</p>
+            <p>Choices come from the academic catalogue. Founders edit and regenerate; planner agents design and file alternate ideas for founder review.</p>
           </div>
         </div>
         <div class="wp-controls">

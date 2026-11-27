@@ -72,7 +72,7 @@ ok(appsHtml.indexOf('login.html?role=student') !== -1 &&
 });
 
 /* Every authenticated desk exposes a profile panel and an explicit logout. */
-['trainer', 'student', 'parent', 'founder', 'rm'].forEach(function (role) {
+['trainer', 'student', 'parent', 'founder', 'rm', 'planner-agent'].forEach(function (role) {
   const html = read(role + '/index.html');
   ok(html.indexOf('id="profileBtn"') !== -1 && html.indexOf('id="profilePanel"') !== -1,
     role + ' desk has a profile menu');
@@ -292,5 +292,21 @@ ok(rmScript.indexOf("request('/admin/people/' + encodeURIComponent(id) + '/passw
   'manager desk sends only a generated request to the scoped password route');
 ok(rmScript.indexOf('trainersNeedingAction') !== -1,
   'manager desk tracks trainers still awaiting manager action');
+
+/* The planner agent desk keeps the shared brand mark, a relative sign-out and
+   an explicit founder-review boundary, and its assets are statically served. */
+const plannerAgentHtml = read('planner-agent/index.html');
+const plannerAgentScript = read('planner-agent/app.js');
+ok(plannerAgentHtml.indexOf('Mathify<i>.</i>') !== -1 &&
+  plannerAgentHtml.indexOf('Mathify.') === -1,
+'planner agent desk uses the exact brand mark');
+ok(plannerAgentScript.indexOf("window.location.replace('../login.html')") !== -1 &&
+  plannerAgentScript.indexOf('mathify.planner.token') !== -1 &&
+  plannerAgentScript.indexOf('mathify.classroom.token.planner_agent') !== -1,
+'planner agent logout clears both agent tokens and returns to role sign-in');
+ok(plannerAgentHtml.indexOf('Founder-created planners are immutable') !== -1,
+'planner agent desk states the founder-review boundary');
+ok(appSource.indexOf("'planner-agent'") !== -1,
+'planner agent desk is on the reviewed static allowlist');
 
 console.log('navContract: ' + checks.length + ' assertions passed');

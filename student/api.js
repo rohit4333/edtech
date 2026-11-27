@@ -161,7 +161,7 @@
     saveEnglishWork: function (sessionId, draft) {
       return request('/english/work?sessionId=' + encodeURIComponent(sessionId), {
         method: 'POST',
-        body: { sessionId: sessionId, draft: draft }
+        body: { sessionId: sessionId, writing: { draft: draft } }
       });
     }
   };

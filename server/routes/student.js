@@ -41,7 +41,12 @@ router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
 router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req, res) {
   const body = req.body || {};
   const session = req.sessionRecord;
-  const question = session.quiz.questions.find(function (item) { return item.id === body.questionId; });
+  /* Resolve questions exactly as the session serializers do. An English
+     session with no stored quiz questions exposes a synthesized bank, so its
+     ids must be answerable here too; there is no math-bank lookup. */
+  const storedQuestions = Array.isArray(session.quiz.questions) ? session.quiz.questions : [];
+  const questions = serializers.quizQuestionsFor(session);
+  const question = questions.find(function (item) { return item.id === body.questionId; });
   const optionIndex = Number(body.optionIndex);
 
   if (!question || !Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= question.options.length) {
@@ -56,7 +61,13 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
       message: 'Feedback is pending, reteach is active, or the quiz is complete.'
     });
   }
-  if (session.quiz.currentQuestionId && question.id !== session.quiz.currentQuestionId) {
+  /* A synthesized English bank may inherit a stale math question pointer from
+     a legacy session. That pointer is not one of the exposed questions, so it
+     must not block a serialized bank id. Stored quizzes keep the strict check. */
+  const currentId = session.quiz.currentQuestionId;
+  const currentIsExposed = questions.some(function (item) { return item.id === currentId; });
+  const synthesizedQuiz = storedQuestions.length === 0 && questions.length > 0;
+  if (currentId && (currentIsExposed || !synthesizedQuiz) && question.id !== currentId) {
     return res.status(409).json({ error: 'WRONG_QUESTION', message: 'This is not the current question.' });
   }
   const alreadyAnswered = session.quiz.attempts.some(function (item) { return item.questionId === question.id; });

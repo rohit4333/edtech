@@ -43,7 +43,9 @@ function audit(req, action, targetType, targetId, targetName, detail) {
     });
   } catch (error) {
     console.error('Admin audit write failed:', error.message);
+    return false;
   }
+  return true;
 }
 
 router.get(
@@ -88,21 +90,27 @@ router.put(
   '/trainers/:trainerId/subject',
   auth.requireAuth,
   founderRole,
-  function (req, res) {
-    const trainer = db.findUserById(req.params.trainerId);
+  async function (req, res) {
+    const trainer = await db.findUserById(req.params.trainerId);
     if (!trainer || trainer.role !== 'trainer') {
       return res.status(404).json({ error: 'TRAINER_NOT_FOUND', message: 'Unknown trainer.' });
     }
     const subject = subjectCatalog.normalize((req.body || {}).subject);
-    const updated = db.updateUser(trainer.id, function (current) {
+    const updated = await db.updateUser(trainer.id, function (current) {
       return Object.assign({}, current, {
         subject: subject,
         subjectUpdatedAt: new Date().toISOString(),
         subjectUpdatedBy: req.user.id
       });
     });
-    audit(req, 'assign_trainer_field', 'trainer', trainer.id, trainer.name,
-      subjectCatalog.subjectLabel(subject));
+    const recorded = audit(req, 'assign_trainer_field', 'trainer', trainer.id, trainer.name,
+      { subject: subject });
+    if (!recorded) {
+      return res.status(500).json({
+        error: 'AUDIT_WRITE_FAILED',
+        message: 'The field assignment was saved but its audit could not be recorded.'
+      });
+    }
     return res.json({
       trainer: { id: trainer.id, name: updated.name, role: 'trainer' },
       subject: subjectCatalog.publicView(subject)

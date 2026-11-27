@@ -967,7 +967,13 @@
 
   function addLocalRecheckQuestion() {
     toast('AI check unavailable · using the local practice scaffold.');
-    var bankItem = recheckBank[quizState.recheckCount % recheckBank.length];
+    var bank = recheckBank;
+    var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
+    if (window.mathifySubjectCopy && typeof window.mathifySubjectCopy.recheckFor === 'function') {
+      var subjectBank = window.mathifySubjectCopy.recheckFor(info);
+      if (subjectBank.length) bank = subjectBank;
+    }
+    var bankItem = bank[quizState.recheckCount % bank.length];
     quizState.recheckCount += 1;
     installParallelQuestion(Object.assign({}, bankItem, {
       id: 'q_recheck_' + quizState.recheckCount,
@@ -1019,28 +1025,41 @@
   }
 
   /* Subject-specific practice stays inside the shared quiz launcher. Coding
-     uses the IDE/check endpoints; English uses reading/listening/vocabulary
-     prompts. Mathematics keeps the existing static bank as its fallback. */
+     practice lives in the IDE/check endpoints, so the shared quiz does not open
+     there. English uses the server-provided reading/communication questions —
+     there is no invented client bank whose id the server would reject. Maths
+     keeps the existing static bank. */
   function subjectQuizPreflight() {
     var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
-    if (!info || info.subject === 'math') return true;
+    if (!info || info.subject === 'math' || info.subject === 'english') return true;
     if (info.subject === 'coding') {
       if (window.classroomCoding && typeof window.classroomCoding.launchQuizChallenge === 'function') {
         window.classroomCoding.launchQuizChallenge();
       }
       return false;
     }
-    if (info.subject === 'english' && window.classroomEnglish &&
-        typeof window.classroomEnglish.prepareQuizBank === 'function') {
-      var bank = window.classroomEnglish.prepareQuizBank();
-      if (Array.isArray(bank) && bank.length) {
-        questions = bank;
-        baseQuestions = bank.map(function (question) {
-          return Object.assign({}, question, { options: question.options.slice() });
-        });
-      }
-    }
     return true;
+  }
+
+  /* Exactly one workspace owns the stage: the whiteboard for maths, the IDE for
+     coding, the communication workspace for English. A quiz temporarily hides
+     whichever one is active, and exit restores it from server-owned subject. */
+  function subjectStageVisibility() {
+    var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
+    var subject = info && info.subject;
+    var coding = document.getElementById('codingStage');
+    var english = document.getElementById('englishStage');
+    [coding, english].forEach(function (panel) {
+      if (!panel) return;
+      panel.hidden = subject !== (panel === coding ? 'coding' : 'english');
+      if (panel.hidden) panel.setAttribute('aria-hidden', 'true');
+      else panel.removeAttribute('aria-hidden');
+    });
+    if (board) {
+      board.hidden = subject !== 'math';
+      if (board.hidden) board.setAttribute('aria-hidden', 'true');
+      else board.removeAttribute('aria-hidden');
+    }
   }
 
   function launchQuiz() {
@@ -1056,8 +1075,14 @@
     requestAnimationFrame(fitStudentInk);
     if (board) {
       board.hidden = true;
-      if (studentView) board.setAttribute('aria-hidden', 'true');
+      board.setAttribute('aria-hidden', 'true');
     }
+    [document.getElementById('codingStage'), document.getElementById('englishStage')]
+      .forEach(function (panel) {
+        if (!panel) return;
+        panel.hidden = true;
+        panel.setAttribute('aria-hidden', 'true');
+      });
     quizStage.hidden = false;
 
     questions = baseQuestions.map(function (question) {
@@ -1097,11 +1122,12 @@
       realtimeLink = null;
     }
     if (studentInk) studentInk.hidden = true;
-    if (board) {
-      board.hidden = false;
-      board.removeAttribute('aria-hidden');
-    }
-    toast('Back to the board · quiz responses saved.');
+    subjectStageVisibility();
+    var backLabel = 'board';
+    var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
+    if (info && info.subject === 'coding') backLabel = 'editor';
+    else if (info && info.subject === 'english') backLabel = 'workspace';
+    toast('Back to the ' + backLabel + ' · quiz responses saved.');
   }
 
   quizLaunch && quizLaunch.addEventListener('click', launchQuiz);

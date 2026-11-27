@@ -779,6 +779,8 @@ function buildResponse(record, hit, source) {
       provider: record.provider,
       temperature: record.temperature,
       seed: record.seed,
+      createdByRole: record.createdByRole || (record.editedBy ? 'founder' : 'system'),
+      createdBy: record.createdBy || record.editedBy || null,
       hit: Boolean(hit),
       source: source
     }
@@ -846,6 +848,10 @@ async function getOrCreate(input, options) {
         promptVersion: PROMPT_VERSION,
         temperature: TEMPERATURE,
         seed: seed,
+        /* Authorship is display/audit metadata only. It never enters a cache
+           key, so the exact math key contract stays byte-for-byte unchanged. */
+        createdByRole: settings.createdByRole || 'system',
+        createdBy: settings.actorId || null,
         provider: providerOut.provider || 'unknown',
         model: providerOut.model || null,
         generatedAt: new Date().toISOString(),
@@ -873,6 +879,8 @@ async function getOrCreate(input, options) {
     promptVersion: PROMPT_VERSION,
     temperature: TEMPERATURE,
     seed: seed,
+    createdByRole: settings.createdByRole || 'system',
+    createdBy: settings.actorId || null,
     provider: 'deterministic-default',
     model: null,
     generatedAt: new Date().toISOString(),
@@ -910,21 +918,47 @@ async function movePointer(selection, version, cacheKey, actorId) {
   });
 }
 
-/* Founder-only regeneration: archive the active immutable record, generate a
-   new version and move the pointer. Trainers cannot reach this operation. */
-async function regenerate(input, actorId) {
+/* A planner agent may design and improve ordinary planners, but it must never
+   delete or replace a founder-authored one. For those, the agent files an
+   alternate idea and the founder decides. The check lives here, not only in a
+   route, so no future caller can bypass it. */
+async function assertAgentCanMutate(selection) {
+  const active = await activeRecord(selection);
+  if (active.authoredByRole === 'founder') {
+    throw fail(
+      'A founder-created planner cannot be replaced by the planner agent. ' +
+      'File an alternate idea for founder review instead.',
+      'FOUNDER_PLANNER_IMMUTABLE', 409
+    );
+  }
+}
+
+/* Authorised regeneration archives the active immutable record, generates a new
+   version and moves the pointer. Route gates decide who may call it; the agent
+   restriction above is additionally enforced here. */
+async function regenerate(input, actorId, options) {
+  const settings = options || {};
   const selection = resolveSelection(input);
+  if (settings.createdByRole === 'planner_agent') await assertAgentCanMutate(selection);
   const currentVersion = await archiveActive(selection, actorId);
   const nextVersion = currentVersion + 1;
-  const result = await getOrCreate(selection, { force: true, version: nextVersion });
+  const result = await getOrCreate(selection, {
+    force: true,
+    version: nextVersion,
+    createdByRole: settings.createdByRole || 'founder',
+    actorId: actorId || null
+  });
   await movePointer(selection, nextVersion, result.cache.cacheKey, actorId);
   return result;
 }
 
-/* Founder-only manual edit. The edit is a new immutable version, never an
-   in-place overwrite of the generated JSON. */
-async function editPlanner(input, actorId) {
+/* Manual edit. The edit is a new immutable version, never an in-place overwrite
+   of the generated JSON. A founder may always edit; a planner agent may only
+   edit planners that are not founder-authored. */
+async function editPlanner(input, actorId, options) {
+  const settings = options || {};
   const selection = resolveSelection(input);
+  if (settings.createdByRole === 'planner_agent') await assertAgentCanMutate(selection);
   const allowed = allowedStandards(selection);
   const checked = validatePlannerOutput(input.planner, selection, allowed);
   if (!checked.ok) {
@@ -946,9 +980,11 @@ async function editPlanner(input, actorId) {
     promptVersion: PROMPT_VERSION,
     temperature: TEMPERATURE,
     seed: seedFor(editedKey),
-    provider: 'founder-edit',
+    provider: settings.createdByRole === 'planner_agent' ? 'planner-agent-edit' : 'founder-edit',
     model: null,
     generatedAt: new Date().toISOString(),
+    createdByRole: settings.createdByRole || 'founder',
+    createdBy: actorId || null,
     editedAt: new Date().toISOString(),
     editedBy: actorId || null,
     planner: checked.planner
@@ -956,6 +992,29 @@ async function editPlanner(input, actorId) {
   const stored = await store(record);
   await movePointer(selection, nextVersion, stored.cacheKey, actorId);
   return buildResponse(stored, false, 'founder-edit');
+}
+
+/* Safe ownership view of the active plan. It carries no planner JSON, only the
+   facts a desk needs to decide whether a suggestion is required. */
+async function activeRecord(input) {
+  const selection = resolveSelection(input);
+  const version = await pointerVersion(selection);
+  const cacheKey = cacheKeyFor(
+    selection.curriculumSlug, selection.gradeSlug, version, selection.subject
+  );
+  const record = await db.findWeeklyPlannerCache(cacheKey);
+  return {
+    subject: selection.subject,
+    curriculumSlug: selection.curriculumSlug,
+    gradeSlug: selection.gradeSlug,
+    version: version,
+    cacheKey: cacheKey,
+    authoredByRole: record
+      ? (record.createdByRole || (record.editedBy ? 'founder' : 'system'))
+      : null,
+    authoredBy: record ? (record.createdBy || record.editedBy || null) : null,
+    generatedAt: record ? record.generatedAt || null : null
+  };
 }
 
 async function activeVersion(input) {
@@ -979,5 +1038,6 @@ module.exports = {
   getOrCreate: getOrCreate,
   regenerate: regenerate,
   editPlanner: editPlanner,
-  activeVersion: activeVersion
+  activeVersion: activeVersion,
+  activeRecord: activeRecord
 };

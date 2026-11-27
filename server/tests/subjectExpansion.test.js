@@ -96,6 +96,39 @@ async function main() {
     runner.STARTER.tests
   );
   equal(dynamic.passed, false, 'dynamic code generation is disabled');
+
+  /* A submission must never rewrite the grader's assertions, read hidden-test
+     values through console, or keep the API alive with a microtask chain. */
+  const assertOverride = runner.runChecks(
+    'globalThis.assert = { strictEqual: function () {}, ok: function () {} };' +
+    'function solution() { return 0; }',
+    [{ name: 'Adds', code: 'assert.strictEqual(solution(2, 3), 5);', hidden: true }]
+  );
+  equal(assertOverride.passed, false, 'overwriting assert cannot pass hidden checks');
+  const hiddenLog = runner.runChecks(
+    'function solution(a, b) { return a + b; }',
+    [{ name: 'Adds', code: 'console.log("SECRET", 5); assert.strictEqual(solution(2, 3), 5);' }]
+  );
+  equal(hiddenLog.passed, true, 'a valid solution still passes an isolated test');
+  equal(hiddenLog.output, '', 'hidden-test console output never crosses the boundary');
+  const microtaskStart = Date.now();
+  const microtask = runner.runChecks(
+    'async function loop() { while (true) { await null; } } loop();' +
+    'function solution(a, b) { return a + b; }', runner.STARTER.tests
+  );
+  equal(typeof microtask.passed, 'boolean', 'a microtask-loop submission returns a result');
+  ok(Date.now() - microtaskStart < 4000, 'a microtask loop is hard-killed, not left running');
+  let truncated = false;
+  try {
+    runner.runChecks('function solution() { return 1; }',
+      Array.from({ length: 13 }, function (_, index) {
+        return { name: 'check ' + index, code: 'assert.ok(true);' };
+      }));
+  } catch (error) {
+    truncated = error.code === 'TOO_MANY_TESTS' && error.status === 422;
+  }
+  ok(truncated, 'an over-limit test bank is rejected instead of silently truncated');
+
   const safeChallenge = JSON.stringify(runner.publicChallenge({
     id: 'chal_secret', sessionId: 'ses_math_001', title: 'Secret',
     prompt: 'Solve it', starterCode: '// start',
@@ -253,6 +286,16 @@ async function main() {
       undefined, trainer);
     equal(crossField.status, 403, 'trainer cannot open another field in the planner');
     equal(crossField.body.error, 'FORBIDDEN_SUBJECT', 'cross-field refusal is explicit');
+
+    /* AI is role/subject-scoped on every endpoint, not only the copilots. */
+    const rmFeedback = await request('POST', '/api/generate-feedback', {
+      concept: 'Ratios', question: 'Explain', level: '1'
+    }, rm);
+    equal(rmFeedback.status, 403, 'relationship manager cannot reach AI feedback');
+    const trainerFeedback = await request('POST', '/api/generate-feedback', {
+      concept: 'Ratios', question: 'Explain', level: '1', subject: 'english'
+    }, trainer);
+    equal(trainerFeedback.status, 403, 'trainer cannot cross fields in AI feedback');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

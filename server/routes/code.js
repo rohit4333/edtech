@@ -13,6 +13,7 @@ const rateLimit = require('../middleware/rateLimit');
 const db = require('../db');
 const realtime = require('../realtime');
 const runner = require('../services/codeRunnerService');
+const subjectCatalog = require('../services/subjectCatalog');
 
 const router = express.Router();
 const checkThrottle = rateLimit.createLimiter({ name: 'code-check', windowMs: 60000, max: 20 });
@@ -36,9 +37,22 @@ function reject(res, code, message, status) {
   return res.status(status || 403).json({ error: code, message: message });
 }
 
+/* The workspace follows the stored session, never a browser-supplied subject.
+   Legacy sessions with no stored subject remain compatible; only an explicit
+   different subject is refused. Access scoping is unchanged. */
+function subjectMismatch(res, session) {
+  const stored = session && session.subject;
+  if (stored === undefined || stored === null || stored === '') return null;
+  if (subjectCatalog.normalize(stored) === 'coding') return null;
+  return res.status(403).json({
+    error: 'SUBJECT_MISMATCH',
+    message: 'This session is not a coding session.'
+  });
+}
+
 async function challengeFor(req, challengeId, sessionId) {
   if (challengeId && challengeId !== runner.STARTER.id) {
-    const records = db.listRecords('coding_challenge');
+    const records = await db.listRecords('coding_challenge');
     const found = records.find(function (item) { return item.id === challengeId; });
     if (found && found.sessionId && !auth.canAccessSession(
       req.user, await db.findSession(found.sessionId)
@@ -62,6 +76,8 @@ router.post('/challenges', async function (req, res) {
   if (!session) {
     return reject(res, 'SESSION_NOT_FOUND', 'Unknown session or no access.', 404);
   }
+  const mismatch = subjectMismatch(res, session);
+  if (mismatch) return mismatch;
   let tests;
   try {
     tests = runner.normalizeTests(body.tests);
@@ -83,16 +99,21 @@ router.post('/challenges', async function (req, res) {
     createdByRole: req.user.role,
     createdAt: new Date().toISOString()
   };
-  db.putRecord('coding_challenge', sessionId, record);
+  await db.putRecord('coding_challenge', sessionId, record);
   return res.status(201).json({ challenge: runner.publicChallenge(record) });
 });
 
 router.get('/challenge', async function (req, res) {
   const sessionId = String((req.query && req.query.sessionId) || '').trim();
-  if (sessionId && !(await sessionFor(req, sessionId))) {
+  const session = sessionId ? await sessionFor(req, sessionId) : null;
+  if (sessionId && !session) {
     return reject(res, 'FORBIDDEN', 'You are not part of this session.');
   }
-  const record = sessionId ? db.getRecord('coding_challenge', sessionId) : null;
+  if (session) {
+    const mismatch = subjectMismatch(res, session);
+    if (mismatch) return mismatch;
+  }
+  const record = sessionId ? await db.getRecord('coding_challenge', sessionId) : null;
   return res.json({ challenge: runner.publicChallenge(record) });
 });
 
@@ -103,15 +124,25 @@ router.post('/check', checkThrottle, async function (req, res, next) {
     const body = req.body || {};
     const sessionId = String(body.sessionId || '').trim();
     const challengeId = String(body.challengeId || '').trim();
-    if (sessionId && !(await sessionFor(req, sessionId))) {
+    const session = sessionId ? await sessionFor(req, sessionId) : null;
+    if (sessionId && !session) {
       return reject(res, 'FORBIDDEN', 'You are not part of this session.');
+    }
+    if (session) {
+      const mismatch = subjectMismatch(res, session);
+      if (mismatch) return mismatch;
     }
     const challenge = await challengeFor(req, challengeId, sessionId);
     if (challengeId && challengeId !== runner.STARTER.id && !challenge) {
       return reject(res, 'CHALLENGE_NOT_FOUND', 'Unknown challenge.', 404);
     }
-    if (challenge && challenge.sessionId && !(await sessionFor(req, challenge.sessionId))) {
-      return reject(res, 'FORBIDDEN', 'You are not part of this session.');
+    if (challenge && challenge.sessionId) {
+      const challengeSession = await sessionFor(req, challenge.sessionId);
+      if (!challengeSession) {
+        return reject(res, 'FORBIDDEN', 'You are not part of this session.');
+      }
+      const mismatch = subjectMismatch(res, challengeSession);
+      if (mismatch) return mismatch;
     }
     const tests = challenge && Array.isArray(challenge.tests)
       ? challenge.tests : runner.STARTER.tests;
@@ -144,21 +175,27 @@ function emptyIde(sessionId) {
    an access rule: a trainer can always take it back and hand it over. */
 router.get('/sessions/:sessionId/ide', async function (req, res) {
   const sessionId = String(req.params.sessionId || '').trim();
-  if (!(await sessionFor(req, sessionId))) {
+  const session = await sessionFor(req, sessionId);
+  if (!session) {
     return reject(res, 'FORBIDDEN', 'You are not part of this session.');
   }
-  const stored = db.getRecord('coding_ide', sessionId);
+  const mismatch = subjectMismatch(res, session);
+  if (mismatch) return mismatch;
+  const stored = await db.getRecord('coding_ide', sessionId);
   return res.json({ ide: stored || emptyIde(sessionId) });
 });
 
 router.post('/sessions/:sessionId/ide', async function (req, res) {
   const sessionId = String(req.params.sessionId || '').trim();
-  if (!(await sessionFor(req, sessionId))) {
+  const session = await sessionFor(req, sessionId);
+  if (!session) {
     return reject(res, 'FORBIDDEN', 'You are not part of this session.');
   }
+  const mismatch = subjectMismatch(res, session);
+  if (mismatch) return mismatch;
   const staff = isStaff(req.user);
   const body = req.body || {};
-  const current = db.getRecord('coding_ide', sessionId) || emptyIde(sessionId);
+  const current = (await db.getRecord('coding_ide', sessionId)) || emptyIde(sessionId);
 
   if (!staff && current.locked && current.ownerId !== req.user.id) {
     return reject(res, 'IDE_LOCKED', 'Your trainer is editing. Wait for the hand-over.');
@@ -176,6 +213,16 @@ router.post('/sessions/:sessionId/ide', async function (req, res) {
       typeof body.ownerId !== 'string') {
     return reject(res, 'INVALID_OWNER', 'ownerId must be an id.', 422);
   }
+  /* Autosaves carry the version their draft was based on. A stale draft must
+     never overwrite a newer document: answer with the stored state and let the
+     client refetch instead of writing. */
+  if (body.expectedVersion !== undefined &&
+      Number(body.expectedVersion) !== Number(current.version || 0)) {
+    return res.status(409).json({
+      error: 'IDE_VERSION_CONFLICT',
+      ide: current
+    });
+  }
 
   const locked = body.locked === undefined ? Boolean(current.locked) : Boolean(body.locked);
   let ownerId = current.ownerId;
@@ -192,7 +239,7 @@ router.post('/sessions/:sessionId/ide', async function (req, res) {
     version: Number(current.version || 0) + 1,
     updatedAt: new Date().toISOString()
   };
-  db.putRecord('coding_ide', sessionId, ide);
+  await db.putRecord('coding_ide', sessionId, ide);
   /* The event carries the synchronized document state but no identity detail
      beyond an opaque owner id. */
   await realtime.publish(sessionId, 'ide.state.updated', {
