@@ -120,6 +120,16 @@ function canAccessSession(user, session) {
   return false;
 }
 
+/* Recordings are viewable by every signed-in operating role, but still scoped:
+   founder and relationship manager may review any class, while trainer,
+   student and parent remain limited to their own 1:1 sessions. This is a
+   read-only widening; start/stop controls stay trainer-only. */
+function canAccessRecording(user, session) {
+  if (!user || !session) return false;
+  if (user.role === 'founder' || user.role === 'relationship_manager') return true;
+  return canAccessSession(user, session);
+}
+
 /* Router-level middleware runs before Express populates route params, so the
    session id must also be readable from the URL when this is mounted with
    router.use('/:sessionId/...'). Route-level mounts still use req.params. */
@@ -158,5 +168,6 @@ module.exports = {
   requireAuth,
   requireRole,
   canAccessSession,
+  canAccessRecording,
   loadSession
 };

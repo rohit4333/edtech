@@ -397,6 +397,10 @@ async function findActiveRecording(sessionId) {
   }) || null;
 }
 
+function listRecordings() {
+  return listRecords('recordings');
+}
+
 /* ------------------------------------------------------------ packs/payment */
 
 function saveRazorpayOrder(order) {
@@ -873,6 +877,7 @@ module.exports = {
   saveRecording,
   findRecording,
   findActiveRecording,
+  listRecordings,
   saveRazorpayOrder,
   findRazorpayOrder,
   findRazorpayOrderByReceipt,

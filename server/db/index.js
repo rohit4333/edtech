@@ -155,6 +155,10 @@ function findActiveRecording(sessionId) {
   return found ? copy(found) : null;
 }
 
+function listRecordings() {
+  return copy(store.recordings);
+}
+
 function saveRazorpayOrder(order) {
   const index = store.razorpayOrders.findIndex(function (item) { return item.id === order.id; });
   if (index === -1) store.razorpayOrders.push(copy(order));
@@ -753,6 +757,7 @@ const mockApi = {
   saveRecording,
   findRecording,
   findActiveRecording,
+  listRecordings,
   saveRazorpayOrder,
   findRazorpayOrder,
   findRazorpayOrderByReceipt,

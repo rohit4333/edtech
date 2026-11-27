@@ -112,6 +112,16 @@ async function main() {
     await send(options, 'participant_joined', trainer);
     await send(options, 'participant_joined', trainer);
     await send(options, 'participant_left', trainer);
+    await send(options, 'egress_ended', 'simulator', {
+      egressInfo: {
+        egressId: 'EG_sim_' + options.session,
+        status: 'EGRESS_ENDED',
+        fileResults: [{
+          filename: options.session + '/mathify/simulated-recording.mp4',
+          location: 's3://private-bucket/' + options.session + '/mathify/simulated-recording.mp4'
+        }]
+      }
+    });
     await send(Object.assign({}, options, { tamper: true }), 'participant_joined', trainer);
     await send(Object.assign({}, options, { unsigned: true }), 'participant_joined', trainer);
     return;

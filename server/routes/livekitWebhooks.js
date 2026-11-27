@@ -11,6 +11,7 @@ const express = require('express');
 const db = require('../db');
 const realtime = require('../realtime');
 const logger = require('../services/logger');
+const egressService = require('../services/livekitEgressService');
 
 const router = express.Router();
 const ROOM_PREFIX = 'mathify-';
@@ -129,7 +130,18 @@ async function processEgress(session, event, at) {
     status: event.event,
     egressId: info.egressId ? String(info.egressId).slice(0, 160) : null
   }));
-  return { egressEvent: event.event };
+  let recording = null;
+  try {
+    recording = await egressService.reconcileEgress(
+      session.id, info, at, event.event);
+  } catch (error) {
+    logger.warn({ child: 'livekitWebhook', event: 'egress_reconcile_failed',
+      sessionId: session.id, message: error.message });
+  }
+  return {
+    egressEvent: event.event,
+    recordingStatus: recording ? recording.status : null
+  };
 }
 
 router.post('/', async function (req, res) {

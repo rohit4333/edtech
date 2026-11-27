@@ -27,13 +27,26 @@ function failure(code, message, status, cause) {
   return error;
 }
 
+/* LiveKit dashboards hand out a wss:// client URL. The server SDK needs the
+   matching HTTPS management endpoint; concatenating https:// in front of the
+   wss:// value produces an invalid host and a bare `fetch failed`. */
+function normalizeHost(value) {
+  const url = String(value || '').trim().replace(/\/+$/, '');
+  if (!url) return '';
+  if (/^wss:\/\//i.test(url)) return 'https://' + url.slice(6).replace(/\/+$/, '');
+  if (/^ws:\/\//i.test(url)) return 'http://' + url.slice(5).replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(url)) return url;
+  return 'https://' + url.replace(/\/+$/, '');
+}
+
 function livekitConfig() {
   const url = envValue('LIVEKIT_URL');
   const apiKey = envValue('LIVEKIT_API_KEY');
   const apiSecret = envValue('LIVEKIT_API_SECRET');
-  if (!url || !apiKey || !apiSecret) return null;
+  const host = normalizeHost(url);
+  if (!host || !apiKey || !apiSecret) return null;
   return {
-    host: /^https?:\/\//i.test(url) ? url : 'https://' + url,
+    host: host,
     apiKey: apiKey,
     apiSecret: apiSecret
   };
@@ -59,19 +72,24 @@ function configured() {
   return Boolean(livekitConfig() && storageConfig());
 }
 
-function client() {
+function sdkModule() {
   if (!sdkLoad) {
     try {
       const sdk = require('livekit-server-sdk');
-      if (!sdk || typeof sdk.EgressClient !== 'function') {
-        throw new Error('EgressClient is unavailable');
+      if (!sdk || typeof sdk.EgressClient !== 'function' ||
+          typeof sdk.RoomServiceClient !== 'function') {
+        throw new Error('LiveKit server SDK clients are unavailable');
       }
       sdkLoad = Promise.resolve(sdk);
     } catch (error) {
       sdkLoad = Promise.reject(error);
     }
   }
-  return sdkLoad.then(function (sdk) {
+  return sdkLoad;
+}
+
+function client() {
+  return sdkModule().then(function (sdk) {
     const credentials = livekitConfig();
     if (!credentials) {
       throw failure('RECORDING_NOT_CONFIGURED', 'LiveKit credentials are not configured.', 503);
@@ -80,6 +98,34 @@ function client() {
       credentials.host, credentials.apiKey, credentials.apiSecret
     );
   });
+}
+
+/* Egress requires an existing room. LiveKit normally creates it on first
+   join, but a trainer can start recording before anyone connects, so the
+   server creates the server-owned room idempotently first. */
+async function ensureRoom(roomName) {
+  const sdk = await sdkModule();
+  const credentials = livekitConfig();
+  if (!credentials) {
+    throw failure('RECORDING_NOT_CONFIGURED', 'LiveKit credentials are not configured.', 503);
+  }
+  const rooms = new sdk.RoomServiceClient(
+    credentials.host, credentials.apiKey, credentials.apiSecret
+  );
+  const existing = await rooms.listRooms([roomName]);
+  if (Array.isArray(existing) && existing.length) return;
+  try {
+    await rooms.createRoom({
+      name: roomName,
+      emptyTimeout: 300,
+      departureTimeout: 60,
+      maxParticipants: 10
+    });
+  } catch (error) {
+    if (!/already exists|already.*room/i.test(String((error && error.message) || ''))) {
+      throw error;
+    }
+  }
 }
 
 /* Storage RLS scopes reads to the first path segment being the session id
@@ -105,6 +151,14 @@ function safeInfo(info) {
     location: String((file && file.location) || ''),
     durationSeconds: Number((info && info.duration) || 0)
   };
+}
+
+/* EgressStatus: 3 = EGRESS_COMPLETE; 4/5/6 are failed/aborted/limit. A
+   reservation object key is not proof that a file was actually uploaded. */
+function producedFile(details) {
+  return Boolean(details && details.objectKey) &&
+    !/^(4|5|6|EGRESS_FAILED|EGRESS_ABORTED|EGRESS_LIMIT_REACHED)$/i
+      .test(String((details && details.status) || ''));
 }
 
 function baseRecord(sessionId, startedAt, key) {
@@ -151,8 +205,10 @@ async function startRecording(input) {
     output: { case: 's3', value: storage }
   };
 
-  /* Reserve the row before contacting LiveKit. A provider call that succeeds
-     after a DB failure would otherwise be an untracked, unstoppable egress. */
+  await ensureRoom(roomName);
+
+  /* Reserve the row after the room exists but before starting Egress. A
+     provider call that succeeds after a DB failure would be untracked. */
   let record = await db.saveRecording(baseRecord(sessionId, startedAt, key));
 
   try {
@@ -223,8 +279,10 @@ async function stopRecording(input) {
 
   const durationSeconds = details.durationSeconds ||
     Math.max(0, Math.round((Date.parse(stoppedAt) - Date.parse(existing.startedAt)) / 1000));
+  const ready = producedFile(details);
   const record = await db.saveRecording(Object.assign({}, existing, {
-    status: 'stopped',
+    status: ready ? 'stopped' : 'failed',
+    failureCode: ready ? null : 'EGRESS_NO_FILE',
     mode: 'livekit',
     provider: 'livekit-egress',
     stoppedAt: stoppedAt,
@@ -234,7 +292,7 @@ async function stopRecording(input) {
     url: null
   }));
 
-  if (existing.sessionId) {
+  if (ready && existing.sessionId) {
     await db.updateSession(existing.sessionId, function (session) {
       session.recording = {
         id: record.id,
@@ -249,11 +307,15 @@ async function stopRecording(input) {
     });
   }
 
-  await realtime.publish(existing.sessionId || existing.roomName, 'recording.stopped', {
-    recordingId: record.id,
-    stoppedAt: stoppedAt,
-    hasObjectKey: Boolean(record.objectKey)
-  });
+  await realtime.publish(existing.sessionId || existing.roomName,
+    ready ? 'recording.stopped' : 'recording.failed', {
+      recordingId: record.id,
+      stoppedAt: stoppedAt,
+      hasFile: ready
+    });
+  if (!ready) {
+    throw failure('RECORDING_NO_FILE', 'LiveKit did not produce a recording file.', 502);
+  }
   return record;
 }
 
@@ -265,10 +327,77 @@ async function stopSessionRecording(sessionId) {
   return stopRecording({ recordingId: active.id });
 }
 
+/* A verified LiveKit egress webhook is the source of truth for the final
+   object path. Reconcile it into the recording row and the session's viewer
+   record so every role can later request a short-lived signed link. */
+async function reconcileEgress(sessionId, info, at, eventName) {
+  const id = String(sessionId || '').trim();
+  if (!SESSION_PATTERN.test(id)) return null;
+
+  const details = safeInfo(info || {});
+  const egressId = details.egressId;
+  const finished = eventName === 'egress_ended' ||
+    /END(?:ED)?|COMPLETE/i.test(details.status);
+  const ready = producedFile(details);
+  const status = finished ? (ready ? 'stopped' : 'failed') : 'recording';
+
+  const rows = await Promise.resolve(db.listRecordings());
+  const candidates = rows.filter(function (row) { return row.sessionId === id; });
+  let existing = egressId
+    ? candidates.find(function (row) { return row.egressId === egressId; })
+    : null;
+  if (!existing) {
+    existing = candidates.find(function (row) { return row.status === 'recording'; });
+  }
+
+  const patch = {
+    egressId: egressId || (existing && existing.egressId) || '',
+    objectKey: details.objectKey ||
+      (finished && !ready ? null : (existing && existing.objectKey)) || null,
+    location: details.location || (existing && existing.location) || '',
+    status: status,
+    failureCode: finished && !ready ? 'EGRESS_NO_FILE' : null,
+    mode: 'livekit',
+    provider: 'livekit-egress',
+    durationSeconds: details.durationSeconds || (existing && existing.durationSeconds) || 0,
+    stoppedAt: finished ? (at || new Date().toISOString()) : null,
+    url: null
+  };
+  if (!existing && (!ready || !finished)) return null;
+
+  const record = await Promise.resolve(db.saveRecording(Object.assign(
+    existing || {
+      id: 'rec_' + crypto.randomUUID(),
+      sessionId: id,
+      roomName: 'mathify-' + id,
+      startedAt: at || new Date().toISOString()
+    },
+    patch
+  )));
+
+  if (finished && ready) {
+    await Promise.resolve(db.updateSession(id, function (session) {
+      session.recording = {
+        id: record.id,
+        sessionId: id,
+        objectKey: patch.objectKey,
+        status: 'stopped',
+        durationSeconds: patch.durationSeconds,
+        readyAt: patch.stoppedAt,
+        url: null
+      };
+      return session;
+    }));
+  }
+  return record;
+}
+
 module.exports = {
   configured,
+  normalizeHost,
   objectKey,
   startRecording,
   stopRecording,
-  stopSessionRecording
+  stopSessionRecording,
+  reconcileEgress
 };

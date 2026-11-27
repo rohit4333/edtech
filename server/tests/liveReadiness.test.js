@@ -106,7 +106,8 @@ async function main() {
 
   try {
     /* Never let a test notification reach a real Slack or email channel. */
-    ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'APP_ORIGIN', 'RESEND_API_KEY', 'RESEND_FROM']
+    ['SLACK_WEBHOOK_URL', 'ADMIN_EMAIL', 'APP_ORIGIN', 'CORS_ORIGIN',
+      'RESEND_API_KEY', 'RESEND_FROM']
       .forEach(function (key) { process.env[key] = ''; });
 
     /* Production must fail closed before any server starts. */

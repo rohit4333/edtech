@@ -52,7 +52,14 @@ function eventBody(event, sessionId, identity, id) {
     body.participant = { sid: 'PA_test', identity: identity, name: 'Untrusted display name' };
   }
   if (event.indexOf('egress_') === 0) {
-    body.egressInfo = { egressId: 'EG_test', status: 'EGRESS_STARTED' };
+    body.egressInfo = {
+      egressId: 'EG_test',
+      status: event === 'egress_ended' ? 'EGRESS_ENDED' : 'EGRESS_STARTED',
+      fileResults: event === 'egress_ended'
+        ? [{ filename: sessionId + '/mathify/webhook-recording.mp4',
+             location: 's3://private-bucket/' + sessionId + '/mathify/webhook-recording.mp4' }]
+        : []
+    };
   }
   return JSON.stringify(body);
 }
@@ -149,6 +156,38 @@ async function main() {
       'the session records the latest egress status');
     ok(db.findSession(sessionId).livekitEgress.egressId === 'EG_test',
       'the egress id is stored without a browser-supplied value');
+    equal(egress.body.recordingStatus, 'stopped',
+      'a finished egress reconciles the private recording row');
+    const ready = db.findSession(sessionId).recording;
+    ok(Boolean(ready && ready.objectKey === sessionId + '/mathify/webhook-recording.mp4'),
+      'the verified object key is stored for later signed-link requests');
+    equal(ready && ready.status, 'stopped',
+      'the session exposes the recording as ready to authorized viewers');
+
+    const abortId = 'ses_math_000';
+    await Promise.resolve(db.updateSession(abortId, function (session) {
+      delete session.recording;
+      return session;
+    }));
+    await Promise.resolve(db.saveRecording({
+      id: 'rec_abort_test', sessionId: abortId, roomName: 'mathify-' + abortId,
+      egressId: 'EG_abort', objectKey: abortId + '/mathify/reserved.mp4',
+      status: 'recording', startedAt: new Date().toISOString()
+    }));
+    const abortedBody = JSON.parse(eventBody('egress_ended', abortId, 'simulator', 'evt_egress_abort'));
+    abortedBody.egressInfo.egressId = 'EG_abort';
+    abortedBody.egressInfo.status = 'EGRESS_ABORTED';
+    abortedBody.egressInfo.fileResults = [];
+    const aborted = await post(JSON.stringify(abortedBody));
+    equal(aborted.body.recordingStatus, 'failed',
+      'an aborted egress is reconciled as failed, not ready');
+    const abortRecord = (await Promise.resolve(db.listRecordings())).find(function (row) {
+      return row.id === 'rec_abort_test';
+    });
+    equal(abortRecord && abortRecord.status, 'failed',
+      'a failed egress never leaves an active recording row');
+    equal(db.findSession(abortId).recording, undefined,
+      'an aborted egress never exposes a watchable session recording');
 
     console.log('livekitWebhooks: ' + checks + ' assertions passed');
   } finally {

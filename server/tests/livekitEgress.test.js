@@ -19,6 +19,12 @@ async function main() {
 
   try {
     assert.strictEqual(egress.configured(), false, 'egress is not configured without credentials');
+    assert.strictEqual(egress.normalizeHost('wss://room.example.livekit.cloud'),
+      'https://room.example.livekit.cloud',
+      'the LiveKit wss client URL becomes a valid HTTPS API host');
+    assert.strictEqual(egress.normalizeHost('https://room.example.livekit.cloud/'),
+      'https://room.example.livekit.cloud',
+      'a supplied HTTPS host is preserved without a trailing slash');
 
     const key = egress.objectKey('ses_math_001', '2026-11-27T10:20:30.000Z');
     assert.ok(key.indexOf('ses_math_001/') === 0,

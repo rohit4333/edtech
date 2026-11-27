@@ -90,6 +90,7 @@ $endpoint = Read-Visible 'S3 endpoint (https://<account>.r2.cloudflarestorage.co
 $bucket = Read-Visible 'Bucket name'
 $accessKey = Read-Hidden 'Access key ID (hidden)'
 $secretKey = Read-Hidden 'Secret access key (hidden)'
+$sessionToken = Read-Hidden 'Session token (press Enter if none, hidden)' $false
 $region = Read-Visible 'Region (use: auto)'
 $forcePath = Read-Visible 'Force path style (true for R2, false for AWS S3)'
 $publicOrigin = Read-Visible 'Public development URL (https://... or ngrok/cloudflared URL)'
@@ -100,6 +101,7 @@ Set-EnvValue $envPath 'LIVEKIT_EGRESS_ENDPOINT' $endpoint
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_BUCKET' $bucket
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_ACCESS_KEY' $accessKey
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_SECRET_KEY' $secretKey
+Set-EnvValue $envPath 'LIVEKIT_EGRESS_SESSION_TOKEN' $sessionToken
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_REGION' $region
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_FORCE_PATH_STYLE' $forcePath
 Set-EnvValue $envPath 'LIVEKIT_EGRESS_KEY_PREFIX' 'mathify'

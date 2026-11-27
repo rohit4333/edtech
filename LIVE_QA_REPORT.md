@@ -8,8 +8,8 @@ Scope: branch `feat/student-rtc-control-perfection`, baseline `6141357`. Evidenc
 
 ## Automated regression suite
 
-- `DATABASE_MODE=mock npm test` → `EXIT=0`, 46 suites including `liveReadiness: 90+ assertions passed`, `alternateAiProviders: 18 assertions passed`, `livekitEgress: fail-closed assertions passed`, `securityHardening: origin, limiter and private-path assertions passed`, `mcpServer: 55 checks`.
-- Evidence: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-test-final7.log` (earlier passes: `mathify-test-final4.log`, `mathify-test-final6.log`).
+- `DATABASE_MODE=mock npm test` → `EXIT=0`, 49 suites including `liveReadiness: 90+ assertions passed`, `alternateAiProviders: 18 assertions passed`, `livekitWebhooks: 26 assertions passed`, `reminderTimezone: 19 assertions passed`, `recordingAccess: 48 assertions passed`, `livekitEgress: fail-closed assertions passed`, `securityHardening: origin, limiter and private-path assertions passed`, `mcpServer: 55 checks`.
+- Evidence: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-test-final8.log` (earlier passes: `mathify-test-final4.log`, `mathify-test-final6.log`, `mathify-test-final7.log`).
 - Syntax check: 16 changed JavaScript/module files after the hardening pass, 0 failures.
 - `git diff --check`: exit 0 (CRLF normalisation warnings only).
 - `npm ci --dry-run --ignore-scripts`: root and server both exit 0. `npm audit --omit=dev --prefix server`: `found 0 vulnerabilities`. Lockfiles contain `freelm` at the root and `livekit-server-sdk`, `freelm`, `resend` in `server/`; `nodemailer` is absent from both. Root and root-lock engines now declare `node >=20` to match `freelm`.
@@ -62,14 +62,14 @@ Evidence files: `C:/Users/rohit/AppData/Local/Temp/opencode/mathify-live-qa-fina
 - 91 policies reference `auth.jwt()->'app_metadata'`; zero policies reference `user_metadata` or `raw_user_meta_data`.
 - No `anon` or `authenticated` table grants exist on the audit/storage tables checked (`mathify_records`, `mathify_session_events`, payment/payments, doubt/support logs, `recordings`, escalations, incidents).
 - Live QA practice batches: 4 rows, 2 topics, one student id, 10 questions each, ramps 1.00 and 1.15.
-- `recordings` row count is 0; no fake recording URL is asserted.
+- Live verification created recording rows while probing Egress; the successful start/stop demo egress aborted without a file and is not presented as a watchable recording.
 - Earlier two-sided record: `ses_math_001` has `trainer_ok=true`, `student_ok=true`, 40 Mbps and 35 Mbps download measurements.
 
 ## Deployment evidence and explicit gaps
 
 - `wrangler@3 deploy --dry-run --outdir ...` succeeded: **153.09 KiB / 39.64 KiB gzip**, with `nodejs_compat`, the `[ai]` binding and bundled `freelm`.
 - Live Worker deploy was attempted with the existing Cloudflare token and failed: **`No access to the specified resource`** on the Workers Scripts deployment endpoint. The deployed Worker therefore remains unchanged until a token with Workers Scripts edit permission is supplied. The local/Express path uses the same chain and is live-verified.
-- `LIVEKIT_EGRESS_BUCKET`, `LIVEKIT_EGRESS_ACCESS_KEY`, `LIVEKIT_EGRESS_SECRET_KEY` and `LIVEKIT_EGRESS_REGION` are unset. Recording routes and trainer buttons fail closed honestly; no recording is claimed.
+- LiveKit Egress storage is now configured in `server/.env` (verified by key name only). `LIVEKIT_URL` is a `wss://` client URL; the server now normalizes it to HTTPS before calling the LiveKit API. Recording start/stop reached LiveKit Cloud and returned a real egress id; the demo egress then aborted because the test room had no participant, so no class recording file is claimed yet.
 - `RESEND_API_KEY` and `RESEND_FROM` are unset. Email delivery is not claimed; password reset uses the clearly labelled non-production fallback only outside production.
 - Razorpay and Twilio credentials are unset; those integrations return explicit blocked errors.
 
@@ -79,7 +79,7 @@ TPFF wording `PATENT HOLDER • multiple RESEARCH PAPERS PUBLISHED`, the founder
 
 ## Class reminders, timezone and LiveKit webhooks
 
-- New automated coverage: `livekitWebhooks.test.js` (20 assertions) and `reminderTimezone.test.js` (19 assertions). `DATABASE_MODE=mock npm test` now runs **48 suites** with `EXIT=0`.
+- New automated coverage: `livekitWebhooks.test.js` (26 assertions), `reminderTimezone.test.js` (19 assertions) and `recordingAccess.test.js` (48 assertions). `DATABASE_MODE=mock npm test` now runs **49 suites** with `EXIT=0`.
 - Signed webhook proof: the simulator posts a real HS256 JWT with a `sha256` body checksum to `POST /api/webhooks/livekit`. Valid events are accepted, tampered and unsigned events are refused with `401 INVALID_SIGNATURE`, replayed `event.id` values are deduplicated, unknown rooms are ignored, and participant identity/role is rechecked against the session before a presence event is written.
 - Webhook presence feeds the verified trainer join state used by the T-2-minute “join now to avoid penalty” warning. A founder observer is never counted as a participant. Egress events update the session’s recording status without a browser-supplied room or egress id.
 - Local simulator command: `npm run webhook:test -- --scenario full`. Temporary LiveKit Cloud URL shape: `https://<tunnel-or-domain>/api/webhooks/livekit`. The `wss://` LiveKit media URL is never used as a webhook URL.
@@ -89,4 +89,8 @@ TPFF wording `PATENT HOLDER • multiple RESEARCH PAPERS PUBLISHED`, the founder
 - Safe credential entry: `npm run egress:setup` launches `server/scripts/setup-livekit-egress-env.ps1`, which prompts for S3/R2 settings with hidden access keys and writes quoted values into `server/.env` without printing them. `LIVEKIT_CATALOGUE_URL` and `LIVEKIT_WAREHOUSE_NAME` are stored only for reference; Mathify does not consume them.
 - Temporary public development tunnel: `https://respondents-estimates-assess-hindu.trycloudflare.com` → `http://127.0.0.1:4000`. LiveKit dashboard webhook URL: `https://respondents-estimates-assess-hindu.trycloudflare.com/api/webhooks/livekit`. This URL is temporary and changes when the quick tunnel is restarted.
 - Live public webhook probe: tunneled `/api/health` HTTP 200 with `database=supabase`; unsigned POST to `/api/webhooks/livekit` HTTP 401; locally signed LiveKit-style POST through the same public URL HTTP 200 with `role=trainer`, `kind=agora_join`, mapped to `ses_math_001`. No secret or raw payload was printed.
-- Recording success is **still not claimed**: the live v7 URL shape is ready, but the S3/R2 values must be entered locally before `/api/livekit/recording/start` can return a real egress id instead of `503 RECORDING_NOT_CONFIGURED`.
+- Recording access is role-scoped but available to every operating role: founder and relationship manager may review any class; trainer, student and parent are limited to their own 1:1 session. `GET /api/recordings` lists available recordings; `GET /api/recordings/:sessionId/url` mints a short-lived S3 SigV4 GET link (10 minutes default, 1 hour cap). No permanent URL, bucket name in a browser payload, or secret key is returned.
+- Live role probe: founder, RM, trainer, student and parent each received HTTP 200 signed links with `secret_absent=true`; an unrelated student received HTTP 403 `FORBIDDEN`; an anonymous request received HTTP 401. Links were SigV4-signed with `X-Amz-Signature` and a 600-second expiry.
+- Presign verification: a temporary canary object was PUT to the private R2 bucket, downloaded through `recordingAccessService.signedUrl()` (HTTP 200, exact body match) and DELETEd (HTTP 204). This proves the signature, path and expiry contract; it is not presented as a class recording.
+- Verified `egress_ended` webhooks with `fileResults` write the object key, mark the recording `stopped`, and expose it through the role-scoped link endpoint. An aborted egress with no file is marked `failed` and never becomes watchable.
+- A real class recording file still requires a participant in the LiveKit room for the full egress duration. The demo room was empty, so LiveKit aborted the egress and no MP4 is claimed.
