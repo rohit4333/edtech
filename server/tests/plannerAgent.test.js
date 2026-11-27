@@ -1,16 +1,23 @@
 /* Planner Agent desk contract.
  *
- * The agent has its own credential and can design every LMS field, but it must
- * never delete or replace founder work. Founder-created planners are immutable
- * to it: the agent files an alternate idea that only the founder may accept or
- * reject. Every idea stays in the service-only record store and no cache write
- * or pointer move happens until the founder decides. */
+ * Founder rule: agent authoring is paused. The agent can read the catalogue
+ * and any already-generated planner, but every mutation route is founder-only
+ * and the service itself refuses a direct propose call. No child scope, founder
+ * decision or planner write is available to the agent credential.
+ */
 
 const assert = require('assert');
 const app = require('../app');
+const db = require('../db');
+const mock = require('../db/mock');
 const planner = require('../services/weeklyPlannerService');
+const plannerAgent = require('../services/plannerAgentService');
+const ai = require('../services/cloudflareAiService');
 
+const originalGenerate = ai.generateAIResponse;
 let checks = 0;
+let generationCalls = 0;
+
 function equal(actual, expected, label) {
   assert.strictEqual(actual, expected, label);
   checks += 1;
@@ -19,8 +26,22 @@ function ok(value, label) {
   assert.strictEqual(Boolean(value), true, label);
   checks += 1;
 }
+function resetPlannerState() {
+  mock.weeklyPlannerCache.length = 0;
+  mock.weeklyPlannerArchive.length = 0;
+  mock.weeklyPlannerPointers.length = 0;
+  generationCalls = 0;
+  ai.generateAIResponse = async function () {
+    generationCalls += 1;
+    const chosen = planner.resolveSelection({
+      subject: 'coding', curriculum: 'cbse', grade: 'class-7', topic: 'Loops'
+    });
+    return planner.buildFallback(chosen, planner.allowedStandards(chosen));
+  };
+}
 
 async function main() {
+  resetPlannerState();
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () { resolve(instance); });
   });
@@ -37,7 +58,7 @@ async function main() {
       const text = await response.text();
       let payload;
       try { payload = JSON.parse(text); } catch (error) { payload = text; }
-      return { status: response.status, body: payload };
+      return { status: response.status, body: payload, text: text };
     });
   }
 
@@ -55,40 +76,17 @@ async function main() {
     equal(agentLogin.body.user.role, 'planner_agent', 'the token carries the agent role');
     const agent = agentLogin.body.token;
     const founder = (await login('founder@mathify.app')).body.token;
+    const trainer = (await login('trainer@mathify.app')).body.token;
 
     const catalog = await request('GET', '/api/lms/curriculum-catalog', undefined, agent);
     equal(catalog.status, 200, 'the agent can open the LMS catalogue');
     equal(catalog.body.subjectCount, 3, 'the agent sees every field');
+    ok(catalog.body.count >= 60, 'the catalogue count comes from the server');
 
     const selectionInput = {
       subject: 'coding', curriculum: 'cbse', grade: 'class-7', topic: 'Loops'
     };
     const query = '?subject=coding&curriculum=cbse&grade=class-7&topic=Loops';
-    const first = await request('GET', '/api/lms/planner' + query, undefined, agent);
-    equal(first.status, 200, 'the agent can open any subject planner');
-    equal(first.body.selection.subject, 'coding', 'the selection keeps its subject');
-    equal(first.body.cache.subject, 'coding', 'the cache record keeps its subject');
-
-    const selection = planner.resolveSelection(selectionInput);
-    const valid = planner.buildFallback(selection, planner.allowedStandards(selection));
-
-    const agentEdit = await request('PATCH', '/api/lms/planner',
-      Object.assign({}, selectionInput, { planner: valid }), agent);
-    equal(agentEdit.status, 200, 'the agent can edit a non-founder planner');
-    equal(agentEdit.body.cache.createdByRole, 'planner_agent', 'agent authorship is recorded');
-    equal(agentEdit.body.cache.version, 2, 'the agent edit is an immutable new version');
-
-    const founderEdit = await request('PATCH', '/api/lms/planner',
-      Object.assign({}, selectionInput, { planner: valid }), founder);
-    equal(founderEdit.status, 200, 'the founder can edit a planner');
-    equal(founderEdit.body.cache.createdByRole, 'founder', 'founder authorship is recorded');
-
-    const blockedEdit = await request('PATCH', '/api/lms/planner',
-      Object.assign({}, selectionInput, { planner: valid }), agent);
-    equal(blockedEdit.status, 409, 'the agent cannot replace founder work');
-    equal(blockedEdit.body.error, 'FOUNDER_PLANNER_IMMUTABLE', 'the refusal is explicit');
-    const blockedRegen = await request('POST', '/api/lms/planner/regenerate', selectionInput, agent);
-    equal(blockedRegen.status, 409, 'the agent cannot regenerate founder work');
 
     /* The desk is academic only. A child id must never travel through it. */
     const scoped = await request('GET',
@@ -97,36 +95,81 @@ async function main() {
     equal(scoped.status, 403, 'the agent cannot pass a student id');
     equal(scoped.body.error, 'FORBIDDEN_STUDENT_SCOPE', 'the scope refusal is explicit');
 
+    const missingAgent = await request('GET', '/api/lms/planner' + query, undefined, agent);
+    equal(missingAgent.status, 409, 'the agent does not generate a planner on a cache miss');
+    equal(missingAgent.body.error, 'PLANNER_NOT_GENERATED', 'the miss is honest');
+    const missingTrainer = await request('GET',
+      '/api/lms/planner?studentId=usr_student_001&subject=math', undefined, trainer);
+    equal(missingTrainer.status, 409, 'a trainer does not generate a planner on a cache miss');
+    equal(generationCalls, 0, 'no non-founder read called the generation provider');
+
+    const founderRead = await request('GET', '/api/lms/planner' + query, undefined, founder);
+    equal(founderRead.status, 200, 'only the founder can generate a planner');
+    equal(founderRead.body.cache.createdByRole, 'founder', 'founder generation is attributed to the founder');
+    equal(founderRead.body.cache.source, 'ai', 'the founder call used the provider');
+    equal(founderRead.body.cache.version, 1, 'the first planner is version 1');
+
+    const agentRead = await request('GET', '/api/lms/planner' + query, undefined, agent);
+    equal(agentRead.status, 200, 'the agent can now read the stored planner');
+    equal(agentRead.body.cache.hit, true, 'the agent read is a stored cache hit');
+    equal(agentRead.body.cache.version, 1, 'the agent read did not write a version');
+    equal(generationCalls, 1, 'the agent read never called the provider');
+
+    const selection = planner.resolveSelection(selectionInput);
+    const valid = planner.buildFallback(selection, planner.allowedStandards(selection));
+
+    const agentEdit = await request('PATCH', '/api/lms/planner',
+      Object.assign({}, selectionInput, { planner: valid }), agent);
+    equal(agentEdit.status, 403, 'the agent cannot edit a planner');
+    const agentRegen = await request('POST', '/api/lms/planner/regenerate', selectionInput, agent);
+    equal(agentRegen.status, 403, 'the agent cannot regenerate a planner');
+    const trainerEdit = await request('PATCH', '/api/lms/planner',
+      Object.assign({}, selectionInput, { planner: valid }), trainer);
+    equal(trainerEdit.status, 403, 'a trainer cannot edit a planner');
+    const trainerRegen = await request('POST', '/api/lms/planner/regenerate', selectionInput, trainer);
+    equal(trainerRegen.status, 403, 'a trainer cannot regenerate a planner');
+
     const idea = await request('POST', '/api/lms/planner-suggestion',
       Object.assign({}, selectionInput, {
         planner: valid, note: 'Try shorter daily practice blocks.'
       }), agent);
-    equal(idea.status, 201, 'the agent can file an alternate idea');
-    equal(idea.body.suggestion.status, 'pending', 'the idea waits for the founder');
-    equal(idea.body.suggestion.targetAuthoredByRole, 'founder', 'the idea records target authorship');
+    equal(idea.status, 403, 'the agent cannot file a new idea while mutation is paused');
+    equal(idea.body.error, 'PLANNER_AGENT_MUTATIONS_DISABLED', 'the refusal is explicit');
+
+    const direct = await plannerAgent.propose(
+      Object.assign({}, selectionInput, { planner: valid, note: 'Direct call' }),
+      { id: 'usr_planner_001', role: 'planner_agent' }
+    ).then(function () { return null; }, function (error) { return error; });
+    equal(direct && direct.code, 'PLANNER_AGENT_MUTATIONS_DISABLED',
+      'the service refuses a direct agent mutation too');
+    ok(!(await db.listRecords(plannerAgent.COLLECTION)).some(function (row) {
+      return row && row.note === 'Direct call';
+    }), 'a refused idea never reaches the record store');
 
     const queue = await request('GET', '/api/lms/planner-suggestions?subject=coding',
       undefined, founder);
     equal(queue.status, 200, 'the founder can review the idea queue');
-    ok(queue.body.count >= 1, 'the idea is visible to the founder');
-    const id = idea.body.suggestion.id;
-
-    const agentDecision = await request('POST', '/api/lms/planner-suggestion/' + id + '/decide',
+    equal(queue.body.count, 0, 'no agent-authored idea was created');
+    const decision = await request('POST', '/api/lms/planner-suggestion/sug_missing/decide',
       { decision: 'reject' }, agent);
-    equal(agentDecision.status, 403, 'the agent cannot review its own idea');
+    equal(decision.status, 403, 'the agent cannot review an idea');
+    const founderDecision = await request('POST', '/api/lms/planner-suggestion/sug_missing/decide',
+      { decision: 'reject' }, founder);
+    equal(founderDecision.status, 404, 'only the founder reaches the decision service');
 
-    const accepted = await request('POST', '/api/lms/planner-suggestion/' + id + '/decide',
-      { decision: 'accept' }, founder);
-    equal(accepted.status, 200, 'the founder can accept an idea');
-    equal(accepted.body.suggestion.status, 'accepted', 'the idea is marked accepted');
-    equal(accepted.body.applied.cache.version, 4, 'acceptance creates the next immutable version');
-    equal(accepted.body.applied.cache.createdByRole, 'founder', 'the accepted plan is founder-authored');
+    const founderEdit = await request('PATCH', '/api/lms/planner',
+      Object.assign({}, selectionInput, { planner: valid }), founder);
+    equal(founderEdit.status, 200, 'the founder can edit a planner');
+    equal(founderEdit.body.cache.createdByRole, 'founder', 'founder authorship is recorded');
+    equal(founderEdit.body.cache.version, 2, 'the edit is an immutable new version');
+
+    const founderRegen = await request('POST', '/api/lms/planner/regenerate', selectionInput, founder);
+    equal(founderRegen.status, 200, 'the founder can regenerate a planner');
+    equal(founderRegen.body.cache.version, 3, 'regeneration moves to the next version');
 
     const after = await request('GET', '/api/lms/planner' + query, undefined, agent);
-    equal(after.body.cache.version, 4, 'the active plan reflects founder approval');
-    const twice = await request('POST', '/api/lms/planner-suggestion/' + id + '/decide',
-      { decision: 'reject' }, founder);
-    equal(twice.status, 409, 'an idea cannot be reviewed twice');
+    equal(after.body.cache.version, 3, 'the active plan reflects founder-only authoring');
+    equal(after.body.cache.createdByRole, 'founder', 'the agent never becomes an author');
 
     const admin = await request('GET', '/api/admin/users', undefined, agent);
     ok(admin.status === 403 || admin.status === 404, 'the agent has no founder admin powers');
@@ -140,12 +183,15 @@ async function main() {
     equal(rmCatalog.status, 403, 'the relationship manager is refused at the LMS gate');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
+    resetPlannerState();
+    ai.generateAIResponse = originalGenerate;
   }
 
   console.log('plannerAgent: ' + checks + ' assertions passed');
 }
 
 main().catch(function (error) {
+  console.error('plannerAgent: FAILED');
   console.error(error);
   process.exitCode = 1;
 });

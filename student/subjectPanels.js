@@ -212,7 +212,7 @@
             '<h3>Coding practice</h3>' +
             '<p class="subject-panel-note" id="codingChallengeNote"></p>' +
           '</div>' +
-          '<a class="btn btn-light btn-sm subject-room-link" id="codingRoomLink" href="../classroom/connect.html?role=student&view=student">' +
+          '<a class="btn btn-light btn-sm subject-room-link" id="codingRoomLink" href="../classroom/preflight.html?role=student&view=student">' +
             'Live coding room <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span>' +
           '</a>' +
         '</div>' +
@@ -246,7 +246,7 @@
 
     if (sessionId) {
       if (link) {
-        link.setAttribute('href', '../classroom/connect.html?sessionId=' + encodeURIComponent(sessionId) + '&role=student&view=student&state=live');
+        link.setAttribute('href', '../classroom/preflight.html?sessionId=' + encodeURIComponent(sessionId) + '&role=student&view=student&state=live');
         link.hidden = false;
       }
       setText(hint, 'Checks run against the challenge for this class.');

@@ -558,7 +558,9 @@ async function main() {
     const footMarks = classroom.match(/class="mathify-board-footmark"/g) || [];
     const footBlock = fullBoardCss.slice(fullBoardCss.indexOf('.mathify-board-footmark{'));
     const footStyle = footBlock.slice(0, footBlock.indexOf('}'));
-    ok(boardMarks.length === 4 && footMarks.length === 4 &&
+    /* The quiz scratchpad overlays were removed, so only the lesson board and
+       the full whiteboard surface carry the paired brand marks now. */
+    ok(boardMarks.length === 2 && footMarks.length === 2 &&
       classroom.indexOf('>Mathify<i>.</i><') !== -1 &&
       fullBoardCss.indexOf('.mathify-board-mark{') !== -1 &&
       footStyle.indexOf('font:700 20px/1 var(--sans)') !== -1 &&
@@ -586,20 +588,23 @@ async function main() {
       fullBoardJs.indexOf('queueQuestionText: function (question)') !== -1 &&
       fullBoardJs.indexOf('{ open: false, silent: true }') !== -1,
     'a themed top-right question card carries its own image and one whole-board snapshot');
-    var queueStart = sessionJs.indexOf('function queueQuestionToBoard(item)');
-    var queueEnd = sessionJs.indexOf('\n  }', queueStart);
-    var queueFn = sessionJs.slice(queueStart, queueEnd);
-    ok(queueFn.indexOf('item.q') !== -1 &&
-      queueFn.indexOf('item.image') !== -1 &&
-      queueFn.indexOf('q: text') !== -1 &&
-      queueFn.indexOf('image:') !== -1 &&
-      queueFn.indexOf('options') === -1 &&
-      queueFn.indexOf('answer') === -1 &&
-      queueFn.indexOf('hint') === -1 &&
-      sessionJs.indexOf('boardApi.queueQuestionText(question)') !== -1 &&
-      sessionJs.indexOf('if (quizLive()) queueQuestionToBoard(item);') !== -1 &&
-      sessionJs.indexOf("window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion)") !== -1,
-    'the trainer pushes only the stem and attached image, even during bootstrap');
+    /* Transfer is explicit now: a render or state sync never pushes. The same
+       stem+image-only payload is reused for the planner bootstrap handoff. */
+    var payloadStart = sessionJs.indexOf('function boardQuestionPayload(item)');
+    var payloadFn = sessionJs.slice(payloadStart, sessionJs.indexOf('\n  }', payloadStart));
+    ok(payloadFn.indexOf('item.q') !== -1 &&
+      payloadFn.indexOf('item.image') !== -1 &&
+      payloadFn.indexOf('q: text') !== -1 &&
+      payloadFn.indexOf('image:') !== -1 &&
+      payloadFn.indexOf('options') === -1 &&
+      payloadFn.indexOf('answer') === -1 &&
+      payloadFn.indexOf('hint') === -1 &&
+      sessionJs.indexOf('function pushQuizQuestionToBoard()') !== -1 &&
+      sessionJs.indexOf("quizPushBoard && quizPushBoard.addEventListener('click', pushQuizQuestionToBoard)") !== -1 &&
+      sessionJs.indexOf('boardApi.pushQuestion || boardApi.showQuestionText') !== -1 &&
+      sessionJs.indexOf('boardQuestionPayload({ q: handoff.q, image: handoff.image })') !== -1 &&
+      sessionJs.indexOf('if (quizLive()) queueQuestionToBoard(item);') === -1,
+    'the trainer explicitly pushes only the stem and attached image, even during bootstrap');
     var mapStart = sessionJs.indexOf('function mapQuizQuestion(source, index)');
     var mapFn = sessionJs.slice(mapStart, sessionJs.indexOf('\n  }', mapStart));
     ok(mapFn.indexOf('source.image') !== -1 && mapFn.indexOf('mapped.image') !== -1 &&

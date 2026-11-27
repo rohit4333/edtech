@@ -60,7 +60,7 @@
 
         <ul class="hero-promises" aria-label="Booking promises">
           <li><span>✓</span> No payment to book</li>
-          <li><span>✓</span> 35-minute live session</li>
+          <li><span>✓</span> 50-minute live session</li>
           <li><span>✓</span> Any timezone</li>
         </ul>
       </div>
@@ -232,18 +232,18 @@
       <div class="demo-copy reveal">
         <p class="mono eyebrow">The demo</p>
         <h2 class="section-title" id="demo-story-title">A real lesson. Not a sales pitch.</h2>
-        <p class="section-lede">Thirty-five minutes with your child and a tutor. You watch the thinking, not just the answer.</p>
+        <p class="section-lede">Fifty minutes with your child and a tutor. You watch the thinking, not just the answer.</p>
         <ol class="story-steps">
           <li><span>1</span><div><b>Your child solves one real problem.</b><small>Out loud, at their own pace.</small></div></li>
           <li><span>2</span><div><b>You see where understanding breaks.</b><small>And how the tutor rebuilds it.</small></div></li>
           <li><span>3</span><div><b>You leave with a plan.</b><small>Clarity before you decide anything.</small></div></li>
         </ol>
-        <a class="text-link" href="#book-demo" data-book-demo>Book the 35-minute demo <span>→</span></a>
+        <a class="text-link" href="#book-demo" data-book-demo>Book the 50-minute demo <span>→</span></a>
       </div>
 
       <div class="demo-visual reveal" aria-hidden="true">
         <div class="demo-screen">
-          <div class="demo-screen-top"><span>DEMO VIEW</span><span>35:00</span></div>
+          <div class="demo-screen-top"><span>DEMO VIEW</span><span>50:00</span></div>
           <div class="demo-problem">
             <span class="demo-label">TODAY'S PROBLEM</span>
             <strong>2x + 6 = 14</strong>
@@ -327,105 +327,13 @@
         </div>
 
         <div class="booking-orb" aria-hidden="true">
-          <span class="orb-core">35</span>
+          <span class="orb-core">50</span>
           <span class="orb-ring"></span><span class="orb-ring two"></span>
           <span class="orb-label">MINUTE<br>LIVE DEMO</span>
         </div>
       </div>
 
-      <div class="booking-card reveal">
-        <div class="booking-progress">
-          <span id="stepLabel">STEP 1 OF 2</span>
-          <div class="progress-track"><i id="progressFill"></i></div>
-        </div>
-
-        <form id="demoForm" novalidate>
-          <div class="form-step" data-step="1">
-            <h3>Who is the session for?</h3>
-            <label class="field">
-              <span>Parent / guardian name</span>
-              <input id="demoParent" name="parentName" type="text" autocomplete="name" placeholder="Your name" required>
-            </label>
-            <label class="field">
-              <span>Child's name</span>
-              <input id="demoChild" name="childName" type="text" placeholder="Your child's name" required>
-            </label>
-            <label class="field">
-              <span>Child's school curriculum</span>
-              <select id="demoCurriculum" name="curriculum" required>
-                <option value="">Select a curriculum</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Grade according to that curriculum</span>
-              <select id="demoGrade" name="grade" required>
-                <option value="">Choose a curriculum first</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="form-step" data-step="2" hidden>
-            <h3>Where should we reply?</h3>
-            <label class="field">
-              <span>Email address</span>
-              <input id="demoEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
-            </label>
-            <label class="field">
-              <span>WhatsApp / mobile number</span>
-              <input id="demoPhone" name="phone" type="tel" autocomplete="tel" placeholder="+ country code and number" required>
-            </label>
-            <label class="field">
-              <span>Your timezone</span>
-              <select id="demoTimezone" name="timezone" required>
-                <option value="">Select your timezone</option>
-              </select>
-            </label>
-            <fieldset class="time-field">
-              <legend>Preferred time <small>optional</small></legend>
-              <div class="time-chips">
-                <button type="button" data-time="Weekday evening">Weekday evening</button>
-                <button type="button" data-time="Weekend morning">Weekend morning</button>
-                <button type="button" data-time="Weekend evening">Weekend evening</button>
-                <button type="button" data-time="Any time">Any time</button>
-              </div>
-            </fieldset>
-            <label class="field review-field">
-              <span>Your request <small>you can edit this</small></span>
-              <textarea id="demoMessage" name="message" rows="3" required></textarea>
-            </label>
-          </div>
-
-          <p class="form-error" id="demoError" role="alert" hidden></p>
-
-          <div class="form-actions">
-            <button class="btn btn-back" type="button" id="demoBack" hidden>Back</button>
-            <button class="btn btn-next" type="button" id="demoNext">Continue <span aria-hidden="true">→</span></button>
-            <button class="btn btn-send" type="submit" id="demoSend" hidden>Send my request <span aria-hidden="true">→</span></button>
-          </div>
-
-          <p class="form-note"><b>No payment is taken here.</b> We contact you to confirm the 1-on-1 demo first.</p>
-          <p class="form-status" id="demoStatus" role="status" aria-live="polite"></p>
-        </form>
-
-        <div class="booking-success" id="demoSuccess" hidden>
-          <div class="success-mark">✓</div>
-          <h3>Demo booked. Your login is ready.</h3>
-          <p id="successCopy">We'll confirm a real demo slot with you shortly.</p>
-          <p class="success-ref" id="successRef"></p>
-          <div class="booking-credentials" id="bookingCredentials" hidden>
-            <div><span class="mono">Demo ID</span><b id="bookingDemoId">—</b></div>
-            <div><span class="mono">Login email</span><b id="bookingEmail">—</b></div>
-            <div><span class="mono">Shared password</span><b id="bookingPassword">—</b></div>
-            <p class="credential-note">Use this one password for both the child and parent desks. Keep it — it stays your login until you change it yourself in Profile → Password. <b>Check your email for more details.</b></p>
-            <div class="credential-links" id="credentialLinks" hidden>
-              <a id="childDeskLink" href="/student/home">Open child desk</a>
-              <a id="parentDeskLink" href="/parent/index.html">Open parent desk</a>
-            </div>
-          </div>
-          <a class="btn btn-ghost" id="whatsappConfirm" target="_blank" rel="noopener">Message us on WhatsApp</a>
-          <button class="text-button" type="button" id="editRequest">Edit my request</button>
-        </div>
-      </div>
+      <div class="booking-card reveal" id="demoBookingMount"></div>
     </div>
   </section>
 
@@ -446,6 +354,7 @@
 
 <script src="shared/public-nav.js" defer></script>
 <script src="shared/curriculumOptions.js" defer></script>
+<script src="shared/demo-booking.js" defer></script>
 <script src="landing.js" defer></script>
 </body>
 </html>

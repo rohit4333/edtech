@@ -10,7 +10,7 @@
 .view-student .trainer-only{display:none !important}
 .view-student .trainer-only *{display:none !important}
 .view-student .quiz-split{grid-template-columns:minmax(0,1fr)}
-/* During a quiz the student only gets the quiz stage and its scratchpad. */
+/* During a quiz the student only gets the quiz stage (no ink canvas). */
 body.quiz-live.view-student .board,
 body.quiz-live.view-student .phone-tools,
 body.quiz-live.view-student .foot-tools{display:none !important}
@@ -808,6 +808,115 @@ body.quiz-reteach .student-opts button{opacity:.55}
 .rec-link b{display:block;font-size:10.5px;font-weight:500}
 .rec-link span{display:block;margin-top:1px;font-size:9px;line-height:1.4;color:rgba(253,250,243,.48)}
 
+/* ------------------------------------------ single share / desk hand-off */
+/* The front card is the one session-desk board-share action. app.js owns the
+   API call and the Off/On state; this only makes it the prominent control. */
+.trainer-front-card .control-row.board-share-primary{
+  border-color:rgba(255,91,46,.5);background:var(--coral-soft)
+}
+.trainer-front-card .control-row.board-share-primary b{color:var(--coral-deep)}
+.trainer-front-card .control-row.board-share-primary.is-on{
+  border-color:rgba(18,150,140,.5);background:var(--teal-soft)
+}
+.trainer-front-card .control-row.board-share-primary.is-on b{color:var(--teal-ink)}
+/* The close control keeps the test-protected "Close" label and adds a visible
+   destination hint next to it. Students keep the plain local-close behaviour. */
+#fullBoardFullscreen .board-action-hint{
+  font-size:8px;line-height:1;color:var(--muted);white-space:nowrap
+}
+body.view-student #fullBoardFullscreen .board-action-hint{display:none}
+/* The REC/timer deck is driven by app.js from server-owned sessionTiming.
+   Keep it pinned above the whiteboard so the class clock never disappears. */
+body.board-open .top .top-r .board-rec-deck{display:flex;visibility:visible;opacity:1}
+body.board-open .top .top-r .board-rec-deck #recTime{display:inline-block;color:var(--ink)}
+
+/* ------------------------------------------- dev planner guide / story deck */
+/* Read-only, temporary dev-fixture surfaces. They never author curriculum and
+   never render keys, hints, explanations or trainer-only notes. */
+.trainer-guide{
+  position:absolute;z-index:34;top:74px;left:14px;
+  width:min(320px,32vw);max-height:62vh;overflow:auto;
+  padding:10px 12px;
+  border:1px solid rgba(255,91,46,.28);border-radius:10px;
+  background:rgba(253,250,243,.96);box-shadow:var(--shadow-raise);
+  font-size:10px;line-height:1.45;color:var(--ink);
+}
+.trainer-guide[hidden]{display:none}
+.guide-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.guide-head-copy .mono{
+  display:block;font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:var(--coral-deep)
+}
+.fixture-badge{
+  display:inline-block;margin-left:5px;padding:2px 5px;
+  border:1px solid var(--coral-deep);border-radius:3px;
+  background:var(--coral-soft);color:var(--coral-deep);
+  font-size:6.5px;letter-spacing:.08em;vertical-align:1px
+}
+.guide-head h2{margin:5px 0 0;font-size:13px;font-weight:500;letter-spacing:-.02em}
+.guide-head .mini{flex:none;height:26px;font-size:9px}
+.guide-body{margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft)}
+.guide-body[hidden]{display:none}
+.guide-thread,.guide-closing,.guide-narration{margin:0 0 7px;color:var(--muted);font-size:9.5px;line-height:1.5}
+.guide-narration{padding-left:8px;border-left:2px solid var(--coral);color:var(--ink)}
+.guide-current{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 8px;
+  margin:8px 0;padding:8px 9px;
+  border:1px solid rgba(255,91,46,.2);border-radius:7px;background:rgba(255,91,46,.05)
+}
+.guide-current .mono{font-size:6.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.guide-current b{font-size:9.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.guide-lock{
+  margin:0 0 8px;padding:5px 7px;border-radius:5px;
+  background:var(--cream);color:var(--muted);font-size:9px;line-height:1.4
+}
+.guide-lock.is-unlocked{background:var(--teal-soft);color:var(--teal-ink)}
+.guide-concepts{margin:0;padding-left:18px}
+.guide-concepts > li{margin-bottom:7px}
+.guide-concepts b{font-size:9.5px;font-weight:500}
+.guide-concepts p{margin:2px 0 0;color:var(--muted);font-size:9px;line-height:1.45}
+.guide-concepts ol{margin:4px 0 0;padding-left:16px}
+.guide-concepts ol li{font-size:9px;color:var(--muted)}
+.guide-concepts .is-current{color:var(--coral-deep);font-weight:600}
+.guide-concepts .is-complete{color:var(--teal-ink)}
+
+/* Student surface: only the current chapter/topic beat, never future beats. */
+.student-story,.live-meta{
+  position:absolute;z-index:33;max-width:min(300px,36vw);
+  padding:8px 11px;border:1px solid var(--line);border-radius:9px;
+  background:rgba(253,250,243,.94);box-shadow:var(--shadow-raise);
+  pointer-events:none
+}
+.student-story[hidden],.live-meta[hidden]{display:none}
+.student-story{left:14px;bottom:86px}
+.student-story .mono,.live-meta .mono{
+  display:block;font-size:6.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--coral-deep)
+}
+.student-story b,.live-meta b{display:block;margin-top:2px;font-size:11px;font-weight:500}
+.student-story p{margin:5px 0 0;font-size:9.5px;line-height:1.45;color:var(--muted)}
+.live-meta{top:74px;right:14px;text-align:right}
+
+/* Role-neutral floating engagement shell: the reaction strip is visible in
+   both views; trainer-only controls stay hidden from the student by role CSS. */
+.engagement-shell{
+  position:absolute;z-index:33;right:14px;bottom:14px;
+  max-width:min(460px,44vw);padding:8px 10px;
+  border:1px solid var(--line);border-radius:10px;
+  background:rgba(253,250,243,.96);box-shadow:var(--shadow-raise)
+}
+.engagement-shell .engagement-bar{margin-top:0;padding-top:0;border-top:0}
+
+.section-progress{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;
+  margin-top:12px;padding:9px 10px;
+  border:1px solid rgba(255,91,46,.2);border-radius:7px;background:rgba(255,91,46,.05)
+}
+.section-progress[hidden]{display:none}
+.section-progress .mono{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:rgba(253,250,243,.5)}
+.section-progress b{font-size:13px;font-weight:500;color:var(--paper)}
+.section-progress small{flex-basis:100%;font-size:9px;line-height:1.4;color:rgba(253,250,243,.55)}
+.section-progress.is-complete{border-color:rgba(18,150,140,.38);background:rgba(18,150,140,.08)}
+.section-progress.is-complete small{color:rgba(253,250,243,.72)}
+
 /* -------------------------------------------------------------- responsive */
 @media (max-width:1240px){
   .call-pip{width:212px;height:156px}
@@ -870,6 +979,12 @@ body.quiz-reteach .student-opts button{opacity:.55}
   .quiz-feedback{margin-top:12px;min-height:28px;font-size:11px}
   .quiz-trainer{padding:14px}
   .quiz-controls{grid-template-columns:1fr}
+  .front-rows > .control-row.board-share-primary small{display:block}
+  #fullBoardFullscreen .board-action-hint{display:none}
+  .trainer-guide{top:64px;left:8px;width:min(280px,72vw);max-height:52vh}
+  .student-story{left:8px;bottom:120px;max-width:min(260px,72vw)}
+  .live-meta{top:64px;right:8px;max-width:min(220px,60vw)}
+  .engagement-shell{right:8px;bottom:8px;max-width:calc(100vw - 16px)}
   .scratch canvas{height:124px}
   .rec-link{align-items:flex-start;flex-wrap:wrap}
   .rec-link .mini-btn{margin-left:25px}

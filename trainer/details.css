@@ -281,6 +281,9 @@
   font-size:11.5px;
   line-height:1.5;
 }
+/* Trainer Desk answers keep the "From your records" and policy sections
+   as separate readable blocks inside the same bubble. */
+.msg.desk-answer{white-space:pre-line}
 .msg.bot{
   align-self:flex-start;
   background:var(--card);

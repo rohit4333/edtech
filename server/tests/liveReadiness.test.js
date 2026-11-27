@@ -407,10 +407,11 @@ async function main() {
 
     /* Reviewed static surfaces only; no source, migrations, env or git. */
     const contactPage = await request('GET', '/contact.html');
-    check(contactPage.status === 200 && contactPage.text.indexOf('id="bookingForm"') !== -1,
-      'booking form is served from the same origin');
-    const sharedScript = await request('GET', '/shared/contact-form.js');
-    check(sharedScript.status === 200, 'contact form client is served');
+    check(contactPage.status === 200 && contactPage.text.indexOf('id="demoBookingMount"') !== -1,
+      'booking form mount is served from the same origin');
+    const sharedScript = await request('GET', '/shared/demo-booking.js');
+    check(sharedScript.status === 200 && sharedScript.text.indexOf('id="demoForm"') !== -1,
+      'shared booking form client is served');
     for (const blocked of ['/server/config.js', '/server/.env', '/.git/config', '/server/migrations/0001_baseline.sql']) {
       const result = await request('GET', blocked);
       check(result.status === 404, blocked + ' is not exposed');

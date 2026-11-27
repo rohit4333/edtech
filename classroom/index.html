@@ -97,19 +97,15 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>
         <span class="label">Full whiteboard</span>
       </button>
-      <button class="full-board-toggle student-only" id="fullBoardToggleStudent" type="button" aria-expanded="false" aria-controls="fullBoard" aria-label="Shared board" title="Shared board">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>
-        <span class="label">Shared board</span>
-      </button>
       <div class="board-session-deck">
         <span class="board-top-rule board-only" aria-hidden="true"></span>
         <button type="button" class="trainer-only board-only" id="fullBoardShare" aria-pressed="false" aria-label="Share with student" title="Share with student">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3M8.5 6.5L12 3l3.5 3.5"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path></svg>
           <span class="board-action-label">Share</span>
         </button>
-        <button type="button" class="board-only" id="fullBoardFullscreen" aria-label="Close whiteboard" title="Close the whiteboard and return to the classroom">
+        <button type="button" class="board-only" id="fullBoardFullscreen" aria-label="Close whiteboard" title="Close whiteboard · back to camera">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"></path></svg>
-          <span class="board-action-label">Close</span>
+          <span class="board-action-label">Close</span><span class="board-action-hint" aria-hidden="true">back to camera</span>
         </button>
         <button class="people" id="peopleBtn" type="button" aria-haspopup="dialog" title="Open session details for Ishaan Verma">
           <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
@@ -133,6 +129,77 @@
       </button>
     </div>
   </header>
+
+  <!-- Trainer-only dev guide. It is read-only and never authored here. -->
+  <section class="trainer-guide trainer-only" id="trainerGuide" aria-label="Trainer guide" hidden>
+    <header class="guide-head">
+      <div class="guide-head-copy">
+        <span class="mono">Trainer guide <b class="fixture-badge">TEMPORARY DEV FIXTURE</b></span>
+        <h2 id="guideStoryTitle">Loading guide…</h2>
+      </div>
+      <button class="mini" id="guideToggle" type="button" aria-expanded="false" aria-controls="guideBody">Show guide</button>
+    </header>
+    <div class="guide-body" id="guideBody" hidden>
+      <p class="guide-thread" id="guideStoryThread"></p>
+      <p class="guide-narration" id="guideBeatNarration"></p>
+      <div class="guide-current">
+        <span class="mono">Current concept</span>
+        <b id="guideCurrentConcept"></b>
+        <span class="mono">Current question</span>
+        <b id="guideCurrentQuestion"></b>
+        <span class="mono">Completed</span>
+        <b id="guideCompleted"></b>
+        <span class="mono">Section correct</span>
+        <b id="guideSectionCount">0 / 3</b>
+      </div>
+      <p class="guide-lock" id="guideSectionLock">Next section locked until 3 answers are correct.</p>
+      <ol class="guide-concepts" id="guideConcepts"></ol>
+      <p class="guide-closing" id="guideStoryClosing"></p>
+    </div>
+  </section>
+
+  <!-- Student story: only the current beat is rendered, never future narration. -->
+  <aside class="student-story student-only" id="studentStory" aria-live="polite" hidden>
+    <span class="mono" id="studentStoryChapter"></span>
+    <b id="studentStoryTopic"></b>
+    <p id="studentStoryNarration"></p>
+  </aside>
+
+  <div class="engagement-shell" id="engagementShell">
+    <div class="engagement-bar" role="group" aria-label="Session engagement">
+      <div class="reaction-set student-only" role="group" aria-label="Student reactions">
+        <button class="reaction-btn" type="button" data-reaction="💡" aria-label="Celebrate with an insight" title="Insight">💡</button>
+        <button class="reaction-btn" type="button" data-reaction="🤔" aria-label="Celebrate a thinking moment" title="Thinking">🤔</button>
+        <button class="reaction-btn" type="button" data-reaction="✅" aria-label="Celebrate a got-it moment" title="Got it">✅</button>
+        <button class="reaction-btn" type="button" data-reaction="👏" data-target="trainer" aria-label="Applaud your trainer" title="Applaud your trainer">👏</button>
+        <button class="reaction-btn" type="button" data-reaction="🎉" aria-label="Send a party popper celebration" title="Party popper">🎉</button>
+        <button class="reaction-btn" type="button" data-reaction="🥳" aria-label="Send a celebrate reaction" title="Celebrate">🥳</button>
+        <button class="reaction-btn" type="button" data-reaction="❤️" aria-label="Send a heart celebration" title="Heart">❤️</button>
+      </div>
+      <div class="reaction-set trainer-only" role="group" aria-label="Trainer reactions">
+        <button class="reaction-btn" type="button" data-reaction="👏" aria-label="Applaud the student" title="Applaud the student">👏</button>
+        <button class="reaction-btn" type="button" data-reaction="⭐" aria-label="Send a star reaction" title="Star moment">⭐</button>
+        <button class="reaction-btn" type="button" data-reaction="🎯" aria-label="Send an on-target reaction" title="On target">🎯</button>
+        <button class="reaction-btn" type="button" data-reaction="🎉" aria-label="Send a party popper celebration" title="Party popper">🎉</button>
+        <button class="reaction-btn" type="button" data-reaction="🥳" aria-label="Send a celebrate reaction" title="Celebrate">🥳</button>
+        <button class="reaction-btn" type="button" data-reaction="🔥" aria-label="Send a fire celebration" title="Fire">🔥</button>
+      </div>
+      <div class="engagement-controls trainer-only" role="group" aria-label="Celebration styles">
+        <span class="visually-hidden">Celebration sound is always on.</span>
+        <button class="celebration-style-btn" type="button" data-celebration-style="paper_ribbons" aria-label="Send paper ribbons celebration" title="Paper ribbons" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-ribbons"/></svg></button>
+        <button class="celebration-style-btn" type="button" data-celebration-style="origami_balloons" aria-label="Send origami balloons celebration" title="Origami balloons" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-origami"/></svg></button>
+        <button class="celebration-style-btn" type="button" data-celebration-style="drum_pulse" aria-label="Send drum pulse celebration" title="Drum pulse" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-drum"/></svg></button>
+        <button class="celebration-style-btn" type="button" data-celebration-style="star_shower" aria-label="Send star shower celebration" title="Star shower" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></button>
+        <button class="celebration-style-btn" type="button" data-celebration-style="torn_confetti" aria-label="Send torn confetti celebration" title="Torn confetti" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-confetti"/></svg></button>
+        <button class="celebration-style-btn" type="button" data-celebration-style="milestone_seal" aria-label="Send milestone seal celebration" title="Milestone seal" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-seal"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="live-meta student-only" id="liveMeta" hidden>
+    <span class="mono" id="liveChapterDeck"></span>
+    <b id="liveTopicDeck"></b>
+  </div>
 
   <!-- ============================================================== body -->
   <div class="body">
@@ -305,17 +372,9 @@
             <div class="student-actions">
               <button class="mini" id="quizHint" type="button">Hint</button>
               <button class="mini" id="quizSkip" type="button">Skip</button>
+              <button class="btn btn-coral btn-sm" id="quizSubmit" type="button" disabled>Submit</button>
             </div>
-            <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer.</p>
-            <div class="student-ink" id="studentInk">
-              <div class="student-ink-head">
-                <span class="mono">Scratchpad · blank space</span>
-                <span class="mono" id="studentInkMode">Ready for trainer sketch</span>
-              </div>
-              <canvas id="studentInkCanvas" aria-label="Blank scratchpad and live trainer sketch during the quiz"></canvas>
-              <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
-              <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
-            </div>
+            <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer, then submit.</p>
           </div>
           <div class="quiz-trainer trainer-only">
             <div class="quiz-trainer-head">
@@ -325,35 +384,26 @@
                 <div class="doubt-menu" id="doubtMenu" hidden>
                   <button type="button" id="quizActionHint">Show Hint</button>
                   <button type="button" id="quizActionSkip">Skip Question</button>
-                  <button type="button" id="quizActionExplain">Explain</button>
                 </div>
               </div>
             </div>
-            <div class="scratch-overlay" id="scratchOverlay" hidden>
-              <div class="scratch" role="dialog" aria-modal="false" aria-labelledby="scratchOverlayTitle">
-                <header class="scratch-label">
-                  <span><span class="mono" id="scratchOverlayTitle">Temporary Wacom overlay</span><b>Quiz stays live</b></span>
-                  <button class="mini" id="scratchClose" type="button" aria-label="Close Wacom overlay">Close</button>
-                </header>
-                <canvas id="scratchCanvas" tabindex="0" aria-label="Trainer Wacom overlay for resolving a doubt during the quiz"></canvas>
-                <span class="mathify-board-mark" aria-hidden="true">Mathify<i>.</i></span>
-                <span class="mathify-board-footmark" aria-hidden="true">Mathify<i>.</i></span>
-                <footer class="scratch-actions">
-                  <button class="mini" id="scratchClear" type="button">Clear</button>
-                  <button class="mini" id="scratchShare" type="button">Share sketch</button>
-                </footer>
-              </div>
-            </div>
             <div class="quiz-controls">
+              <button class="btn btn-coral btn-sm" id="quizPushBoard" type="button" title="Explain this question on the shared whiteboard (stem and image only)" aria-label="Explain this question on the board">Explain on board</button>
               <button class="btn btn-coral btn-sm" id="quizReveal" type="button">Reveal answer</button>
-              <button class="mini mini-dark" id="quizReteach" type="button">Reteach + new check</button>
+              <button class="mini mini-dark" id="quizRetest" type="button" title="Generate a fresh AI check for this concept and replace the failed question">Retest</button>
+              <button class="mini mini-dark" id="quizNewCheck" type="button">New check on same concept</button>
               <button class="mini mini-dark" id="quizForceNext" type="button" hidden>Trainer Override: Force Next</button>
+            </div>
+            <div class="section-progress" id="quizSectionProgress" hidden>
+              <span class="mono">Section correct</span>
+              <b class="num" id="quizSectionCount">0 / 3</b>
+              <small id="quizSectionLock">Next section locked until 3 answers are correct.</small>
             </div>
             <p class="answer-state" id="quizAnswerState" aria-live="polite">Waiting for Ishaan’s answer.</p>
             <div class="readiness">
               <div class="readiness-top"><span class="mono">Readiness</span><b class="num" id="readinessText">0%</b></div>
               <div class="readiness-track"><i id="readinessBar"></i></div>
-              <small>Unlock at 80% · below 80% stays on this topic for reteach.</small>
+              <small>Level 1 unlocks at 80% · practice checks must be solved.</small>
             </div>
             <button class="btn btn-coral btn-sm" id="quizNext" type="button">Next question</button>
           </div>
@@ -616,8 +666,8 @@
         </button>
         <span class="board-rule trainer-only" aria-hidden="true"></span>
         <div class="board-group trainer-only">
-          <button type="button" data-tool-group="shapes" aria-haspopup="true" aria-expanded="false" aria-pressed="false" aria-label="Shapes" title="Shapes · click to open">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="12" height="12" rx="1"></rect><circle cx="16" cy="16" r="5"></circle></svg>
+          <button type="button" data-tool-group="shapes" aria-haspopup="true" aria-expanded="false" aria-pressed="false" aria-label="Shapes · Square selected" title="Shapes · Square selected · click to open">
+            <span class="shape-glyph" data-shape-glyph aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="1"></rect></svg></span>
           </button>
           <div class="board-group-menu" data-group-menu="shapes" hidden role="group" aria-label="Choose a shape">
             <button type="button" data-board-tool="square" aria-pressed="false" aria-label="Square" title="Square"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1"></rect></svg></button>
@@ -695,34 +745,6 @@
             <figcaption><span class="t-name">Ishaan</span><span class="t-mic"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span></figcaption>
           </figure>
         </div>
-        <div class="engagement-bar" role="group" aria-label="Session engagement">
-          <div class="reaction-set student-only" role="group" aria-label="Student reactions">
-            <button class="reaction-btn" type="button" data-reaction="💡" aria-label="Celebrate with an insight" title="Insight">💡</button>
-            <button class="reaction-btn" type="button" data-reaction="🤔" aria-label="Celebrate a thinking moment" title="Thinking">🤔</button>
-            <button class="reaction-btn" type="button" data-reaction="✅" aria-label="Celebrate a got-it moment" title="Got it">✅</button>
-            <button class="reaction-btn" type="button" data-reaction="👏" data-target="trainer" aria-label="Applaud your trainer" title="Applaud your trainer">👏</button>
-            <button class="reaction-btn" type="button" data-reaction="🎉" aria-label="Send a party popper celebration" title="Party popper">🎉</button>
-            <button class="reaction-btn" type="button" data-reaction="🥳" aria-label="Send a celebrate reaction" title="Celebrate">🥳</button>
-            <button class="reaction-btn" type="button" data-reaction="❤️" aria-label="Send a heart celebration" title="Heart">❤️</button>
-          </div>
-          <div class="reaction-set trainer-only" role="group" aria-label="Trainer reactions">
-            <button class="reaction-btn" type="button" data-reaction="👏" aria-label="Applaud the student" title="Applaud the student">👏</button>
-            <button class="reaction-btn" type="button" data-reaction="⭐" aria-label="Send a star reaction" title="Star moment">⭐</button>
-            <button class="reaction-btn" type="button" data-reaction="🎯" aria-label="Send an on-target reaction" title="On target">🎯</button>
-            <button class="reaction-btn" type="button" data-reaction="🎉" aria-label="Send a party popper celebration" title="Party popper">🎉</button>
-            <button class="reaction-btn" type="button" data-reaction="🥳" aria-label="Send a celebrate reaction" title="Celebrate">🥳</button>
-            <button class="reaction-btn" type="button" data-reaction="🔥" aria-label="Send a fire celebration" title="Fire">🔥</button>
-          </div>
-          <div class="engagement-controls trainer-only" role="group" aria-label="Celebration styles">
-            <span class="visually-hidden">Celebration sound is always on.</span>
-            <button class="celebration-style-btn" type="button" data-celebration-style="paper_ribbons" aria-label="Send paper ribbons celebration" title="Paper ribbons" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-ribbons"/></svg></button>
-            <button class="celebration-style-btn" type="button" data-celebration-style="origami_balloons" aria-label="Send origami balloons celebration" title="Origami balloons" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-origami"/></svg></button>
-            <button class="celebration-style-btn" type="button" data-celebration-style="drum_pulse" aria-label="Send drum pulse celebration" title="Drum pulse" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-drum"/></svg></button>
-            <button class="celebration-style-btn" type="button" data-celebration-style="star_shower" aria-label="Send star shower celebration" title="Star shower" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></button>
-            <button class="celebration-style-btn" type="button" data-celebration-style="torn_confetti" aria-label="Send torn confetti celebration" title="Torn confetti" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-confetti"/></svg></button>
-            <button class="celebration-style-btn" type="button" data-celebration-style="milestone_seal" aria-label="Send milestone seal celebration" title="Milestone seal" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-seal"/></svg></button>
-          </div>
-        </div>
       </section>
 
       <section class="side-card trainer-front-card trainer-only" id="trainerFrontCard" aria-label="Trainer actions">
@@ -731,8 +753,8 @@
           <span class="side-note">Front desk</span>
         </div>
         <div class="front-rows">
-          <button class="control-row" type="button" id="shareBoardBtn" aria-pressed="false">
-            <span><b>Board sharing</b><small>Let the kid see your whiteboard</small></span>
+          <button class="control-row board-share-primary" type="button" id="shareBoardBtn" aria-pressed="false" title="Share the whiteboard with the child">
+            <span><b>Share with kid</b><small>Let the child see your whiteboard</small></span>
             <span class="control-state" data-control-label>Off</span>
           </button>
           <div class="control-row is-static">
@@ -814,9 +836,6 @@
       </button>
       <button class="ctl ctl-access trainer-only is-on" id="studentMediaAccessBtn" type="button" aria-pressed="true" aria-label="Access on — revoke student audio and video controls" title="Student can mute and switch off the camera · click to lock">
         <span data-media-access-label>Access on</span>
-      </button>
-      <button class="ctl" id="shareBtn" type="button" aria-pressed="false" aria-label="Share board" title="Share board">
-        <svg class="icon" aria-hidden="true"><use href="#i-share"/></svg>
       </button>
     </div>
     <div class="step">

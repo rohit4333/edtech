@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="parent-chat.css">
 <link rel="stylesheet" href="onboarding.css">
 <link rel="stylesheet" href="../shared/announcements.css">
+<link rel="stylesheet" href="../shared/notificationInbox.css">
 <link rel="stylesheet" href="../shared/profilePassword.css">
 <style>
   .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
@@ -269,10 +270,19 @@
         <button class="icon-btn mobile-search" id="mobileSearch" aria-label="Search students and sessions">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
         </button>
-        <button class="icon-btn" aria-label="Notifications, 3 unread" data-toast="3 notifications: 2 parent replies and 1 quiz update.">
+        <button class="icon-btn" id="notificationBtn" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="notificationPanel">
           <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
-          <span class="badge" aria-hidden="true"></span>
+          <span class="badge" id="notificationBadge" aria-hidden="true" hidden></span>
         </button>
+        <div class="top-popover inbox-popover" id="notificationPanel" role="dialog" aria-label="Notifications" hidden>
+          <div class="inbox-head">
+            <span class="mono" id="inboxTitle">Notifications</span>
+            <button type="button" class="inbox-close" id="notificationClose" aria-label="Close notifications">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <div class="inbox-body" id="notificationBody" aria-live="polite"></div>
+        </div>
         <button class="avatar avatar-btn" id="profileBtn" aria-label="AR — open profile" aria-expanded="false">AR</button>
         <div class="top-popover" id="profilePanel" hidden>
           <span class="mono" id="profileName">Ananya Rao</span>
@@ -368,9 +378,8 @@
 
           <div class="next-foot">
             <button class="btn btn-coral" id="startClass">Start class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            <button class="btn btn-light" id="cameraOnlyBtn">Camera only <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cam"/></svg></button>
             <button class="btn btn-light" data-ask="Review my plan for Fractions, decimals &amp; percentages.">Open planner</button>
-            <a class="btn btn-light subject-workspace-link" id="codingWorkspaceLink" href="../classroom/connect.html?role=trainer" hidden>Coding workspace <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a>
+            <a class="btn btn-light subject-workspace-link" id="codingWorkspaceLink" href="../classroom/preflight.html?role=trainer" hidden>Coding workspace <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a>
             <span class="english-indicators" id="englishIndicators" hidden aria-label="Reading, writing and speaking"><span>Reading</span><span>Writing</span><span>Speaking</span></span>
             <span class="next-note">Room opens 10 min before</span>
           </div>
@@ -981,6 +990,18 @@
   };
 </script>
 <script src="../shared/announcements.js" defer></script>
+<script>
+  window.MATHIFY_NOTIFICATION_INBOX = {
+    button: '#notificationBtn',
+    panel: '#notificationPanel',
+    badge: '#notificationBadge',
+    title: '#inboxTitle',
+    body: '#notificationBody',
+    close: '#notificationClose',
+    tokenKey: 'mathify.trainer.token'
+  };
+</script>
+<script src="../shared/notificationInbox.js" defer></script>
 <script src="../shared/profilePassword.js" defer></script>
 <script src="../shared/sectionRouter.js" defer></script>
 

@@ -28,16 +28,54 @@ function read(relative) {
 async function main() {
   const connectHtml = read('classroom/connect.html');
   const connectJs = read('classroom/connect.js');
+  const mediaUiJs = read('shared/rtcMediaUi.js');
+  const mediaUiCss = read('shared/rtcMediaUi.css');
   check(/id="selfVideo"/.test(connectHtml) && /id="peerVideo"/.test(connectHtml),
     'the camera-check page has exactly the two participant feeds');
-  check(/id="startSessionBtn"/.test(connectHtml) && /Start the session/.test(connectHtml),
-    'the trainer has an explicit Start the session handoff');
+  check(/id="startSessionBtn"/.test(connectHtml) && /Open whiteboard/.test(connectHtml),
+    'the trainer has an explicit Open whiteboard handoff');
   check(!/session\.js|app\.js|livekit\.js|cursorRelay\.js/.test(connectHtml),
     'the camera-check page never loads the classroom session layer');
   check(!/presence['"]/.test(connectJs),
     'the camera-check client never writes presence');
   check(/getPreviewToken/.test(connectJs) && /getSessionPresence/.test(connectJs),
     'the camera-check client uses only preview tokens and the safe handoff signal');
+
+  check(connectHtml.indexOf('shared/rtcMediaUi.js') !== -1 &&
+    connectHtml.indexOf('shared/rtcMediaUi.js') < connectHtml.indexOf('connect.js'),
+  'the camera-check page loads the shared media UI helper before its own client');
+  check(/shared\/rtcMediaUi\.css/.test(connectHtml) &&
+    /data-media-frame/.test(connectHtml) &&
+    /data-speaking/.test(connectHtml) && /data-muted/.test(connectHtml),
+  'both camera frames opt into the shared speaking/muted border states');
+  ['peerMic', 'selfSpeaking', 'peerSpeaking', 'micLevel', 'selfLevel', 'peerLevel']
+    .forEach(function (id) {
+      check(new RegExp('id="' + id + '"').test(connectHtml),
+        'the camera frame exposes the ' + id + ' overlay or level indicator');
+    });
+
+  check(/window\.mathifyRtcMediaUi\s*=/.test(mediaUiJs),
+    'the shared media helper is exposed globally for every camera deck');
+  ['ActiveSpeakersChanged', 'TrackMuted', 'TrackUnmuted', 'ParticipantDisconnected', 'Disconnected']
+    .forEach(function (name) {
+      check(new RegExp("listen\\(['\"]" + name + "['\"]").test(mediaUiJs),
+        'the shared helper follows LiveKit ' + name);
+    });
+  check(/participant\.audioLevel/.test(mediaUiJs) &&
+    /requestAnimationFrame/.test(mediaUiJs) && /0\.82/.test(mediaUiJs),
+  'audio levels are throttled through animation frames and decay towards zero');
+  check(/--mic-level/.test(mediaUiJs) && /--mic-level/.test(mediaUiCss) &&
+    /--teal/.test(mediaUiCss) && /--coral/.test(mediaUiCss),
+  'level bars use the project teal/coral tokens through --mic-level');
+
+  check(/mathifyRtcMediaUi/.test(connectJs),
+    'the camera-check client delegates frame overlays to the shared helper');
+  check(/renderMediaState\(\);\s*setLocalMedia\('mic'/.test(connectJs) &&
+    /renderMediaState\(\);\s*setLocalMedia\('camera'/.test(connectJs),
+  'mic and camera controls render optimistically before the SDK promise');
+  check(/isMicrophoneEnabled/.test(connectJs) && /isCameraEnabled/.test(connectJs) &&
+    /could not be changed/.test(connectJs),
+  'SDK results are reconciled from real flags and failures restore the prior state');
 
   [
     'trainer/app.js',
@@ -49,8 +87,8 @@ async function main() {
     'server/services/parentReminderService.js'
   ].forEach(function (relative) {
     const source = read(relative);
-    check(/classroom\/connect\.html/.test(source),
-      relative + ' sends participants to the shared camera-check page');
+    check(/classroom\/preflight\.html/.test(source),
+      relative + ' sends participants to the readiness gate before the camera page');
   });
   check(!/classroom\/index\.html/.test(read('student/app.js')) &&
     !/classroom\/index\.html/.test(read('unified/shell.js')),

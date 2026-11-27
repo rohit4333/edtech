@@ -184,6 +184,12 @@
     return normalize(subject) === identity.subject;
   }
 
+  /* Authoring is founder-only. Trainers and planner agents get a view-only
+     library and view-only planner surface; their tokens never unlock a write. */
+  function canAuthor() { return identity.role === 'founder'; }
+  function isTrainer() { return identity.role === 'trainer'; }
+  function isAgent() { return identity.role === 'planner_agent'; }
+
   window.MathifyLmsAccess = {
     detect: function () { identity = detect(); return identity; },
     current: function () { return { role: identity.role, subject: identity.subject, denied: identity.denied }; },
@@ -195,6 +201,9 @@
     normalize: normalize,
     applyCatalog: applyCatalog,
     allowedSubjects: allowedSubjects,
-    canUse: canUse
+    canUse: canUse,
+    canAuthor: canAuthor,
+    isTrainer: isTrainer,
+    isAgent: isAgent
   };
 }());

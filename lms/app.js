@@ -1,8 +1,9 @@
 /* ==========================================================================
    MATHIFY — curriculum LMS library interactions.
-   Local/offline prototype: all state lives in memory plus the courses the
-   author creates, which are kept in localStorage. No answer keys or student
-   data are ever rendered here.
+   The course library is server-provided: the curriculum catalogue supplies the
+   real boards and grade bands. Founder-only local drafts are kept in memory
+   plus localStorage. Trainers and planner agents get a read-only library; no
+   answer keys or student data are ever rendered here.
    ========================================================================== */
 
 (function () {
@@ -60,10 +61,12 @@
   ];
 
   var STATUS_LABEL = {
-    progress: 'In progress', review: 'In review', published: 'Published', draft: 'Draft'
+    progress: 'In progress', review: 'In review', published: 'Published',
+    draft: 'Draft', catalog: 'Catalog'
   };
   var STATUS_CLASS = {
-    progress: 's-progress', review: 's-review', published: 's-published', draft: 's-draft'
+    progress: 's-progress', review: 's-review', published: 's-published',
+    draft: 's-draft', catalog: 's-published'
   };
 
   var courses = SEED.slice();
@@ -75,7 +78,11 @@
     selectedId: 'ratios',
     assetFilter: 'all',
     openModules: {},
-    sheetCourseId: null
+    sheetCourseId: null,
+    catalog: [],
+    catalogMeta: null,
+    catalogLoaded: false,
+    catalogFailed: false
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -85,6 +92,58 @@
   function denied() {
     var access = gate();
     return Boolean(access && access.isDenied && access.isDenied());
+  }
+
+  function canAuthor() {
+    var access = gate();
+    return Boolean(access && access.canAuthor && access.canAuthor());
+  }
+
+  function isTrainer() {
+    var access = gate();
+    return Boolean(access && access.isTrainer && access.isTrainer());
+  }
+
+  /* Every catalog card comes from GET /api/lms/curriculum-catalog. No status,
+     asset count or module count is invented: grade entries are the only real
+     quantity the catalogue exposes, and they are labelled as such. */
+  function catalogCourse(item) {
+    var grades = Array.isArray(item.grades) ? item.grades : [];
+    return {
+      id: 'curriculum-' + item.slug,
+      code: item.slug.toUpperCase(),
+      title: item.label,
+      blurb: [item.country, item.family, item.standardsFramework]
+        .filter(function (value) { return typeof value === 'string' && value.trim(); })
+        .join(' · '),
+      status: 'catalog',
+      level: item.country || 'International',
+      modules: grades.length,
+      assets: grades.length,
+      progress: 100,
+      edited: '',
+      subject: null,
+      custom: false,
+      catalog: true,
+      moduleLabel: 'grade bands',
+      assetLabel: 'grade entries',
+      gradeLabels: grades.map(function (grade) { return grade.label; })
+    };
+  }
+
+  function loadCatalog() {
+    var client = window.mathifyLmsApi;
+    if (!client || !client.catalog || denied()) return Promise.resolve(null);
+    return client.catalog().then(function (body) {
+      state.catalog = Array.isArray(body && body.curricula) ? body.curricula : [];
+      state.catalogMeta = body || null;
+      state.catalogLoaded = true;
+      return body;
+    }).catch(function () {
+      state.catalogLoaded = true;
+      state.catalogFailed = true;
+      return null;
+    });
   }
 
   function normalizeSubject(value) {
@@ -100,22 +159,27 @@
     return normalizeSubject(select && select.value ? select.value : 'math');
   }
 
-  /* The whole library is scoped to the signed-in field. Founder keeps all
-     three; a trainer only ever sees their own courses. A legacy custom course
-     without a subject stays in the math view. */
+  /* Trainers read only the server-provided catalogue. Local seeds and browser
+     drafts are founder authoring data, so they never enter a trainer library;
+     the old derived subject filter is what produced the false 00 count. */
   function courseAllowed(course) {
     var access = gate();
     if (!access) return true;
     if (access.isDenied()) return false;
+    if (course && course.catalog) return true;
+    if (access.role && access.role() === 'trainer') return false;
     var subject = access.normalize
       ? access.normalize(course && course.subject) || 'math'
       : (course && course.subject) || 'math';
-    if (access.role && access.role() === 'trainer') return subject === access.subject();
     return true;
   }
 
+  function allCourses() {
+    return state.catalog.map(catalogCourse).concat(courses);
+  }
+
   function scopedCourses() {
-    return courses.filter(courseAllowed);
+    return allCourses().filter(courseAllowed);
   }
 
   var SUBJECT_LABEL = { math: 'Mathematics', coding: 'Coding', english: 'English Communication' };
@@ -193,6 +257,7 @@
   }
 
   function persistCustom() {
+    if (!canAuthor()) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(courses.filter(function (course) {
         return course.custom;
@@ -203,7 +268,8 @@
   }
 
   function findCourse(id) {
-    return courses.find(function (course) { return course.id === id; }) || null;
+    if (!id) return null;
+    return allCourses().find(function (course) { return course.id === id; }) || null;
   }
 
   function matches(course) {
@@ -258,24 +324,39 @@
       if (badge) badge.textContent = pad(count);
     });
     var total = $('courseCount');
-    if (total) total.textContent = pad(visibleCourses().length);
+    if (total) {
+      total.textContent = (isTrainer() && state.catalogFailed)
+        ? '--'
+        : pad(visibleCourses().length);
+    }
   }
 
   function renderHealth() {
     var pool = scopedCourses();
+    var catalogCount = state.catalogMeta && Number.isFinite(Number(state.catalogMeta.count))
+      ? Number(state.catalogMeta.count)
+      : state.catalog.length;
+    var count = state.catalogLoaded ? catalogCount : pool.length;
     var assets = pool.reduce(function (sum, course) { return sum + Number(course.assets || 0); }, 0);
     var modules = pool.reduce(function (sum, course) { return sum + Number(course.modules || 0); }, 0);
     var reviewCount = pool.filter(function (course) { return course.status === 'review'; }).length;
     var total = pool.length || 1;
     var ready = Math.round((1 - reviewCount / total) * 100);
     var big = document.querySelector('#libraryHealth .health-big b');
+    var bigLabel = document.querySelector('#libraryHealth .health-big span');
     var caption = document.querySelector('#libraryHealth .health-card p, #libraryHealth p');
     var bar = document.querySelector('#libraryHealth .health-bar i');
     var cap = document.querySelector('#libraryHealth .health-cap');
     var navCount = document.querySelector('[data-filter-jump="review"] .nav-count');
-    if (big) big.textContent = assets;
-    if (caption) caption.textContent = 'Across ' + pool.length + ' courses and ' + modules +
-      ' modules. ' + reviewCount + ' course' + (reviewCount === 1 ? '' : 's') + ' need a second look.';
+    if (big) big.textContent = count;
+    if (bigLabel) bigLabel.textContent = state.catalogLoaded ? 'curricula' : 'assets';
+    if (caption) {
+      caption.textContent = state.catalogLoaded
+        ? 'Across ' + count + ' curricula and ' + modules + ' grade band entries. ' +
+          reviewCount + ' local draft' + (reviewCount === 1 ? '' : 's') + ' need a second look.'
+        : 'Across ' + pool.length + ' courses and ' + modules +
+          ' modules. ' + reviewCount + ' course' + (reviewCount === 1 ? '' : 's') + ' need a second look.';
+    }
     if (bar) bar.style.width = ready + '%';
     if (cap) cap.textContent = ready + '% publish-ready';
     if (navCount) navCount.textContent = String(reviewCount);
@@ -283,9 +364,10 @@
     var headModules = $('headModules');
     var headAssets = $('headAssets');
     var headReview = $('headReview');
-    if (headCourses) headCourses.textContent = pool.length + ' course' + (pool.length === 1 ? '' : 's');
-    if (headModules) headModules.textContent = modules + ' modules';
-    if (headAssets) headAssets.textContent = assets + ' typed assets';
+    if (headCourses) headCourses.textContent = count + (state.catalogLoaded ? ' curricula' : ' courses');
+    if (headModules) headModules.textContent = modules + (state.catalogLoaded ? ' grade bands' : ' modules');
+    if (headAssets) headAssets.textContent = state.catalogLoaded
+      ? assets + ' grade entries' : assets + ' typed assets';
     if (headReview) headReview.textContent = reviewCount + ' need review';
   }
 
@@ -306,9 +388,9 @@
     var meta = el('div', 'cc-meta');
     meta.appendChild(el('span', null, course.level));
     meta.appendChild(el('i'));
-    meta.appendChild(el('span', null, pad(course.modules) + ' modules'));
+    meta.appendChild(el('span', null, pad(course.modules) + ' ' + (course.moduleLabel || 'modules')));
     meta.appendChild(el('i'));
-    meta.appendChild(el('span', null, course.assets + ' assets'));
+    meta.appendChild(el('span', null, course.assets + ' ' + (course.assetLabel || 'assets')));
     card.appendChild(meta);
 
     var progress = el('div', 'cc-progress');
@@ -323,9 +405,9 @@
     var foot = el('div', 'cc-foot');
     var assets = el('span', 'cc-assets');
     assets.appendChild(icon('i-asset'));
-    assets.appendChild(el('span', null, 'typed assets'));
+    assets.appendChild(el('span', null, course.assetLabel || 'typed assets'));
     foot.appendChild(assets);
-    foot.appendChild(el('span', 'cc-edited', course.edited));
+    if (course.edited) foot.appendChild(el('span', 'cc-edited', course.edited));
     card.appendChild(foot);
 
     card.addEventListener('click', function () { selectCourse(course.id); });
@@ -337,16 +419,37 @@
     var empty = $('emptyState');
     if (!grid || !empty) return;
 
-    var list = visibleCourses();
+    var failedCatalog = isTrainer() && state.catalogFailed;
+    var list = failedCatalog ? [] : visibleCourses();
     grid.innerHTML = '';
     grid.classList.toggle('list', state.density === 'list');
     list.forEach(function (course) { grid.appendChild(buildCard(course)); });
     empty.hidden = list.length > 0;
     grid.hidden = list.length === 0;
+    var emptyHeading = empty.querySelector('h2');
+    var emptyCopy = empty.querySelector('p');
+    if (emptyHeading) {
+      emptyHeading.textContent = failedCatalog
+        ? 'The curriculum catalogue is unavailable.'
+        : 'No courses match that filter.';
+    }
+    if (emptyCopy) {
+      emptyCopy.textContent = failedCatalog
+        ? 'No course count is shown until the server catalogue can be read.'
+        : 'Try another status or clear the search to see the full library.';
+    }
     updateCounts();
   }
 
   function moduleData(course, index) {
+    if (course.catalog) {
+      var grades = course.gradeLabels || [];
+      return {
+        title: grades[index] || 'Grade band ' + (index + 1),
+        status: 'Catalog',
+        assets: []
+      };
+    }
     var count = 3 + ((index + course.modules) % 3);
     var assets = [];
     for (var i = 0; i < count; i += 1) {
@@ -458,26 +561,29 @@
     var blockHead = el('div', 'detail-block-head');
     blockHead.appendChild(el('span', 'mono', 'Modules'));
     blockHead.appendChild(el('span', 'count', pad(course.modules)));
-    var add = el('button', 'add-module');
-    add.type = 'button';
-    add.appendChild(icon('i-plus'));
-    add.appendChild(el('span', null, 'Add module'));
-    add.addEventListener('click', function () {
-      course.modules += 1;
-      course.custom = true;
-      course.edited = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      state.openModules[(inSheet ? 'sheet:' : 'panel:') + course.id + ':' + (course.modules - 1)] = true;
-      persistCustom();
-      renderCourses();
-      var target = inSheet ? $('sheetDetailContent') : $('detailContent');
-      if (target) {
-        target.innerHTML = '';
-        target.appendChild(buildDetail(course, inSheet));
-      }
-      renderHealth();
-      toast('Module ' + pad(course.modules) + ' added to ' + course.title + '.');
-    });
-    blockHead.appendChild(add);
+    if (canAuthor() && !course.catalog) {
+      var add = el('button', 'add-module');
+      add.type = 'button';
+      add.appendChild(icon('i-plus'));
+      add.appendChild(el('span', null, 'Add module'));
+      add.addEventListener('click', function () {
+        if (!canAuthor()) return;
+        course.modules += 1;
+        course.custom = true;
+        course.edited = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        state.openModules[(inSheet ? 'sheet:' : 'panel:') + course.id + ':' + (course.modules - 1)] = true;
+        persistCustom();
+        renderCourses();
+        var target = inSheet ? $('sheetDetailContent') : $('detailContent');
+        if (target) {
+          target.innerHTML = '';
+          target.appendChild(buildDetail(course, inSheet));
+        }
+        renderHealth();
+        toast('Module ' + pad(course.modules) + ' added to ' + course.title + '.');
+      });
+      blockHead.appendChild(add);
+    }
     inner.appendChild(blockHead);
 
     var list = el('div', 'module-list');
@@ -515,8 +621,10 @@
     main.appendChild(el('b', null, data.title));
     main.appendChild(el('span', null, pad(data.assets.length) + ' typed assets'));
     head.appendChild(main);
-    var badge = el('span', 'module-status s-' + (data.status === 'Ready' ? 'published'
-      : data.status === 'In review' ? 'review' : 'draft'), data.status);
+    var badgeClass = data.status === 'Catalog' ? 'published'
+      : data.status === 'Ready' ? 'published'
+        : data.status === 'In review' ? 'review' : 'draft';
+    var badge = el('span', 'module-status s-' + badgeClass, data.status);
     head.appendChild(badge);
     head.appendChild(icon('i-chev-down', 'module-chev'));
     head.addEventListener('click', function () {
@@ -543,28 +651,31 @@
       text.appendChild(el('span', null, asset.type.toUpperCase()));
       row.appendChild(text);
       row.appendChild(el('i', 'asset-dot ' + asset.state));
-      var more = el('button', 'asset-btn');
-      more.type = 'button';
-      more.setAttribute('aria-label', asset.state === 'review'
-        ? 'Mark ' + asset.label + ' ready' : 'Send ' + asset.label + ' for review');
-      more.title = more.getAttribute('aria-label');
-      more.appendChild(icon('i-more'));
-      more.addEventListener('click', function () {
-        course.assetOverrides = course.assetOverrides || {};
-        var next = asset.state === 'review' ? 'ready' : 'review';
-        course.assetOverrides[asset.label] = next;
-        asset.state = next;
-        course.custom = true;
-        persistCustom();
-        renderHealth();
-        toast(asset.label + (next === 'review' ? ' sent for review.' : ' marked ready.'));
-        var target = inSheet ? $('sheetDetailContent') : $('detailContent');
-        if (target) {
-          target.innerHTML = '';
-          target.appendChild(buildDetail(course, inSheet));
-        }
-      });
-      row.appendChild(more);
+      if (canAuthor() && !course.catalog) {
+        var more = el('button', 'asset-btn');
+        more.type = 'button';
+        more.setAttribute('aria-label', asset.state === 'review'
+          ? 'Mark ' + asset.label + ' ready' : 'Send ' + asset.label + ' for review');
+        more.title = more.getAttribute('aria-label');
+        more.appendChild(icon('i-more'));
+        more.addEventListener('click', function () {
+          if (!canAuthor()) return;
+          course.assetOverrides = course.assetOverrides || {};
+          var next = asset.state === 'review' ? 'ready' : 'review';
+          course.assetOverrides[asset.label] = next;
+          asset.state = next;
+          course.custom = true;
+          persistCustom();
+          renderHealth();
+          toast(asset.label + (next === 'review' ? ' sent for review.' : ' marked ready.'));
+          var target = inSheet ? $('sheetDetailContent') : $('detailContent');
+          if (target) {
+            target.innerHTML = '';
+            target.appendChild(buildDetail(course, inSheet));
+          }
+        });
+        row.appendChild(more);
+      }
       assets.appendChild(row);
     });
     module.appendChild(assets);
@@ -599,16 +710,17 @@
       if (node) node.hidden = key !== name;
     });
     if (name === 'planner') {
-      if (window.mathifyAutoPlanner && window.mathifyAutoPlanner.render) {
+      if (isTrainer() && window.mathifyAssignedPlanner) {
+        window.mathifyAssignedPlanner.render();
+      } else if (window.mathifyAutoPlanner && window.mathifyAutoPlanner.render) {
         window.mathifyAutoPlanner.render();
       }
-      /* The local class-duration designer stays available below the generated
-         early-years planner. */
-      if (window.mathifyPlanner && window.mathifyPlanner.render) {
+      /* The local class-duration designer is founder-only. */
+      if (canAuthor() && window.mathifyPlanner && window.mathifyPlanner.render) {
         window.mathifyPlanner.render();
       }
     }
-    if (name === 'new') applyNewCourseDefaults();
+    if (name === 'new' && canAuthor()) applyNewCourseDefaults();
     if (name === 'course' && course) {
       var target = $('sheetDetailContent');
       if (target) {
@@ -686,6 +798,7 @@
 
   function createCourse(event) {
     event.preventDefault();
+    if (!canAuthor()) return;
     var name = ($('newName') || {}).value || '';
     var level = ($('newLevel') || {}).value || 'Class 6';
     var subject = currentSubject();
@@ -726,6 +839,48 @@
     selectCourse(course.id);
     renderHealth();
     toast('Course created with one empty module.');
+  }
+
+  function applyRolePresentation() {
+    var author = canAuthor();
+    var trainer = isTrainer();
+    document.body.classList.toggle('lms-view-only', !author);
+
+    var newCourse = $('newCourseBtn');
+    if (newCourse) newCourse.hidden = !author;
+    var importPack = $('importPackBtn');
+    if (importPack) importPack.hidden = !author;
+
+    var plannerButton = $('plannerBtn');
+    if (plannerButton) {
+      plannerButton.textContent = trainer ? 'Assigned planner'
+        : (canAuthor() ? 'Planner designer' : 'View planner');
+    }
+    var plannerSheet = $('sheet-planner');
+    if (plannerSheet) {
+      var eyebrow = plannerSheet.querySelector('.sheet-head .mono');
+      var title = $('plannerSheetTitle');
+      if (eyebrow) {
+        eyebrow.textContent = trainer ? 'Assigned planner · view only'
+          : (author ? 'Planner designer · founder authoring' : 'Planner · view only');
+      }
+      if (title) {
+        title.textContent = trainer
+          ? 'View the planner assigned to your batch.'
+          : (author ? 'Draft a lesson without leaking trainer notes.' : 'Review the stored planner without editing it.');
+      }
+    }
+    var banner = document.querySelector('.preview-banner');
+    if (banner) {
+      banner.innerHTML = '';
+      banner.appendChild(el('b', null, 'Curriculum preview.'));
+      banner.appendChild(document.createTextNode(author
+        ? ' The course library is live from the server catalogue; founder authoring, planner design and review remain available.'
+        : ' The course library and assigned planners are read-only. All creation, updates and regeneration are founder-only.'));
+    }
+    var foot = document.querySelector('.foot-c');
+    if (foot) foot.textContent = author
+      ? 'Curriculum library · founder authoring' : 'Curriculum library · read-only workspace';
   }
 
   function bind() {
@@ -919,7 +1074,20 @@
     state.selectedId = (scopedCourses()[0] || {}).id || state.selectedId;
   }
   applyNewCourseDefaults();
+  applyRolePresentation();
   renderCourses();
   renderDetail();
   renderHealth();
+  /* The catalogue is the authoritative course source. Load it after the first
+     paint so the grid never stays on its 00 placeholder while the request is
+     in flight, then repaint every count and card from the response. */
+  loadCatalog().then(function () {
+    var selected = findCourse(state.selectedId);
+    if (!selected || !courseAllowed(selected)) {
+      state.selectedId = (scopedCourses()[0] || {}).id || state.selectedId;
+    }
+    renderCourses();
+    renderDetail();
+    renderHealth();
+  });
 }());

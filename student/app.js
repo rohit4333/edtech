@@ -386,7 +386,7 @@
   function openClassroom() {
     /* The role and view are explicit: a copied student link must never open a
        trainer-shaped room when the same browser also holds a trainer token. */
-    window.location.href = '../classroom/connect.html?sessionId=' +
+    window.location.href = '../classroom/preflight.html?sessionId=' +
       encodeURIComponent(activeSessionId()) + '&role=student&view=student&state=' +
       encodeURIComponent(state === 'ended' ? 'ended' : 'live');
   }

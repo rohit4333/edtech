@@ -32,6 +32,7 @@
   var zoomValue = document.getElementById('fullBoardZoomValue');
   var statusNode = document.getElementById('fullBoardStatus');
   var inkPanel = document.getElementById('fullBoardInkPanel');
+  var inkPanelHome = inkPanel ? inkPanel.parentNode : null;
   var toolPalette = overlay.querySelector('.full-board-tools');
   var inkCarets = toolPalette ? toolPalette.querySelectorAll('[data-ink-toggle]') : [];
   var topRow = document.querySelector('.top .top-r');
@@ -74,6 +75,9 @@
   ];
   var LINE_TOOLS = ['line', 'arrow', 'double-arrow', 'dashed', 'dotted'];
   var SHAPES = SHAPE_TOOLS.concat(LINE_TOOLS);
+  var currentShape = SHAPE_TOOLS[0];
+  var shapeButton = toolPalette ? toolPalette.querySelector('[data-tool-group="shapes"]') : null;
+  var shapeGlyph = shapeButton ? shapeButton.querySelector('[data-shape-glyph]') : null;
   var WIDTHS = { pen: 2.6, highlighter: 18, marker: 17, eraser: 26, laser: 4 };
   var WEIGHTS = { thin: 0.55, normal: 1, bold: 1.9 };
   var items = [];
@@ -919,6 +923,23 @@
     });
   }
 
+  /* The Shapes icon is a live preview of the chosen default shape, so the
+     trainer can see what the next click will draw without opening the menu. */
+  function syncShapeButton(name) {
+    if (SHAPE_TOOLS.indexOf(name) === -1) return;
+    currentShape = name;
+    if (!shapeButton || !shapeGlyph) return;
+    var source = toolPalette.querySelector('[data-group-menu="shapes"] [data-board-tool="' + name + '"] svg');
+    if (source) {
+      shapeGlyph.innerHTML = '';
+      shapeGlyph.appendChild(source.cloneNode(true));
+    }
+    var label = name.charAt(0).toUpperCase() + name.slice(1);
+    shapeButton.setAttribute('aria-label', 'Shapes · ' + label + ' selected');
+    shapeButton.setAttribute('title', 'Shapes · ' + label + ' selected · click to open');
+  }
+  syncShapeButton(currentShape);
+
   /* The ink row is the popover owned by the pen/highlighter carets. It lives
      inside the whiteboard-controls deck, never as a fourth floating surface. */
   function closeInkPanel() {
@@ -929,16 +950,14 @@
     });
   }
 
-  function anchorInkPanel(caret) {
-    if (!toolPalette || !inkPanel || !caret) return;
-    var paletteRect = toolPalette.getBoundingClientRect();
-    var caretRect = caret.getBoundingClientRect();
-    var border = toolPalette.clientLeft || 0;
-    var left = caretRect.left - paletteRect.left - border;
-    var widest = toolPalette.clientWidth - inkPanel.offsetWidth;
-    if (widest >= 0) left = Math.min(Math.max(left, 0), widest);
-    else left = Math.max(left, 0);
-    inkPanel.style.left = Math.round(left) + 'px';
+  function centreInkPanel() {
+    if (!inkPanel || !toolPalette) return;
+    /* Horizontal centre of the page every time, just below the floating tool
+       deck. The camera window is draggable and must never be covered. */
+    var paletteBottom = toolPalette.getBoundingClientRect().bottom;
+    inkPanel.style.left = '50%';
+    inkPanel.style.top = Math.round(Math.max(paletteBottom + 8, 68)) + 'px';
+    inkPanel.style.transform = 'translateX(-50%)';
   }
 
   function openInkPanel(caret) {
@@ -948,7 +967,7 @@
     Array.prototype.forEach.call(inkCarets, function (item) {
       item.setAttribute('aria-expanded', String(item === caret));
     });
-    anchorInkPanel(caret);
+    centreInkPanel();
   }
 
   function setTool(name) {
@@ -981,6 +1000,7 @@
       groupButton.classList.toggle('is-active', active);
       groupButton.setAttribute('aria-pressed', String(active));
     });
+    if (SHAPE_TOOLS.indexOf(tool) !== -1) syncShapeButton(tool);
     redraw();
   }
 
@@ -1636,6 +1656,10 @@
     document.body.classList.add('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'true');
     mountPalette();
+    /* The tool deck uses backdrop-filter, which makes any fixed descendant
+       position against the deck instead of the page. Move the one shared ink
+       row to the body so page-centred really means page-centred. */
+    if (inkPanel && inkPanel.parentNode !== document.body) document.body.appendChild(inkPanel);
     setTool(tool);
     fit();
   }
@@ -1648,6 +1672,9 @@
     /* Closing the board must also stop sharing, or the child stays locked in
        a hidden whiteboard and their session desk never comes back. */
     if (trainer && sharing) setSharing(false, false);
+    if (inkPanel && inkPanelHome && inkPanel.parentNode !== inkPanelHome) {
+      inkPanelHome.appendChild(inkPanel);
+    }
     overlay.hidden = true;
     document.body.classList.remove('board-open');
     unmountPalette();

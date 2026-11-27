@@ -14,7 +14,13 @@ router.use(auth.requireRole('student', 'founder'));
 
 router.get('/dashboard', function (req, res, next) {
   Promise.resolve(db.listSessionsForUser(req.user)).then(function (sessions) {
-    return res.json({ dashboard: serializers.toStudentDashboard(req.user, sessions) });
+    return Promise.resolve(typeof db.listPracticeBatches === 'function'
+      ? db.listPracticeBatches()
+      : []).then(function (batches) {
+      return res.json({
+        dashboard: serializers.toStudentDashboard(req.user, sessions, batches)
+      });
+    });
   }).catch(next);
 });
 
@@ -88,16 +94,22 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
     current.quiz.phase = 'awaiting_reveal';
     return current;
   })).then(function (updated) {
-    /* Never broadcast correctness or the answer key on the shared channel. */
+    /* Never broadcast correctness or the answer key on the shared channel.
+       The chosen option is the student's own saved answer, not a result. */
     realtime.publish(session.id, 'quiz.answer.saved', {
       questionId: question.id,
       attemptId: attempt.id,
+      optionIndex: optionIndex,
       at: attempt.at
     });
 
     return res.json({
       attemptId: attempt.id,
-      saved: true,
+      saved: {
+        questionId: question.id,
+        optionIndex: optionIndex,
+        at: attempt.at
+      },
       phase: updated.quiz.phase
     });
   });

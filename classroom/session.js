@@ -33,8 +33,6 @@
   var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
   var accessToken = window.MATHIFY_SUPABASE_ACCESS_TOKEN || null;
   var realtimeLink = null;
-  var strokeId = null;
-  var strokeSeq = 0;
 
   function authToken() {
     return window.MATHIFY_ACCESS_TOKEN || accessToken || null;
@@ -223,6 +221,7 @@
     if (injected && injected.pages) {
       trainerSession = injected.session || injected;
       notesLoaded = true;
+      captureGuide(trainerSession);
       renderInstructions();
       return Promise.resolve(true);
     }
@@ -237,6 +236,7 @@
       .then(function (data) {
         trainerSession = data.session || data;
         notesLoaded = true;
+        captureGuide(trainerSession);
         renderInstructions();
         return true;
       }).catch(function (error) {
@@ -251,6 +251,14 @@
     setNotes(trainerPanel && trainerPanel.hidden);
   });
   trainerPanelClose && trainerPanelClose.addEventListener('click', function () { setNotes(false); });
+
+  guideToggle && guideToggle.addEventListener('click', function () {
+    if (!guideBody) return;
+    var open = guideBody.hidden;
+    guideBody.hidden = !open;
+    guideToggle.setAttribute('aria-expanded', String(open));
+    guideToggle.textContent = open ? 'Hide guide' : 'Show guide';
+  });
 
   ['#pagePrev', '#pageNext'].forEach(function (sel) {
     var btn = $(sel);
@@ -433,7 +441,9 @@
   var quizPracticeBadge = $('#quizPracticeBadge');
   var quizForceNext = $('#quizForceNext');
   var quizReveal = $('#quizReveal');
-  var quizReteach = $('#quizReteach');
+  var quizSubmit = $('#quizSubmit');
+  var quizPushBoard = $('#quizPushBoard');
+  var quizNewCheck = $('#quizNewCheck');
   var quizAnswerState = $('#quizAnswerState');
   var quizPhaseLabel = $('#quizPhaseLabel');
   var quizStageTimer = $('#quizStageTimer');
@@ -441,18 +451,90 @@
   var doubtMenu = $('#doubtMenu');
   var quizActionHint = $('#quizActionHint');
   var quizActionSkip = $('#quizActionSkip');
-  var quizActionExplain = $('#quizActionExplain');
-  var studentInkMode = $('#studentInkMode');
-  var scratchOverlay = $('#scratchOverlay');
-  var scratchClose = $('#scratchClose');
-  var scratchCanvas = $('#scratchCanvas');
-  var scratchShare = $('#scratchShare');
-  var scratchClear = $('#scratchClear');
-  var studentInk = $('#studentInk');
-  var studentInkCanvas = $('#studentInkCanvas');
   var readinessText = $('#readinessText');
   var readinessBar = $('#readinessBar');
   var readinessNote = $('.readiness small');
+  var quizRetest = $('#quizRetest');
+  var quizSectionProgress = $('#quizSectionProgress');
+  var quizSectionCount = $('#quizSectionCount');
+  var quizSectionLock = $('#quizSectionLock');
+  var shareBoardBtn = $('#shareBoardBtn');
+  var fullBoardFullscreen = $('#fullBoardFullscreen');
+
+  /* Temporary dev-fixture planner guide. This client only reads the payload;
+     it never authors, generates or mutates planner content. */
+  var trainerGuide = $('#trainerGuide');
+  var guideToggle = $('#guideToggle');
+  var guideBody = $('#guideBody');
+  var guideStoryTitle = $('#guideStoryTitle');
+  var guideStoryThread = $('#guideStoryThread');
+  var guideBeatNarration = $('#guideBeatNarration');
+  var guideCurrentConcept = $('#guideCurrentConcept');
+  var guideCurrentQuestion = $('#guideCurrentQuestion');
+  var guideCompleted = $('#guideCompleted');
+  var guideSectionCount = $('#guideSectionCount');
+  var guideSectionLock = $('#guideSectionLock');
+  var guideConceptsList = $('#guideConcepts');
+  var guideStoryClosing = $('#guideStoryClosing');
+  var studentStory = $('#studentStory');
+  var studentStoryChapter = $('#studentStoryChapter');
+  var studentStoryTopic = $('#studentStoryTopic');
+  var studentStoryNarration = $('#studentStoryNarration');
+  var liveMeta = $('#liveMeta');
+  var liveChapterDeck = $('#liveChapterDeck');
+  var liveTopicDeck = $('#liveTopicDeck');
+  var guideState = {
+    guide: null,
+    progress: null,
+    quiz: null,
+    sectionCorrect: 0,
+    sectionRequired: 3,
+    sectionComplete: true
+  };
+
+  /* ------------------------------- front-desk share state / camera hand-off */
+  /* The front card is the single session-desk share action. app.js owns the
+     classroomApi.shareBoard call; this only mirrors the server's board.shared
+     event onto the Off/On chip, and starts honestly Off. */
+  function setFrontBoardShareState(shared) {
+    var on = shared === true;
+    if (!shareBoardBtn) return;
+    shareBoardBtn.classList.toggle('is-on', on);
+    shareBoardBtn.setAttribute('aria-pressed', String(on));
+    var label = $('[data-control-label]', shareBoardBtn);
+    if (label) label.textContent = on ? 'On' : 'Off';
+    shareBoardBtn.title = on
+      ? 'Stop sharing the whiteboard with the child'
+      : 'Share the whiteboard with the child';
+  }
+  setFrontBoardShareState(false);
+
+  /* The whiteboard is the live lesson desk. Closing it returns the trainer to
+     the camera page with the same session identity; devLabel, review, state
+     and any other QA params are carried over untouched. */
+  function cameraUrl() {
+    var search = new URLSearchParams(window.location.search);
+    if (sessionId) search.set('sessionId', sessionId);
+    if (studentView) {
+      search.set('role', 'student');
+      search.set('view', 'student');
+    } else if (!search.has('role')) {
+      search.set('role', isTrainer && user.role ? user.role : 'trainer');
+    }
+    return 'connect.html?' + search.toString();
+  }
+
+  var returningToCamera = false;
+  function backToCamera() {
+    if (!isTrainer || returningToCamera) return;
+    returningToCamera = true;
+    /* Desk hand-off, not a session exit: the server clock and recording keep
+       running. pagehide honours this flag and skips the leaving beacon; End
+       session stays the only path that finalizes presence. */
+    window.MATHIFY_STAY_PRESENT = true;
+    window.location.assign(cameraUrl());
+  }
+  fullBoardFullscreen && fullBoardFullscreen.addEventListener('click', backToCamera);
 
   /* Static classroom assets contain academic prompts only. Answer keys,
      explanations and trainer hints are loaded at runtime from the role-scoped
@@ -516,7 +598,6 @@
     chosen: null,
     phase: 'answering',
     revealed: false,
-    reteachArmed: false,
     recheckCount: 0,
     seconds: 120,
     timer: null,
@@ -525,38 +606,40 @@
     parallelSolved: false,
     pollTimer: null
   };
-  /* The question stem and its own attached image are the only fields that
-     cross to the board. Options, answer keys, hints and trainer notes stay in
-     the quiz layer. The key stops a state refresh duplicating the card. */
-  var lastBoardQuestionKey = null;
-  var pendingBoardQuestion = null;
-
-  function queueQuestionToBoard(item) {
-    if (!isTrainer || !item || !item.q) return;
-    var text = String(item.q).trim();
-    if (!text) return;
-    var key = String(item.id || '') + '|' + text;
-    if (key === lastBoardQuestionKey) return;
-    lastBoardQuestionKey = key;
-    pendingBoardQuestion = {
+  /* Only the question stem and its attached image may cross to the board.
+     Options, answer keys, hints and trainer notes stay in the quiz layer. A
+     trainer must press Push to whiteboard; a render or state sync never does it. */
+  function boardQuestionPayload(item) {
+    if (!item) return null;
+    var text = String(item.q || '').trim();
+    if (!text) return null;
+    return {
       q: text,
       image: quizImageSource(item.image || item.imageUrl ||
         item.image_url || item.imageData || item.image_data ||
         item.photo || item.attachment) || null
     };
-    flushPendingBoardQuestion();
   }
 
-  function flushPendingBoardQuestion() {
+  function pushQuizQuestionToBoard() {
+    if (!isTrainer) {
+      toast('Only the trainer can push a question to the board.');
+      return false;
+    }
+    var payload = boardQuestionPayload(currentQuizItem());
+    if (!payload) {
+      toast('There is no question to push.');
+      return false;
+    }
     var boardApi = window.MathifyFullBoard;
-    if (!pendingBoardQuestion || !boardApi ||
-        typeof boardApi.queueQuestionText !== 'function') return;
-    var question = pendingBoardQuestion;
-    pendingBoardQuestion = null;
-    boardApi.queueQuestionText(question);
+    var transfer = boardApi && (boardApi.pushQuestion || boardApi.showQuestionText);
+    if (typeof transfer !== 'function') {
+      toast('The whiteboard is not ready yet.');
+      return false;
+    }
+    transfer.call(boardApi, payload);
+    return true;
   }
-
-  window.addEventListener('mathify:fullboard-ready', flushPendingBoardQuestion);
 
   /* The planner designer hands a question over through local storage, then
      opens this classroom with board=full. Only the stem and image cross; the
@@ -569,11 +652,11 @@
       window.localStorage.removeItem('mathify.planner.question');
     } catch (error) { handoff = null; }
     if (!handoff || !handoff.q) return;
-    queueQuestionToBoard({
-      id: handoff.id || 'planner_' + Date.now(),
-      q: handoff.q,
-      image: handoff.image || null
-    });
+    var payload = boardQuestionPayload({ q: handoff.q, image: handoff.image });
+    var boardApi = window.MathifyFullBoard;
+    if (payload && boardApi && typeof boardApi.pushQuestion === 'function') {
+      boardApi.pushQuestion(payload);
+    }
   }
 
   function paintQuizClock() {
@@ -589,6 +672,187 @@
 
   function currentQuizItem() {
     return questions[quizState.index] || null;
+  }
+
+  function setText(node, value) {
+    if (node) node.textContent = typeof value === 'string' ? value : '';
+  }
+
+  function guideConcept(guide, id) {
+    if (!guide || !Array.isArray(guide.concepts)) return null;
+    var match = guide.concepts.find(function (item) { return item && item.id === id; });
+    return match || guide.concepts[0] || null;
+  }
+
+  /* One beat per current concept. Locked future beats are never selected. */
+  function guideBeat(guide, conceptId) {
+    if (!guide || !guide.story || !Array.isArray(guide.story.beats)) return null;
+    return guide.story.beats.find(function (beat) {
+      return beat && beat.conceptId === conceptId;
+    }) || null;
+  }
+
+  function guideConceptTitle() {
+    var progress = guideState.progress || {};
+    var concept = guideConcept(guideState.guide, progress.currentConceptId);
+    return concept && typeof concept.title === 'string' ? concept.title : '';
+  }
+
+  function applySectionProgress(progress) {
+    var required = Number(progress && progress.sectionRequired);
+    if (!Number.isFinite(required) || required <= 0) required = 3;
+    var correct = Number(progress && progress.sectionCorrect);
+    if (!Number.isFinite(correct) || correct < 0) correct = 0;
+    var complete = Boolean(guideState.guide) &&
+      ((progress && progress.sectionComplete === true) || correct >= required);
+
+    guideState.sectionRequired = required;
+    guideState.sectionCorrect = correct;
+    guideState.sectionComplete = complete;
+
+    var count = correct + ' / ' + required;
+    var lockText = complete
+      ? 'Section complete · next section unlocked.'
+      : 'Next section locked until ' + required + ' correct answers in this section (' +
+        correct + ' so far).';
+
+    setText(guideSectionCount, count);
+    setText(guideSectionLock, lockText);
+    if (guideSectionLock) guideSectionLock.classList.toggle('is-unlocked', complete);
+    setText(quizSectionCount, count);
+    setText(quizSectionLock, lockText);
+    if (quizSectionProgress) {
+      quizSectionProgress.classList.toggle('is-complete', complete);
+      quizSectionProgress.hidden = !guideState.guide;
+    }
+    syncPracticeControls(currentQuizItem());
+  }
+
+  function clearGuide() {
+    guideState.guide = null;
+    guideState.progress = null;
+    guideState.quiz = null;
+    guideState.sectionCorrect = 0;
+    guideState.sectionRequired = 3;
+    guideState.sectionComplete = true;
+    if (trainerGuide) trainerGuide.hidden = true;
+    if (studentStory) studentStory.hidden = true;
+    if (liveMeta) liveMeta.hidden = true;
+    if (quizSectionProgress) quizSectionProgress.hidden = true;
+    syncPracticeControls(currentQuizItem());
+  }
+
+  function renderGuideConcepts(guide, currentConcept, currentQuestionId, progress) {
+    if (!guideConceptsList) return;
+    guideConceptsList.innerHTML = '';
+    var completed = Array.isArray(progress.completedQuestionIds) ? progress.completedQuestionIds : [];
+    (guide.concepts || []).forEach(function (concept) {
+      var item = document.createElement('li');
+      if (currentConcept && concept.id === currentConcept.id) item.className = 'is-current';
+      var title = document.createElement('b');
+      title.textContent = concept.title || concept.id || '';
+      item.appendChild(title);
+      if (typeof concept.narration === 'string' && concept.narration) {
+        var narration = document.createElement('p');
+        narration.textContent = concept.narration;
+        item.appendChild(narration);
+      }
+      var questionsList = document.createElement('ol');
+      (concept.practiceQuestions || []).forEach(function (question) {
+        var questionItem = document.createElement('li');
+        if (question.id === currentQuestionId) questionItem.className = 'is-current';
+        else if (completed.indexOf(question.id) !== -1) questionItem.className = 'is-complete';
+        /* Stem only. Keys, hints, explanations, trainer instructions and
+           misconceptions are never rendered in either role. */
+        questionItem.textContent = question.stem || question.id || '';
+        questionsList.appendChild(questionItem);
+      });
+      if (questionsList.childNodes.length) item.appendChild(questionsList);
+      guideConceptsList.appendChild(item);
+    });
+  }
+
+  function renderGuide() {
+    var guide = guideState.guide;
+    var showTrainer = Boolean(guide && isTrainer);
+    var showStudent = Boolean(guide && studentView);
+    if (trainerGuide) trainerGuide.hidden = !showTrainer;
+    if (studentStory) studentStory.hidden = !showStudent;
+    if (liveMeta) liveMeta.hidden = !showStudent;
+    if (quizSectionProgress) quizSectionProgress.hidden = !guide;
+    if (!guide) return;
+
+    var story = guide.story || {};
+    var progress = guideState.progress || {};
+    var currentQuestionId = progress.currentQuestionId ||
+      (guideState.quiz && guideState.quiz.currentQuestionId) || '';
+    var concept = guideConcept(guide, progress.currentConceptId);
+    if (!concept && currentQuestionId && Array.isArray(guide.concepts)) {
+      concept = guide.concepts.find(function (item) {
+        return item && Array.isArray(item.practiceQuestions) &&
+          item.practiceQuestions.some(function (question) {
+            return question && question.id === currentQuestionId;
+          });
+      }) || null;
+    }
+    var conceptTitle = concept && typeof concept.title === 'string' ? concept.title : '';
+    var beat = guideBeat(guide, concept && concept.id);
+    var storyTitle = typeof story.title === 'string' && story.title
+      ? story.title
+      : (typeof guide.label === 'string' ? guide.label : 'Dev planner guide');
+
+    if (showTrainer) {
+      setText(guideStoryTitle, storyTitle);
+      setText(guideStoryThread, story.thread || '');
+      setText(guideStoryClosing, story.closing || '');
+      var beatText = beat && typeof beat.narration === 'string' ? beat.narration : '';
+      var emoji = beat && typeof beat.emoji === 'string' ? beat.emoji : '';
+      var trainerNarration = beatText
+        ? (emoji ? emoji + ' ' : '') + beatText
+        : (concept && typeof concept.narration === 'string' ? concept.narration : '');
+      setText(guideBeatNarration, trainerNarration);
+      setText(guideCurrentConcept, conceptTitle);
+      setText(guideCurrentQuestion, currentQuestionId);
+      var completed = Array.isArray(progress.completedQuestionIds) ? progress.completedQuestionIds.length : 0;
+      setText(guideCompleted, completed + ' answered correctly');
+      renderGuideConcepts(guide, concept, currentQuestionId, progress);
+    }
+
+    if (showStudent) {
+      /* Only the current concept/beat is rendered. No guide index, answer key,
+         hint, explanation, trainer note, misconception or future beat appears. */
+      var studentLine = beat && typeof beat.narration === 'string' && beat.narration
+        ? beat.narration
+        : (concept && typeof concept.narration === 'string' ? concept.narration : '');
+      setText(studentStoryChapter, storyTitle);
+      setText(studentStoryTopic, conceptTitle);
+      setText(studentStoryNarration, studentLine);
+      setText(liveChapterDeck, storyTitle);
+      setText(liveTopicDeck, conceptTitle);
+    }
+  }
+
+  function captureGuide(session) {
+    var guide = session && session.plannerGuide;
+    if (!guide || typeof guide !== 'object') {
+      if (guideState.guide) clearGuide();
+      return false;
+    }
+    guideState.guide = guide;
+    guideState.progress = guide.progress || {};
+    if (session.quiz) guideState.quiz = session.quiz;
+    renderGuide();
+    applySectionProgress(guideState.progress);
+    return true;
+  }
+
+  function refreshGuide() {
+    if (!sessionId || !hasApiAccess()) return Promise.resolve(false);
+    var path = (isTrainer ? '/trainer' : '/student') +
+      '/sessions/' + encodeURIComponent(sessionId);
+    return apiRequest(path).then(function (data) {
+      return captureGuide(data && (data.session || data));
+    }).catch(function () { return false; });
   }
 
   function quizImageSource(value) {
@@ -640,6 +904,7 @@
       '/sessions/' + encodeURIComponent(sessionId);
     return client.request(path).then(function (data) {
       var session = data && (data.session || data);
+      captureGuide(session);
       var source = session && session.quiz && session.quiz.questions;
       if (!Array.isArray(source) || !source.length) return false;
       questions = source.map(mapQuizQuestion);
@@ -653,6 +918,45 @@
     });
   }
 
+  /* The server owns which question is current. A launch or a Next transition
+     replaces the local preview bank with the role-safe session payload and then
+     renders that exact question; it never pushes it to the board. */
+  function syncQuizFromServer(session) {
+    captureGuide(session);
+    var quiz = session && session.quiz;
+    var source = quiz && quiz.questions;
+    if (!Array.isArray(source) || !source.length) return false;
+    questions = source.map(mapQuizQuestion);
+    baseQuestions = questions.map(function (question) {
+      return Object.assign({}, question, { options: question.options.slice() });
+    });
+    var index = questions.findIndex(function (question) {
+      return question.id === quiz.currentQuestionId;
+    });
+    quizState.index = Math.max(0, index);
+    renderQuiz();
+    return true;
+  }
+
+  function syncLaunchWithServer() {
+    if (!sessionId || !hasApiAccess()) return Promise.resolve(false);
+    if (isTrainer) {
+      return apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/launch', {
+        method: 'POST'
+      }).then(function (data) {
+        return syncQuizFromServer(data && data.session);
+      }).catch(function () { return false; });
+    }
+    if (studentView) {
+      return apiRequest('/student/sessions/' + encodeURIComponent(sessionId))
+        .then(function (data) {
+          return syncQuizFromServer(data && data.session);
+        })
+        .catch(function () { return false; });
+    }
+    return Promise.resolve(false);
+  }
+
   function isRequiredQuestion(item) {
     return Boolean(item && item.requiresCorrectAnswer === true);
   }
@@ -662,13 +966,19 @@
   function syncPracticeControls(item) {
     var required = isRequiredQuestion(item || currentQuizItem());
     var blocked = required && quizState.parallelSolved !== true;
+    /* The dev-fixture section rule mirrors server gating: the next section is
+       locked until the required number of correct answers is reached. */
+    var sectionLocked = Boolean(guideState.guide) && !guideState.sectionComplete;
 
     if (quizPracticeBadge) quizPracticeBadge.hidden = !required;
     if (quizSkip) quizSkip.disabled = !isAnswerable() || quizState.answered || blocked;
     if (quizActionSkip) quizActionSkip.disabled = !quizLive() || !isAnswerable() ||
       quizState.answered || blocked;
     if (quizNext) {
-      quizNext.disabled = studentView || quizState.phase === 'complete' || blocked;
+      quizNext.disabled = studentView || quizState.phase === 'complete' || blocked || sectionLocked;
+      quizNext.title = sectionLocked
+        ? 'Next section is locked until the required correct answers are recorded.'
+        : '';
     }
     if (quizForceNext) {
       quizForceNext.hidden = !required || !isTrainer;
@@ -724,7 +1034,20 @@
     var answerable = quizLive() && isAnswerable() && !quizState.answered;
     if (quizActionHint) quizActionHint.disabled = !answerable;
     if (quizActionSkip) quizActionSkip.disabled = !answerable;
-    if (quizActionExplain) quizActionExplain.disabled = !quizLive();
+    /* Explain on board stays available after a wrong answer: a trainer can
+       push this exact stem/image for explanation without releasing the key. */
+    if (quizPushBoard) quizPushBoard.disabled = !quizLive() || !currentQuizItem();
+    if (quizRetest) {
+      quizRetest.disabled = studentView || !quizLive() || !currentQuizItem() ||
+        quizState.phase === 'complete';
+      quizRetest.title = 'Generate a fresh AI check for this concept and replace the failed question';
+    }
+    if (quizNewCheck) {
+      quizNewCheck.disabled = !quizLive() || quizState.phase === 'complete';
+    }
+    if (quizSubmit) {
+      quizSubmit.disabled = !answerable || typeof quizState.chosen !== 'number';
+    }
   }
 
   function setQuizPhase(phase) {
@@ -735,7 +1058,6 @@
     var locked = !isAnswerable() || quizState.answered;
     if (quizHint) quizHint.disabled = locked;
     if (quizReveal) quizReveal.disabled = studentView || phase === 'complete';
-    if (quizReteach) quizReteach.disabled = studentView || phase === 'complete';
     setTrainerActions();
     syncPracticeControls(currentQuizItem());
   }
@@ -789,7 +1111,6 @@
     quizState.attemptId = null;
     quizState.revealRecorded = false;
     quizState.parallelSolved = false;
-    clearQuizInk(false);
 
     if (quizQuestion) quizQuestion.textContent = item.q;
     if (quizQuestionImage) {
@@ -800,20 +1121,14 @@
       }
       quizQuestionImage.alt = imageSrc ? 'Question image' : '';
     }
-    /* Only the question stem and its attached image cross to the whiteboard.
-       Options, answer keys, hints and trainer notes stay in this quiz stage. */
-    if (quizLive()) queueQuestionToBoard(item);
     if (isRequiredQuestion(item)) {
       setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
     } else {
-      setFeedback(item.recheck ? 'Recheck · choose one answer.' : 'Choose one answer.', '');
+      setFeedback(item.recheck
+        ? 'New check · choose one answer, then submit.'
+        : 'Choose one answer, then submit.', '');
     }
     setAnswerState('Waiting for ' + studentLabel() + '’s answer.');
-    if (quizReteach) {
-      quizReteach.textContent = 'Reteach + new check';
-      quizReteach.classList.remove('is-armed');
-      quizReteach.disabled = studentView;
-    }
     if (quizNext) {
       quizNext.textContent = 'Next question';
       quizNext.disabled = studentView;
@@ -825,6 +1140,7 @@
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.setAttribute('data-opt', String(i));
+        btn.setAttribute('aria-pressed', 'false');
         if (isTrainer && typeof item.answer === 'number') {
           btn.setAttribute('data-correct', i === item.answer ? '1' : '0');
         }
@@ -837,7 +1153,9 @@
 
         btn.appendChild(letter);
         btn.appendChild(text);
-        btn.addEventListener('click', function () { answerQuiz(btn, item); });
+        /* Selection is not submission. The server receives an attempt only
+           after the student presses Submit. */
+        btn.addEventListener('click', function () { selectQuizOption(btn, item); });
         quizOptions.appendChild(btn);
       });
     }
@@ -846,25 +1164,38 @@
     updateReadiness();
   }
 
-  function answerQuiz(btn, item) {
+  function selectQuizOption(btn, item) {
     if (!btn || !isAnswerable() || quizState.answered) return;
+    var chosen = Number(btn.getAttribute('data-opt'));
+    if (!Number.isInteger(chosen)) return;
+    quizState.chosen = chosen;
+
+    $$('button', quizOptions).forEach(function (option, i) {
+      option.classList.toggle('is-picked', i === chosen);
+      option.setAttribute('aria-pressed', String(i === chosen));
+    });
+    setFeedback('Option ' + 'ABCD'.charAt(chosen) + ' selected. Submit to save.', '');
+    setAnswerState(studentLabel() + ' has not submitted yet.');
+    setTrainerActions();
+  }
+
+  function submitQuizAnswer() {
+    if (!quizLive() || !isAnswerable() || quizState.answered ||
+        typeof quizState.chosen !== 'number') return;
+    var item = currentQuizItem();
+    if (!item) return;
+    var chosen = quizState.chosen;
+
     quizState.answered = true;
     quizState.seen += 1;
-
-    var chosen = Number(btn.getAttribute('data-opt'));
-    quizState.chosen = chosen;
     /* Students never score locally. Correctness is released by the server after
        the trainer reveals; only the authenticated trainer view may pre-score. */
     if (isTrainer && typeof item.answer === 'number' && chosen === item.answer) {
       quizState.correct += 1;
     }
 
-    $$('button', quizOptions).forEach(function (option, i) {
-      option.disabled = true;
-      if (i === chosen) option.classList.add('is-picked');
-    });
-
-    setFeedback('Answer saved. Your trainer will reveal feedback.', 'is-waiting');
+    lockOptions(false);
+    setFeedback('Answer submitted. Your trainer will reveal feedback.', 'is-waiting');
     if (isTrainer && typeof item.answer === 'number') {
       setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) +
         ' · key ' + 'ABCD'.charAt(item.answer) + '.');
@@ -885,10 +1216,18 @@
         /* Reveal can land before the answer POST finishes. Re-check as soon as
            the attempt id exists so a correct required check unlocks promptly. */
         if (quizState.revealed) refreshParallelResult();
+        refreshGuide();
       }).catch(function (error) {
         setFeedback('Answer could not be saved: ' + error.message, 'is-wrong');
       });
     }
+  }
+
+  /* QA hook: one call selects an option and submits it, matching the two-step
+     surface without letting a click alone save an attempt. */
+  function answerQuiz(btn, item) {
+    selectQuizOption(btn, item || currentQuizItem());
+    submitQuizAnswer();
   }
 
   function refreshParallelResult() {
@@ -965,6 +1304,7 @@
 
     if (!sessionId || !hasApiAccess()) {
       paintReveal();
+      refreshGuide();
       publishQuizEvent('quiz.answer.revealed', { questionIds: [item.id] });
       return;
     }
@@ -976,7 +1316,10 @@
         method: 'POST', body: { questionId: item.id }
       });
 
-    task.then(paintReveal).catch(function (error) {
+    task.then(function () {
+      paintReveal();
+      refreshGuide();
+    }).catch(function (error) {
       toast('Could not sync the reveal: ' + error.message);
     });
   }
@@ -998,55 +1341,19 @@
     updateReadiness();
   }
 
-  function paintReteach() {
-    quizState.reteachArmed = true;
-    lockOptions(false);
-    setQuizPhase('reteach');
-    setFeedback('Your trainer is going over this once more.', 'is-waiting');
-    setAnswerState('Quiz frozen for reteach.');
-    if (quizReteach) {
-      quizReteach.textContent = 'Add recheck question';
-      quizReteach.classList.add('is-armed');
+  function installParallelQuestion(next, replace) {
+    if (replace === true && questions.length) {
+      questions[quizState.index] = next;
+    } else {
+      questions.push(next);
+      quizState.index = questions.length - 1;
     }
-    toast('Quiz frozen for reteach. Add a fresh check when ready.');
-  }
-
-  function reteachQuiz() {
-    if (studentView || quizState.phase === 'complete') return;
-    if (quizState.reteachArmed) {
-      addRecheckQuestion();
-      return;
-    }
-
-    if (!sessionId || !hasApiAccess()) {
-      paintReteach();
-      publishQuizEvent('quiz.reteach.started', {
-        questionId: currentQuizItem() ? currentQuizItem().id : null
-      });
-      return;
-    }
-
-    var client = api.api || window.mathifyClassroomApi;
-    var task = client && typeof client.startReteach === 'function'
-      ? client.startReteach(sessionId, 'trainer reteach')
-      : apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/reteach', {
-        method: 'POST', body: { reason: 'trainer reteach' }
-      });
-    task.then(paintReteach).catch(function (error) {
-      toast('Could not sync the reteach: ' + error.message);
-    });
-  }
-
-  function installParallelQuestion(next) {
-    questions.push(next);
-    quizState.index = questions.length - 1;
-    quizState.reteachArmed = false;
     startQuizClock();
     renderQuiz();
-    toast('Fresh parallel check added from the same concept.');
+    refreshGuide();
   }
 
-  function addLocalRecheckQuestion() {
+  function addLocalRecheckQuestion(replace) {
     toast('AI check unavailable · using the local practice scaffold.');
     var bank = recheckBank;
     var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
@@ -1061,13 +1368,21 @@
       options: bankItem.options.slice(),
       recheck: true,
       requiresCorrectAnswer: true
-    }));
+    }), replace === true);
   }
 
-  function addRecheckQuestion() {
+  /* Retest calls the existing AI endpoint. The server owns generation and the
+     replacement; a local hand-written bank is used only when that call fails,
+     and is always labelled as a scaffold rather than an AI result. */
+  function addRecheckQuestion(options) {
+    var settings = options || {};
+    var replace = settings.replace === true;
     var failed = currentQuizItem();
+    var concept = guideConceptTitle() ||
+      (failed && (failed.concept || failed.q)) ||
+      (guideState.quiz && guideState.quiz.title) || '';
     if (!sessionId || !hasApiAccess()) {
-      addLocalRecheckQuestion();
+      addLocalRecheckQuestion(replace);
       return;
     }
 
@@ -1075,23 +1390,29 @@
       method: 'POST',
       body: {
         questionId: failed && failed.id ? failed.id : undefined,
-        concept: failed && (failed.concept || failed.q) ? (failed.concept || failed.q) : undefined,
+        concept: concept,
+        topicId: guideState.progress && guideState.progress.currentConceptId || undefined,
+        replace: replace,
         difficulty: failed && failed.difficultyLevel ? failed.difficultyLevel : 'medium'
       }
     }).then(function (data) {
-      var session = data.session || {};
+      var session = (data && data.session) || {};
       var quiz = session.quiz || {};
       var generated = (quiz.questions || []).find(function (question) {
-        return question.id === (data.questionId || quiz.currentQuestionId);
+        return question.id === ((data && data.questionId) || quiz.currentQuestionId);
       });
       if (!generated) throw new Error('New check was not returned.');
+      captureGuide(session);
       installParallelQuestion(Object.assign(mapQuizQuestion(generated, questions.length), {
         recheck: true,
         requiresCorrectAnswer: true
-      }));
+      }), replace);
+      toast(data && data.generationMode === 'ai'
+        ? 'Fresh AI retest added for this concept.'
+        : 'Retest added · AI generation was unavailable (labelled fallback).');
     }).catch(function (error) {
-      toast('Parallel check unavailable (' + error.message + '). Using local check.');
-      addLocalRecheckQuestion();
+      toast('AI check unavailable (' + error.message + '). Using local scaffold.');
+      addLocalRecheckQuestion(replace);
     });
   }
 
@@ -1151,9 +1472,6 @@
     initRealtime();
     document.body.classList.add('quiz-live');
     reaffirmCallMedia();
-    if (studentInk) studentInk.hidden = false;
-    clearQuizInk(true);
-    requestAnimationFrame(fitStudentInk);
     if (board) {
       board.hidden = true;
       board.setAttribute('aria-hidden', 'true');
@@ -1175,13 +1493,11 @@
     quizState.answered = false;
     quizState.chosen = null;
     quizState.revealed = false;
-    quizState.reteachArmed = false;
     quizState.recheckCount = 0;
-    lastBoardQuestionKey = null;
-    pendingBoardQuestion = null;
     renderQuiz();
     startQuizClock();
     startQuestionSync();
+    syncLaunchWithServer();
     toast(studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.');
     var first = $('button', quizOptions);
     if (first) setTimeout(function () { first.focus(); }, 30);
@@ -1199,12 +1515,10 @@
     reaffirmCallMedia();
     setTrainerActions();
     quizStage.hidden = true;
-    closeScratchOverlay();
     if (realtimeLink) {
       realtimeLink.close();
       realtimeLink = null;
     }
-    if (studentInk) studentInk.hidden = true;
     subjectStageVisibility();
     var backLabel = 'board';
     var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
@@ -1216,7 +1530,16 @@
   quizLaunch && quizLaunch.addEventListener('click', launchQuiz);
   quizExit && quizExit.addEventListener('click', exitQuiz);
   quizReveal && quizReveal.addEventListener('click', revealQuizAnswer);
-  quizReteach && quizReteach.addEventListener('click', reteachQuiz);
+  quizPushBoard && quizPushBoard.addEventListener('click', pushQuizQuestionToBoard);
+  quizRetest && quizRetest.addEventListener('click', function () {
+    if (studentView || quizState.phase === 'complete') return;
+    addRecheckQuestion({ replace: true });
+  });
+  quizNewCheck && quizNewCheck.addEventListener('click', function () {
+    if (studentView || quizState.phase === 'complete') return;
+    addRecheckQuestion();
+  });
+  quizSubmit && quizSubmit.addEventListener('click', submitQuizAnswer);
 
   quizHint && quizHint.addEventListener('click', requestHint);
 
@@ -1233,6 +1556,28 @@
     toast('Next question ready.');
   }
 
+  function applyQuizAdvance(data) {
+    var quiz = data && data.session && data.session.quiz;
+    if (!quiz) {
+      finishAdvance();
+      return;
+    }
+    if (quiz.status === 'ended' || quiz.phase === 'complete') {
+      completeQuiz();
+      return;
+    }
+    var index = questions.findIndex(function (question) {
+      return question.id === quiz.currentQuestionId;
+    });
+    if (index < 0) {
+      finishAdvance();
+      return;
+    }
+    quizState.index = index;
+    renderQuiz();
+    startQuizClock();
+  }
+
   function advanceQuiz(force) {
     if (studentView || quizState.phase === 'complete') return;
     var item = currentQuizItem();
@@ -1247,7 +1592,7 @@
     apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/next', {
       method: 'POST',
       body: force === true ? { force: true } : {}
-    }).then(finishAdvance).catch(function (error) {
+    }).then(applyQuizAdvance).catch(function (error) {
       if (error.status === 409) {
         toast('Backend requires a correct parallel check before proceeding.');
       } else {
@@ -1260,6 +1605,7 @@
   quizForceNext && quizForceNext.addEventListener('click', function () { advanceQuiz(true); });
 
   function applyStudentQuizState(data) {
+    captureGuide(data && data.session);
     var quiz = data && data.session && data.session.quiz;
     if (!quiz || !quiz.currentQuestionId) return;
 
@@ -1268,22 +1614,52 @@
     });
     if (!found) return;
 
-    var current = currentQuizItem();
-    if (current && current.id === found.id) {
-      var granted = typeof found.hint === 'string' ? found.hint.trim() : '';
-      if (granted && granted !== current.hint) {
-        current.hint = granted;
-        if (!quizState.answered) setFeedback('Hint: ' + granted, '');
-      }
-      return;
+    /* mapQuizQuestion never copies answer or explanation for a student view.
+       Replace the matching entry instead of appending a duplicate card. */
+    var existing = questions.findIndex(function (question) { return question.id === found.id; });
+    var mapped = mapQuizQuestion(found, existing >= 0 ? existing : questions.length);
+    if (existing >= 0) questions[existing] = mapped;
+    else questions.push(mapped);
+
+    var nextIndex = existing >= 0 ? existing : questions.length - 1;
+    var changed = nextIndex !== quizState.index;
+    if (changed) {
+      quizState.index = nextIndex;
+      startQuizClock();
+      renderQuiz();
+      toast('New practice question ready.');
+    } else {
+      var same = currentQuizItem();
+      if (same) same.hint = mapped.hint;
     }
 
-    /* mapQuizQuestion never copies answer or explanation for a student view. */
-    questions.push(mapQuizQuestion(found, questions.length));
-    quizState.index = questions.length - 1;
-    startQuizClock();
-    renderQuiz();
-    toast('New practice question ready.');
+    /* A reload or a late event can land after the student already submitted.
+       Restore only their own saved choice; no correctness travels with it. */
+    var saved = (quiz.attempts || []).find(function (attempt) {
+      return attempt && attempt.questionId === found.id &&
+        Number.isInteger(Number(attempt.optionIndex));
+    });
+    if (saved && !quizState.answered) {
+      quizState.attemptId = saved.id || null;
+      quizState.chosen = Number(saved.optionIndex);
+      quizState.answered = true;
+      quizState.seen += 1;
+      $$('button', quizOptions).forEach(function (option, i) {
+        option.classList.toggle('is-picked', i === quizState.chosen);
+        option.setAttribute('aria-pressed', String(i === quizState.chosen));
+      });
+      lockOptions(false);
+      setQuizPhase('awaiting_reveal');
+      setFeedback('Answer saved. Your trainer will reveal feedback.', 'is-waiting');
+    }
+
+    var granted = typeof mapped.hint === 'string' ? mapped.hint.trim() : '';
+    if (granted && !quizState.answered) setFeedback('Hint: ' + granted, '');
+
+    var revealed = (quiz.revealedQuestionIds || []).indexOf(found.id) !== -1;
+    if (revealed && !quizState.revealed) {
+      applyRevealEvent({ payload: { questionIds: [found.id] } });
+    }
   }
 
   function syncStudentQuestion() {
@@ -1300,176 +1676,6 @@
     if (!studentView || !sessionId || !hasApiAccess()) return;
     clearInterval(quizState.pollTimer);
     quizState.pollTimer = setInterval(syncStudentQuestion, 2000);
-  }
-
-  /* -------------------------------------------------- trainer scratchpad */
-  var scratchCtx = scratchCanvas && scratchCanvas.getContext('2d');
-  var scratchDrawing = false;
-  var scratchPointer = null;
-
-  function fitScratch() {
-    if (!scratchCanvas || !scratchCtx) return;
-    var rect = scratchCanvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    scratchCanvas.width = Math.round(rect.width * dpr);
-    scratchCanvas.height = Math.round(rect.height * dpr);
-    scratchCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    scratchCtx.clearRect(0, 0, rect.width, rect.height);
-  }
-
-  function scratchPoint(event) {
-    var rect = scratchCanvas.getBoundingClientRect();
-    return {
-      x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
-      y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
-    };
-  }
-
-  function newStrokeId() {
-    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-      return window.crypto.randomUUID();
-    }
-    return 'wacom_' + Date.now() + '_' + Math.random().toString(16).slice(2);
-  }
-
-  function sendStroke(type, point) {
-    if (!realtimeLink || !realtimeLink.enabled || !isTrainer) return;
-    var payload = { stroke_id: strokeId || newStrokeId(), type: type };
-
-    if (point && scratchCanvas) {
-      var rect = scratchCanvas.getBoundingClientRect();
-      if (rect.width && rect.height) {
-        payload.x = Number(Math.min(1, Math.max(0, point.x / rect.width)).toFixed(6));
-        payload.y = Number(Math.min(1, Math.max(0, point.y / rect.height)).toFixed(6));
-        payload.color = '#FF5B2E';
-        payload.width = 2.6;
-      }
-    }
-
-    realtimeLink.send(payload).catch(function (error) {
-      console.warn('[mathify-realtime] stroke sync failed:', error.message);
-    });
-  }
-
-  var studentInkCtx = studentInkCanvas && studentInkCanvas.getContext('2d');
-  var remoteLast = {};
-
-  function clearQuizInk(broadcast) {
-    if (studentInkCtx && studentInkCanvas) {
-      studentInkCtx.clearRect(0, 0, studentInkCanvas.width, studentInkCanvas.height);
-    }
-    remoteLast = {};
-    if (studentInkMode && quizLive()) studentInkMode.textContent = 'Ready for trainer sketch';
-    if (broadcast !== false) sendStroke('clear', null);
-  }
-
-  function fitStudentInk() {
-    if (!studentInkCanvas || !studentInkCtx) return;
-    var rect = studentInkCanvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    studentInkCanvas.width = Math.round(rect.width * dpr);
-    studentInkCanvas.height = Math.round(rect.height * dpr);
-    studentInkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    studentInkCtx.clearRect(0, 0, rect.width, rect.height);
-  }
-
-  function drawRemoteStroke(row) {
-    if (!studentInkCanvas || !studentInkCtx || !row) return;
-    if (studentInk) studentInk.hidden = false;
-    if (!studentInkCanvas.width) fitStudentInk();
-
-    var key = row.stroke_id || 'remote';
-    if (row.type === 'clear') {
-      studentInkCtx.clearRect(0, 0, studentInkCanvas.clientWidth, studentInkCanvas.clientHeight);
-      remoteLast = {};
-      return;
-    }
-
-    var x = Number(row.x);
-    var y = Number(row.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    var rect = studentInkCanvas.getBoundingClientRect();
-    var px = x * rect.width;
-    var py = y * rect.height;
-
-    studentInkCtx.save();
-    studentInkCtx.strokeStyle = row.color || '#FF5B2E';
-    studentInkCtx.lineWidth = Number(row.width) || 2.6;
-    studentInkCtx.lineCap = 'round';
-    studentInkCtx.lineJoin = 'round';
-
-    if (row.type === 'start' || !remoteLast[key]) {
-      studentInkCtx.fillStyle = row.color || '#FF5B2E';
-      studentInkCtx.beginPath();
-      studentInkCtx.arc(px, py, 1.4, 0, Math.PI * 2);
-      studentInkCtx.fill();
-    } else {
-      studentInkCtx.beginPath();
-      studentInkCtx.moveTo(remoteLast[key].x, remoteLast[key].y);
-      studentInkCtx.lineTo(px, py);
-      studentInkCtx.stroke();
-    }
-    studentInkCtx.restore();
-    remoteLast[key] = { x: px, y: py };
-  }
-
-  var localInkDrawing = false;
-  var localInkPointer = null;
-  var localInkLast = null;
-
-  function studentInkPoint(event) {
-    var rect = studentInkCanvas.getBoundingClientRect();
-    return {
-      x: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
-      y: Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
-    };
-  }
-
-  if (studentView && studentInkCanvas && studentInkCtx) {
-    studentInkCanvas.addEventListener('pointerdown', function (event) {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
-      event.preventDefault();
-      localInkDrawing = true;
-      localInkPointer = event.pointerId;
-      localInkLast = studentInkPoint(event);
-      if (studentInkMode) studentInkMode.textContent = 'Local scratchpad';
-      try { studentInkCanvas.setPointerCapture(event.pointerId); } catch (e) {}
-      studentInkCtx.save();
-      studentInkCtx.fillStyle = '#0E1420';
-      studentInkCtx.beginPath();
-      studentInkCtx.arc(localInkLast.x, localInkLast.y, 1.2, 0, Math.PI * 2);
-      studentInkCtx.fill();
-      studentInkCtx.restore();
-    });
-
-    studentInkCanvas.addEventListener('pointermove', function (event) {
-      if (!localInkDrawing || event.pointerId !== localInkPointer) return;
-      event.preventDefault();
-      var point = studentInkPoint(event);
-      studentInkCtx.save();
-      studentInkCtx.strokeStyle = '#0E1420';
-      studentInkCtx.lineWidth = 1.8;
-      studentInkCtx.lineCap = 'round';
-      studentInkCtx.lineJoin = 'round';
-      studentInkCtx.beginPath();
-      studentInkCtx.moveTo(localInkLast.x, localInkLast.y);
-      studentInkCtx.lineTo(point.x, point.y);
-      studentInkCtx.stroke();
-      studentInkCtx.restore();
-      localInkLast = point;
-    });
-
-    function stopStudentInk(event) {
-      if (event && event.pointerId !== localInkPointer) return;
-      localInkDrawing = false;
-      localInkPointer = null;
-      localInkLast = null;
-      if (event) { try { studentInkCanvas.releasePointerCapture(event.pointerId); } catch (e) {} }
-    }
-    studentInkCanvas.addEventListener('pointerup', stopStudentInk);
-    studentInkCanvas.addEventListener('pointercancel', stopStudentInk);
   }
 
   var localQuizChannel = null;
@@ -1512,22 +1718,38 @@
 
   function handleSessionEvent(event) {
     if (!event || !event.event) return;
-    if (event.event === 'quiz.launched' && studentView) {
+    if (event.event === 'quiz.launched') {
       /* The server launch is authoritative. Without this branch a student tab
          would keep showing the board and would not suppress celebrations. */
-      if (!quizLive()) launchQuiz();
-      syncStudentQuestion();
-    } else if (event.event === 'quiz.answer.revealed') applyRevealEvent(event);
-    else if (event.event === 'quiz.reteach.started' && studentView && quizLive()) {
-      setQuizPhase('reteach');
-      setFeedback('Your trainer is going over this once more.', 'is-waiting');
-    } else if ((event.event === 'quiz.question.changed' || event.event === 'quiz.check.added') && studentView) {
-      startQuestionSync();
+      if (studentView) {
+        if (!quizLive()) launchQuiz();
+        syncStudentQuestion();
+      }
+      refreshGuide();
+    } else if (event.event === 'quiz.answer.revealed') {
+      applyRevealEvent(event);
+      refreshGuide();
+    } else if ((event.event === 'quiz.completed' || event.event === 'quiz.ended') && quizLive()) {
+      completeQuiz();
+      refreshGuide();
+      if (event.event === 'quiz.completed') toast('Quiz complete.');
+      else toast('Quiz ended with the class.');
+    } else if (event.event === 'quiz.reteach.started' && studentView && quizLive()) {
+      setFeedback('Your trainer is preparing a new check.', 'is-waiting');
+      refreshGuide();
+    } else if (event.event === 'quiz.question.changed' || event.event === 'quiz.check.added') {
+      if (studentView) startQuestionSync();
+      refreshGuide();
     } else if (event.event === 'quiz.assistance.granted' && studentView) {
       /* The event carries no hint text. Fetch the granted hint from the safe state. */
       syncStudentQuestion();
-    } else if (event.event === 'board.shared' && studentView) {
-      toast(event.payload && event.payload.shared ? 'Your trainer shared the board with you.' : 'Board sharing stopped.');
+      refreshGuide();
+    } else if (event.event === 'board.shared') {
+      var boardShared = Boolean(event.payload && event.payload.shared);
+      if (isTrainer) setFrontBoardShareState(boardShared);
+      if (studentView) {
+        toast(boardShared ? 'Your trainer shared the board with you.' : 'Board sharing stopped.');
+      }
     } else if (event.event === 'rtc.media.control.changed') {
       if (api.applyMediaPermission) api.applyMediaPermission(event.payload || {});
       reaffirmCallMedia();
@@ -1624,58 +1846,11 @@
     realtimeLink = bridge.connect({
       sessionId: sessionId,
       accessToken: accessToken,
-      onStroke: drawRemoteStroke,
       onEvent: handleSessionEvent,
       onStatus: function (status) {
-        if (status === 'live' && studentView) toast('Live trainer sketch connected.');
+        if (status === 'live' && studentView) toast('Live session events connected.');
       }
     });
-  }
-
-  if (scratchCanvas && scratchCtx) {
-    scratchCanvas.addEventListener('pointerdown', function (event) {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
-      event.preventDefault();
-      scratchDrawing = true;
-      scratchPointer = event.pointerId;
-      try { scratchCanvas.setPointerCapture(event.pointerId); } catch (e) {}
-      var p = scratchPoint(event);
-      strokeId = newStrokeId();
-      sendStroke('start', p);
-      scratchCtx.save();
-      scratchCtx.fillStyle = '#FF5B2E';
-      scratchCtx.beginPath();
-      scratchCtx.arc(p.x, p.y, 1.4, 0, Math.PI * 2);
-      scratchCtx.fill();
-      scratchCtx.restore();
-    });
-
-    scratchCanvas.addEventListener('pointermove', function (event) {
-      if (!scratchDrawing || event.pointerId !== scratchPointer) return;
-      event.preventDefault();
-      var p = scratchPoint(event);
-      sendStroke('point', p);
-      scratchCtx.save();
-      scratchCtx.strokeStyle = '#FF5B2E';
-      scratchCtx.lineWidth = 2.6;
-      scratchCtx.lineCap = 'round';
-      scratchCtx.lineJoin = 'round';
-      scratchCtx.beginPath();
-      scratchCtx.moveTo(p.x - 1, p.y - 1);
-      scratchCtx.lineTo(p.x, p.y);
-      scratchCtx.stroke();
-      scratchCtx.restore();
-    });
-
-    function stopScratch(event) {
-      if (event && scratchPointer !== null && event.pointerId !== scratchPointer) return;
-      if (scratchDrawing && event) sendStroke('end', scratchPoint(event));
-      scratchDrawing = false;
-      scratchPointer = null;
-      strokeId = null;
-    }
-    scratchCanvas.addEventListener('pointerup', stopScratch);
-    scratchCanvas.addEventListener('pointercancel', stopScratch);
   }
 
   function quizLive() {
@@ -1686,29 +1861,6 @@
     if (!doubtMenu) return;
     doubtMenu.hidden = !open;
     if (quizDoubtBtn) quizDoubtBtn.setAttribute('aria-expanded', String(open));
-  }
-
-  function openScratchOverlay() {
-    if (!isTrainer) return;
-    if (!quizLive()) {
-      toast('Launch the quiz before opening the explanation overlay.');
-      return;
-    }
-    setDoubtMenu(false);
-    clearQuizInk(true);
-    if (studentInkMode) studentInkMode.textContent = 'Trainer explaining · sketch live';
-    if (scratchOverlay) scratchOverlay.hidden = false;
-    requestAnimationFrame(fitScratch);
-    toast('Explain overlay open · quiz stays live.');
-  }
-
-  function closeScratchOverlay() {
-    if (window.MathifyCursor && typeof window.MathifyCursor.hide === 'function') {
-      window.MathifyCursor.hide('sketch');
-    }
-    if (scratchOverlay) scratchOverlay.hidden = true;
-    if (studentInkMode && quizLive()) studentInkMode.textContent = 'Ready for trainer sketch';
-    setDoubtMenu(false);
   }
 
   quizDoubtBtn && quizDoubtBtn.addEventListener('click', function () {
@@ -1726,11 +1878,6 @@
     skipQuiz();
     toast('Question skipped · quiz stays live.');
   });
-  quizActionExplain && quizActionExplain.addEventListener('click', function () {
-    if (quizActionExplain.disabled) return;
-    openScratchOverlay();
-  });
-  scratchClose && scratchClose.addEventListener('click', closeScratchOverlay);
 
   document.addEventListener('click', function (event) {
     if (!doubtMenu || doubtMenu.hidden) return;
@@ -1740,22 +1887,7 @@
 
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
-    if (scratchOverlay && !scratchOverlay.hidden) closeScratchOverlay();
-    else if (trainerPanel && !trainerPanel.hidden) setNotes(false);
-  });
-
-  scratchShare && scratchShare.addEventListener('click', function () {
-    toast('Sketch captured for the student.');
-  });
-  scratchClear && scratchClear.addEventListener('click', function () {
-    if (scratchCtx && scratchCanvas) scratchCtx.clearRect(0, 0, scratchCanvas.clientWidth, scratchCanvas.clientHeight);
-    sendStroke('clear', null);
-    if (studentInkMode) studentInkMode.textContent = 'Cleared · ready for trainer sketch';
-    toast('Explain overlay cleared.');
-  });
-  window.addEventListener('resize', function () {
-    if (scratchOverlay && !scratchOverlay.hidden) fitScratch();
-    if (studentInk && !studentInk.hidden) fitStudentInk();
+    if (trainerPanel && !trainerPanel.hidden) setNotes(false);
   });
 
   /* ------------------------------------------------ floating camera window */
@@ -1904,9 +2036,7 @@
           answerQuiz(first, questions[quizState.index]);
         }
         if (!studentView && (quizQA === 'reveal' || quizQA === 'complete')) revealQuizAnswer();
-        if (!studentView && quizQA === 'reteach') reteachQuiz();
-        if (!studentView && quizQA === 'recheck') {
-          reteachQuiz();
+        if (!studentView && (quizQA === 'reteach' || quizQA === 'recheck')) {
           addRecheckQuestion();
         }
         if (quizQA === 'complete') completeQuiz();
@@ -1951,7 +2081,17 @@
   if (sessionId && (isTrainer || studentView)) {
     sendPresence(false);
     presenceInterval = window.setInterval(function () { sendPresence(false); }, 20000);
-    window.addEventListener('pagehide', function () { sendPresence(true); });
+    /* A whiteboard → camera hand-off is still the same meeting. Skip the
+       leaving beacon on that navigation so the server keeps the clock and
+       recording alive until End session is clicked. A bfcache restore clears
+       the flag, so any later real exit still finalizes presence. */
+    window.addEventListener('pagehide', function () {
+      if (window.MATHIFY_STAY_PRESENT === true) return;
+      sendPresence(true);
+    });
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) window.MATHIFY_STAY_PRESENT = false;
+    });
     /* Media control, connection and reward events must reach a participant
        even when no quiz is running. Open the safe event channel on load. */
     initRealtime();
@@ -1961,6 +2101,9 @@
   api.openQuiz = launchQuiz;
   api.isTrainer = function () { return isTrainer; };
   api.sendPresence = sendPresence;
+  api.backToCamera = backToCamera;
+  api.cameraUrl = cameraUrl;
+  api.setFrontBoardShareState = setFrontBoardShareState;
   api.closeQuiz = exitQuiz;
   api.renderInstructions = renderInstructions;
   api.loadTrainerSession = loadTrainerSession;
@@ -1971,8 +2114,16 @@
     if (button) answerQuiz(button, questions[quizState.index]);
   };
   api.revealQuizAnswer = revealQuizAnswer;
-  api.reteachQuiz = reteachQuiz;
+  api.pushQuizQuestion = pushQuizQuestionToBoard;
+  api.selectQuizOption = selectQuizOption;
+  api.submitQuizAnswer = submitQuizAnswer;
+  /* Kept as a compatibility alias for QA tooling; the visible controls are
+     Retest (replace) and New check, and neither freezes the quiz. */
+  api.reteachQuiz = addRecheckQuestion;
   api.addRecheckQuestion = addRecheckQuestion;
+  api.retestQuiz = function () { return addRecheckQuestion({ replace: true }); };
+  api.refreshGuide = refreshGuide;
+  api.guideState = guideState;
   api.completeQuiz = completeQuiz;
   api.quizState = quizState;
 })();

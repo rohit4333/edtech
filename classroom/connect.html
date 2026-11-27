@@ -7,6 +7,7 @@
 <meta name="description" content="Private camera check before a Mathify one-to-one lesson.">
 <link rel="stylesheet" href="../assets/poppins.css">
 <link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../shared/rtcMediaUi.css">
 <link rel="stylesheet" href="../shared/rewardDeck.css">
 <link rel="stylesheet" href="connect.css">
 </head>
@@ -33,18 +34,25 @@
   </div>
 
   <div class="connect-grid">
-    <section class="connect-tile" id="selfTile" aria-label="Your camera">
+    <section class="connect-tile" id="selfTile" data-media-frame data-speaking="false" data-muted="false" aria-label="Your camera">
       <video id="selfVideo" autoplay muted playsinline></video>
       <div class="tile-placeholder" id="selfPlaceholder"><span id="selfInitials">AR</span></div>
       <span class="tile-name" id="selfName">You</span>
-      <span class="tile-mic" id="selfMic" role="img" aria-label="Microphone on">
+      <span class="tile-speaking" id="selfSpeaking" aria-hidden="true" hidden>Speaking</span>
+      <span class="tile-mic" id="selfMic" role="img" aria-label="Microphone on" data-mic="on">
         <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
+        <span class="mic-level" id="selfLevel" aria-hidden="true"><i></i></span>
       </span>
     </section>
-    <section class="connect-tile" id="peerTile" aria-label="Other person's camera">
+    <section class="connect-tile" id="peerTile" data-media-frame data-speaking="false" data-muted="false" aria-label="Other person's camera">
       <video id="peerVideo" autoplay playsinline></video>
       <div class="tile-placeholder" id="peerPlaceholder"><span id="peerInitials">IV</span></div>
       <span class="tile-name" id="peerName">Student</span>
+      <span class="tile-speaking" id="peerSpeaking" aria-hidden="true" hidden>Speaking</span>
+      <span class="tile-mic" id="peerMic" role="img" aria-label="Microphone on" data-mic="on">
+        <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
+        <span class="mic-level" id="peerLevel" aria-hidden="true"><i></i></span>
+      </span>
       <span class="tile-wait" id="peerWait">Waiting to connect…</span>
     </section>
   </div>
@@ -55,6 +63,7 @@
     <button class="connect-ctrl" id="connectMicBtn" type="button" aria-pressed="false" aria-label="Turn microphone off" title="Microphone">
       <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
       <span>Mic</span>
+      <span class="mic-level" id="micLevel" aria-hidden="true"><i></i></span>
     </button>
     <button class="connect-ctrl" id="connectCamBtn" type="button" aria-pressed="false" aria-label="Turn camera off" title="Camera">
       <svg class="icon" aria-hidden="true"><use href="#i-cam"/></svg>
@@ -62,7 +71,7 @@
     </button>
     <button class="connect-start trainer-only" id="startSessionBtn" type="button" disabled>
       <svg class="icon" aria-hidden="true"><use href="#i-right"/></svg>
-      <span>Start the session</span>
+      <span>Open whiteboard</span>
     </button>
     <span class="connect-waiting student-only" id="studentWaiting">Waiting for your trainer to start the lesson…</span>
   </div>
@@ -83,6 +92,7 @@
 <script src="api.js"></script>
 <script src="networkCheck.js"></script>
 <script src="subjectCopy.js"></script>
+<script src="../shared/rtcMediaUi.js"></script>
 <script src="connect.js"></script>
 <script src="../shared/rewardDeck.js"></script>
 </body>

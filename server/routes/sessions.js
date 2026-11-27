@@ -113,7 +113,7 @@ router.post('/:sessionId/rtc-token', async function (req, res) {
 const SHARED_EVENTS = [
   'quiz.launched', 'quiz.answer.saved', 'quiz.answer.revealed',
   'quiz.question.changed', 'quiz.reteach.started', 'quiz.check.added',
-  'quiz.assistance.granted', 'quiz.completed', 'session.ended', 'page.changed',
+  'quiz.assistance.granted', 'quiz.completed', 'quiz.ended', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
   'founder.observer.changed', 'ide.state.updated', 'challenge.published',
@@ -811,6 +811,9 @@ async function closeSession(session, options) {
        the lifetime job can retry the whole close instead of a half-written end. */
     const updated = await db.updateSession(session.id, applyEndState);
 
+    if (session.quiz && session.quiz.status === 'live') {
+      realtime.publish(updated.id, 'quiz.ended', { reason: input.reason || 'session_ended' });
+    }
     realtime.publish(updated.id, 'session.ended', {
       endedAt: endedAt,
       unlockedNext: gating.unlockedNext,

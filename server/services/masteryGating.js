@@ -95,7 +95,7 @@ function checkMasteryGating(studentId, topicId, currentQuizScore, thresholdOverr
     status: unlockedNext ? 'unlocked_next' : 'reteach_required',
     note: unlockedNext
       ? 'Next module unlocked. The curriculum service assigns the next topic.'
-      : 'Stay on the current topic. Trainer should trigger reteach, then a new check.',
+      : 'Stay on the current topic. Trainer should add a new check on the same objective.',
     checkedAt: new Date().toISOString()
   };
 }

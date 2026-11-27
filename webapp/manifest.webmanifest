@@ -33,9 +33,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Camera check",
-      "short_name": "Connect",
-      "url": "/classroom/connect.html",
+      "name": "Get ready for class",
+      "short_name": "Ready",
+      "url": "/classroom/preflight.html",
       "icons": [{ "src": "/webapp/icon-192.png", "sizes": "192x192" }]
     },
     {

@@ -1,0 +1,93 @@
+/* Mathify — shared camera-frame media furniture.
+ *
+ * Loaded before a deck's own CSS. Frames opt in with data-media-frame; the
+ * helper writes data-speaking / data-muted and --mic-level. Teal means live
+ * audio or active speech, coral means muted or needs attention. No new
+ * arbitrary colour is introduced: every state resolves to a project token.
+ */
+
+[data-media-frame] {
+  position: relative;
+  overflow: hidden;
+}
+[data-media-frame][data-speaking="true"] {
+  border-color: var(--teal, #12968C);
+  box-shadow: 0 0 0 2px rgba(18, 150, 140, .55), 0 12px 32px -18px rgba(18, 150, 140, .7);
+}
+[data-media-frame][data-muted="true"] {
+  border-color: var(--coral, #FF5B2E);
+  box-shadow: 0 0 0 2px rgba(255, 91, 46, .42), 0 12px 32px -18px rgba(184, 58, 22, .65);
+}
+[data-media-frame] video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+[data-media-frame] > *:not(video) {
+  z-index: 2;
+}
+
+/* Receiving-volume bar. The fill width is driven by --mic-level (0..1), which
+   the helper throttles through requestAnimationFrame and decays to zero. */
+.rtc-mic-level,
+.mic-level {
+  --mic-level: 0;
+  position: relative;
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-full, 999px);
+  background: var(--teal-soft, #DCF2EF);
+  box-shadow: inset 0 0 0 1px rgba(18, 150, 140, .28);
+}
+.rtc-mic-level > i,
+.mic-level > i {
+  display: block;
+  width: calc(var(--mic-level) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--teal, #12968C);
+  transition: width .08s linear;
+}
+[data-muted="true"] .rtc-mic-level,
+[data-muted="true"] .mic-level {
+  background: var(--coral-soft, #FFE8DF);
+  box-shadow: inset 0 0 0 1px rgba(184, 58, 22, .32);
+}
+[data-muted="true"] .rtc-mic-level > i,
+[data-muted="true"] .mic-level > i {
+  width: 0;
+  background: var(--coral-deep, #B83A16);
+}
+
+.rtc-speaking,
+.tile-speaking {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 4;
+  padding: 4px 8px;
+  border-radius: var(--r-full, 999px);
+  background: var(--teal, #12968C);
+  color: #fff;
+  font: 600 9px/1 var(--sans, Poppins, sans-serif);
+  letter-spacing: .02em;
+  box-shadow: 0 6px 16px -8px rgba(11, 107, 100, .9);
+}
+.rtc-speaking::before,
+.tile-speaking::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.rtc-speaking[hidden],
+.tile-speaking[hidden] {
+  display: none !important;
+}

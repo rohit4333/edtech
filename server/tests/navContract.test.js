@@ -93,23 +93,25 @@ ok(/pill soon">Preview/.test(read('apps.html')) &&
   /Partial course library preview/.test(read('apps.html')),
   'apps hub labels the LMS as a preview');
 
-/* The booking form is a contact request, never a payment form. */
+/* The booking form is a contact request, never a payment form. Home and
+   contact mount the same shared frame. */
 const contact = read('contact.html');
-ok(/No payment is taken here/.test(contact), 'contact form says no payment is taken');
-ok(!/card-number|cardNumber|paymentMethod|razorpay/i.test(contact),
-  'contact form collects no payment fields');
+const bookingFrame = read('shared/demo-booking.js');
+ok(/No payment is taken here/.test(bookingFrame), 'shared booking frame says no payment is taken');
+ok(/id="demoBookingMount"/.test(contact) && /id="demoBookingMount"/.test(read('index.html')),
+  'home and contact mount the same demo booking frame');
+ok(!/card-number|cardNumber|paymentMethod|razorpay/i.test(bookingFrame + contact),
+  'booking frame collects no payment fields');
 
-/* The landing demo form uses a full IANA timezone dropdown. */
-const landingHtml = read('index.html');
-const landingScript = read('landing.js');
-ok(landingHtml.indexOf('<select id="demoTimezone" name="timezone"') !== -1,
-  'landing demo timezone is a select field');
-ok(landingScript.indexOf("Intl.supportedValuesOf('timeZone')") !== -1,
-  'landing demo timezone uses the browser IANA zone list');
-ok(landingScript.indexOf("'Africa/Abidjan'") !== -1 &&
-  landingScript.indexOf("'Asia/Calcutta'") !== -1 &&
-  landingScript.indexOf("'UTC'") !== -1,
-  'landing demo timezone has an embedded IANA fallback');
+/* The shared demo form uses a full IANA timezone dropdown. */
+ok(bookingFrame.indexOf('<select id="demoTimezone" name="timezone"') !== -1,
+  'shared demo timezone is a select field');
+ok(bookingFrame.indexOf("Intl.supportedValuesOf('timeZone')") !== -1,
+  'shared demo timezone uses the browser IANA zone list');
+ok(bookingFrame.indexOf("'Africa/Abidjan'") !== -1 &&
+  bookingFrame.indexOf("'Asia/Calcutta'") !== -1 &&
+  bookingFrame.indexOf("'UTC'") !== -1,
+  'shared demo timezone has an embedded IANA fallback');
 
 /* Founder settings are honest drafts with locked money widgets. */
 const founderHtml = read('founder/index.html');

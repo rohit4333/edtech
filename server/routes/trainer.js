@@ -12,6 +12,7 @@ const moderation = require('../quiz/moderation');
 const cloudflareService = require('../services/cloudflareService');
 const aiCurriculumService = require('../services/aiCurriculumService');
 const masteryGating = require('../services/masteryGating');
+const temporaryPlannerFixture = require('../services/temporaryPlannerFixture');
 const policy = require('../config/policy.json');
 const slotService = require('../services/slotService');
 const chatAssistant = require('../services/chatAssistantService');
@@ -600,25 +601,41 @@ router.post('/sessions/:sessionId/quiz/next', auth.loadSession, async function (
   try {
     const session = req.sessionRecord;
     const body = req.body || {};
-    const pending = masteryGating.pendingParallelCheck(session);
+    /* The temporary planner unlocks a section only after three correct
+       answers. Ordinary quizzes keep the existing per-item parallel check. */
+    const usingFixture = Boolean(session.plannerGuide);
+    const sectionPending = usingFixture ? temporaryPlannerFixture.pendingSection(session) : null;
+    const pending = usingFixture ? sectionPending : masteryGating.pendingParallelCheck(session);
     if (pending && body.force !== true) {
       return res.status(409).json({
-        error: 'PARALLEL_CHECK_REQUIRED',
-        message: 'The student must solve this parallel check before moving on.',
-        questionId: pending.id
+        error: sectionPending
+          ? (pending.reason === 'current_question' ? 'CURRENT_QUESTION_REQUIRED' : 'SECTION_PRACTICE_REQUIRED')
+          : 'PARALLEL_CHECK_REQUIRED',
+        message: sectionPending
+          ? (pending.reason === 'current_question'
+            ? 'Answer this question correctly, explain it on the board and use Retest, or override.'
+            : 'This section unlocks after ' + pending.required + ' correct answers. Currently ' + pending.correct + '.')
+          : 'The student must solve this parallel check before moving on.',
+        questionId: pending.id,
+        correct: sectionPending ? pending.correct : undefined,
+        required: sectionPending ? pending.required : undefined
       });
     }
     if (pending && body.force === true) {
       session.quiz.overrides = session.quiz.overrides || [];
       session.quiz.overrides.push({
         questionId: pending.id,
+        sectionId: sectionPending ? sectionPending.conceptId : undefined,
         forcedBy: req.user.id,
         at: new Date().toISOString()
       });
     }
     const questions = session.quiz.questions;
     const index = questions.findIndex(function (question) { return question.id === session.quiz.currentQuestionId; });
-    const next = questions[index + 1];
+    const fixtureNextId = sectionPending ? null : temporaryPlannerFixture.nextQuestionId(session);
+    const next = fixtureNextId
+      ? questions.find(function (question) { return question.id === fixtureNextId; })
+      : questions[index + 1];
 
     if (!next) {
       session.quiz.phase = 'complete';
@@ -800,7 +817,10 @@ router.post('/sessions/:sessionId/quiz/new-check', auth.loadSession, async funct
       answerKey: generated.answerKey,
       explanation: generated.explanation,
       hint: generated.hint,
-      concept: generated.concept,
+      /* Group the retest by the section the trainer asked for, not by a fresh
+         AI phrasing, so section progress keeps counting the same topic. */
+      concept: concept,
+      topicId: concept,
       difficultyLevel: generated.difficulty,
       source: generated.source,
       status: 'active',

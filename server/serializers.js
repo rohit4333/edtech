@@ -11,6 +11,8 @@ const sessionTiming = require('./services/sessionTimingService');
 const badgeService = require('./services/badgeService');
 const subjectCatalog = require('./services/subjectCatalog');
 const subjectService = require('./services/subjectService');
+const questionTotals = require('./services/questionTotals');
+const temporaryPlannerFixture = require('./services/temporaryPlannerFixture');
 const appPolicy = require('./config/policy.json');
 
 /* Explicit student boundary: hidden trainer guidance is never serialized. */
@@ -377,6 +379,15 @@ function toTrainerSummary(session) {
   };
 }
 
+/* Temporary dev fixture only. A normal session has no plannerGuide, so this is
+   undefined and the field is omitted by JSON.stringify. The student view is
+   reconstructed by the fixture adapter from live attempts, never from trainer
+   notes or answer material. */
+function plannerGuideFor(session, role) {
+  if (!session || !session.plannerGuide) return undefined;
+  return temporaryPlannerFixture.guideFor(session, role);
+}
+
 function toTrainerSession(session) {
   return {
     id: session.id,
@@ -393,6 +404,7 @@ function toTrainerSession(session) {
     recording: session.recording,
     rtc: session.rtc,
     planner: session.planner.map(function (item) { return Object.assign({}, item); }),
+    plannerGuide: plannerGuideFor(session, 'trainer'),
     pages: session.pages.map(function (page) {
       return {
         id: page.id,
@@ -421,6 +433,7 @@ function toStudentSession(session, options) {
     trainer: participant(session.trainerId),
     student: participant(session.studentId),
     pack: session.pack,
+    plannerGuide: plannerGuideFor(session, 'student'),
     mastery: session.mastery,
     recording: session.recording,
     rtc: { provider: session.rtc.provider, channel: session.rtc.channel, status: session.rtc.status },
@@ -473,6 +486,7 @@ async function toSessionState(session, user) {
     reteachRequired: Boolean(session.reteachRequired),
     unlockedNext: Boolean(session.unlockedNext),
     currentTopicId: session.currentTopicId || null,
+    plannerGuide: plannerGuideFor(session, trainerView ? 'trainer' : 'student'),
     recordingUrl: session.recording ? session.recording.url : null,
     participants: {
       trainer: participant(session.trainerId),
@@ -910,7 +924,7 @@ function toTrainerDashboard(user, sessions, attendance) {
   };
 }
 
-function toStudentDashboard(user, sessions) {
+function toStudentDashboard(user, sessions, practiceBatches) {
   const ownSubject = subjectView(user.subject);
   const mine = sessions.filter(function (session) { return session.studentId === user.id; });
   const live = mine.find(function (session) { return session.status === 'live'; }) || null;
@@ -948,6 +962,7 @@ function toStudentDashboard(user, sessions) {
     },
     streak: user.streak,
     mastery: user.mastery,
+    questionTotals: questionTotals.forStudent(user.id, mine, practiceBatches || []),
     nextSession: live
       ? {
           id: live.id,

@@ -1,0 +1,172 @@
+{
+  "id": "dev_ratio_railway_v1",
+  "label": "TEMPORARY DEV FIXTURE · Mira's Ratio Railway",
+  "status": "temporary_dev_fixture",
+  "warning": "Local test fixture only. Not a founder-generated planner. Never load in production.",
+  "meta": {
+    "title": "Mira's Ratio Railway",
+    "subject": "math",
+    "curriculum": "cbse",
+    "grade": "class-7",
+    "topic": "Ratios",
+    "ageBand": "11-12",
+    "storyTitle": "Mira and the Snack Cart",
+    "promptVersion": "dev-fixture-v1"
+  },
+  "story": {
+    "title": "Mira and the Snack Cart",
+    "thread": "Mira packs snack boxes for the school fair. Her little red train carries each box to a new stop. At every stop she compares two groups, then chuffs onward.",
+    "opening": "Mira turns the little red train toward the school fair. Her snack cart is full, and every box has a comparing job.",
+    "closing": "The last box is packed. Mira waves from the red train because every stop helped her compare two groups with care.",
+    "beats": [
+      {
+        "id": "beat_orchard",
+        "conceptId": "concept_compare",
+        "narration": "First stop, Apple Orchard. Mira counts two apples and three bananas. Which group comes first?",
+        "emoji": "🍎"
+      },
+      {
+        "id": "beat_bridge",
+        "conceptId": "concept_equivalent",
+        "narration": "Next stop, Ribbon Bridge. Mira ties three red ribbons and five blue ones. Both counts can grow together.",
+        "emoji": "🎀"
+      },
+      {
+        "id": "beat_garden",
+        "conceptId": "concept_share",
+        "narration": "Last stop, Bead Garden. Mira shares beads between friend boxes. Each part must get its fair count.",
+        "emoji": "🔵"
+      }
+    ]
+  },
+  "concepts": [
+    {
+      "id": "concept_compare",
+      "title": "What a ratio compares",
+      "narration": "At Apple Orchard, Mira learns that a ratio names two groups in a chosen order.",
+      "practiceQuestions": [
+        {
+          "id": "dev_ratio_q1",
+          "stem": "Mira packs 2 apple boxes and 3 banana boxes. Which ratio compares apples to bananas?",
+          "image": null,
+          "options": ["2 : 3", "3 : 2", "2 : 5", "5 : 2"],
+          "answerIndex": 0,
+          "hint": "Apples are named first, so their count goes first.",
+          "explanation": "Apples come first in the question: 2 apples to 3 bananas is 2 : 3.",
+          "trainerInstructions": "Ask the child to point to the apple group before choosing.",
+          "misconceptions": ["Reversing the order of the two groups"]
+        },
+        {
+          "id": "dev_ratio_q2",
+          "stem": "A bowl has 4 red berries and 1 yellow berry. Which ratio is red to yellow?",
+          "image": null,
+          "options": ["1 : 4", "4 : 1", "4 : 5", "5 : 4"],
+          "answerIndex": 1,
+          "hint": "The red group is named first in the question.",
+          "explanation": "Red berries are named first: 4 red to 1 yellow is 4 : 1.",
+          "trainerInstructions": "Let the child say both group names aloud before revealing.",
+          "misconceptions": ["Mixing the part ratio with the total"]
+        },
+        {
+          "id": "dev_ratio_q3",
+          "stem": "Mira's red train has 3 red carriages and 2 blue carriages. Which ratio is blue to red?",
+          "image": null,
+          "options": ["3 : 2", "2 : 3", "2 : 5", "5 : 2"],
+          "answerIndex": 1,
+          "hint": "Blue is asked first, so 2 comes before 3.",
+          "explanation": "Blue to red puts the 2 blue carriages before the 3 red carriages.",
+          "trainerInstructions": "Cover the word order, then ask which group should be written first.",
+          "misconceptions": ["Using red to blue instead of blue to red"]
+        }
+      ]
+    },
+    {
+      "id": "concept_equivalent",
+      "title": "Equivalent ratios",
+      "narration": "At Ribbon Bridge, Mira sees that multiplying both parts by the same number keeps the comparison the same.",
+      "practiceQuestions": [
+        {
+          "id": "dev_ratio_q4",
+          "stem": "Which ratio is equivalent to 3 : 5?",
+          "image": null,
+          "options": ["6 : 10", "5 : 3", "9 : 12", "3 : 8"],
+          "answerIndex": 0,
+          "hint": "Multiply both parts of 3 : 5 by the same number.",
+          "explanation": "3 × 2 = 6 and 5 × 2 = 10, so 6 : 10 keeps the same comparison.",
+          "trainerInstructions": "Draw two matching jumps, one for each part of the ratio.",
+          "misconceptions": ["Adding instead of multiplying", "Reversing the pair"]
+        },
+        {
+          "id": "dev_ratio_q5",
+          "stem": "Mira uses 2 red strips and 4 blue strips. Which ratio matches this comparison?",
+          "image": null,
+          "options": ["1 : 2", "4 : 2", "2 : 6", "3 : 4"],
+          "answerIndex": 0,
+          "hint": "Both counts can be halved.",
+          "explanation": "2 : 4 has the same comparison as 1 : 2 because both parts were halved.",
+          "trainerInstructions": "Ask what happens when both piles are split into two equal groups.",
+          "misconceptions": ["Using the total 6 as one part"]
+        },
+        {
+          "id": "dev_ratio_q6",
+          "stem": "Mira doubles the ratio 4 : 7. Which new ratio does she get?",
+          "image": null,
+          "options": ["8 : 14", "7 : 4", "12 : 14", "4 : 14"],
+          "answerIndex": 0,
+          "hint": "Double 4 and double 7.",
+          "explanation": "4 × 2 = 8 and 7 × 2 = 14, so the matching ratio is 8 : 14.",
+          "trainerInstructions": "Check that the child multiplies both parts, not only one.",
+          "misconceptions": ["Doubling only one part"]
+        }
+      ]
+    },
+    {
+      "id": "concept_share",
+      "title": "Sharing in a ratio",
+      "narration": "At Bead Garden, Mira turns a ratio into equal-sized parts so every friend box gets the right share.",
+      "practiceQuestions": [
+        {
+          "id": "dev_ratio_q7",
+          "stem": "A 3 : 5 ribbon has a shorter piece of 12 cm. How long is the longer piece?",
+          "image": null,
+          "options": ["15 cm", "20 cm", "24 cm", "30 cm"],
+          "answerIndex": 1,
+          "hint": "One part is 12 ÷ 3 cm.",
+          "explanation": "One part is 4 cm, so the longer 5-part piece is 20 cm.",
+          "trainerInstructions": "Sketch three short boxes and five matching boxes on the board.",
+          "misconceptions": ["Using 5 ÷ 3 instead of a shared part value"]
+        },
+        {
+          "id": "dev_ratio_q8",
+          "stem": "Red : blue beads are 4 : 7. There are 44 beads in all. How many are blue?",
+          "image": null,
+          "options": ["16", "24", "28", "32"],
+          "answerIndex": 2,
+          "hint": "There are 11 equal parts in the whole group.",
+          "explanation": "44 ÷ 11 = 4 beads per part, and blue has 7 parts, so 7 × 4 = 28.",
+          "trainerInstructions": "Have the child count the parts before choosing an option.",
+          "misconceptions": ["Treating 7 as a share count rather than a part count"]
+        },
+        {
+          "id": "dev_ratio_q9",
+          "stem": "Mira splits 30 snacks in a 2 : 3 ratio. What is the bigger share?",
+          "image": null,
+          "options": ["12", "15", "18", "20"],
+          "answerIndex": 2,
+          "hint": "There are 5 equal parts in 30 snacks.",
+          "explanation": "Each part is 6 snacks, and the bigger 3-part share is 18.",
+          "trainerInstructions": "Ask which number in 2 : 3 names the bigger group before calculating.",
+          "misconceptions": ["Giving the smaller share as the answer"]
+        }
+      ]
+    }
+  ],
+  "completionRule": {
+    "type": "three_correct_unlocks_next_section",
+    "practiceRequiresCorrect": true,
+    "minimumCorrectPerSection": 3,
+    "retestGeneratesReplacement": true,
+    "trainerOverride": true,
+    "narrationContinuity": "One Mira snack-cart story runs from Apple Orchard to Ribbon Bridge to Bead Garden."
+  }
+}

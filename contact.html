@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="assets/poppins.css">
 <link rel="stylesheet" href="shared/tokens.css">
 <link rel="stylesheet" href="public.css">
+<link rel="stylesheet" href="landing.css">
 </head>
 <body>
 
@@ -25,7 +26,7 @@
       <a href="privacy.html">Privacy</a>
       <a href="refund.html">Refund</a>
       <a href="contact.html" aria-current="page">Contact</a>
-      <a class="btn btn-sm" href="#book">Book Demo
+      <a class="btn btn-sm" href="#book-demo" data-book-demo>Book Demo
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </nav>
@@ -42,47 +43,38 @@
 
   <hr class="rule">
 
-  <section class="wrap section-tight" id="book" aria-label="Booking request">
-    <div class="contact-grid">
-      <article class="contact-card">
-        <span class="mono">Book a live 1-on-1 session</span>
-        <p class="contact-email"><a href="mailto:hello@mathify.app">hello@mathify.app</a></p>
-        <p class="contact-note">35 MIN | LIVE • 1-ON-1 • ANY TIMEZONE</p>
-        <p class="contact-note">A real session – not a sales pitch.</p>
-        <p class="contact-whatsapp"><a href="https://api.whatsapp.com/send?text=Hello%20Mathify%2C%20I%27d%20like%20to%20book%20a%201-on-1%20demo.">WhatsApp support</a></p>
-      </article>
+  <!-- Same working booking frame and flow as the home page demo. -->
+  <section class="booking-section" id="book-demo" aria-labelledby="contact-title">
+    <div class="booking-glow" aria-hidden="true"></div>
+    <div class="wrap booking-grid">
+      <div class="booking-intro reveal">
+        <p class="mono eyebrow">Book the demo</p>
+        <h2 id="book-title" class="section-title">Two small steps. Then we take it from there.</h2>
+        <p class="section-lede">Tell us who the session is for and when suits you. We confirm a real slot with you — no payment, no payment form, no guessing.</p>
 
-      <form class="form-card" id="bookingForm" novalidate>
-        <p class="field"><label for="parentName">Parent / guardian name</label><input id="parentName" name="parentName" type="text" autocomplete="name" required></p>
-        <p class="field"><label for="childName">Child's name</label><input id="childName" name="childName" type="text" required></p>
-        <p class="field"><label for="bookingCurriculum">Child's school curriculum</label><select id="bookingCurriculum" name="curriculum" required><option value="">Select a curriculum</option></select></p>
-        <p class="field"><label for="bookingGrade">Grade in that curriculum</label><select id="bookingGrade" name="grade" required><option value="">Choose a curriculum first</option></select></p>
-        <p class="field"><label for="email">Email ID</label><input id="email" name="email" type="email" autocomplete="email" required></p>
-        <p class="field"><label for="phone">Mobile number</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></p>
-        <input id="bookingTimezone" name="timezone" type="hidden">
-        <p class="field"><label for="message">Message</label><textarea id="message" name="message" required></textarea></p>
-        <p class="contact-note">No payment is taken here. We contact you to confirm the 1-on-1 demo first.</p>
-        <button class="btn" type="submit">Book Demo
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </button>
-        <p class="booking-status" id="bookingStatus" role="status" aria-live="polite"></p>
-        <div class="booking-credentials" id="bookingCredentials" hidden>
-          <div><span class="mono">Demo ID</span><b id="bookingDemoId">—</b></div>
-          <div><span class="mono">Login email</span><b id="bookingEmail">—</b></div>
-          <div><span class="mono">Shared password</span><b id="bookingPassword">—</b></div>
-          <p class="credential-note">Use this one password for both the child and parent desks. Keep it — it stays your login until you change it yourself in Profile → Password. <b>Check your email for more details.</b></p>
-          <div class="credential-links" id="credentialLinks" hidden>
-            <a id="childDeskLink" href="/student/home">Open child desk</a>
-            <a id="parentDeskLink" href="/parent/index.html">Open parent desk</a>
-          </div>
+        <div class="booking-assurances">
+          <span><i>✓</i> No payment to book</span>
+          <span><i>✓</i> 50 min. live demo</span>
+          <span><i>✓</i> Any timezone</span>
         </div>
-      </form>
+
+        <p class="contact-email"><a href="mailto:hello@mathify.app">hello@mathify.app</a></p>
+        <p class="contact-whatsapp"><a href="https://api.whatsapp.com/send?text=Hello%20Mathify%2C%20I%27d%20like%20to%20book%20a%201-on-1%20demo.">WhatsApp support</a></p>
+
+        <div class="booking-orb" aria-hidden="true">
+          <span class="orb-core">50</span>
+          <span class="orb-ring"></span><span class="orb-ring two"></span>
+          <span class="orb-label">MIN<br>LIVE DEMO</span>
+        </div>
+      </div>
+
+      <div class="booking-card reveal" id="demoBookingMount"></div>
     </div>
   </section>
 
 </main>
 
-<footer class="site-foot">
+<footer class="site-foot landing-foot">
   <div class="wrap foot-inner">
     <a href="apps.html">Learning OS dashboards</a>
     <a href="index.html">Home</a>
@@ -97,6 +89,7 @@
 
 <script src="shared/public-nav.js" defer></script>
 <script src="shared/curriculumOptions.js" defer></script>
-<script src="shared/contact-form.js" defer></script>
+<script src="shared/demo-booking.js" defer></script>
+<script src="landing.js" defer></script>
 </body>
 </html>

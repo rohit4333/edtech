@@ -1,9 +1,9 @@
 /* Planner Agent review queue.
  *
- * The agent desk can design every LMS planner, but a founder-authored plan is
- * never overwritten or archived by it. Those ideas are stored as suggestions;
- * only the founder can accept (which creates a normal immutable planner
- * version) or reject one. Nothing here touches payments, people or policies.
+ * Agent authoring is paused by founder rule until it is explicitly re-enabled.
+ * The desk may still read the queue and the founder may still decide on an
+ * existing idea, but no agent mutation may write a planner or file a new idea.
+ * Nothing here touches payments, people or policies.
  */
 
 const crypto = require('crypto');
@@ -12,6 +12,19 @@ const subjects = require('./subjectCatalog');
 const planner = require('./weeklyPlannerService');
 
 const COLLECTION = 'planner_agent_suggestion';
+
+/* Founder rule: planner-agent mutation stays off until the founder explicitly
+   re-enables it. This is deliberately fail-closed in the service, not just in
+   the route or browser, so a future caller cannot quietly restore authoring. */
+const AGENT_MUTATIONS_ENABLED = false;
+
+function assertAgentMutationEnabled() {
+  if (AGENT_MUTATIONS_ENABLED) return;
+  throw fail(
+    'Planner-agent mutations are disabled until the founder explicitly re-enables them.',
+    'PLANNER_AGENT_MUTATIONS_DISABLED', 403
+  );
+}
 
 function fail(message, code, status) {
   const error = new Error(message);
@@ -62,6 +75,7 @@ async function list(input) {
 }
 
 async function propose(input, actor) {
+  assertAgentMutationEnabled();
   const body = input || {};
   if (!actor || actor.role !== 'planner_agent') {
     throw fail('Only the planner agent can file an alternate idea.', 'FORBIDDEN_ROLE', 403);

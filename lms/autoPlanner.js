@@ -1,12 +1,10 @@
-/* LMS auto-selected weekly planner.
+/* LMS planner viewer and founder authoring surface.
  *
- * Reads the role-filtered curriculum catalogue, then asks the signed-in Mathify
- * API for the planner that matches the subject, board and grade. All generated
- * strings are inserted with textContent; no AI text becomes HTML. A trainer is
- * pinned to the one subject returned for their account; founder and the planner
- * agent may switch freely. A founder-authored planner is immutable to the agent,
- * which files an alternate idea instead. Relationship managers never reach this
- * code path.
+ * Reads the role-filtered curriculum catalogue and renders stored planner JSON
+ * with textContent only. Trainers never load this path: their assigned planner
+ * comes from the batch-scoped read-only surface. Planner agents can view an
+ * active planner but have no edit, regenerate or idea-filing controls. Only the
+ * founder sees authoring actions, and the server repeats every role gate.
  */
 (function () {
   'use strict';
@@ -35,9 +33,14 @@
     return Boolean(gate && gate.isDenied && gate.isDenied());
   }
 
+  function isTrainer() {
+    var gate = access();
+    return Boolean(gate && gate.isTrainer && gate.isTrainer());
+  }
+
   function isAgent() {
     var gate = access();
-    return Boolean(gate && gate.role && gate.role() === 'planner_agent');
+    return Boolean(gate && gate.isAgent && gate.isAgent());
   }
 
   function element(tag, className, textValue) {
@@ -156,6 +159,16 @@
     }
     if (!client.token()) {
       status('Sign in to Mathify to auto-select the child’s planner.', 'warn');
+      return Promise.resolve(null);
+    }
+    /* A founder/agent planner key needs a real board and grade. Calling with
+       only a subject cannot resolve a selection and produces a server 400;
+       ask for the academic inputs instead of guessing a curriculum. */
+    var access = window.MathifyLmsAccess;
+    var authorRole = access && access.role ? access.role() : null;
+    if (!useQuery && (authorRole === 'founder' || authorRole === 'planner_agent') &&
+        (!curriculum || !curriculum.value || !grade || !grade.value)) {
+      status('Choose a curriculum, then choose its grade to load a planner.', 'warn');
       return Promise.resolve(null);
     }
     state.loading = true;
@@ -346,161 +359,6 @@
     return section;
   }
 
-  function notifyIdeas() {
-    var event;
-    try { event = new CustomEvent('mathify:planneridea', { bubbles: true }); }
-    catch (error) {
-      event = document.createEvent('Event');
-      event.initEvent('mathify:planneridea', true, true);
-    }
-    document.dispatchEvent(event);
-  }
-
-  function selectionPayload(page) {
-    var selection = (page && page.selection) || state.selection || {};
-    var cache = (page && page.cache) || {};
-    var curriculum = curriculumSelect();
-    var grade = gradeSelect();
-    return {
-      subject: selection.subject || cache.subject || currentSubject(),
-      curriculum: selection.curriculumSlug || cache.curriculumSlug || (curriculum && curriculum.value) || '',
-      grade: selection.gradeSlug || cache.gradeSlug || (grade && grade.value) || '',
-      topic: selection.topic || cache.topic || ''
-    };
-  }
-
-  /* The local designer stays the source of the draft: it must pass its own
-     schema/privacy validation first. Only student-facing copy is attached to
-     the server-validated weekly planner; trainer notes are never submitted. */
-  function validatedAlternate(page) {
-    var designer = window.mathifyPlanner;
-    if (!designer || typeof designer.validate !== 'function' ||
-        typeof designer.buildPayload !== 'function' || !page || !page.planner) {
-      throw new Error('The planner designer is unavailable right now.');
-    }
-    var errors = designer.validate();
-    if (errors.length) throw new Error('Validate the designer first: ' + errors[0]);
-    var payload = designer.buildPayload();
-    var student = typeof designer.buildStudentPayload === 'function'
-      ? designer.buildStudentPayload() : null;
-    var proposed = JSON.parse(JSON.stringify(page.planner));
-    proposed.meta = Object.assign({}, proposed.meta, {
-      topic: String(payload.topic_id || (proposed.meta && proposed.meta.topic) || 'Planner topic').slice(0, 120)
-    });
-    proposed.designDraft = {
-      topicId: payload.topic_id,
-      chapter: payload.curriculum_map.chapter,
-      learningObjectives: payload.curriculum_map.learning_objectives,
-      studentQuizPrompt: student ? student.quizPrompt : '',
-      studentBlocks: student ? student.blocks : []
-    };
-    return proposed;
-  }
-
-  function runAgentMutation(page, kind, button) {
-    var client = api();
-    if (!client) return;
-    var payload = selectionPayload(page);
-    var call;
-    if (kind === 'regenerate') {
-      call = client.plannerAgentRegenerate(payload);
-    } else {
-      var proposed;
-      try { proposed = validatedAlternate(page); }
-      catch (error) { status(error.message, 'warn'); return; }
-      call = client.plannerAgentEdit(Object.assign({}, payload, { planner: proposed }));
-    }
-    button.disabled = true;
-    status(kind === 'regenerate' ? 'Regenerating planner…' : 'Applying your planner edit…');
-    return call.then(function (result) {
-      state.page = result;
-      setSelection(result.selection || {});
-      renderPlanner(result);
-      status(kind === 'regenerate' ? 'Planner regenerated for this selection.' : 'Planner edit saved.', 'ok');
-    }).catch(function (error) {
-      if (error && error.code === 'FOUNDER_PLANNER_IMMUTABLE') {
-        status('Founder-created planners are immutable. File an alternate idea for founder review instead.', 'warn');
-      } else {
-        status((error && error.message) || 'Planner change is unavailable right now.', 'warn');
-      }
-    }).then(function () { button.disabled = false; });
-  }
-
-  function agentToolsNode(page) {
-    var wrap = element('section', 'wp-agent-tools');
-    var cache = (page && page.cache) || {};
-    var locked = cache.createdByRole === 'founder';
-
-    if (locked) {
-      var banner = element('div', 'wp-lock-banner');
-      banner.setAttribute('role', 'alert');
-      banner.appendChild(element('strong', '', 'Founder-created planner — read only for this desk.'));
-      banner.appendChild(element('p', '',
-        'Direct edit and regenerate are disabled. File an alternate idea below; only the founder can review or apply it.'));
-      wrap.appendChild(banner);
-    } else {
-      wrap.appendChild(element('p', 'wp-own-banner',
-        'This planner is agent-authored. Direct edit and regenerate are available while it stays editable.'));
-    }
-
-    var actions = element('div', 'wp-agent-actions');
-    var edit = element('button', 'btn btn-ghost btn-sm', 'Edit planner');
-    edit.type = 'button';
-    edit.disabled = locked;
-    edit.title = locked ? 'Founder-created planners are immutable for the planner agent.' : '';
-    edit.addEventListener('click', function () { runAgentMutation(page, 'edit', edit); });
-
-    var regenerate = element('button', 'btn btn-ghost btn-sm', 'Regenerate');
-    regenerate.type = 'button';
-    regenerate.disabled = locked;
-    regenerate.title = locked ? 'Founder-created planners are immutable for the planner agent.' : '';
-    regenerate.addEventListener('click', function () { runAgentMutation(page, 'regenerate', regenerate); });
-
-    actions.appendChild(edit);
-    actions.appendChild(regenerate);
-    wrap.appendChild(actions);
-
-    var form = element('form', 'wp-alternate-form');
-    var label = element('label', 'wp-alternate-label', 'File alternate idea for founder review');
-    var note = element('textarea', 'wp-alternate-note');
-    note.rows = 2;
-    note.maxLength = 600;
-    note.placeholder = 'What should the founder consider instead?';
-    label.appendChild(note);
-    form.appendChild(label);
-    var send = element('button', 'btn btn-coral btn-sm', 'Send idea for founder review');
-    send.type = 'submit';
-    form.appendChild(send);
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var text = String(note.value || '').trim();
-      if (!text) { status('Add a short note so the founder knows what to review.', 'warn'); return; }
-      var proposed;
-      try { proposed = validatedAlternate(page); }
-      catch (error) { status(error.message, 'warn'); return; }
-      var client = api();
-      if (!client || !client.plannerSuggest) {
-        status('Alternate ideas are unavailable right now.', 'warn');
-        return;
-      }
-      send.disabled = true;
-      status('Filing alternate idea…');
-      client.plannerSuggest(Object.assign(selectionPayload(page), {
-        planner: proposed,
-        note: text
-      })).then(function (result) {
-        note.value = '';
-        var idea = (result && result.suggestion) || {};
-        status('Alternate idea filed for founder review · ' + (idea.status || 'pending') + '.', 'ok');
-        notifyIdeas();
-      }).catch(function (error) {
-        status((error && error.message) || 'Alternate idea could not be filed.', 'warn');
-      }).then(function () { send.disabled = false; });
-    });
-    wrap.appendChild(form);
-    return wrap;
-  }
-
   function renderPlanner(page) {
     var target = $('autoPlannerView');
     if (!target || !page || !page.planner) return;
@@ -557,7 +415,12 @@
     layout.appendChild(main);
     layout.appendChild(standardsNode(page));
     shell.appendChild(layout);
-    if (isAgent()) shell.appendChild(agentToolsNode(page));
+    if (isAgent()) {
+      var notice = element('p', 'wp-readonly-note',
+        'Planner-agent authoring is disabled until the founder explicitly re-enables it. This view is read-only.');
+      notice.setAttribute('role', 'status');
+      shell.appendChild(notice);
+    }
     target.appendChild(shell);
 
     target.querySelectorAll('.wp-diff-tab').forEach(function (button) {
@@ -577,6 +440,20 @@
     });
   }
 
+  function showAssignedPage(page) {
+    if (!page || !page.planner || denied()) return;
+    state.page = page;
+    var selection = page.selection || {};
+    state.subject = api() && api().safeSubject
+      ? api().safeSubject(selection.subject || (page.cache && page.cache.subject) || currentSubject())
+      : currentSubject();
+    var grade = gradeSelect();
+    if (window.MathifyCurriculums && grade) {
+      window.MathifyCurriculums.fillGrades(grade, state.catalog, selection.curriculumSlug, selection.gradeSlug);
+    }
+    renderPlanner(page);
+  }
+
   function boot() {
     if (access() && access().detect) access().detect();
     var deniedPanel = $('lmsDenied');
@@ -594,6 +471,17 @@
     var load = $('autoPlannerLoad');
     if (!curriculum || !grade || !load) return;
 
+    if (isTrainer()) {
+      /* A trainer never selects a board, grade or generation action. The only
+         planner is the one already stored for an assigned batch. */
+      if (window.mathifyAssignedPlanner && window.mathifyAssignedPlanner.load) {
+        window.mathifyAssignedPlanner.load();
+      } else {
+        status('Assigned planner is unavailable right now.', 'warn');
+      }
+      return;
+    }
+
     load.addEventListener('click', function () {
       loadPlanner(Boolean(curriculum.value && grade.value));
     });
@@ -609,7 +497,10 @@
       state.catalog = results[0] || [];
       state.subjects = results[1] || [];
       state.subject = currentSubject();
-      return loadPlanner(false);
+      /* After the catalogue is populated the academic selects carry a real
+         board and grade. Send them so a founder load resolves an actual
+         selection instead of producing an UNKNOWN_CURRICULUM 400. */
+      return loadPlanner(Boolean(curriculum.value && grade.value));
     }).catch(function () {
       status('Curriculum catalogue is unavailable.', 'warn');
     });
@@ -621,6 +512,7 @@
       if (state.page && !denied()) renderPlanner(state.page);
     },
     load: loadPlanner,
+    showPage: showAssignedPage,
     subject: currentSubject,
     label: function () { return subjectLabel(currentSubject()); }
   };

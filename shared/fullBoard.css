@@ -135,7 +135,9 @@ body.board-open #fullBoardShare.is-sharing{
 .full-board-tools [data-board-color]{width:20px;min-width:20px;height:20px;border-radius:50%;padding:0}
 /* One calm row: ten swatches and three curved stroke samples, no labels. */
 .board-ink-panel{
-  position:absolute;left:0;top:calc(100% + 8px);z-index:230;
+  /* The one ink row is page-centred, never anchored to a tool caret. That keeps
+     it clear of the draggable camera window at the top right. */
+  position:fixed;left:50%;top:68px;z-index:230;transform:translateX(-50%);
   display:flex;flex-direction:row;align-items:center;gap:12px;
   width:max-content;max-width:calc(100vw - 24px);padding:8px 12px;
   border:1px solid var(--line);border-radius:var(--r-sm);
@@ -287,7 +289,9 @@ body.board-open .top-r .full-board-tools button svg{width:16px;height:16px}
 body.board-open .top-r .board-ink-tool .ink-caret{min-width:14px;width:14px;height:32px;padding:0 2px}
 body.board-open .top-r .board-ink-tool .ink-caret svg{width:9px;height:9px}
 body.board-open .top-r .full-board-tools .board-rule{width:10px;height:22px}
-body.board-open .top-r .board-ink-panel,
+body.board-open .top-r .board-ink-panel{
+  position:fixed;left:50%;top:68px;z-index:230;transform:translateX(-50%)
+}
 body.board-open .top-r .board-group-menu{
   position:absolute;left:0;top:calc(100% + 8px);z-index:230
 }

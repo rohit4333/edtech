@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="responsive.css">
 <link rel="stylesheet" href="planner.css">
 <link rel="stylesheet" href="subjectPlanner.css">
+<link rel="stylesheet" href="assignedPlanner.css">
 <style>
   .ic,.icon-btn svg,.context svg,.search svg,.filter-search svg,.tabs svg,
   .course-card svg,.detail svg,.sheet svg,.search-overlay svg,.asset-btn svg,
@@ -323,6 +324,8 @@
         </div>
         <button class="sheet-x" type="button" data-close-sheet aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
       </header>
+      <p class="assigned-status" id="assignedPlannerStatus" role="status" aria-live="polite"></p>
+      <div id="assignedPlannerMount"></div>
       <div class="wp-panel" aria-labelledby="autoPlannerTitle">
         <div class="wp-panel-head">
           <div>
@@ -386,6 +389,7 @@
 <script src="../shared/curriculumOptions.js"></script>
 <script src="api.js"></script>
 <script src="subjectPlanner.js"></script>
+<script src="assignedPlanner.js"></script>
 <script src="autoPlanner.js"></script>
 <script src="app.js"></script>
 <script src="planner.js"></script>

@@ -1,13 +1,12 @@
-/* LMS auto-planner API.
+/* LMS curriculum and planner API.
  *
- * The catalog is public and academic-only. Generated planners require a signed
- * Mathify role. Student/parent/trainer reads always resolve the child's
- * registered board, grade and topic; founder and planner-agent desks may work
- * with academic selections directly. Mutation is founder-controlled: the
- * planner agent can design ordinary planners, but a founder-authored plan is
- * never replaced by it — the agent files an alternate idea for founder review.
- * A trainer may trigger generation only when no active planner exists — the
- * service returns the stored JSON on a cache hit.
+ * The catalog is public and academic-only. Every non-founder planner read is
+ * read-only: it returns an already-stored planner or an honest empty result.
+ * Generation, regeneration, edits and suggestion filing are founder-only;
+ * planner-agent mutation is paused until the founder explicitly re-enables it.
+ * A trainer's assigned planner is derived only from batches whose trainerId is
+ * the signed-in trainer, then from that child's registered curriculum profile.
+ * No batch, board, grade, hint or suggested edit is invented here.
  */
 
 const express = require('express');
@@ -18,6 +17,7 @@ const curriculumRepository = require('../db/curriculum');
 const catalog = require('../services/curriculumCatalog');
 const subjects = require('../services/subjectCatalog');
 const planner = require('../services/weeklyPlannerService');
+const plannerRead = require('../services/plannerReadService');
 const plannerAgent = require('../services/plannerAgentService');
 
 const router = express.Router();
@@ -214,37 +214,162 @@ function designSelection(req) {
   return founderSelection(req);
 }
 
-function authorship(req) {
-  return req.user && req.user.role === 'planner_agent' ? 'planner_agent' : 'founder';
-}
-
-/* Every signed-in learning role can read. Generation happens inside the
-   service only when no active cached planner exists; no force flag is read. */
+/* Every signed-in learning role can read a generated planner, but only the
+   founder's explicit load/generate call may create one. A trainer, parent,
+   student or planner agent gets an honest unavailable response before any AI
+   or deterministic fallback is allowed to write. */
 router.get('/planner', auth.requireAuth,
   auth.requireRole('student', 'founder', 'parent', 'trainer', 'planner_agent'),
   auth.requireClassAccess,
   async function (req, res) {
     try {
-      const selection = req.user.role === 'planner_agent'
+      /* Founder and the academic planner desk may work from explicit
+         curriculum/grade selections; family roles are pinned to a stored child
+         profile before any read is allowed. */
+      const selection = await (req.user.role === 'planner_agent' || req.user.role === 'founder'
         ? designSelection(req)
-        : await selectionFor(req);
-      const page = await planner.getOrCreate(selection);
+        : selectionFor(req));
+      if (req.user.role !== 'founder') {
+        const stored = await plannerRead.readActive(selection);
+        if (!stored) {
+          const error = new Error('No founder-generated planner is available yet.');
+          error.code = 'PLANNER_NOT_GENERATED';
+          error.status = 409;
+          throw error;
+        }
+        return res.json(Object.assign({ selection: selection }, stored));
+      }
+          const page = await planner.getOrCreate(selection, {
+        createdByRole: 'founder', actorId: req.user.id
+      });
       return res.json(Object.assign({ selection: selection }, page));
     } catch (error) {
       return problem(res, error);
     }
   });
 
-/* Founder and planner-agent regeneration archives the old immutable JSON and
-   moves the pointer from v1 to v2 (or the next version). The service refuses an
-   agent attempt on a founder-authored plan. */
+async function selectionForBatch(batch) {
+  const student = await db.findUserById(batch.studentId);
+  if (!student || student.role !== 'student') return null;
+  const profile = await curriculumRepository.get(student.id);
+  return planner.resolveSelection({
+    subject: batch.subject || student.subject || 'math',
+    curriculum: (profile && profile.curriculum) || null,
+    grade: (profile && profile.grade) || student.grade || null,
+    topic: (profile && profile.schoolChapter) || null
+  });
+}
+
+function trainerBatches(req) {
+  return db.listBatches().filter(function (batch) {
+    return batch && batch.trainerId === req.user.id && batch.studentId;
+  });
+}
+
+async function assignedForBatch(batch) {
+  const selection = await selectionForBatch(batch);
+  if (!selection || !selection.curriculumSlug || !selection.gradeSlug) return null;
+  const stored = await plannerRead.readActive(selection);
+  if (!stored) return null;
+  return {
+    batch: {
+      id: batch.id,
+      code: batch.code || null,
+      subject: subjects.normalize(batch.subject || selection.subject)
+    },
+    studentId: batch.studentId,
+    selection: stored.selection,
+    planner: stored.planner,
+    cache: stored.cache,
+    guidance: plannerRead.guidanceFrom(stored)
+  };
+}
+
+/* Trainer view-only surface. The batch assignment is read from server records;
+   a browser-supplied student, board, grade or topic is never used here. */
+router.get('/assigned-planners', auth.requireAuth,
+  auth.requireRole('trainer'), auth.requireClassAccess,
+  async function (req, res) {
+    try {
+      const assigned = await Promise.all(trainerBatches(req).map(assignedForBatch));
+      const items = assigned.filter(Boolean);
+      return res.json({
+        assignedPlanners: items,
+        count: items.length,
+        message: items.length
+          ? ''
+          : 'No generated planner is assigned to your batches yet.'
+      });
+    } catch (error) {
+      return problem(res, error);
+    }
+  });
+
+/* Compact trainer quiz guidance. It reads only the suggested edits and hint
+   additions already present in the assigned planner; absent fields stay empty. */
+router.get('/planner-guidance', auth.requireAuth,
+  auth.requireRole('trainer'), auth.requireClassAccess,
+  async function (req, res) {
+    try {
+      const query = req.query || {};
+      let studentId = String(query.studentId || '').trim();
+      let session = null;
+      if (!studentId && query.sessionId) {
+        session = await db.findSession(String(query.sessionId).trim());
+        if (!session || session.trainerId !== req.user.id) {
+          const error = new Error('That session is not on your roster.');
+          error.code = 'FORBIDDEN_SESSION';
+          error.status = 403;
+          throw error;
+        }
+        studentId = session.studentId;
+      }
+      if (!studentId) {
+        const error = new Error('A student or session is required.');
+        error.code = 'STUDENT_REQUIRED';
+        error.status = 400;
+        throw error;
+      }
+      const batch = trainerBatches(req).find(function (item) {
+        return item.studentId === studentId;
+      });
+      if (!batch) {
+        const error = new Error('That child is not on one of your assigned batches.');
+        error.code = 'FORBIDDEN_BATCH';
+        error.status = 403;
+        throw error;
+      }
+      const assigned = await assignedForBatch(batch);
+      if (!assigned) {
+        return res.json({
+          source: 'assigned-planner',
+          plannerAvailable: false,
+          batch: { id: batch.id, code: batch.code || null },
+          suggestedEdits: [],
+          hintAdditions: [],
+          hasGuidance: false,
+          message: 'No founder-generated planner is assigned to this batch yet.'
+        });
+      }
+      return res.json(Object.assign({
+        source: 'assigned-planner',
+        plannerAvailable: true,
+        batch: assigned.batch
+      }, assigned.guidance));
+    } catch (error) {
+      return problem(res, error);
+    }
+  });
+
+/* Founder regeneration archives the old immutable JSON and moves the pointer
+   from v1 to v2 (or the next version). Agent mutation stays disabled. */
 router.post('/planner/regenerate', auth.requireAuth,
-  auth.requireRole('founder', 'planner_agent'), auth.requireClassAccess,
+  auth.requireRole('founder'), auth.requireClassAccess,
   async function (req, res) {
     try {
       const selection = await designSelection(req);
       const page = await planner.regenerate(selection, req.user.id, {
-        createdByRole: authorship(req)
+        createdByRole: 'founder'
       });
       return res.json(Object.assign({ regenerated: true, selection: selection }, page));
     } catch (error) {
@@ -252,25 +377,24 @@ router.post('/planner/regenerate', auth.requireAuth,
     }
   });
 
-/* Manual edit. The prior version is archived; the edited JSON is stored as a
-   new immutable record and becomes the active pointer. A planner agent cannot
-   overwrite founder work; the immutability check lives in the service. */
+/* Founder edit. The prior version is archived; the edited JSON is stored as a
+   new immutable record and becomes the active pointer. */
 router.patch('/planner', auth.requireAuth,
-  auth.requireRole('founder', 'planner_agent'), auth.requireClassAccess,
+  auth.requireRole('founder'), auth.requireClassAccess,
   async function (req, res) {
     try {
       const selection = await designSelection(req);
       const page = await planner.editPlanner(Object.assign({}, selection, {
         planner: req.body && req.body.planner
-      }), req.user.id, { createdByRole: authorship(req) });
+      }), req.user.id, { createdByRole: 'founder' });
       return res.json(Object.assign({ edited: true, selection: selection }, page));
     } catch (error) {
       return problem(res, error);
     }
   });
 
-/* Alternate ideas for founder-authored planners. Nothing here writes a cache
-   record or moves a pointer: an idea stays pending until the founder decides. */
+/* The queue is read-only until the founder explicitly re-enables agent ideas.
+   New ideas require a founder action; no learner or agent may file one. */
 router.get('/planner-suggestions', auth.requireAuth,
   auth.requireRole('founder', 'planner_agent'), auth.requireClassAccess,
   async function (req, res) {
@@ -287,6 +411,8 @@ router.get('/planner-suggestions', auth.requireAuth,
     }
   });
 
+/* Kept for contract visibility, but the service refuses new ideas until the
+   founder explicitly re-enables planner-agent mutation. */
 router.post('/planner-suggestion', auth.requireAuth,
   auth.requireRole('planner_agent'), auth.requireClassAccess,
   async function (req, res) {

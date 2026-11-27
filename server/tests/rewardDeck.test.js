@@ -31,12 +31,13 @@ function main() {
   ok(connectHtml.indexOf('href="../shared/rewardDeck.css"') !== -1 &&
     connectHtml.indexOf('src="../shared/rewardDeck.js"') !== -1,
   'the trainer camera check page loads the same celebration deck');
-  ok(trainerHtml.indexOf('id="cameraOnlyBtn"') !== -1 &&
-    trainerHtml.indexOf('id="i-cam"') !== -1,
-  'the dashboard has a camera-only return action');
-  ok(trainerApp.indexOf("cameraOnlyBtn')") !== -1 &&
-    trainerApp.indexOf("&camera=1") !== -1,
-  'camera-only returns to the connect page');
+  ok(trainerHtml.indexOf('id="startClass"') !== -1 &&
+    trainerHtml.indexOf('id="cameraOnlyBtn"') === -1,
+  'Start class is the dashboard’s only entry into the connect flow');
+  ok(trainerApp.indexOf("$('#startClass')") !== -1 &&
+    trainerApp.indexOf('cameraOnlyBtn') === -1 &&
+    trainerApp.indexOf('&camera=1') === -1,
+  'the dashboard opens the connect page without a camera-only action or flag');
   ok(trainerApp.indexOf('window.MATHIFY_SESSION_ID = session.id') !== -1,
   'an active dashboard session exposes its id to the deck');
 

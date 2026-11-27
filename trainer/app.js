@@ -522,19 +522,18 @@
     );
   }
 
-  function openCameraPage(button, message) {
+  function openConnectPage(button, message) {
     var id = activeSessionId || window.MATHIFY_SESSION_ID || 'ses_math_001';
     if (button) flash(button, message);
-    window.location.href = '../classroom/connect.html?sessionId=' +
-      encodeURIComponent(id) + '&role=trainer&camera=1';
+    /* Start class opens the readiness gate first. Camera, microphone and
+       connection are checked there; Join starts the class clock and moves to
+       the camera page, which then opens the whiteboard. */
+    window.location.href = '../classroom/preflight.html?sessionId=' +
+      encodeURIComponent(id) + '&role=trainer';
   }
 
   $('#startClass') && $('#startClass').addEventListener('click', function (event) {
-    openCameraPage(event.currentTarget, 'Opening the 1-on-1 classroom…');
-  });
-
-  $('#cameraOnlyBtn') && $('#cameraOnlyBtn').addEventListener('click', function (event) {
-    openCameraPage(event.currentTarget, 'Opening camera check…');
+    openConnectPage(event.currentTarget, 'Opening the 1-on-1 classroom…');
   });
 
   $$('[data-toast]').forEach(function (el) {
@@ -555,12 +554,26 @@
   var modeButtons = $$('[data-chat-mode]');
   var aiMode = 'copilot';
 
-  function openPanel() {
+  function openPanel(skipFocus) {
     if (!panel || !fab) return;
     closeMenu();
     panel.hidden = false;
     fab.setAttribute('aria-expanded', 'true');
-    setTimeout(function () { if (input) input.focus(); }, 20);
+    if (!skipFocus) {
+      setTimeout(function () { if (input && !panel.hidden) input.focus(); }, 20);
+    }
+  }
+
+  /* Suggested prompts are pasted into the composer. The trainer, not the
+     chip, decides when the question is actually sent. */
+  function pasteSuggestion(text) {
+    if (!input) return;
+    openPanel(true);
+    input.value = String(text || '').trim();
+    input.focus();
+    if (typeof input.setSelectionRange === 'function') {
+      try { input.setSelectionRange(input.value.length, input.value.length); } catch (error) { /* unsupported input */ }
+    }
   }
 
   function closePanel() {
@@ -622,6 +635,7 @@
       body.innerHTML = support ? SUPPORT_OPEN : COPILOT_OPEN;
       body.scrollTop = 0;
     }
+    if (support) loadSupportRecords(true);
   }
 
   modeButtons.forEach(function (button) {
@@ -654,14 +668,171 @@
     return api.askCopilot(text, window.MATHIFY_SESSION_ID || null);
   }
 
+  /* The worker only knows general policy. This desk augments the displayed
+     answer with the signed-in trainer's own records, fetched through the same
+     authenticated client. Student names, contact details and other people's
+     records are never read into the answer. */
+  var supportRecords = null;
+  var supportRecordsAt = 0;
+  var supportRecordsPromise = null;
+
+  function loadSupportRecords(force) {
+    if (supportRecordsPromise) return supportRecordsPromise;
+    if (supportRecords && !force && Date.now() - supportRecordsAt < 60000) {
+      return Promise.resolve(supportRecords);
+    }
+    var api = window.mathifyTrainerApi;
+    if (!api || typeof api.request !== 'function') {
+      supportRecords = { available: false };
+      return Promise.resolve(supportRecords);
+    }
+
+    function soft(job) {
+      return Promise.resolve().then(job).catch(function () { return null; });
+    }
+
+    supportRecordsPromise = Promise.all([
+      soft(function () {
+        return typeof api.getPayout === 'function'
+          ? api.getPayout()
+          : api.request('/trainer/payouts').then(function (data) { return data && data.payout; });
+      }),
+      soft(function () {
+        return typeof api.getDashboard === 'function'
+          ? api.getDashboard()
+          : api.request('/trainer/dashboard').then(function (data) { return data && data.dashboard; });
+      }),
+      soft(function () {
+        return typeof api.getAttendance === 'function'
+          ? api.getAttendance()
+          : api.request('/trainer/attendance').then(function (data) { return data && data.register; });
+      }),
+      soft(function () {
+        return api.request('/leaves').then(function (data) { return data && data.leave ? data.leave : data; });
+      })
+    ]).then(function (results) {
+      supportRecords = {
+        payout: results[0] || null,
+        dashboard: results[1] || null,
+        attendance: results[2] || null,
+        leave: results[3] || null,
+        available: Boolean(results[0] || results[1] || results[2] || results[3])
+      };
+      return supportRecords;
+    }).then(function (records) {
+      supportRecordsAt = Date.now();
+      supportRecordsPromise = null;
+      return records;
+    });
+    return supportRecordsPromise;
+  }
+
+  function finiteNumber(value) {
+    /* Number(null) is 0, which would turn an unavailable metric into a real
+       looking zero. Only present, numeric values may become figures. */
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'boolean') return null;
+    var number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function periodLabel(period) {
+    var value = String(period || '');
+    var match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) return value || 'this period';
+    var date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
+    return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  /* Register totals only — no student names or identifying cells. */
+  function registerMarks(register) {
+    var counts = { present: 0, late: 0, absent: 0 };
+    var rows = register && Array.isArray(register.rows) ? register.rows : [];
+    rows.forEach(function (row) {
+      var cells = row && row.cells ? row.cells : {};
+      Object.keys(cells).forEach(function (key) {
+        var status = cells[key];
+        if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
+      });
+    });
+    return counts.present + counts.late + counts.absent
+      ? counts
+      : null;
+  }
+
+  function supportRecordLines(records) {
+    if (!records || !records.available) {
+      return ['Your records could not be loaded right now. Please retry; no figures have been guessed.'];
+    }
+
+    var lines = [];
+    var payout = records.payout;
+    var rate = payout && finiteNumber(payout.ratePerSession);
+    if (rate !== null && rate > 0) {
+      lines.push('Your current recorded rate is ' + inr(rate) + ' per completed 1-on-1 session.');
+    }
+    var amount = payout && payout.amount && finiteNumber(payout.amount.value);
+    if (amount !== null) {
+      lines.push('Your recorded payout for ' + periodLabel(payout.period) + ' is ' + inr(amount) + '.');
+    }
+    var breakdown = payout && payout.amount && payout.amount.breakdown;
+    var gratitude = breakdown && finiteNumber(breakdown.founderGratitude);
+    if (gratitude !== null && gratitude > 0) {
+      lines.push('Your protected founder credit for ' + periodLabel(payout.period) + ' is ' + inr(gratitude) + '.');
+    }
+
+    var balance = records.leave && records.leave.balance;
+    var remaining = balance && finiteNumber(balance.remaining);
+    var total = balance && finiteNumber(balance.total);
+    if (remaining !== null) {
+      lines.push('Your remaining leave is ' + remaining + (total !== null ? ' of ' + total : '') +
+        ' session' + (remaining === 1 ? '' : 's') + ' this month.');
+    }
+
+    var attendance = records.dashboard && records.dashboard.metrics && records.dashboard.metrics.attendance;
+    var attendanceValue = attendance && finiteNumber(attendance.value);
+    var attendanceAvailable = false;
+    if (attendanceValue !== null) {
+      lines.push('Your recorded attendance is ' + attendanceValue + '%.');
+      attendanceAvailable = true;
+    } else {
+      var marks = registerMarks(records.attendance);
+      if (marks) {
+        lines.push('Your attendance register records ' + marks.present + ' present, ' +
+          marks.late + ' late and ' + marks.absent + ' absent marks in the visible window.');
+        attendanceAvailable = true;
+      }
+    }
+
+    var missing = [];
+    if (!payout) missing.push('pay');
+    if (!balance) missing.push('leave');
+    if (!attendanceAvailable) missing.push('attendance');
+    if (missing.length) {
+      lines.push('Your ' + missing.join(', ') + ' record' + (missing.length === 1 ? '' : 's') +
+        ' could not be loaded right now; no figures have been guessed.');
+    }
+    if (!lines.length) {
+      lines.push('Your records could not be loaded right now. Please retry; no figures have been guessed.');
+    }
+    return lines;
+  }
+
+  function augmentSupportReply(policyReply, records) {
+    var policy = (policyReply && String(policyReply).trim()) || 'No policy reply was returned. Please retry.';
+    return 'From your records\n' + supportRecordLines(records).join('\n') +
+      '\n\nGeneral Mathify policy\n' + policy;
+  }
+
   function send(text) {
     var value = (text || '').trim();
     if (!value) return;
+    var modeAtSend = aiMode;
     bubble(value, true);
     if (input) input.value = '';
 
     var pending = document.createElement('p');
-    pending.className = 'msg bot';
+    pending.className = 'msg bot' + (modeAtSend === 'support' ? ' desk-answer' : '');
     pending.textContent = 'Thinking…';
     if (body) {
       body.appendChild(pending);
@@ -669,10 +840,19 @@
     }
 
     ask(value).then(function (data) {
-      pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
+      var reply = (data && data.reply) || 'No reply was returned. Please retry.';
       if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
+      if (modeAtSend !== 'support') {
+        pending.textContent = reply;
+        if (body) body.scrollTop = body.scrollHeight;
+        return null;
+      }
+      return loadSupportRecords().then(function (records) {
+        pending.textContent = augmentSupportReply(reply, records);
+        if (body) body.scrollTop = body.scrollHeight;
+      });
     }).catch(function () {
-      pending.textContent = aiMode === 'support'
+      pending.textContent = modeAtSend === 'support'
         ? 'The Trainer Desk could not be reached. Please retry in a moment.'
         : 'The copilot could not be reached. Please retry in a moment.';
       pending.dataset.source = 'offline';
@@ -689,15 +869,14 @@
   if (panel) {
     panel.addEventListener('click', function (event) {
       var chip = event.target.closest ? event.target.closest('.ai-chips button') : null;
-      if (chip && panel.contains(chip)) send(chip.textContent.trim());
+      if (chip && panel.contains(chip)) pasteSuggestion(chip.textContent);
     });
   }
 
   $$('[data-ask]').forEach(function (el) {
     el.addEventListener('click', function () {
       setChatMode('copilot');
-      openPanel();
-      send(el.getAttribute('data-ask'));
+      pasteSuggestion(el.getAttribute('data-ask'));
     });
   });
 

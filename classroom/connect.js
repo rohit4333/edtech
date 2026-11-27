@@ -16,8 +16,16 @@
   var selfTrackAttached = false;
   var remoteTrackAttached = false;
   var remoteAudio = null;
-  var micOn = true;
-  var cameraOn = true;
+  /* Presets chosen on the readiness gate. They are local intent only; the SDK
+     reconciles the real flags once the preview room connects. */
+  var micOn = params.get('mic') !== 'off';
+  var cameraOn = params.get('cam') !== 'off';
+  var mediaUi = null;
+  var mediaMessage = '';
+  var mediaMessageTimer = null;
+  var micRequest = 0;
+  var cameraRequest = 0;
+  var mediaGeneration = 0;
   var ended = false;
   var ready = false;
   var presenceTimer = null;
@@ -49,6 +57,7 @@
 
   function renderStatus() {
     var parts = [];
+    if (mediaMessage) parts.push(mediaMessage);
     if (cameraMessage) parts.push(cameraMessage);
     if (networkMessage && networkMessage !== cameraMessage) parts.push(networkMessage);
     setText('#connectStatus', parts.join(' ') || 'Preparing your camera check…');
@@ -120,7 +129,7 @@
     if (button) {
       button.disabled = !ready || role !== 'trainer';
       button.title = ready
-        ? 'Open the lesson desk and start the class clock'
+        ? 'Open the shared whiteboard · the class clock is already running'
         : 'Both people need a ready connection before the lesson opens';
     }
     if (!value || value.canStartCall !== true) {
@@ -220,26 +229,114 @@
     button.setAttribute('aria-label', 'Turn ' + label + (on ? ' off' : ' on'));
   }
 
+  function showMediaMessage(text) {
+    mediaMessage = text;
+    renderStatus();
+    if (mediaMessageTimer) window.clearTimeout(mediaMessageTimer);
+    mediaMessageTimer = window.setTimeout(function () {
+      mediaMessage = '';
+      mediaMessageTimer = null;
+      renderStatus();
+    }, 5000);
+  }
+
+  function clearMediaMessage() {
+    if (mediaMessageTimer) window.clearTimeout(mediaMessageTimer);
+    mediaMessageTimer = null;
+    if (mediaMessage) {
+      mediaMessage = '';
+      renderStatus();
+    }
+  }
+
+  function updateMicBadge(badgeSelector, tileSelector, on) {
+    var badge = $(badgeSelector);
+    var tile = $(tileSelector);
+    if (badge) {
+      var use = badge.querySelector('use');
+      if (use) use.setAttribute('href', on ? '#i-mic' : '#i-mic-off');
+      badge.setAttribute('aria-label', on ? 'Microphone on' : 'Microphone off');
+      badge.setAttribute('data-mic', on ? 'on' : 'off');
+    }
+    if (tile) {
+      tile.setAttribute('data-muted', on ? 'false' : 'true');
+      tile.setAttribute('data-audio', on ? 'on' : 'off');
+    }
+  }
+
+  /* One render path for optimistic clicks, SDK reconciliation and mute events.
+     The shared helper paints the peer side; the local side is driven from the
+     desired state so a pending promise never leaves a stale icon behind. */
+  function renderMediaState() {
+    var micButton = $('#connectMicBtn');
+    var camButton = $('#connectCamBtn');
+    updateControl(micButton, micOn, '#i-mic', '#i-mic-off', 'microphone');
+    updateControl(camButton, cameraOn, '#i-cam', '#i-cam-off', 'camera');
+    if (micButton) micButton.setAttribute('data-mic-state', micOn ? 'on' : 'off');
+    if (camButton) camButton.setAttribute('data-camera-state', cameraOn ? 'on' : 'off');
+
+    if (mediaUi && typeof mediaUi.setMicState === 'function') {
+      mediaUi.setMicState('self', micOn);
+    } else {
+      updateMicBadge('#selfMic', '#selfTile', micOn);
+    }
+    var placeholder = $('#selfPlaceholder');
+    if (placeholder) placeholder.hidden = cameraOn && selfTrackAttached;
+  }
+
+  function failLocalMedia(kind, previous, ticket) {
+    if (ticket !== (kind === 'mic' ? micRequest : cameraRequest)) return;
+    if (kind === 'mic') micOn = previous; else cameraOn = previous;
+    renderMediaState();
+    showMediaMessage(kind === 'mic'
+      ? 'Microphone could not be changed. Allow microphone access and try again.'
+      : 'Camera could not be changed. Allow camera access and try again.');
+  }
+
+  /* Optimistic state is already on screen. The SDK promise is reconciled from
+     the participant's real flag; a rejected call restores the prior state. */
+  function setLocalMedia(kind, desired, previous) {
+    var local = room && room.localParticipant;
+    if (!local) return;
+    var isMic = kind === 'mic';
+    var methodName = isMic ? 'setMicrophoneEnabled' : 'setCameraEnabled';
+    var propertyName = isMic ? 'isMicrophoneEnabled' : 'isCameraEnabled';
+    if (typeof local[methodName] !== 'function') return;
+    var ticket = isMic ? ++micRequest : ++cameraRequest;
+    var result = null;
+
+    try { result = local[methodName](desired); } catch (error) {
+      failLocalMedia(kind, previous, ticket);
+      return;
+    }
+    Promise.resolve(result).then(function () {
+      if (ticket !== (isMic ? micRequest : cameraRequest)) return;
+      if (typeof local[propertyName] === 'boolean') {
+        if (isMic) micOn = local[propertyName]; else cameraOn = local[propertyName];
+      }
+      renderMediaState();
+      clearMediaMessage();
+    }, function () {
+      failLocalMedia(kind, previous, ticket);
+    });
+  }
+
   function bindControls() {
     var mic = $('#connectMicBtn');
     var cam = $('#connectCamBtn');
     if (mic) mic.addEventListener('click', function () {
+      var previous = micOn;
       micOn = !micOn;
-      if (room && room.localParticipant) {
-        Promise.resolve(room.localParticipant.setMicrophoneEnabled(micOn)).catch(function () {});
-      }
-      updateControl(mic, micOn, '#i-mic', '#i-mic-off', 'microphone');
-      var badge = $('#selfMic');
-      if (badge) badge.setAttribute('aria-label', micOn ? 'Microphone on' : 'Microphone off');
+      mediaGeneration += 1;
+      renderMediaState();
+      setLocalMedia('mic', micOn, previous);
     });
     if (cam) cam.addEventListener('click', function () {
+      var previous = cameraOn;
       cameraOn = !cameraOn;
-      if (room && room.localParticipant) {
-        Promise.resolve(room.localParticipant.setCameraEnabled(cameraOn)).catch(function () {});
-      }
-      updateControl(cam, cameraOn, '#i-cam', '#i-cam-off', 'camera');
-      var placeholder = $('#selfPlaceholder');
-      if (placeholder) placeholder.hidden = cameraOn && selfTrackAttached;
+      mediaGeneration += 1;
+      renderMediaState();
+      setLocalMedia('camera', cameraOn, previous);
     });
   }
 
@@ -259,6 +356,33 @@
 
     room = new LivekitClient.Room({ adaptiveStream: true, dynacast: true });
     var events = LivekitClient.RoomEvent || {};
+    var connectGeneration = mediaGeneration;
+
+    /* The helper owns frame furniture only: speaking border, mic badges and
+       audio-level bars. It never writes session presence or reads teach data. */
+    if (window.mathifyRtcMediaUi && typeof window.mathifyRtcMediaUi.bind === 'function') {
+      mediaUi = window.mathifyRtcMediaUi.bind(room, {
+        self: {
+          tile: '#selfTile',
+          mic: '#selfMic',
+          speaking: '#selfSpeaking',
+          level: '#selfLevel'
+        },
+        peer: {
+          tile: '#peerTile',
+          mic: '#peerMic',
+          speaking: '#peerSpeaking',
+          level: '#peerLevel'
+        },
+        controlLevel: '#micLevel',
+        onMicState: function (side, on) {
+          if (side !== 'self') return;
+          micOn = on;
+          renderMediaState();
+        }
+      });
+      renderMediaState();
+    }
 
     on(room, events.LocalTrackPublished, function (publication, participant) {
       if (participant && participant.isLocal && publication.kind === 'video') {
@@ -268,7 +392,12 @@
     on(room, events.TrackSubscribed, function (track, publication, participant) {
       if (!participant || participant.isLocal) return;
       if (track.kind === 'video') attachRemoteVideo(track);
-      if (track.kind === 'audio') attachRemoteAudio(track);
+      if (track.kind === 'audio') {
+        attachRemoteAudio(track);
+        if (mediaUi && typeof participant.isMicrophoneEnabled === 'boolean') {
+          mediaUi.setMicState('peer', participant.isMicrophoneEnabled);
+        }
+      }
     });
     on(room, events.TrackUnsubscribed, function (track) {
       if (!track) return;
@@ -278,8 +407,12 @@
       }
       remoteTrackAttached = false;
     });
-    on(room, events.ParticipantConnected, function () {
+    on(room, events.ParticipantConnected, function (participant) {
       cameraMessage = 'The other person joined the camera check.';
+      if (mediaUi && participant && !participant.isLocal &&
+          typeof participant.isMicrophoneEnabled === 'boolean') {
+        mediaUi.setMicState('peer', participant.isMicrophoneEnabled);
+      }
       renderStatus();
     });
     on(room, events.ParticipantDisconnected, function () {
@@ -302,6 +435,20 @@
             ]);
           })
           .then(function () {
+            if (!room || !room.localParticipant) return;
+            if (connectGeneration === mediaGeneration) {
+              if (typeof room.localParticipant.isMicrophoneEnabled === 'boolean') {
+                micOn = room.localParticipant.isMicrophoneEnabled;
+              }
+              if (typeof room.localParticipant.isCameraEnabled === 'boolean') {
+                cameraOn = room.localParticipant.isCameraEnabled;
+              }
+            }
+            renderMediaState();
+            if (mediaUi && typeof mediaUi.sync === 'function' &&
+                connectGeneration === mediaGeneration) {
+              mediaUi.sync();
+            }
             var publication = room.localParticipant.getTrackPublication &&
               room.localParticipant.getTrackPublication(LivekitClient.Track.Source.Camera);
             attachLocalVideo(publication);
@@ -309,11 +456,20 @@
       })
       .then(function () {
         cameraMessage = role === 'trainer'
-          ? 'Cameras connected. Start the session when both people are ready.'
-          : 'Cameras connected. Waiting for your trainer to start the lesson.';
+          ? 'Shared camera feed is live. Open the whiteboard when you are ready.'
+          : 'Shared camera feed is live. Waiting for your trainer to open the whiteboard.';
         renderStatus();
       })
       .catch(function () {
+        if (room && room.localParticipant && connectGeneration === mediaGeneration) {
+          if (typeof room.localParticipant.isMicrophoneEnabled === 'boolean') {
+            micOn = room.localParticipant.isMicrophoneEnabled;
+          }
+          if (typeof room.localParticipant.isCameraEnabled === 'boolean') {
+            cameraOn = room.localParticipant.isCameraEnabled;
+          }
+        }
+        renderMediaState();
         cameraMessage = 'Camera access was blocked. Allow the camera and microphone, then refresh.';
         renderStatus();
       });
@@ -338,6 +494,8 @@
       try { room.disconnect(); } catch (error) { /* already gone */ }
       room = null;
     }
+    if (mediaUi && typeof mediaUi.dispose === 'function') mediaUi.dispose();
+    mediaUi = null;
     if (remoteAudio && remoteAudio.parentNode) remoteAudio.parentNode.removeChild(remoteAudio);
     remoteAudio = null;
   }
@@ -349,12 +507,19 @@
     if (role === 'student') search.set('view', 'student');
     var state = params.get('state');
     if (state) search.set('state', state);
+    ['clock', 'mic', 'cam'].forEach(function (key) {
+      var value = params.get(key);
+      if (value) search.set(key, value);
+    });
     return 'index.html?' + search.toString();
   }
 
   function enterClassroom() {
     if (!sessionId || !ready || role !== 'trainer') return;
     stopPreview();
+    /* Moving to the whiteboard is not leaving the meeting. The server clock
+       keeps running until End session finalizes presence. */
+    window.MATHIFY_STAY_PRESENT = true;
     window.location.assign(classroomUrl());
   }
 
@@ -379,6 +544,7 @@
   function init() {
     applyRole();
     bindControls();
+    renderMediaState();
     if (!sessionId) {
       networkMessage = 'Open a session from your dashboard first.';
       cameraMessage = 'No session selected.';
