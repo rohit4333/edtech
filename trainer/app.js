@@ -519,7 +519,8 @@
   $('#startClass') && $('#startClass').addEventListener('click', function (event) {
     var id = activeSessionId || 'ses_math_001';
     flash(event.currentTarget, 'Opening the 1-on-1 classroom…');
-    window.location.href = '../classroom/index.html?sessionId=' + encodeURIComponent(id);
+    window.location.href = '../classroom/connect.html?sessionId=' +
+      encodeURIComponent(id) + '&role=trainer';
   });
 
   $$('[data-toast]').forEach(function (el) {

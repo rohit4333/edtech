@@ -120,8 +120,12 @@
     if (nodes.joinBtn) {
       nodes.joinBtn.disabled = state.destroyed || state.joined || state.joining ||
         !state.sessionId || !state.networkReady;
-      nodes.joinBtn.textContent = state.joining ? 'Joining…'
-        : (state.networkReady ? 'Join' : 'Check speed');
+      var joinLabel = state.joining ? 'Joining…'
+        : (state.networkReady ? 'Join call' : 'Check speed');
+      var joinText = nodes.joinBtn.querySelector('.label');
+      if (joinText) joinText.textContent = joinLabel;
+      else nodes.joinBtn.textContent = joinLabel;
+      nodes.joinBtn.setAttribute('aria-label', joinLabel);
       nodes.joinBtn.title = state.networkReady ? 'Join the private 1:1 call' : state.networkReason;
     }
     if (nodes.leaveBtn) nodes.leaveBtn.disabled = !state.joined && !state.joining;

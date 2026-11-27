@@ -469,8 +469,22 @@ async function toSessionState(session, user) {
     },
     network: networkQuality.stateFor(session, user),
     roomAccess: sessionAccess.evaluate(session, user),
-    sessionTiming: sessionTiming.clock(session, undefined, trainerPresenceAt),
-    payoutRequirement: presenceSnapshot.payoutRequirement,
+    sessionTiming: sessionTiming.clock(session, undefined, trainerPresenceAt, {
+      trainerActiveSeconds: presenceSnapshot.participants.trainer.countedSeconds,
+      timerRunning: presenceSnapshot.trainerTimerRunning === true
+    }),
+    /* Trainer pay state is staff-only. A child receives only their own
+       attendance summary below. */
+    payoutRequirement: trainerView ? presenceSnapshot.payoutRequirement : null,
+    /* The child's own dashboard sees only their attendance state. No trainer
+       pay, fine or private teaching note is ever included here. */
+    studentAttendance: {
+      status: presenceSnapshot.attendance.student,
+      present: presenceSnapshot.studentPresent === true,
+      activeSeconds: presenceSnapshot.participants.student.countedSeconds,
+      activeMinutes: presenceSnapshot.participants.student.countedMinutes,
+      requiredMinutes: (appPolicy.presence && Number(appPolicy.presence.studentMinPresentMinutes)) || 15
+    },
     /* Observer identity is intentionally visible in the shared room. No user
        id, contact detail or private metadata is included. */
     founderObserver: sessionAccess.publicState(session)

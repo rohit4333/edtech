@@ -2,6 +2,7 @@ const config = require('./config');
 
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const auth = require('./middleware/auth');
 const db = require('./db');
@@ -203,9 +204,11 @@ const webRoot = path.resolve(__dirname, '..');
 const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
   'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
-  'landing.css', 'landing.js', 'login.html'
+  'landing.css', 'landing.js', 'login.html', 'sw.js'
 ]);
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer', 'unified']);
+/* The installable web app assets are public static files. No server source,
+   migration, environment file or credential is inside this directory. */
+const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer', 'unified', 'webapp']);
 
 /* Each dashboard nav item is a real page URL. These routes serve the matching
    desk document; the shared section router then shows only that page's UI. */
@@ -270,6 +273,41 @@ const staticFiles = express.static(webRoot, {
   index: 'index.html'
 });
 
+/* The installable web app is a thin overlay on the reviewed pages. Injecting
+   one shared script means every existing HTML entry point -- including section
+   routes -- gets the manifest and service worker without a second page copy or
+   duplicated business logic. API and founder-gate responses are never touched. */
+const WEBAPP_BOOTSTRAP = '<script src="/webapp/register.js"></script>';
+function sendWebAppHtml(filePath, req, res, next) {
+  fs.readFile(filePath, 'utf8', function (error, html) {
+    if (error) return next(error);
+    if (html.indexOf('/webapp/register.js') === -1) {
+      const marker = '</body>';
+      const index = html.toLowerCase().lastIndexOf(marker);
+      html = index === -1
+        ? html + WEBAPP_BOOTSTRAP
+        : html.slice(0, index) + WEBAPP_BOOTSTRAP + html.slice(index);
+    }
+    res.set('Cache-Control', 'no-cache');
+    return res.type('html').send(html);
+  });
+}
+
+app.get('/sw.js', function (req, res, next) {
+  res.set('Service-Worker-Allowed', '/');
+  return res.type('application/javascript').sendFile(path.join(webRoot, 'sw.js'), function (error) {
+    if (error) return next(error);
+  });
+});
+
+app.get('/webapp/manifest.webmanifest', function (req, res, next) {
+  res.set('Cache-Control', 'public, max-age=3600');
+  return res.type('application/manifest+json')
+    .sendFile(path.join(webRoot, 'webapp', 'manifest.webmanifest'), function (error) {
+      if (error) return next(error);
+    });
+});
+
 /* The founder desk is deliberately outside the unified app. It is served from
    the reviewed founder assets under a separate gated entry: a short-lived
    HttpOnly cookie set only after a verified founder sign-in. API RBAC still
@@ -315,7 +353,7 @@ const founderAdminFiles = new Set([
 app.get(/^\/founder-admin(?:\/(.*))?$/, requireFounderDesktop, function (req, res, next) {
   const requested = String(req.params[0] || '').replace(/^\/+/, '');
   if (!requested || requested === 'index.html') {
-    return res.sendFile(path.join(webRoot, 'founder-admin', 'index.html'));
+    return sendWebAppHtml(path.join(webRoot, 'founder-admin', 'index.html'), req, res, next);
   }
   const file = path.basename(requested);
   if (requested.indexOf('/') === -1 && founderAdminFiles.has(file)) {
@@ -334,15 +372,22 @@ app.use(function (req, res, next) {
     return next();
   }
   if (Object.prototype.hasOwnProperty.call(sectionPages, pathname)) {
-    return res.sendFile(path.join(webRoot, sectionPages[pathname]));
+    return sendWebAppHtml(path.join(webRoot, sectionPages[pathname]), req, res, next);
   }
   const segments = pathname.split('/').filter(Boolean);
 
   if (!segments.length) {
-    return res.sendFile(path.join(webRoot, 'index.html'));
+    return sendWebAppHtml(path.join(webRoot, 'index.html'), req, res, next);
   }
   if (segments.some(function (segment) { return segment.charAt(0) === '.'; })) {
     return next();
+  }
+  const htmlFile = pathname.toLowerCase().endsWith('.html');
+  if (htmlFile && (segments.length === 1 ? publicFiles.has(segments[0]) : publicDirs.has(segments[0]))) {
+    const filePath = path.resolve(webRoot, '.' + pathname);
+    if (filePath.startsWith(webRoot + path.sep) && fs.existsSync(filePath)) {
+      return sendWebAppHtml(filePath, req, res, next);
+    }
   }
   if (segments.length === 1 && publicFiles.has(segments[0])) {
     return staticFiles(req, res, next);

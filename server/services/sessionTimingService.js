@@ -9,8 +9,9 @@
  *  - 5-9 minutes late = half session pay;
  *  - 10+ minutes late = no session pay;
  *  - 15+ minutes late = no session pay and no extra fine (pay forfeited);
- *  - the trainer must deliver 50 teaching minutes inside the first 55 minutes
- *    from the scheduled start.
+ *  - the trainer must deliver 50 teaching minutes inside the 60-minute pay
+ *    window that runs from one minute before the scheduled start (-01:00) to
+ *    59 minutes after it (+59:00). Reconnects are summed, not reset.
  *
  * Dashboard login and RTC token requests are not presence. Only verified
  * LiveKit webhooks and active heartbeats can supply `trainerJoinedAt` here.
@@ -22,7 +23,8 @@ const MINUTE_MS = 60 * 1000;
 const DEFAULTS = {
   clockStartOffsetMinutes: -1,
   requiredTeachingMinutes: 50,
-  completionWindowMinutes: 55
+  completionWindowMinutes: 60,
+  completionWindowStartOffsetMinutes: -1
 };
 /* Session lifetime is separate from pay timing. The regular 50/55 pay contract
    stays untouched; demo gets its own 45-minute class with a five-minute warning
@@ -33,14 +35,16 @@ const DEFAULT_LIFETIME = {
     warningAtMinutes: 50,
     closeAtMinutes: 55,
     requiredTeachingMinutes: 50,
-    completionWindowMinutes: 55
+    completionWindowMinutes: 60,
+    completionWindowStartOffsetMinutes: -1
   },
   demo: {
     durationMinutes: 45,
     warningAtMinutes: 40,
     closeAtMinutes: 45,
     requiredTeachingMinutes: 40,
-    completionWindowMinutes: 45
+    completionWindowMinutes: 45,
+    completionWindowStartOffsetMinutes: 0
   }
 };
 const DEFAULT_BANDS = [
@@ -72,7 +76,11 @@ function lifetimeValues(values, defaults) {
     ),
     completionWindowMinutes: positiveNumber(
       configured.completionWindowMinutes, defaults.completionWindowMinutes
-    )
+    ),
+    completionWindowStartOffsetMinutes: Number.isFinite(
+      Number(configured.completionWindowStartOffsetMinutes)
+    ) ? Number(configured.completionWindowStartOffsetMinutes)
+      : defaults.completionWindowStartOffsetMinutes
   };
 }
 
@@ -82,6 +90,7 @@ function settings() {
   const offset = Number(configured.clockStartOffsetMinutes);
   const required = Number(configured.requiredTeachingMinutes);
   const window = Number(configured.completionWindowMinutes);
+  const windowStartOffset = Number(configured.completionWindowStartOffsetMinutes);
   const configuredBands = appPolicy.payout && Array.isArray(appPolicy.payout.lateJoinBands)
     ? appPolicy.payout.lateJoinBands : DEFAULT_BANDS;
   const configuredDemoBands = appPolicy.payout && Array.isArray(appPolicy.payout.lateJoinDemoBands)
@@ -92,6 +101,8 @@ function settings() {
       ? required : DEFAULTS.requiredTeachingMinutes,
     completionWindowMinutes: Number.isFinite(window) && window > 0
       ? window : DEFAULTS.completionWindowMinutes,
+    completionWindowStartOffsetMinutes: Number.isFinite(windowStartOffset)
+      ? windowStartOffset : DEFAULTS.completionWindowStartOffsetMinutes,
     lifetime: {
       regular: lifetimeValues(configured.lifetime && configured.lifetime.regular, DEFAULT_LIFETIME.regular),
       demo: lifetimeValues(configured.lifetime && configured.lifetime.demo, DEFAULT_LIFETIME.demo)
@@ -135,7 +146,7 @@ function signedClock(seconds) {
 /* The clock is trainer-gated. A trainer who is present before the -01:00 mark
  * still waits at -01:00; a trainer who arrives after it starts the clock when
  * their verified session presence begins. */
-function clock(session, now, trainerJoinedAt) {
+function clock(session, now, trainerJoinedAt, options) {
   const config = settings();
   const lifetime = lifetimeFor(session);
   const classType = isDemoSession(session) ? 'demo' : 'regular';
@@ -160,6 +171,9 @@ function clock(session, now, trainerJoinedAt) {
       offsetSeconds: null,
       elapsedSeconds: null,
       display: '-00:00',
+      activeSecondsInWindow: null,
+      timerSeconds: null,
+      timerRunning: false,
       windowEndsAt: null,
       requiredTeachingMinutes: lifetime.requiredTeachingMinutes
     };
@@ -184,6 +198,14 @@ function clock(session, now, trainerJoinedAt) {
     ? null : Math.max(0, Math.floor((asOf - displayAnchor) / 1000));
   const warningAtSeconds = lifetime.warningAtMinutes * 60;
   const closeAtSeconds = lifetime.closeAtMinutes * 60;
+  /* The visible teaching clock is the reconnect-safe active total inside the
+     pay window, not a wall-clock interval. It starts at zero whether the
+     trainer arrived early or late, freezes on a drop and resumes from the
+     same total. `display` above keeps the separate -01:00 room countdown. */
+  const opts = options || {};
+  const activeSeconds = Number.isFinite(Number(opts.trainerActiveSeconds))
+    ? Number(opts.trainerActiveSeconds) : null;
+  const timerSeconds = activeSeconds === null ? null : Math.max(0, Math.floor(activeSeconds));
 
   return {
     scheduledStartsAt: new Date(start).toISOString(),
@@ -207,7 +229,13 @@ function clock(session, now, trainerJoinedAt) {
     offsetSeconds: offsetSeconds,
     elapsedSeconds: elapsedSeconds === null ? null : Math.max(0, elapsedSeconds),
     display: offsetSeconds === null ? '-00:00' : signedClock(offsetSeconds),
-    windowEndsAt: new Date(start + lifetime.completionWindowMinutes * MINUTE_MS).toISOString(),
+    activeSecondsInWindow: activeSeconds,
+    timerSeconds: timerSeconds,
+    timerRunning: opts.timerRunning === true && timerSeconds !== null,
+    timerDisplay: timerSeconds === null ? '-00:00' : signedClock(timerSeconds),
+    windowStartsAt: completionWindowStart(session)
+      ? new Date(completionWindowStart(session)).toISOString() : null,
+    windowEndsAt: completionWindowEnd(session) ? new Date(completionWindowEnd(session)).toISOString() : null,
     requiredTeachingMinutes: lifetime.requiredTeachingMinutes
   };
 }
@@ -246,8 +274,17 @@ function lateJoin(session, joinedAt) {
   };
 }
 
-function completionWindowEnd(session) {
+/* The regular pay window is -01:00 to +59:00: sixty minutes measured from the
+   scheduled start, not from the trainer's join. Join time still anchors the
+   displayed clock and the late-band factor. */
+function completionWindowStart(session) {
   const start = scheduledStart(session);
+  if (start === null) return null;
+  return start + lifetimeFor(session).completionWindowStartOffsetMinutes * MINUTE_MS;
+}
+
+function completionWindowEnd(session) {
+  const start = completionWindowStart(session);
   if (start === null) return null;
   return start + lifetimeFor(session).completionWindowMinutes * MINUTE_MS;
 }
@@ -257,6 +294,7 @@ function evaluateCompletion(session, activeSeconds, requiredOverride) {
   const requiredMinutes = Number.isFinite(Number(requiredOverride))
     && Number(requiredOverride) > 0 ? Number(requiredOverride) : lifetime.requiredTeachingMinutes;
   const seconds = Number.isFinite(Number(activeSeconds)) ? Math.max(0, Number(activeSeconds)) : null;
+  const windowStart = completionWindowStart(session);
   const end = completionWindowEnd(session);
   if (seconds === null) {
     return {
@@ -264,6 +302,7 @@ function evaluateCompletion(session, activeSeconds, requiredOverride) {
       activeMinutes: null,
       requiredMinutes: requiredMinutes,
       windowMinutes: lifetime.completionWindowMinutes,
+      windowStartsAt: windowStart ? new Date(windowStart).toISOString() : null,
       windowEndsAt: end ? new Date(end).toISOString() : null,
       completed: null,
       factor: 1,
@@ -276,6 +315,7 @@ function evaluateCompletion(session, activeSeconds, requiredOverride) {
     activeMinutes: Math.floor(seconds / 60),
     requiredMinutes: requiredMinutes,
     windowMinutes: lifetime.completionWindowMinutes,
+    windowStartsAt: windowStart ? new Date(windowStart).toISOString() : null,
     windowEndsAt: end ? new Date(end).toISOString() : null,
     completed: completed,
     factor: completed ? 1 : 0,
@@ -369,6 +409,7 @@ module.exports = {
   isDemoSession,
   lifetimeFor,
   lateJoin,
+  completionWindowStart,
   completionWindowEnd,
   evaluateCompletion,
   evaluateStretch,

@@ -195,7 +195,9 @@ async function main() {
     const tokens = readAsset('shared/tokens.css');
     const room = readAsset('classroom/room.css');
     const fullBoardCss = readAsset('shared/fullBoard.css');
+    const callCss = readAsset('classroom/call.css');
     const classroom = readAsset('classroom/index.html');
+    const classroomApp = readAsset('classroom/app.js');
     ok(tokens.indexOf('--ink-cross:') !== -1 &&
       room.indexOf('cursor:var(--ink-cross,crosshair)') !== -1 &&
       room.indexOf('cursor:none') === -1 &&
@@ -220,11 +222,20 @@ async function main() {
     ok(classroom.indexOf('id="fullBoardToolHandle"') !== -1 &&
       upperDeck.indexOf('id="fullBoardShare"') !== -1 &&
       upperDeck.indexOf('id="fullBoardFullscreen"') !== -1 &&
-      upperDeck.indexOf('aria-label="Close whiteboard"') !== -1,
-    'share and close are icon-only controls in the upper deck');
+      upperDeck.indexOf('aria-label="Close whiteboard"') !== -1 &&
+      upperDeck.indexOf('class="board-top-rule board-only"') !== -1 &&
+      upperDeck.indexOf('class="board-action-label">Share<') !== -1 &&
+      upperDeck.indexOf('class="board-action-label">Close<') !== -1 &&
+      upperDeck.indexOf('class="board-action-label">End<') !== -1,
+    'share and close are grouped, clearly labelled controls in the upper deck');
+    ok(fullBoardCss.indexOf('.top .btn svg,\n.top .full-board-toggle svg{display:none}') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .board-action-label') !== -1,
+    'the session desk keeps readable labels while the board uses compact labels');
     ok(fullBoardCss.indexOf('body.board-open .top .back') !== -1 &&
       fullBoardCss.indexOf('body.board-open .top .full-board-toggle') !== -1,
     'the redundant back and board-toggle links are hidden on the board');
+    ok(/function close\(\)[\s\S]{0,360}if \(trainer && sharing\) setSharing\(false, false\)/.test(fullBoardJs),
+      'closing the board stops sharing so the student desk returns');
     ['line', 'arrow', 'rectangle', 'circle', 'triangle'].forEach(function (shape) {
       ok(classroom.indexOf('data-board-tool="' + shape + '"') !== -1,
         'the maths board offers a ' + shape + ' tool');
@@ -248,6 +259,30 @@ async function main() {
     ok(fullBoardJs.indexOf("classList.toggle('docked'") === -1 &&
       fullBoardJs.indexOf('teach-mode') === -1,
     'the board never falls back to a docked dashboard panel');
+
+    const pipStart = classroom.indexOf('<section class="call-pip"');
+    const pipEnd = classroom.indexOf('</section>', pipStart);
+    const pipMarkup = classroom.slice(pipStart, pipEnd);
+    ok(pipMarkup.indexOf('data-call-video="local"') !== -1 &&
+      pipMarkup.indexOf('data-call-video="remote"') !== -1 &&
+      pipMarkup.indexOf('pip-call-bar') === -1 &&
+      pipMarkup.indexOf('pip-call-status') === -1 &&
+      pipMarkup.indexOf('networkCheckBtn') === -1 &&
+      pipMarkup.indexOf('callLeaveBtn') === -1,
+    'the camera tile shows only the trainer and student video feeds');
+    ok(classroom.indexOf('class="call-runtime" hidden') !== -1 &&
+      classroom.indexOf('id="networkCheckBtn"') !== -1 &&
+      classroomApp.indexOf('window.mathifyNetworkCheck.run()') !== -1,
+    'the speed test runs quietly outside the camera instead of asking for a click');
+    ok(classroom.indexOf('id="netMeter"') !== -1 &&
+      room.indexOf('.net-meter[data-level="poor"]') !== -1 &&
+      room.indexOf('.net-meter[data-level="excellent"]') !== -1 &&
+      classroomApp.indexOf('function renderNetworkMeter') !== -1,
+    'an always-on colour-graded connection meter replaces the speed-test link');
+    ok(callCss.indexOf('.call-pip .pip-head,') !== -1 &&
+      callCss.indexOf('.observer-floating,') !== -1 &&
+      classroom.indexOf('id="observerNotice"') > pipEnd,
+    'camera chrome and observer notices stay outside the two video feeds');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

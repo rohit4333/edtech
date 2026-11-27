@@ -147,9 +147,11 @@ function toMs(value) {
   return Number.isNaN(time) ? null : time;
 }
 
-/* Teaching-time evidence is counted only inside the scheduled 55-minute
-   window. Overlapping heartbeat and LiveKit evidence stay separate; the larger
-   total wins, matching the existing active-seconds rule. */
+/* Teaching-time evidence is counted only inside the pay window. For a regular
+   class that is -01:00 to +59:00 from the scheduled start. Reconnects are
+   separate intervals, so brief disconnects pause the clock without erasing the
+   minutes already taught. Overlapping heartbeat and LiveKit evidence stay
+   separate; the larger total wins, matching the existing active-seconds rule. */
 function secondsInWindow(intervals, start, end) {
   if (start === null || start === undefined) return 0;
   let total = 0;
@@ -187,6 +189,9 @@ function participantState(session, role, events, asOf, config) {
     if (event.kind === 'livekit_join') {
       livekitJoinedAt = livekitJoinedAt || at;
       joinedAt = joinedAt === null ? at : Math.min(joinedAt, at);
+      /* A verified rejoin ends the previous leave state. The original join is
+         kept for lateness, but the running timer resumes from counted time. */
+      leftAt = null;
     } else if (event.kind === 'livekit_leave') {
       if (livekitJoinedAt !== null) livekitIntervals.push([livekitJoinedAt, Math.max(at, livekitJoinedAt)]);
       livekitJoinedAt = null;
@@ -196,6 +201,7 @@ function participantState(session, role, events, asOf, config) {
       learningEvents += Number(event.learningEvents) || 0;
       if (event.active) {
         joinedAt = joinedAt === null ? at : Math.min(joinedAt, at);
+        leftAt = null;
         if (lastActiveAt !== null) {
           const delta = (at - lastActiveAt) / 1000;
           if (delta > 0) {
@@ -221,10 +227,11 @@ function participantState(session, role, events, asOf, config) {
   }, 0);
   const activeSeconds = Math.max(heartbeatSeconds, livekitSeconds);
   const activeMinutes = Math.floor(activeSeconds / 60);
+  const windowStart = sessionTiming.completionWindowStart(session);
   const windowEnd = sessionTiming.completionWindowEnd(session);
   const activeSecondsInWindow = Math.max(
-    secondsInWindow(heartbeatIntervals, start, windowEnd),
-    secondsInWindow(livekitIntervals, start, windowEnd)
+    secondsInWindow(heartbeatIntervals, windowStart, windowEnd),
+    secondsInWindow(livekitIntervals, windowStart, windowEnd)
   );
 
   const noShow = joinedAt === null && graceEnd !== null && asOf >= graceEnd;
@@ -239,13 +246,18 @@ function participantState(session, role, events, asOf, config) {
 
   const requiredMinutes = role === 'trainer'
     ? config.trainerMinPresentMinutes : config.studentMinPresentMinutes;
-  const meetsMinimum = activeMinutes >= requiredMinutes;
+  /* Attendance uses the same summed, reconnect-safe window as pay. A session
+     without a scheduled time keeps the lifetime-active fallback. */
+  const countedSeconds = windowStart === null ? activeSeconds : activeSecondsInWindow;
+  const countedMinutes = Math.floor(countedSeconds / 60);
+  const meetsMinimum = countedSeconds >= requiredMinutes * 60;
   const joinedLate = joinedAt !== null && graceEnd !== null && joinedAt > graceEnd;
 
   let attendance = null;
   if (session.status === 'leave') attendance = 'leave';
   else if (noShow || state === 'invited') attendance = 'absent';
-  else if (meetsMinimum || (learningEvents >= config.learningEventsForPresent && activeMinutes >= 10)) attendance = 'present';
+  else if (meetsMinimum ||
+    (learningEvents >= config.learningEventsForPresent && countedMinutes >= 10)) attendance = 'present';
   else if (joinedLate) attendance = 'late';
   else attendance = 'absent';
 
@@ -259,6 +271,8 @@ function participantState(session, role, events, asOf, config) {
     activeMinutes: activeMinutes,
     activeSecondsInWindow: Math.round(activeSecondsInWindow),
     activeMinutesInWindow: Math.floor(activeSecondsInWindow / 60),
+    countedSeconds: Math.round(countedSeconds),
+    countedMinutes: countedMinutes,
     windowEndsAt: windowEnd ? new Date(windowEnd).toISOString() : null,
     learningEvents: learningEvents,
     requiredMinutes: requiredMinutes,
@@ -298,6 +312,10 @@ async function compute(session, now) {
     participants: { trainer: trainer, student: student },
     trainerPresent: trainer.meetsMinimum,
     studentPresent: student.meetsMinimum,
+    /* The displayed teaching clock follows live presence. A joined or active
+       trainer runs it; idle, left and no-show states pause it without erasing
+       the active minutes already counted in the pay window. */
+    trainerTimerRunning: trainer.state === 'active' || trainer.state === 'joined',
     trainerJoinedAt: trainer.joinedAt,
     studentJoinedAt: student.joinedAt,
     trainerActiveSecondsInWindow: trainer.activeSecondsInWindow,
@@ -335,6 +353,9 @@ async function stateFor(session, user, now) {
       : { state: snapshot.participants.student.state },
     trainerPresent: snapshot.trainerPresent,
     studentPresent: snapshot.studentPresent,
+    /* A child only needs the safe handoff signal, never the trainer's exact
+       join time, active seconds, pay state or private teaching notes. */
+    classroomOpen: snapshot.trainerJoinedAt !== null,
     trainerJoinedAt: role === 'trainer' || role === null ? snapshot.trainerJoinedAt : undefined,
     studentJoinedAt: snapshot.studentJoinedAt,
     trainerActiveSecondsInWindow: role === 'trainer' || role === null

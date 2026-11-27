@@ -242,6 +242,7 @@
      never for a dashboard login or an early room entry. */
   var timerAnchorAt = null;
   var timerAnchorSeconds = null;
+  var timerRunning = false;
   var timingState = null;
   var warningAnchorAt = null;
   var warningRemainingSeconds = null;
@@ -300,27 +301,36 @@
 
   function paintSessionTimer() {
     if (!recTime) return;
-    if (ended || timerAnchorAt === null || timerAnchorSeconds === null) {
+    if (ended || timerAnchorSeconds === null) {
       recTime.textContent = '--:--';
       return;
     }
-    var delta = Math.floor((Date.now() - timerAnchorAt) / 1000);
+    /* The anchor is the server's counted active time. It only advances while
+       the trainer is present; a disconnect freezes it and a rejoin continues
+       from the same total instead of restarting the class. */
+    var delta = timerRunning && timerAnchorAt !== null
+      ? Math.floor((Date.now() - timerAnchorAt) / 1000) : 0;
     recTime.textContent = timerClock(timerAnchorSeconds + Math.max(0, delta));
     paintSessionWarning();
   }
 
   function applySessionTiming(value) {
     timingState = value || null;
+    var activeSeconds = timingState && timingState.timerSeconds !== null &&
+      timingState.timerSeconds !== undefined
+      ? timingState.timerSeconds : (timingState && timingState.offsetSeconds);
     if (!timingState || timingState.waitingForTrainer ||
-        timingState.offsetSeconds === null || timingState.offsetSeconds === undefined) {
+        activeSeconds === null || activeSeconds === undefined) {
       timerAnchorAt = null;
       timerAnchorSeconds = null;
+      timerRunning = false;
       clearSessionWarning();
       paintSessionTimer();
       return;
     }
-    timerAnchorAt = Date.now();
-    timerAnchorSeconds = timingState.offsetSeconds;
+    timerAnchorSeconds = activeSeconds;
+    timerRunning = timingState.timerRunning === true;
+    timerAnchorAt = timerRunning ? Date.now() : null;
     if (timingState.warningReached && !timingState.closeReached) {
       showSessionWarning({
         classType: timingState.classType,
@@ -330,6 +340,16 @@
       clearSessionWarning();
     }
     paintSessionTimer();
+  }
+
+  /* Server-owned active-time refresh. Presence heartbeats and webhooks update
+     the counted total; polling here keeps the visible clock honest when a
+     trainer drops and rejoins without relying on a browser-owned timer. */
+  function refreshTiming() {
+    if (!sessionId || !classroomApi || typeof classroomApi.getSessionState !== 'function') return;
+    classroomApi.getSessionState(sessionId).then(function (state) {
+      if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
+    }).catch(function () { /* the next refresh retries */ });
   }
 
   var stepSeconds = 12 * 60 + 40;
@@ -347,6 +367,10 @@
       paintStepTime();
     }
   }, 1000);
+
+  window.setInterval(function () {
+    if (!ended) refreshTiming();
+  }, 5000);
 
   /* ------------------------------------------------------------------- chat */
   var messages = [
@@ -932,9 +956,48 @@
     return Promise.resolve(true);
   }
 
+  function renderNetworkMeter(value) {
+    var meter = $('#netMeter');
+    if (!meter) return;
+    var role = viewerRole === 'student' ? 'student' : 'trainer';
+    var own = (value && value[role]) || {};
+    var required = (value && value.required) || {};
+    var bars = 0;
+    var level = 'idle';
+    var label = 'Connection not checked';
+
+    if (value && own.status && own.status !== 'not_checked') {
+      var down = Number(own.downloadMbps);
+      var up = Number(own.uploadMbps);
+      var latency = Number(own.latencyMs);
+      var needDown = Number(required.downloadMbps) || 15;
+      var needUp = Number(required.uploadMbps) || 10;
+      var maxLatency = Number(required.maxLatencyMs) || 250;
+      if (Number.isFinite(down) && Number.isFinite(up) && Number.isFinite(latency) &&
+          down > 0 && up > 0) {
+        var ratio = Math.min(down / needDown, up / needUp,
+          maxLatency / Math.max(1, latency));
+        bars = Math.max(1, Math.min(5, Math.ceil(ratio * 5)));
+        level = ['', 'poor', 'fair', 'good', 'strong', 'excellent'][bars];
+        label = 'Connection ' + level + ' · ' + down + ' Mbps down, ' + up +
+          ' Mbps up, ' + latency + ' ms';
+      } else if (own.ok === false || own.status === 'expired') {
+        bars = 1;
+        level = 'poor';
+        label = 'Connection below the minimum for a private class';
+      }
+    }
+
+    meter.setAttribute('data-bars', String(bars));
+    meter.setAttribute('data-level', level);
+    meter.setAttribute('aria-label', label);
+    meter.title = label;
+  }
+
   function applyNetworkState(value) {
     if (!value || typeof value !== 'object') return;
     networkState = value;
+    renderNetworkMeter(value);
     var ready = value.canStartCall === true;
     var reason = ready ? '' : 'Both people must pass the connection speed check before class.';
     var call = callModule();
@@ -1483,6 +1546,7 @@
       networkReason: 'Run the connection speed check before class.'
     });
   }
+  renderNetworkMeter(networkState);
   if (networkState) applyNetworkState(networkState);
   if (window.mathifyNetworkCheck && typeof window.mathifyNetworkCheck.init === 'function') {
     window.mathifyNetworkCheck.init({
@@ -1491,6 +1555,9 @@
       button: $('#networkCheckBtn'),
       onState: applyNetworkState
     });
+    /* The speed test runs quietly on entry; its button is no longer shown on
+       the camera tile, but the result still gates the Join control. */
+    window.mathifyNetworkCheck.run().catch(function () {});
   }
 
   setTool('pen');

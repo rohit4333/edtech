@@ -1,0 +1,26 @@
+{
+  "name": "mathify-mobile-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor shell that serves the reviewed Mathify web app on Android and iOS.",
+  "scripts": {
+    "configure": "node scripts/configure.js",
+    "add:android": "node scripts/configure.js --platform android && cap add android && node scripts/native-permissions.js",
+    "add:ios": "node scripts/configure.js --platform ios && cap add ios && node scripts/native-permissions.js",
+    "sync": "node scripts/configure.js && cap sync && node scripts/native-permissions.js",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.6.11"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.6.11",
+    "@capacitor/core": "7.6.11",
+    "@capacitor/ios": "7.6.11",
+    "mathify-learning-os": "file:.."
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

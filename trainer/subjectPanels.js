@@ -116,8 +116,8 @@
     var id = next && (next.id || next.sessionId) || window.MATHIFY_SESSION_ID || null;
     if (link) {
       link.hidden = subject.key !== 'coding';
-      if (id) link.setAttribute('href', '../classroom/index.html?sessionId=' + encodeURIComponent(id));
-      else link.setAttribute('href', '../classroom/index.html');
+      if (id) link.setAttribute('href', '../classroom/connect.html?sessionId=' + encodeURIComponent(id) + '&role=trainer');
+      else link.setAttribute('href', '../classroom/connect.html?role=trainer');
     }
     var indicators = document.getElementById('englishIndicators');
     if (indicators) indicators.hidden = subject.key !== 'english';

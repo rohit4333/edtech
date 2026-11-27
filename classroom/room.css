@@ -135,6 +135,31 @@ body{overflow:hidden}
 .people-txt{display:flex;align-items:baseline;gap:3px;white-space:nowrap}
 .people-txt b{font-size:11.5px;font-weight:600}
 .people-txt span{font-size:9px;color:var(--faint)}
+/* Always-on connection strength. Five graded bars replace a speed-test link;
+   the exact numbers stay in the tooltip for the participant who owns them. */
+.net-meter{
+  flex:none;display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:36px;border-right:1px solid var(--line)
+}
+.net-bars{display:flex;align-items:flex-end;gap:2px;height:16px}
+.net-bars i{
+  width:3px;border-radius:1px;background:rgba(14,20,32,.14);transition:background .2s ease
+}
+.net-bars i:nth-child(1){height:5px}
+.net-bars i:nth-child(2){height:8px}
+.net-bars i:nth-child(3){height:11px}
+.net-bars i:nth-child(4){height:14px}
+.net-bars i:nth-child(5){height:17px}
+.net-meter[data-bars="1"] .net-bars i:nth-child(-n+1),
+.net-meter[data-bars="2"] .net-bars i:nth-child(-n+2),
+.net-meter[data-bars="3"] .net-bars i:nth-child(-n+3),
+.net-meter[data-bars="4"] .net-bars i:nth-child(-n+4),
+.net-meter[data-bars="5"] .net-bars i:nth-child(-n+5){background:var(--meter-color,var(--faint))}
+.net-meter[data-level="poor"]{--meter-color:#E5484D}
+.net-meter[data-level="fair"]{--meter-color:#F0762E}
+.net-meter[data-level="good"]{--meter-color:#C08A16}
+.net-meter[data-level="strong"]{--meter-color:#4E9A54}
+.net-meter[data-level="excellent"]{--meter-color:#12968C}
 .end{height:36px;padding:0 16px}
 .end:disabled{background:var(--cream);border-color:var(--line);color:var(--faint);cursor:default}
 

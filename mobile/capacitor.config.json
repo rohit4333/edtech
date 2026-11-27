@@ -1,0 +1,22 @@
+{
+  "appId": "com.mathify.learningos",
+  "appName": "Mathify",
+  "webDir": "www",
+  "server": {
+    "url": "http://localhost:4000?native=1",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#0c121d",
+      "showSpinner": false
+    }
+  }
+}

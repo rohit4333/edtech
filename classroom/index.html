@@ -85,6 +85,14 @@
         <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
         <span class="people-txt"><b>1</b><span>in room</span></span>
       </button>
+      <div class="net-meter" id="netMeter" data-level="idle" data-bars="0" role="img" aria-label="Connection not checked" title="Connection not checked">
+        <span class="net-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <button class="btn btn-ghost btn-sm join-call" id="callJoinBtn" type="button" aria-label="Join call" title="Join the private 1:1 call">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 4h3l2 5-2.4 1.4a12 12 0 0 0 5.6 5.6L15 13.6l5 2v3a2 2 0 0 1-2.2 2A16 16 0 0 1 3 6.2 2 2 0 0 1 5 4Z"></path></svg>
+        <span class="label">Join call</span>
+        <span class="board-action-label">Call</span>
+      </button>
       <button class="btn btn-ghost btn-sm invite" type="button" data-toast="Pack: 8 sessions left · expires in 21 days." aria-label="Session pack: 8 sessions left">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18M8 14h4"></path></svg>
         <span class="label">Pack · 8 left</span>
@@ -97,15 +105,19 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>
         <span class="label">Shared board</span>
       </button>
+      <span class="board-top-rule board-only" aria-hidden="true"></span>
       <button type="button" class="trainer-only board-only" id="fullBoardShare" aria-pressed="false" aria-label="Share with student" title="Share with student">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3M8.5 6.5L12 3l3.5 3.5"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path></svg>
+        <span class="board-action-label">Share</span>
       </button>
       <button type="button" class="board-only" id="fullBoardFullscreen" aria-label="Close whiteboard" title="Close the whiteboard and return to the classroom">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        <span class="board-action-label">Close</span>
       </button>
       <button class="btn btn-coral btn-sm end" id="endBtn" type="button" aria-label="End session" title="End session">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
         <span class="label">End session</span>
+        <span class="board-action-label">End</span>
       </button>
     </div>
   </header>
@@ -487,8 +499,9 @@
         </div>
       </section>
 
-      <!-- ==================== floating camera picture (live 1:1 call surface) -->
-      <section class="call-pip" id="callPip" aria-label="Floating video call, two people">
+      <!-- The camera tile is only the two video feeds. Call state and observer
+           notices stay outside it so the visual surface is never cluttered. -->
+      <section class="call-pip" id="callPip" aria-label="Trainer and student cameras">
         <header class="pip-head" id="pipHead" title="Drag to move the video window">
           <span class="pip-grip" aria-hidden="true">⋮⋮</span>
           <span class="pip-title">Video · 2</span>
@@ -496,39 +509,41 @@
           <button class="pip-collapse" id="pipCollapse" type="button" aria-expanded="true" aria-label="Collapse video window" title="Collapse">−</button>
         </header>
         <div class="pip-body">
-          <div class="dock-tile dock-trainer cam-on" title="You · Ananya Rao">
+          <div class="dock-tile dock-trainer cam-on" title="Trainer camera">
             <span class="dock-initials" aria-hidden="true">AR</span>
             <div class="pip-video" data-call-video="local" aria-hidden="true"></div>
             <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b>You</b>
           </div>
-          <div class="dock-tile dock-student" title="Ishaan Verma">
+          <div class="dock-tile dock-student" title="Student camera">
             <span class="dock-initials" aria-hidden="true">IV</span>
             <div class="pip-video" data-call-video="remote" aria-hidden="true"></div>
             <span class="dock-mic" role="img" aria-label="Microphone on"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg></span>
             <b data-call-peer-label>Ishaan</b>
           </div>
         </div>
-        <div class="pip-call-bar" role="group" aria-label="Live call controls">
-          <button class="pip-call-btn" id="networkCheckBtn" type="button" title="Check connection speed before class">Check speed</button>
-          <button class="pip-call-btn is-primary" id="callJoinBtn" type="button" title="Run the connection speed check before class">Join</button>
-          <button class="pip-call-btn" id="callLeaveBtn" type="button" disabled>Leave</button>
-        </div>
-        <p class="pip-call-status" id="callStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
-        <p class="pip-observer-notice" id="observerNotice" role="status" aria-live="polite" hidden>
-          Observer in room: <b id="observerName">Founder</b>. This visit is logged and visible to both participants.
-        </p>
-        <label class="pip-observer-opt-in" id="observerOptIn" hidden>
-          <input type="checkbox" id="founderObserverToggle"> Join openly as founder observer
-        </label>
-        <button class="pip-resize" id="pipResize" type="button" aria-label="Resize video window" title="Drag to resize"></button>
       </section>
+      <div class="call-runtime" hidden>
+        <button class="pip-call-btn" id="networkCheckBtn" type="button" title="Check connection speed before class">Check speed</button>
+        <button class="pip-call-btn" id="callLeaveBtn" type="button" disabled>Leave</button>
+        <p class="pip-call-status" id="callStatus" role="status" aria-live="polite">Not connected. Join for a private 1:1 call.</p>
+      </div>
+      <p class="observer-floating" id="observerNotice" role="status" aria-live="polite" hidden>
+        Observer in room: <b id="observerName">Founder</b>. This visit is logged and visible to both participants.
+      </p>
+      <label class="observer-floating-opt" id="observerOptIn" hidden>
+        <input type="checkbox" id="founderObserverToggle"> Join openly as founder observer
+      </label>
 
     </main>
 
     <!-- The whiteboard is an edge-to-edge surface. Every control floats above
          the canvas, and the trainer can drag the palette anywhere on the board. -->
     <section class="full-board" id="fullBoard" aria-label="Teaching whiteboard" hidden>
+      <div class="board-readonly student-only" role="status" aria-label="Read-only shared board">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+        <span>View only</span>
+      </div>
       <div class="full-board-tools" role="toolbar" aria-label="Teaching whiteboard tools">
         <span class="board-drag-handle trainer-only" id="fullBoardToolHandle" title="Drag to move tools" aria-hidden="true">⠿</span>
         <button type="button" class="trainer-only" data-board-tool="pen" aria-pressed="true" aria-label="Pen" title="Pen">

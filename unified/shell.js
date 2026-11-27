@@ -198,7 +198,7 @@
         detail.appendChild(make('p', 'muted', (data.nextSession.subject && data.nextSession.subject.label) || 'Your 1-on-1 session'));
         live.appendChild(detail);
         var join = make('a', 'btn', 'Join on this device');
-        join.href = '/classroom/index.html?sessionId=' + encodeURIComponent(data.nextSession.id) +
+        join.href = '/classroom/connect.html?sessionId=' + encodeURIComponent(data.nextSession.id) +
           '&role=student&view=student';
         live.appendChild(join);
         section.appendChild(live);

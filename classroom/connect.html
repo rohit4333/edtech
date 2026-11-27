@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Connect your cameras</title>
+<meta name="description" content="Private camera check before a Mathify one-to-one lesson.">
+<link rel="stylesheet" href="../assets/poppins.css">
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="connect.css">
+</head>
+<body class="connect-page">
+
+<a class="skip" href="#connectStage">Skip to cameras</a>
+
+<header class="connect-top">
+  <a class="connect-brand" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
+  <span class="connect-rule" aria-hidden="true"></span>
+  <span class="connect-subject" id="connectSubject">1:1 · Mathematics</span>
+  <span class="connect-spacer" aria-hidden="true"></span>
+  <span class="role-chip" id="roleChip">Trainer</span>
+  <div class="net-meter" id="netMeter" data-level="idle" data-bars="0" role="img" aria-label="Connection not checked" title="Connection not checked">
+    <span class="net-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+</header>
+
+<main class="connect-stage" id="connectStage">
+  <div class="connect-heading">
+    <span class="connect-eyebrow">Before the lesson</span>
+    <h1>Camera check</h1>
+    <p id="connectHint">Both cameras appear here. The lesson opens when your trainer starts the session.</p>
+  </div>
+
+  <div class="connect-grid">
+    <section class="connect-tile" id="selfTile" aria-label="Your camera">
+      <video id="selfVideo" autoplay muted playsinline></video>
+      <div class="tile-placeholder" id="selfPlaceholder"><span id="selfInitials">AR</span></div>
+      <span class="tile-name" id="selfName">You</span>
+      <span class="tile-mic" id="selfMic" role="img" aria-label="Microphone on">
+        <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
+      </span>
+    </section>
+    <section class="connect-tile" id="peerTile" aria-label="Other person's camera">
+      <video id="peerVideo" autoplay playsinline></video>
+      <div class="tile-placeholder" id="peerPlaceholder"><span id="peerInitials">IV</span></div>
+      <span class="tile-name" id="peerName">Student</span>
+      <span class="tile-wait" id="peerWait">Waiting to connect…</span>
+    </section>
+  </div>
+
+  <p class="connect-status" id="connectStatus" role="status" aria-live="polite">Checking your connection…</p>
+
+  <div class="connect-actions">
+    <button class="connect-ctrl" id="connectMicBtn" type="button" aria-pressed="false" aria-label="Turn microphone off" title="Microphone">
+      <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
+      <span>Mic</span>
+    </button>
+    <button class="connect-ctrl" id="connectCamBtn" type="button" aria-pressed="false" aria-label="Turn camera off" title="Camera">
+      <svg class="icon" aria-hidden="true"><use href="#i-cam"/></svg>
+      <span>Camera</span>
+    </button>
+    <button class="connect-start trainer-only" id="startSessionBtn" type="button" disabled>
+      <svg class="icon" aria-hidden="true"><use href="#i-right"/></svg>
+      <span>Start the session</span>
+    </button>
+    <span class="connect-waiting student-only" id="studentWaiting">Waiting for your trainer to start the lesson…</span>
+  </div>
+</main>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-mic-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M9 9v2a3 3 0 0 0 4.6 2.5M15 10.5V6a3 3 0 0 0-5.7-1.2M5 11a7 7 0 0 0 10.3 6.2M19 11a7 7 0 0 1-1.1 3.8M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5L21 8v8l-5-2.5"/></symbol>
+  <symbol id="i-cam-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10 6h4a2 2 0 0 1 2 2v3.5l5-2.5v8l-5-2.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+</svg>
+
+<p class="visually-hidden" id="connectLive" role="status" aria-live="polite"></p>
+
+<script src="https://unpkg.com/livekit-client@2.25.0/dist/livekit-client.umd.js" integrity="sha256-Ra51QKs/7e0e50D9yipZByF5gz9hWbwE8TezYf4iTgI=" crossorigin="anonymous"></script>
+<script src="../shared/sessionKeepalive.js"></script>
+<script src="api.js"></script>
+<script src="networkCheck.js"></script>
+<script src="subjectCopy.js"></script>
+<script src="connect.js"></script>
+</body>
+</html>

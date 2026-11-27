@@ -38,6 +38,22 @@ router.get('/:sessionId/state', async function (req, res) {
   return res.json({ state: state });
 });
 
+/* Camera-check room only. It never writes presence or starts the clock: the
+   server-owned preview room name is ignored by the LiveKit presence webhook. */
+router.post('/:sessionId/preview-token', function (req, res, next) {
+  const access = sessionAccess.evaluate(req.sessionRecord, req.user, req.body || {});
+  if (!access.canEnter || access.observer === true) {
+    return res.status(access.status || 403).json({
+      error: access.code || 'PREVIEW_ACCESS_DENIED',
+      message: access.reason || 'This camera check is not available.',
+      roomAccess: access
+    });
+  }
+  return Promise.resolve(livekitTokens.issueSessionToken(req.sessionRecord, req.user, { preview: true }))
+    .then(function (rtc) { return res.json({ rtc: rtc, roomAccess: access }); })
+    .catch(next);
+});
+
 router.post('/:sessionId/rtc-token', async function (req, res) {
   try {
     /* The room opens ten minutes early for the two real participants. Founder

@@ -24,8 +24,8 @@ function startMs(session) {
 function joinUrl(session) {
   const origin = config.resetOrigin();
   if (!origin || !session || !session.id) return null;
-  return origin + '/classroom/index.html?sessionId=' +
-    encodeURIComponent(String(session.id)) + '&state=live';
+  return origin + '/classroom/connect.html?sessionId=' +
+    encodeURIComponent(String(session.id)) + '&role=student&view=student&state=live';
 }
 
 function describe(minutesUntil, earlyJoinMinutes) {

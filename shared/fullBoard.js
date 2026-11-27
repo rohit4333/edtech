@@ -472,24 +472,36 @@
     }
   }
 
-  if (shareBtn) shareBtn.addEventListener('click', function () {
-    if (!trainer) return;
-    sharing = !sharing;
-    if (!sharing) hideTrainerPointer();
-    var state = api && typeof api.shareBoard === 'function' && sessionId
-      ? api.shareBoard(sessionId, sharing)
-      : Promise.resolve();
-    state.then(function () {
-      if (sharing) return push('snapshot', Object.assign({ page: 1 }, snapshotPayload()));
-      return false;
-    }).catch(function (error) {
-      say('Share state could not be saved: ' + error.message);
-    });
+  function syncShareButton() {
+    if (!shareBtn) return;
     shareBtn.setAttribute('aria-pressed', String(sharing));
     shareBtn.classList.toggle('is-sharing', sharing);
     shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing with student' : 'Share with student');
     shareBtn.setAttribute('title', sharing ? 'Stop sharing with student' : 'Share with student');
-    say(sharing ? 'Board is shared with your student. The planner stays private.' : 'Board is private again.');
+  }
+
+  function setSharing(next, announce) {
+    if (!trainer || sharing === next) return Promise.resolve();
+    sharing = next;
+    if (!sharing) hideTrainerPointer();
+    syncShareButton();
+    var state = api && typeof api.shareBoard === 'function' && sessionId
+      ? api.shareBoard(sessionId, sharing)
+      : Promise.resolve();
+    return state.then(function () {
+      if (sharing) return push('snapshot', Object.assign({ page: 1 }, snapshotPayload()));
+      return false;
+    }).catch(function (error) {
+      if (announce) say('Share state could not be saved: ' + error.message);
+      return false;
+    });
+  }
+
+  if (shareBtn) shareBtn.addEventListener('click', function () {
+    if (!trainer) return;
+    setSharing(!sharing, true).then(function () {
+      say(sharing ? 'Board is shared with your student. The planner stays private.' : 'Board is private again.');
+    });
   });
 
   if (fullscreenBtn) fullscreenBtn.addEventListener('click', function () {
@@ -524,6 +536,9 @@
   }
   function close() {
     hideTrainerPointer();
+    /* Closing the board must also stop sharing, or the child stays locked in
+       a hidden whiteboard and their session desk never comes back. */
+    if (trainer && sharing) setSharing(false, false);
     overlay.hidden = true;
     document.body.classList.remove('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');

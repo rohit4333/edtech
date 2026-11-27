@@ -85,3 +85,30 @@
   animation:none;
 }
 .call-pip .pip-live[data-state="pending"]{color:#FFD9C8}
+
+/* The camera window is a pure two-feed visual. Call controls and status live
+   in the session header or run silently; observer notices float separately so
+   privacy is still visible without cluttering the cameras. */
+.call-pip{
+  padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
+  backdrop-filter:none;-webkit-backdrop-filter:none
+}
+.call-pip .pip-head,
+.call-pip .pip-resize{display:none !important}
+.call-pip .pip-body{flex:1;height:100%;padding:0;gap:2px}
+.call-pip .dock-tile{border-radius:8px}
+.call-runtime{display:none}
+.call-runtime[hidden],
+.observer-floating[hidden],
+.observer-floating-opt[hidden]{display:none !important}
+.observer-floating,
+.observer-floating-opt{
+  position:fixed;left:12px;bottom:12px;z-index:226;
+  max-width:min(320px,calc(100% - 24px));margin:0;
+  padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-xs);
+  background:rgba(253,250,243,.96);color:var(--ink);
+  box-shadow:0 10px 30px rgba(14,20,32,.16);
+  font:500 9px/1.4 var(--sans)
+}
+.observer-floating b{color:var(--coral-deep)}
+.observer-floating-opt{display:flex;align-items:center;gap:7px;bottom:52px;cursor:pointer}

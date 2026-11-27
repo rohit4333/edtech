@@ -9,15 +9,18 @@
   "sessionTiming": {
     "clockStartOffsetMinutes": -1,
     "requiredTeachingMinutes": 50,
-    "completionWindowMinutes": 55,
-    "note": "The room clock starts at -00:01 one minute before the allotted time. The trainer must complete 50 teaching minutes within the first 55 minutes from the scheduled start.",
+    "completionWindowMinutes": 60,
+    "completionWindowStartOffsetMinutes": -1,
+    "note": "The room clock starts when verified trainer presence begins. The pay window is -01:00 to +59:00 from the scheduled start; the trainer must complete 50 active teaching minutes inside it. Reconnects pause and resume the active timer.",
     "lifetime": {
       "regular": {
         "durationMinutes": 50,
         "warningAtMinutes": 50,
         "closeAtMinutes": 55,
         "requiredTeachingMinutes": 50,
-        "completionWindowMinutes": 55
+        "completionWindowMinutes": 60,
+        "completionWindowStartOffsetMinutes": -1,
+        "note": "Full pay at 50 active minutes; 45-49 half pay, 40-44 no pay, below 40 forfeited. Active minutes are summed across reconnects inside the -01:00 to +59:00 window."
       },
       "demo": {
         "durationMinutes": 45,
@@ -25,7 +28,8 @@
         "closeAtMinutes": 45,
         "requiredTeachingMinutes": 40,
         "completionWindowMinutes": 45,
-        "note": "A demo lasts 45 minutes; 40 teaching minutes are required. The trainer is warned at 40 and the server closes the class at 45."
+        "completionWindowStartOffsetMinutes": 0,
+        "note": "A demo lasts 45 minutes; 40 teaching minutes are required. The trainer is warned at 40 and the server closes the class at 45. Demo late bands stay separate from the regular shortfall bands."
       },
       "note": "Demo warns at 40 and closes at 45; regular warns at 50 and closes at 55. Timers run from the trainer's verified class clock, and the browser never owns the close."
     }

@@ -10,7 +10,13 @@
     "migrate": "npm --prefix server run migrate",
     "seed": "npm --prefix server run seed",
     "reminders": "node server/jobs/reminders.js",
-    "reminders:once": "node server/jobs/reminders.js --once"
+    "reminders:once": "node server/jobs/reminders.js --once",
+    "mobile:configure": "node mobile/scripts/configure.js",
+    "mobile:add:android": "npm --prefix mobile run add:android",
+    "mobile:add:ios": "npm --prefix mobile run add:ios",
+    "mobile:sync": "npm --prefix mobile run sync",
+    "mobile:open:android": "npm --prefix mobile run open:android",
+    "mobile:open:ios": "npm --prefix mobile run open:ios"
   },
   "engines": {
     "node": ">=20"

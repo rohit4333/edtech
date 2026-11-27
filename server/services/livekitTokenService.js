@@ -72,6 +72,15 @@ function serverRoom(session) {
   return 'mathify-' + id;
 }
 
+/* The camera-check room is server-owned and deliberately outside the session
+   room naming contract. Webhooks ignore it, so joining the pre-session call
+   never writes presence, starts the clock or changes pay. */
+function previewRoom(session) {
+  const id = cleanId(session && session.id);
+  if (!id) throw failure('SESSION_ROOM_MISSING', 'This session has no camera-check room.', 409);
+  return 'mathify-preview-' + id;
+}
+
 /* `roomName` is accepted from req.body as requested, but may only confirm the
    room the server already derived. A mismatch is a hard privacy failure. */
 function requestedRoom(session, requested) {
@@ -104,7 +113,7 @@ function displayName(user, requested) {
 function baseRtc(session, user, options) {
   const opts = options || {};
   const observer = opts.observer === true || String(user && user.role) === 'founder';
-  const roomName = requestedRoom(session, opts.roomName);
+  const roomName = opts.preview === true ? previewRoom(session) : requestedRoom(session, opts.roomName);
   const identity = identityFor(user);
   const expiresInSeconds = TOKEN_TTL_SECONDS;
   return {

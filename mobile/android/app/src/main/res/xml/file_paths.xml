@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Chat photos go through the scoped system picker. This cache path only
+         supports short-lived app-owned shares; no shared storage is exposed. -->
+    <cache-path name="mathify_cache" path="." />
+</paths>

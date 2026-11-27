@@ -1,0 +1,179 @@
+/* Mathify camera check — a calm, two-feed holding room before the lesson. */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body.connect-page {
+  margin: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink, #0c121d);
+  color: var(--paper, #fdfaf3);
+  font-family: var(--sans, Poppins, sans-serif);
+}
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.icon { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 8px; top: 8px; z-index: 20; padding: 8px 12px; border-radius: 6px; background: var(--paper); color: var(--ink); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.connect-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(253, 250, 243, .1);
+}
+.connect-brand { color: var(--paper); font: 600 17px/1 var(--sans); text-decoration: none; letter-spacing: -.02em; }
+.connect-brand i { color: var(--coral, #ff5b2e); font-style: normal; }
+.connect-rule { width: 1px; height: 20px; background: rgba(253, 250, 243, .16); }
+.connect-subject { font: 500 11px/1 var(--sans); color: rgba(253, 250, 243, .72); }
+.connect-spacer { flex: 1; }
+.role-chip {
+  padding: 5px 9px;
+  border: 1px solid rgba(253, 250, 243, .18);
+  border-radius: 999px;
+  font: 600 9px/1 var(--mono, monospace);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(253, 250, 243, .8);
+}
+
+/* Same five-bar, colour-graded meter as the session desk, tuned for dark ink. */
+.net-meter { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 36px; }
+.net-bars { display: flex; align-items: flex-end; gap: 2px; height: 17px; }
+.net-bars i { width: 3px; border-radius: 1px; background: rgba(253, 250, 243, .18); transition: background .2s ease; }
+.net-bars i:nth-child(1) { height: 5px; }
+.net-bars i:nth-child(2) { height: 8px; }
+.net-bars i:nth-child(3) { height: 11px; }
+.net-bars i:nth-child(4) { height: 14px; }
+.net-bars i:nth-child(5) { height: 17px; }
+.net-meter[data-bars="1"] .net-bars i:nth-child(-n+1),
+.net-meter[data-bars="2"] .net-bars i:nth-child(-n+2),
+.net-meter[data-bars="3"] .net-bars i:nth-child(-n+3),
+.net-meter[data-bars="4"] .net-bars i:nth-child(-n+4),
+.net-meter[data-bars="5"] .net-bars i:nth-child(-n+5) { background: var(--meter-color, #fdfaf3); }
+.net-meter[data-level="poor"] { --meter-color: #ff5b5b; }
+.net-meter[data-level="fair"] { --meter-color: #ff9558; }
+.net-meter[data-level="good"] { --meter-color: #f0c04b; }
+.net-meter[data-level="strong"] { --meter-color: #79c78b; }
+.net-meter[data-level="excellent"] { --meter-color: #35c8a8; }
+
+.connect-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 0;
+  padding: 28px 20px 24px;
+}
+.connect-heading { text-align: center; max-width: 620px; }
+.connect-eyebrow {
+  display: block;
+  font: 600 9px/1 var(--mono, monospace);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--coral, #ff5b2e);
+}
+.connect-heading h1 { margin: 8px 0 6px; font: 600 28px/1.15 var(--sans); letter-spacing: -.03em; }
+.connect-heading p { margin: 0; font: 400 12px/1.5 var(--sans); color: rgba(253, 250, 243, .66); }
+
+.connect-grid {
+  width: min(100%, 940px);
+  height: min(56vh, 460px);
+  min-height: 260px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.connect-tile {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid rgba(253, 250, 243, .14);
+  border-radius: 14px;
+  background: #111927;
+}
+.connect-tile video { display: block; width: 100%; height: 100%; object-fit: cover; background: #111927; }
+.tile-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, rgba(253, 250, 243, .08), transparent 60%);
+}
+.tile-placeholder span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(253, 250, 243, .1);
+  font: 600 24px/1 var(--sans);
+  color: rgba(253, 250, 243, .8);
+}
+.tile-name {
+  position: absolute;
+  left: 12px;
+  bottom: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(4, 8, 15, .6);
+  font: 600 10px/1 var(--sans);
+}
+.tile-mic {
+  position: absolute;
+  right: 11px;
+  bottom: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(4, 8, 15, .6);
+}
+.tile-wait {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font: 500 9px/1 var(--mono, monospace);
+  letter-spacing: .04em;
+  color: rgba(253, 250, 243, .6);
+}
+[hidden] { display: none !important; }
+
+.connect-status { margin: -6px 0 0; font: 500 11px/1.5 var(--sans); color: rgba(253, 250, 243, .7); text-align: center; }
+.connect-actions { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.connect-ctrl, .connect-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(253, 250, 243, .18);
+  background: transparent;
+  color: var(--paper);
+  font: 600 11px/1 var(--sans);
+  cursor: pointer;
+}
+.connect-ctrl:hover { background: rgba(253, 250, 243, .08); }
+.connect-ctrl[aria-pressed="true"] { border-color: rgba(255, 91, 46, .6); color: #ffb59e; }
+.connect-start { border-color: var(--coral, #ff5b2e); background: var(--coral, #ff5b2e); color: #fff; }
+.connect-start:disabled { opacity: .45; cursor: not-allowed; }
+.connect-waiting { font: 500 11px/1.4 var(--sans); color: rgba(253, 250, 243, .65); }
+
+@media (max-width: 720px) {
+  .connect-top { padding: 0 12px; gap: 8px; }
+  .connect-subject { display: none; }
+  .connect-grid { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  .connect-tile { height: 210px; }
+  .connect-heading h1 { font-size: 23px; }
+}

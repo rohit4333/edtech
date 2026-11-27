@@ -187,6 +187,16 @@
       return request(sessionPath(sessionId) + '/events?since=' + encodeURIComponent(since || 0))
         .then(function (data) { return data.events || []; });
     },
+    /* Camera-check room. The server derives a separate preview room so this
+       call never writes session presence, starts the clock or changes pay. */
+    getPreviewToken: function (sessionId) {
+      return request(sessionPath(sessionId) + '/preview-token', { method: 'POST' })
+        .then(function (data) { return data && data.rtc; });
+    },
+    getSessionPresence: function (sessionId) {
+      return request(sessionPath(sessionId) + '/presence')
+        .then(function (data) { return data && data.presence; });
+    },
     /* Live 1:1 call identity. No body is sent: channel, uid and role are
        derived by the server from the verified session, never by this page. */
     getRtcToken: function (sessionId, options) {

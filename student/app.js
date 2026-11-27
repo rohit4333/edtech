@@ -386,7 +386,7 @@
   function openClassroom() {
     /* The role and view are explicit: a copied student link must never open a
        trainer-shaped room when the same browser also holds a trainer token. */
-    window.location.href = '../classroom/index.html?sessionId=' +
+    window.location.href = '../classroom/connect.html?sessionId=' +
       encodeURIComponent(activeSessionId()) + '&role=student&view=student&state=' +
       encodeURIComponent(state === 'ended' ? 'ended' : 'live');
   }
@@ -745,6 +745,18 @@
     });
   }
 
+  /* Attendance comes from the same reconnect-safe presence clock as the
+     trainer's teaching timer. The child sees only their own status and minutes. */
+  function applyLiveAttendance(value) {
+    var node = document.getElementById('liveAttendance');
+    if (!node || !value) return;
+    if (!value.activeMinutes && !value.present) return;
+    node.hidden = false;
+    node.textContent = value.present
+      ? 'Attendance marked · ' + value.activeMinutes + ' min in class'
+      : 'In class · ' + value.activeMinutes + '/' + value.requiredMinutes + ' min counted';
+  }
+
   /* Subject is server-owned. An optional session-state call only enriches the
      panel; its failure must never block the desk or claim a linked class. */
   function hydrateSubject(dashboard) {
@@ -756,6 +768,7 @@
     try {
       api.getSessionState(sessionId).then(function (state) {
         window.MathifySubjects.mountStudent(dashboard, state);
+        applyLiveAttendance(state && state.studentAttendance);
       }).catch(function () { /* optional state is not linked yet */ });
     } catch (error) { /* keep the server-owned dashboard fallback */ }
   }
