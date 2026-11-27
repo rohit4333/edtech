@@ -209,7 +209,7 @@
 
   function renderSoundButton() {
     if (!soundButton) return;
-    soundButton.textContent = soundOn ? 'Sound on' : 'Sound off';
+    soundButton.setAttribute('aria-label', soundOn ? 'Sound on' : 'Sound off');
     soundButton.setAttribute('aria-pressed', String(soundOn));
     soundButton.title = soundOn
       ? 'Celebration sound is on for this device. Turn it off any time.'

@@ -70,6 +70,12 @@ async function main() {
     }, trainer);
     ok(stroke.status === 200, 'trainer ink is accepted');
 
+    const shape = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
+      type: 'stroke', page: 1,
+      ink: { tool: 'circle', shape: 'circle', color: 'blue', points: [[0.2, 0.2], [0.8, 0.8]], note: 'hidden answer' }
+    }, trainer);
+    ok(shape.status === 200, 'maths shapes are accepted on the shared board');
+
     const badImage = await request('POST', '/api/sessions/' + SESSION + '/board/ink', {
       type: 'image', image: { data: 'data:text/html;base64,PHNjcmlwdD4=' }
     }, trainer);
@@ -99,7 +105,15 @@ async function main() {
     const ink = (events.body.events || []).filter(function (event) {
       return event.event === 'board.ink';
     });
-    ok(ink.length >= 3, 'each board action appears as a session-scoped event');
+    ok(ink.length >= 4, 'each board action appears as a session-scoped event');
+
+    const shaped = ink.find(function (event) {
+      return event.payload && event.payload.ink && event.payload.ink.tool === 'circle';
+    });
+    ok(shaped && shaped.payload.ink.shape === 'circle' && shaped.payload.ink.color === 'blue',
+      'the maths shape and fifth colour reach the student');
+    ok(shaped && !/note|answer|hint/i.test(JSON.stringify(shaped.payload.ink)),
+      'shape ink drops hidden note fields');
 
     const pasted = ink.find(function (event) {
       return event.payload && event.payload.type === 'image' &&
@@ -190,6 +204,50 @@ async function main() {
     ok(classroom.indexOf('shared/cursorRelay.js') !== -1 &&
       classroom.indexOf('shared/cursorSetup.js') !== -1,
     'the pointer relay is loaded on the verified classroom page');
+
+    const fullBoardJs = readAsset('shared/fullBoard.js');
+    ok(/\.full-board-tools\{[^}]*left:16px[^}]*flex-direction:column/.test(fullBoardCss) &&
+      /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss),
+    'the canvas fills the viewport while the tools dock vertically on the left');
+    ok(fullBoardCss.indexOf('body.board-open .top{') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .brand') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .call-pip') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .engagement-bar') !== -1,
+    'session links, camera and reactions float above the board for both roles');
+    const topStart = classroom.indexOf('<header class="top">');
+    const topEnd = classroom.indexOf('</header>', topStart);
+    const upperDeck = classroom.slice(topStart, topEnd);
+    ok(classroom.indexOf('id="fullBoardToolHandle"') !== -1 &&
+      upperDeck.indexOf('id="fullBoardShare"') !== -1 &&
+      upperDeck.indexOf('id="fullBoardFullscreen"') !== -1 &&
+      upperDeck.indexOf('aria-label="Close whiteboard"') !== -1,
+    'share and close are icon-only controls in the upper deck');
+    ok(fullBoardCss.indexOf('body.board-open .top .back') !== -1 &&
+      fullBoardCss.indexOf('body.board-open .top .full-board-toggle') !== -1,
+    'the redundant back and board-toggle links are hidden on the board');
+    ['line', 'arrow', 'rectangle', 'circle', 'triangle'].forEach(function (shape) {
+      ok(classroom.indexOf('data-board-tool="' + shape + '"') !== -1,
+        'the maths board offers a ' + shape + ' tool');
+    });
+    ['ink', 'coral', 'teal', 'amber', 'blue'].forEach(function (color) {
+      ok(classroom.indexOf('data-board-color="' + color + '"') !== -1,
+        'the maths board offers the ' + color + ' ink');
+    });
+    ok(classroom.indexOf('id="fullBoardRedo"') !== -1 &&
+      fullBoardJs.indexOf('redoStack') !== -1,
+    'undo and redo are icon-only board controls');
+    ok(fullBoardJs.indexOf("overlay.querySelector('.full-board-tools')") !== -1 &&
+      fullBoardJs.indexOf('paletteDrag') !== -1 &&
+      fullBoardJs.indexOf("classList.add('is-dragging')") !== -1,
+    'the trainer can drag the floating tool palette');
+    ok(fullBoardJs.indexOf("document.body.classList.add('board-open')") !== -1 &&
+      fullBoardJs.indexOf("document.body.classList.remove('board-open')") !== -1,
+    'opening and closing the board toggles the clean session layout');
+    ok(fullBoardJs.indexOf("if (!document.fullscreenElement && !overlay.hidden) close();") !== -1,
+    'native full-screen exit closes the board for trainer and student');
+    ok(fullBoardJs.indexOf("classList.toggle('docked'") === -1 &&
+      fullBoardJs.indexOf('teach-mode') === -1,
+    'the board never falls back to a docked dashboard panel');
   } finally {
     await new Promise(function (resolve) { server.close(resolve); });
   }

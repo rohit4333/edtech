@@ -205,8 +205,9 @@ router.post('/:sessionId/board/share', auth.requireRole('trainer', 'founder'), f
 /* Full-board ink is session-scoped and trainer-owned. Coordinates are
    normalised 0–1, colours and tools are allowlisted, and payload sizes are
    bounded. No text, answer key or trainer note is accepted here. */
-const BOARD_TOOLS = new Set(['pen', 'marker', 'eraser']);
-const BOARD_COLORS = new Set(['ink', 'coral', 'teal', 'amber']);
+const BOARD_SHAPES = new Set(['line', 'arrow', 'rectangle', 'circle', 'triangle']);
+const BOARD_TOOLS = new Set(['pen', 'marker', 'eraser'].concat(Array.from(BOARD_SHAPES)));
+const BOARD_COLORS = new Set(['ink', 'coral', 'teal', 'amber', 'blue']);
 
 function cleanInkStroke(value) {
   if (!value || typeof value !== 'object') return null;
@@ -218,11 +219,15 @@ function cleanInkStroke(value) {
     return [Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))];
   }).filter(Boolean) : [];
   if (!points.length) return null;
-  return {
+  const ink = {
     tool: BOARD_TOOLS.has(value.tool) ? value.tool : 'pen',
     color: BOARD_COLORS.has(value.color) ? value.color : 'ink',
     points: points
   };
+  /* Shape geometry is two endpoints; the shape name is allowlisted so no free
+     form teaching text or hidden field can ride along with the ink. */
+  if (BOARD_SHAPES.has(value.tool)) ink.shape = value.tool;
+  return ink;
 }
 
 /* A trainer may paste a screenshot from the private planner. Only raster data

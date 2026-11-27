@@ -85,10 +85,28 @@
         <span class="stack" aria-hidden="true"><span class="av av-a">IV</span></span>
         <span class="people-txt"><b>1</b><span>in room</span></span>
       </button>
-      <button class="btn btn-ghost btn-sm invite" type="button" data-toast="Pack: 8 sessions left · expires in 21 days.">Pack · 8 left</button>
-      <button class="full-board-toggle trainer-only" id="fullBoardToggle" type="button" aria-expanded="false" aria-controls="fullBoard">Full whiteboard</button>
-      <button class="full-board-toggle student-only" id="fullBoardToggleStudent" type="button" aria-expanded="false" aria-controls="fullBoard">Shared board</button>
-      <button class="btn btn-coral btn-sm end" id="endBtn" type="button">End session</button>
+      <button class="btn btn-ghost btn-sm invite" type="button" data-toast="Pack: 8 sessions left · expires in 21 days." aria-label="Session pack: 8 sessions left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18M8 14h4"></path></svg>
+        <span class="label">Pack · 8 left</span>
+      </button>
+      <button class="full-board-toggle trainer-only" id="fullBoardToggle" type="button" aria-expanded="false" aria-controls="fullBoard" aria-label="Full whiteboard" title="Full whiteboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>
+        <span class="label">Full whiteboard</span>
+      </button>
+      <button class="full-board-toggle student-only" id="fullBoardToggleStudent" type="button" aria-expanded="false" aria-controls="fullBoard" aria-label="Shared board" title="Shared board">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M8 14h8"></path></svg>
+        <span class="label">Shared board</span>
+      </button>
+      <button type="button" class="trainer-only board-only" id="fullBoardShare" aria-pressed="false" aria-label="Share with student" title="Share with student">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3M8.5 6.5L12 3l3.5 3.5"></path><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"></path></svg>
+      </button>
+      <button type="button" class="board-only" id="fullBoardFullscreen" aria-label="Close whiteboard" title="Close the whiteboard and return to the classroom">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+      <button class="btn btn-coral btn-sm end" id="endBtn" type="button" aria-label="End session" title="End session">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
+        <span class="label">End session</span>
+      </button>
     </div>
   </header>
 
@@ -508,17 +526,11 @@
 
     </main>
 
-    <!-- Trainer-only planner stays beside this blank board. The board is the
-         only surface shared with the student, and only after Share is pressed. -->
-    <section class="full-board docked" id="fullBoard" aria-label="Teaching whiteboard" hidden>
-      <header class="full-board-head">
-        <span class="mono">Teaching whiteboard · strictly 1-on-1</span>
-        <div class="full-board-actions">
-          <button type="button" class="trainer-only" id="fullBoardShare" aria-pressed="false">Share with student</button>
-          <button type="button" id="fullBoardFullscreen">Full screen</button>
-        </div>
-      </header>
+    <!-- The whiteboard is an edge-to-edge surface. Every control floats above
+         the canvas, and the trainer can drag the palette anywhere on the board. -->
+    <section class="full-board" id="fullBoard" aria-label="Teaching whiteboard" hidden>
       <div class="full-board-tools" role="toolbar" aria-label="Teaching whiteboard tools">
+        <span class="board-drag-handle trainer-only" id="fullBoardToolHandle" title="Drag to move tools" aria-hidden="true">⠿</span>
         <button type="button" class="trainer-only" data-board-tool="pen" aria-pressed="true" aria-label="Pen" title="Pen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M4 20l4.2-1 10.2-10.2a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L5 15.8 4 20Z"></path>
@@ -538,15 +550,41 @@
           </svg>
         </button>
         <span class="board-rule trainer-only" aria-hidden="true"></span>
-        <button type="button" class="trainer-only" data-board-color="ink" aria-label="Ink" aria-pressed="true"></button>
-        <button type="button" class="trainer-only" data-board-color="coral" aria-label="Coral" aria-pressed="false"></button>
-        <button type="button" class="trainer-only" data-board-color="teal" aria-label="Teal" aria-pressed="false"></button>
-        <button type="button" class="trainer-only" data-board-color="amber" aria-label="Amber" aria-pressed="false"></button>
-        <span class="board-rule" aria-hidden="true"></span>
-        <button type="button" class="trainer-only" id="fullBoardPaste" aria-keyshortcuts="Control+V" title="Paste a screenshot (Ctrl+V)">Paste image</button>
+        <button type="button" class="trainer-only" data-board-tool="line" aria-pressed="false" aria-label="Line" title="Line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 19L19 5"></path></svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="arrow" aria-pressed="false" aria-label="Arrow" title="Arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 19L19 5M12 5h7v7"></path></svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="rectangle" aria-pressed="false" aria-label="Rectangle" title="Rectangle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="6" width="16" height="12" rx="1"></rect></svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="circle" aria-pressed="false" aria-label="Circle" title="Circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"></circle></svg>
+        </button>
+        <button type="button" class="trainer-only" data-board-tool="triangle" aria-pressed="false" aria-label="Triangle" title="Triangle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4L21 20H3L12 4Z"></path></svg>
+        </button>
+        <span class="board-rule trainer-only" aria-hidden="true"></span>
+        <button type="button" class="trainer-only" data-board-color="ink" aria-label="Ink" title="Ink" aria-pressed="true"></button>
+        <button type="button" class="trainer-only" data-board-color="coral" aria-label="Coral" title="Coral" aria-pressed="false"></button>
+        <button type="button" class="trainer-only" data-board-color="teal" aria-label="Teal" title="Teal" aria-pressed="false"></button>
+        <button type="button" class="trainer-only" data-board-color="amber" aria-label="Amber" title="Amber" aria-pressed="false"></button>
+        <button type="button" class="trainer-only" data-board-color="blue" aria-label="Blue" title="Blue" aria-pressed="false"></button>
+        <span class="board-rule trainer-only" aria-hidden="true"></span>
+        <button type="button" class="trainer-only" id="fullBoardPaste" aria-keyshortcuts="Control+V" aria-label="Paste a screenshot" title="Paste a screenshot (Ctrl+V)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="6" y="4" width="12" height="17" rx="2"></rect><path d="M9 4V3h6v1M9 10h6M9 14h6"></path></svg>
+        </button>
         <input type="file" class="trainer-only" id="fullBoardFile" accept="image/png,image/jpeg,image/webp" hidden>
-        <button type="button" class="trainer-only" id="fullBoardUndo">Undo</button>
-        <button type="button" class="trainer-only" id="fullBoardClear">Clear</button>
+        <button type="button" class="trainer-only" id="fullBoardUndo" aria-label="Undo" title="Undo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 14L4 9l5-5"></path><path d="M4 9h9a7 7 0 0 1 0 14h-1"></path></svg>
+        </button>
+        <button type="button" class="trainer-only" id="fullBoardRedo" aria-label="Redo" title="Redo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 14l5-5-5-5"></path><path d="M20 9h-9a7 7 0 0 0 0 14h1"></path></svg>
+        </button>
+        <button type="button" class="trainer-only" id="fullBoardClear" aria-label="Clear the board" title="Clear the board">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"></path></svg>
+        </button>
       </div>
       <div class="full-board-canvas-wrap">
         <canvas id="fullBoardCanvas" aria-label="Blank teaching whiteboard. Draw with a mouse, stylus or finger."></canvas>
@@ -589,7 +627,9 @@
             <select id="celebrationPref" aria-label="Celebration style preference">
               <option value="">Default (set by trainer policy)</option>
             </select>
-            <button type="button" id="engagementSoundBtn" aria-pressed="false">Sound off</button>
+            <button type="button" id="engagementSoundBtn" aria-pressed="false" aria-label="Sound off" title="Sound off">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="M17 9l4 6M21 9l-4 6"></path></svg>
+            </button>
           </div>
         </div>
       </section>

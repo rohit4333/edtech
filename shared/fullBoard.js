@@ -1,12 +1,13 @@
 /* ==========================================================================
    MATHIFY — 1-on-1 teaching whiteboard
 
-   The verified trainer keeps the planner private and works on a blank board
-   beside it. When the trainer presses Share, the board opens full-screen for
-   the student and only board content is relayed over the session-scoped
-   /board/ink endpoint. A trainer can paste a screenshot from the planner (or
-   choose an image file), so practice questions can be shown without exposing
-   the private planner, answer keys, hints or trainer notes.
+   The verified trainer keeps the planner private and works on an edge-to-edge
+   board with a floating, draggable tool palette. When the trainer presses
+   Share, the board opens full-screen for the student and only board content is
+   relayed over the session-scoped /board/ink endpoint. A trainer can paste a
+   screenshot from the planner (or choose an image file), so practice questions
+   can be shown without exposing the private planner, answer keys, hints or
+   trainer notes. Leaving full screen always closes the board completely.
    ========================================================================== */
 (function () {
   'use strict';
@@ -23,8 +24,11 @@
   var fileInput = document.getElementById('fullBoardFile');
   var fullscreenBtn = document.getElementById('fullBoardFullscreen');
   var undoBtn = document.getElementById('fullBoardUndo');
+  var redoBtn = document.getElementById('fullBoardRedo');
   var clearBtn = document.getElementById('fullBoardClear');
   var statusNode = document.getElementById('fullBoardStatus');
+  var toolPalette = overlay.querySelector('.full-board-tools');
+  var toolHandle = document.getElementById('fullBoardToolHandle');
 
   var params = new URLSearchParams(window.location.search);
   var client = window.mathifyClassroomApi || {};
@@ -38,9 +42,14 @@
     params.get('sessionId') || null;
   var api = window.mathifyClassroomApi;
 
-  var COLORS = { ink: '#0E1420', coral: '#FF5B2E', teal: '#12968C', amber: '#B4740B', paper: '#FFFFFF' };
+  var COLORS = {
+    ink: '#0E1420', coral: '#FF5B2E', teal: '#12968C', amber: '#B4740B',
+    blue: '#2563EB', paper: '#FFFFFF'
+  };
+  var SHAPES = ['line', 'arrow', 'rectangle', 'circle', 'triangle'];
   var WIDTHS = { pen: 2.6, marker: 17, eraser: 26 };
   var items = [];
+  var redoStack = [];
   var imageCache = {};
   var active = null;
   var pointerId = null;
@@ -67,6 +76,50 @@
     redraw();
   }
 
+  function drawShape(stroke, points) {
+    var w = canvas.clientWidth;
+    var h = canvas.clientHeight;
+    var a = points[0];
+    var b = points[points.length - 1];
+    var x1 = a[0] * w;
+    var y1 = a[1] * h;
+    var x2 = b[0] * w;
+    var y2 = b[1] * h;
+    ctx.beginPath();
+    if (stroke.tool === 'line' || stroke.tool === 'arrow') {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      if (stroke.tool === 'arrow') {
+        var angle = Math.atan2(y2 - y1, x2 - x1);
+        var head = Math.min(18, Math.max(9, ctx.lineWidth * 5));
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+        ctx.stroke();
+      }
+      return;
+    }
+    var left = Math.min(x1, x2);
+    var right = Math.max(x1, x2);
+    var top = Math.min(y1, y2);
+    var bottom = Math.max(y1, y2);
+    if (stroke.tool === 'rectangle') {
+      ctx.rect(left, top, right - left, bottom - top);
+    } else if (stroke.tool === 'circle') {
+      ctx.ellipse((left + right) / 2, (top + bottom) / 2,
+        (right - left) / 2, (bottom - top) / 2, 0, 0, Math.PI * 2);
+    } else if (stroke.tool === 'triangle') {
+      ctx.moveTo((left + right) / 2, top);
+      ctx.lineTo(right, bottom);
+      ctx.lineTo(left, bottom);
+      ctx.closePath();
+    }
+    ctx.stroke();
+  }
+
   function drawStroke(stroke) {
     if (!stroke || !stroke.points || !stroke.points.length) return;
     var w = canvas.clientWidth;
@@ -76,6 +129,10 @@
     ctx.lineJoin = 'round';
     ctx.strokeStyle = COLORS[stroke.tool === 'eraser' ? 'paper' : (stroke.color || 'ink')] || COLORS.ink;
     ctx.fillStyle = ctx.strokeStyle;
+    if (SHAPES.indexOf(stroke.tool) !== -1 && stroke.points.length > 1) {
+      drawShape(stroke, stroke.points);
+      return;
+    }
     ctx.beginPath();
     ctx.moveTo(stroke.points[0][0] * w, stroke.points[0][1] * h);
     for (var i = 1; i < stroke.points.length; i += 1) {
@@ -110,6 +167,7 @@
       if (item.kind === 'image') drawImage(item.image || item);
       else drawStroke(item.ink || item);
     });
+    if (active) drawStroke(active);
   }
 
   function point(event) {
@@ -149,7 +207,9 @@
     if (!p) return;
     pointerId = event.pointerId;
     active = { kind: 'stroke', tool: tool, color: color, points: [p] };
-    if (canvas.setPointerCapture) canvas.setPointerCapture(pointerId);
+    if (canvas.setPointerCapture) {
+      try { canvas.setPointerCapture(pointerId); } catch (error) { /* synthetic pointer */ }
+    }
     redraw();
   });
 
@@ -159,8 +219,13 @@
     if (!p) return;
     var last = active.points[active.points.length - 1];
     if (Math.abs(p[0] - last[0]) < 0.001 && Math.abs(p[1] - last[1]) < 0.001) return;
-    if (active.points.length >= 2000) return;
-    active.points.push(p);
+    if (SHAPES.indexOf(active.tool) !== -1) {
+      /* A maths shape is defined by its start and end, never a long ink trail. */
+      active.points = [active.points[0], p];
+    } else {
+      if (active.points.length >= 2000) return;
+      active.points.push(p);
+    }
     redraw();
   });
 
@@ -170,6 +235,7 @@
     active = null;
     pointerId = null;
     items.push(completed);
+    redoStack = [];
     redraw();
     push('stroke', { ink: completed, page: 1 });
   }
@@ -193,15 +259,76 @@
     });
   });
 
+  /* The palette floats above the canvas and can be dragged anywhere on the
+     board. Pointer capture keeps the drag alive when the cursor leaves it. */
+  var paletteDrag = null;
+  function clampPalette() {
+    if (!toolPalette || overlay.hidden || !toolPalette.style.left || !toolPalette.style.top) return;
+    var bounds = overlay.getBoundingClientRect();
+    var size = toolPalette.getBoundingClientRect();
+    var x = Math.min(Math.max(0, parseFloat(toolPalette.style.left) || 0),
+      Math.max(0, bounds.width - size.width));
+    var y = Math.min(Math.max(0, parseFloat(toolPalette.style.top) || 0),
+      Math.max(0, bounds.height - size.height));
+    toolPalette.style.left = x + 'px';
+    toolPalette.style.top = y + 'px';
+  }
+  if (toolPalette) {
+    toolPalette.addEventListener('pointerdown', function (event) {
+      if (!trainer || overlay.hidden || event.button !== 0) return;
+      if (event.target !== toolPalette && event.target !== toolHandle &&
+          !(toolHandle && toolHandle.contains(event.target))) return;
+      var size = toolPalette.getBoundingClientRect();
+      paletteDrag = { id: event.pointerId, dx: event.clientX - size.left, dy: event.clientY - size.top };
+      toolPalette.classList.add('is-dragging');
+      if (toolPalette.setPointerCapture) {
+        try { toolPalette.setPointerCapture(event.pointerId); } catch (error) { /* synthetic pointer */ }
+      }
+      event.preventDefault();
+    });
+    toolPalette.addEventListener('pointermove', function (event) {
+      if (!paletteDrag || event.pointerId !== paletteDrag.id) return;
+      var bounds = overlay.getBoundingClientRect();
+      var size = toolPalette.getBoundingClientRect();
+      var x = Math.min(Math.max(0, event.clientX - bounds.left - paletteDrag.dx),
+        Math.max(0, bounds.width - size.width));
+      var y = Math.min(Math.max(0, event.clientY - bounds.top - paletteDrag.dy),
+        Math.max(0, bounds.height - size.height));
+      toolPalette.style.left = x + 'px';
+      toolPalette.style.top = y + 'px';
+      toolPalette.style.transform = 'none';
+    });
+    function endPaletteDrag(event) {
+      if (!paletteDrag || (event && event.pointerId !== paletteDrag.id)) return;
+      paletteDrag = null;
+      toolPalette.classList.remove('is-dragging');
+      if (event && toolPalette.hasPointerCapture && toolPalette.hasPointerCapture(event.pointerId)) {
+        toolPalette.releasePointerCapture(event.pointerId);
+      }
+    }
+    toolPalette.addEventListener('pointerup', endPaletteDrag);
+    toolPalette.addEventListener('pointercancel', endPaletteDrag);
+  }
+
   if (undoBtn) undoBtn.addEventListener('click', function () {
     if (!trainer) return;
-    items.pop();
+    var removed = items.pop();
+    if (removed) redoStack.push(removed);
+    redraw();
+    push('snapshot', Object.assign({ page: 1 }, snapshotPayload()));
+  });
+  if (redoBtn) redoBtn.addEventListener('click', function () {
+    if (!trainer) return;
+    var restored = redoStack.pop();
+    if (!restored) return;
+    items.push(restored);
     redraw();
     push('snapshot', Object.assign({ page: 1 }, snapshotPayload()));
   });
   if (clearBtn) clearBtn.addEventListener('click', function () {
     if (!trainer) return;
     items = [];
+    redoStack = [];
     imageCache = {};
     imageCount = 0;
     redraw();
@@ -267,6 +394,7 @@
         };
         imageCount += 1;
         items.push(record);
+        redoStack = [];
         redraw();
         say(sourceLabel + ' added' + (sharing ? ' and shared with your student.' : ' to your board.'));
         return push('image', { image: record.image, page: 1 });
@@ -358,59 +486,46 @@
       say('Share state could not be saved: ' + error.message);
     });
     shareBtn.setAttribute('aria-pressed', String(sharing));
-    shareBtn.textContent = sharing ? 'Sharing with student · Stop' : 'Share with student';
+    shareBtn.classList.toggle('is-sharing', sharing);
+    shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing with student' : 'Share with student');
+    shareBtn.setAttribute('title', sharing ? 'Stop sharing with student' : 'Share with student');
     say(sharing ? 'Board is shared with your student. The planner stays private.' : 'Board is private again.');
   });
 
   if (fullscreenBtn) fullscreenBtn.addEventListener('click', function () {
-    /* A student has no separate Close button: Exit full screen returns them to
-       the classroom. Trainers keep the full/docked toggle beside the planner. */
-    if (!trainer) {
-      close();
-      return;
-    }
-    var full = overlay.classList.toggle('full');
-    overlay.classList.toggle('docked', !full && trainer);
-    if (fullscreenBtn) fullscreenBtn.textContent = full ? 'Exit full screen' : 'Full screen';
-    if (full && overlay.requestFullscreen) {
-      overlay.requestFullscreen().catch(function () { /* CSS full view still applies */ });
-    } else if (document.fullscreenElement && document.exitFullscreen) {
-      document.exitFullscreen().catch(function () {});
-    }
-    if (requestAnimationFrame) requestAnimationFrame(fit);
+    /* Close the board outright. Returning to a docked board in the dashboard
+       made it look like the whiteboard stayed open after leaving full screen. */
+    close();
   });
   document.addEventListener('fullscreenchange', function () {
-    if (!document.fullscreenElement && !trainer && !overlay.hidden) close();
+    /* Native full-screen exit (Esc or the browser control) must also close the
+       board for the trainer, not leave a half-open board behind. */
+    if (!document.fullscreenElement && !overlay.hidden) close();
   });
   if (toggle) toggle.addEventListener('click', function () {
     if (!overlay.hidden) {
       close();
       return;
     }
-    /* The dashboard's Full whiteboard button means full screen immediately —
-       no second click on the in-board Full screen control. */
-    open(false);
+    /* One click opens the board edge-to-edge; no second in-board click. */
+    open();
     if (overlay.requestFullscreen) {
       overlay.requestFullscreen().catch(function () { /* CSS full view still applies */ });
     }
   });
 
-  function open(docked) {
+  function open() {
     overlay.hidden = false;
-    overlay.classList.toggle('docked', Boolean(docked) && trainer);
-    overlay.classList.toggle('full', !docked || !trainer);
-    if (fullscreenBtn) fullscreenBtn.textContent = (!docked || !trainer) ? 'Exit full screen' : 'Full screen';
-    var body = document.querySelector('.body');
-    if (body) body.classList.toggle('teach-mode', Boolean(docked) && trainer);
+    overlay.classList.add('full');
+    document.body.classList.add('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'true');
-    if (requestAnimationFrame) requestAnimationFrame(fit);
-    else fit();
+    if (requestAnimationFrame) requestAnimationFrame(function () { fit(); clampPalette(); });
+    else { fit(); clampPalette(); }
   }
   function close() {
     hideTrainerPointer();
     overlay.hidden = true;
-    var body = document.querySelector('.body');
-    if (body) body.classList.remove('teach-mode');
+    document.body.classList.remove('board-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
     if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
   }
@@ -467,5 +582,5 @@
   if (trainer && params.get('board') === 'full') open();
   setInterval(poll, 1200);
   poll();
-  window.addEventListener('resize', fit);
+  window.addEventListener('resize', function () { fit(); clampPalette(); });
 }());

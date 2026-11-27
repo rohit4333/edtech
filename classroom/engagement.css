@@ -57,6 +57,7 @@ body:not(.view-student) .student-only{display:none !important}
   background:var(--paper);color:var(--ink);font:inherit;font-size:11px;
 }
 .engagement-controls button{cursor:pointer}
+.engagement-controls button svg{display:block;width:16px;height:16px}
 .engagement-controls button[aria-pressed="true"]{border-color:var(--coral);color:var(--coral-deep);font-weight:600}
 
 /* The celebration layer is a full-room announcement. It is pointer-transparent
