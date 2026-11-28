@@ -35,6 +35,17 @@
   var stateTimer = null;
   var networkMessage = 'Checking your connection…';
   var cameraMessage = 'Connecting cameras…';
+  var mediaPermission = {
+    studentCanToggleMedia: true,
+    forceMicOn: false,
+    forceCameraOn: false,
+    studentMuted: false,
+    studentCameraOff: false,
+    version: 0
+  };
+  var reactionPermissionState = { studentCanReact: true, studentCanApplaud: true, version: 0 };
+  var sketchPermissionState = { studentCanSketch: true, version: 0 };
+  var permissionsHydrated = false;
 
   var SUBJECT_LABELS = {
     math: 'Mathematics',
@@ -86,6 +97,167 @@
       cameraMessage = 'Waiting for your trainer to connect the cameras.';
       renderStatus();
     }
+    renderAccessMenu();
+  }
+
+  function setMenuState(id, on, label, title) {
+    var button = $(id);
+    if (!button) return;
+    button.classList.toggle('is-on', Boolean(on));
+    button.setAttribute('aria-pressed', String(Boolean(on)));
+    var text = $('[data-control-label]', button);
+    if (text) text.textContent = label;
+    if (title) button.title = title;
+  }
+
+  /* The trainer's three-dot menu is the single access panel on the shared
+     camera deck. It mirrors the same persisted flags as the classroom sheet. */
+  function renderAccessMenu() {
+    var allowed = mediaPermission.studentCanToggleMedia === true;
+    setMenuState('#paMediaBtn', allowed, allowed ? 'On' : 'Off',
+      allowed ? 'Student controls on · click to lock' : 'Student controls locked · click to allow');
+    setMenuState('#paMicBtn', mediaPermission.studentMuted !== true,
+      mediaPermission.studentMuted ? 'Unmute' : 'Mute',
+      mediaPermission.studentMuted ? 'Request the kid to unmute' : 'Mute the kid’s microphone');
+    setMenuState('#paCamBtn', mediaPermission.studentCameraOff !== true,
+      mediaPermission.studentCameraOff ? 'Turn on' : 'Off',
+      mediaPermission.studentCameraOff ? 'Request the kid to turn the camera on' : 'Turn off the kid’s camera');
+    setMenuState('#paReactBtn', reactionPermissionState.studentCanReact === true,
+      reactionPermissionState.studentCanReact ? 'On' : 'Off',
+      reactionPermissionState.studentCanReact ? 'Reactions on · click to pause' : 'Reactions paused · click to allow');
+    setMenuState('#paSketchBtn', sketchPermissionState.studentCanSketch === true,
+      sketchPermissionState.studentCanSketch ? 'On' : 'Off',
+      sketchPermissionState.studentCanSketch
+        ? 'Scratch tools on · click to revoke for this session'
+        : 'Scratch tools revoked · click to grant again');
+  }
+
+  function applyReactionPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(reactionPermissionState.version) || 0);
+    if (incoming && incoming < current) return;
+    reactionPermissionState = {
+      studentCanReact: value.studentCanReact !== false,
+      studentCanApplaud: value.studentCanApplaud !== false,
+      version: incoming || current
+    };
+    renderAccessMenu();
+  }
+
+  function applySketchPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(sketchPermissionState.version) || 0);
+    if (incoming && incoming < current) return;
+    sketchPermissionState = {
+      studentCanSketch: value.studentCanSketch !== false,
+      version: incoming || current
+    };
+    renderAccessMenu();
+  }
+
+  function applyRemoteMedia(desired, kind) {
+    if (desired === null || desired === undefined) return;
+    var current = kind === 'mic' ? micOn : cameraOn;
+    if (desired === current) return;
+    if (kind === 'mic') micOn = desired; else cameraOn = desired;
+    renderMediaState();
+    setLocalMedia(kind, desired, current);
+  }
+
+  function applyMediaPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(mediaPermission.version) || 0);
+    if (incoming && incoming < current) return;
+    mediaPermission = {
+      studentCanToggleMedia: value.studentCanToggleMedia !== false,
+      forceMicOn: value.forceMicOn === true,
+      forceCameraOn: value.forceCameraOn === true,
+      studentMuted: value.studentMuted === true,
+      studentCameraOff: value.studentCameraOff === true,
+      version: incoming || current
+    };
+    permissionsHydrated = true;
+    renderAccessMenu();
+    if (role !== 'student') return;
+
+    var allowed = mediaPermission.studentCanToggleMedia === true;
+    [$('#connectMicBtn'), $('#connectCamBtn')].forEach(function (button) {
+      if (!button) return;
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', String(!allowed));
+      button.title = allowed
+        ? (button.id === 'connectMicBtn' ? 'Microphone' : 'Camera')
+        : 'Locked by your trainer · audio and camera follow the trainer';
+    });
+    /* Force-on happens before the lock, then any explicit trainer off wins. */
+    var mic = mediaPermission.studentMuted ? false : (!allowed ? true : null);
+    var cam = mediaPermission.studentCameraOff ? false : (!allowed ? true : null);
+    applyRemoteMedia(mic, 'mic');
+    applyRemoteMedia(cam, 'camera');
+    if (!allowed) showMediaMessage('Your trainer locked audio and video controls.');
+  }
+
+  function runAccess(button, task, message) {
+    if (!button || !api) return;
+    button.disabled = true;
+    Promise.resolve(task()).then(function () {
+      renderStatus();
+      if (message) showMediaMessage(message);
+    }).catch(function (error) {
+      showMediaMessage('Access update failed: ' + error.message);
+    }).then(function () {
+      if (button) button.disabled = false;
+    });
+  }
+
+  function bindAccessMenu() {
+    var menuButton = $('#peerAccessBtn');
+    var menu = $('#peerAccessMenu');
+    if (!menuButton || !menu) return;
+    menuButton.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = menu.hidden;
+      menu.hidden = !open;
+      menuButton.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', function (event) {
+      if (menu.hidden || menu.contains(event.target) || event.target === menuButton) return;
+      menu.hidden = true;
+      menuButton.setAttribute('aria-expanded', 'false');
+    });
+    $('#paMediaBtn') && $('#paMediaBtn').addEventListener('click', function () {
+      var next = mediaPermission.studentCanToggleMedia !== true;
+      runAccess(this, function () {
+        return api.setMediaPermission(sessionId, next).then(applyMediaPermission);
+      }, next ? 'Student controls granted.' : 'Student controls locked for this session.');
+    });
+    $('#paMicBtn') && $('#paMicBtn').addEventListener('click', function () {
+      var unmute = mediaPermission.studentMuted === true;
+      runAccess(this, function () {
+        return api.setTrainerMediaState(sessionId, { micOn: unmute }).then(applyMediaPermission);
+      }, unmute ? 'Unmute request sent.' : 'Kid microphone muted.');
+    });
+    $('#paCamBtn') && $('#paCamBtn').addEventListener('click', function () {
+      var turnOn = mediaPermission.studentCameraOff === true;
+      runAccess(this, function () {
+        return api.setTrainerMediaState(sessionId, { cameraOn: turnOn }).then(applyMediaPermission);
+      }, turnOn ? 'Camera-on request sent.' : 'Kid camera turned off.');
+    });
+    $('#paReactBtn') && $('#paReactBtn').addEventListener('click', function () {
+      var next = reactionPermissionState.studentCanReact !== true;
+      runAccess(this, function () {
+        return api.setReactionPermission(sessionId, { studentCanReact: next }).then(applyReactionPermission);
+      }, next ? 'Reactions granted.' : 'Reactions paused for this session.');
+    });
+    $('#paSketchBtn') && $('#paSketchBtn').addEventListener('click', function () {
+      var next = sketchPermissionState.studentCanSketch !== true;
+      runAccess(this, function () {
+        return api.setSketchPermission(sessionId, next).then(applySketchPermission);
+      }, next ? 'Scratch tools granted for this session.' : 'Scratch tools revoked for this session.');
+    });
   }
 
   function renderMeter(value) {
@@ -164,6 +336,9 @@
       setText('#peerName', peerName);
       setText('#peerInitials', initials(peerName));
     }
+    applyMediaPermission(state.mediaPermissions);
+    applyReactionPermission(state.reactionPermissions);
+    applySketchPermission(state.sketchPermissions);
     syncStart(state.network);
   }
 
@@ -328,6 +503,10 @@
     var mic = $('#connectMicBtn');
     var cam = $('#connectCamBtn');
     if (mic) mic.addEventListener('click', function () {
+      if (role === 'student' && !permissionsHydrated) {
+        showMediaMessage('Checking your trainer’s media permissions…');
+        return;
+      }
       var previous = micOn;
       micOn = !micOn;
       mediaGeneration += 1;
@@ -335,6 +514,10 @@
       setLocalMedia('mic', micOn, previous);
     });
     if (cam) cam.addEventListener('click', function () {
+      if (role === 'student' && !permissionsHydrated) {
+        showMediaMessage('Checking your trainer’s media permissions…');
+        return;
+      }
       var previous = cameraOn;
       cameraOn = !cameraOn;
       mediaGeneration += 1;
@@ -576,7 +759,15 @@
         events.forEach(function (message) {
           var seq = Number(message.seq) || 0;
           if (seq > eventCursor) eventCursor = seq;
-          if (message.event === 'board.opened') enterClassroom({ automatic: true });
+          if (message.event === 'rtc.media.control.changed') {
+            applyMediaPermission(message.payload || {});
+          } else if (message.event === 'reaction.permission.changed') {
+            applyReactionPermission(message.payload || {});
+          } else if (message.event === 'sketch.permission.changed') {
+            applySketchPermission(message.payload || {});
+          } else if (message.event === 'board.opened') {
+            enterClassroom({ automatic: true });
+          }
         });
       }).catch(function () {});
     }
@@ -589,6 +780,7 @@
   function init() {
     applyRole();
     bindControls();
+    bindAccessMenu();
     renderMediaState();
     if (!sessionId) {
       networkMessage = 'Open a session from your dashboard first.';

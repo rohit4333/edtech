@@ -161,8 +161,21 @@
       if (user.timezone) {
         try { window.localStorage.setItem('mathify.timezone', user.timezone); } catch (error) { /* private mode */ }
       }
-      status('Signed in. Opening your ' + ROLES[targetRole].label.toLowerCase() + '…', 'success');
-      window.location.assign(next || ROLES[targetRole].destination);
+      /* Hand off only a session-scoped hint to the chooser. No password, JWT
+         or refresh token is placed in sessionStorage. The server verifies the
+         signed token again before any view is opened. */
+      try {
+        window.sessionStorage.setItem('mathify.postLogin', JSON.stringify({
+          role: targetRole,
+          sub: user.id,
+          next: next || null
+        }));
+        window.sessionStorage.removeItem('mathify.viewChoice');
+      } catch (error) { /* private mode: the chooser can still read the URL hint */ }
+      status('Signed in. Choose the view to open…', 'success');
+      var chooser = '/view-choice.html?role=' + encodeURIComponent(targetRole) +
+        (next ? '&next=' + encodeURIComponent(next) : '');
+      window.location.assign(chooser);
     }).catch(function (error) {
       if (error.status === 429) {
         status('Too many sign-in attempts. Try again in a few minutes.');

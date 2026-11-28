@@ -250,6 +250,27 @@
         body: patch || {}
       }).then(function (data) { return data && data.reactionPermissions; });
     },
+    /* Trainer-only scratch permission. Revocation is sticky for the session. */
+    setSketchPermission: function (sessionId, allowed) {
+      return request(sessionPath(sessionId) + '/sketch-permission', {
+        method: 'POST',
+        body: { studentCanSketch: allowed !== false }
+      }).then(function (data) { return data && data.sketchPermissions; });
+    },
+    /* Child-only scratch action. The server rechecks the persisted permission. */
+    saveQuizSketch: function (sessionId, payload) {
+      return request(sessionPath(sessionId) + '/quiz/sketch', {
+        method: 'POST',
+        body: payload || {}
+      });
+    },
+    /* Live correctness-free option mirror for the trainer's paired popup. */
+    selectQuizOption: function (sessionId, questionId, optionIndex) {
+      return request('/student' + sessionPath(sessionId) + '/quiz/selection', {
+        method: 'POST',
+        body: { questionId: questionId, optionIndex: optionIndex }
+      });
+    },
     /* Each verified participant reports only their own measurement. */
     reportNetworkCheck: function (sessionId, measurement) {
       return request(sessionPath(sessionId) + '/network-check', {

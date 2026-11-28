@@ -1,0 +1,424 @@
+{
+  "at": "2026-11-28T00:38:22.377Z",
+  "base": "http://127.0.0.1:4004",
+  "mode": "mock",
+  "mutations": true,
+  "total": 31,
+  "passed": 26,
+  "failed": 0,
+  "skipped": 5,
+  "scenarios": [
+    {
+      "scenario": "health and public configuration",
+      "at": "2026-11-28T00:38:20.964Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "mode": "mock",
+        "base": "http://127.0.0.1:4004",
+        "ms": 80
+      }
+    },
+    {
+      "scenario": "sign in founder",
+      "at": "2026-11-28T00:38:21.048Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "founder",
+        "ms": 56
+      }
+    },
+    {
+      "scenario": "sign in relationship_manager",
+      "at": "2026-11-28T00:38:21.105Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "relationship_manager",
+        "ms": 110
+      }
+    },
+    {
+      "scenario": "sign in trainer",
+      "at": "2026-11-28T00:38:21.215Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "trainer",
+        "ms": 103
+      }
+    },
+    {
+      "scenario": "sign in student",
+      "at": "2026-11-28T00:38:21.318Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "student",
+        "ms": 158
+      }
+    },
+    {
+      "scenario": "sign in parent",
+      "at": "2026-11-28T00:38:21.476Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "parent",
+        "ms": 108
+      }
+    },
+    {
+      "scenario": "sign in planner",
+      "at": "2026-11-28T00:38:21.585Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "planner_agent",
+        "ms": 53
+      }
+    },
+    {
+      "scenario": "post-login view chooser is server-owned",
+      "at": "2026-11-28T00:38:21.639Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "parentView": 200,
+        "kidView": 200,
+        "denied": [
+          403,
+          403
+        ],
+        "ms": 19
+      }
+    },
+    {
+      "scenario": "demo booking creates a real shared family credential",
+      "at": "2026-11-28T00:38:21.663Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 201,
+        "demoId": "demo_1795826301668_bb69f5",
+        "hasCredential": "[redacted]",
+        "ms": 56
+      }
+    },
+    {
+      "scenario": "booked family can sign in and read demo status",
+      "at": "2026-11-28T00:38:21.719Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "loginStatus": 200,
+        "statusStatus": 200,
+        "noticeStatus": 200,
+        "ms": 56
+      }
+    },
+    {
+      "scenario": "staff can see the demo queue but never the family password",
+      "at": "2026-11-28T00:38:21.775Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "queueStatus": 200,
+        "listed": true,
+        "credentialCheckStatus": "[redacted]",
+        "ms": 10
+      }
+    },
+    {
+      "scenario": "public registration creates an active student and a pending trainer",
+      "at": "2026-11-28T00:38:21.786Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "studentStatus": 201,
+        "trainerStatus": 201,
+        "founderDenied": 422,
+        "ms": 107
+      }
+    },
+    {
+      "scenario": "new student sign-in reaches the student dashboard",
+      "at": "2026-11-28T00:38:21.944Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "ms": 5
+      }
+    },
+    {
+      "scenario": "trainer uploads KYC documents",
+      "at": "2026-11-28T00:38:21.949Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "documents": [
+          "aadhaar_front",
+          "aadhaar_rear",
+          "pan_front",
+          "pan_rear",
+          "signature_image"
+        ],
+        "ms": 0
+      }
+    },
+    {
+      "scenario": "trainer submits KYC once and founder grants the desk",
+      "at": "2026-11-28T00:38:22.015Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "submitted": 201,
+        "relocked": 500,
+        "granted": 200,
+        "ms": 54
+      }
+    },
+    {
+      "scenario": "RM can issue only the generated trainer password",
+      "at": "2026-11-28T00:38:22.072Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "chosenDenied": 403,
+        "generated": 200,
+        "generatedHasTemporary": true,
+        "signInStatus": 200,
+        "signInRole": "trainer",
+        "deskStatus": 200,
+        "ms": 127
+      }
+    },
+    {
+      "scenario": "founder people, pay and audit desks return real data",
+      "at": "2026-11-28T00:38:22.204Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "trainers": 3,
+        "auditEntries": 50,
+        "founderGratitudeVisible": true,
+        "ms": 32
+      }
+    },
+    {
+      "scenario": "founder gratitude credit is protected from every role",
+      "at": "2026-11-28T00:38:22.236Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "founderProtected": 400,
+        "rmSettings": 403,
+        "rmSalary": 403,
+        "rmPenalty": 403,
+        "ms": 14
+      }
+    },
+    {
+      "scenario": "founder-only planner writes stay closed to trainer and agent",
+      "at": "2026-11-28T00:38:22.252Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "trainerEdit": 403,
+        "trainerRegenerate": 403,
+        "agentMutation": 403,
+        "assigned": 200,
+        "ms": 13
+      }
+    },
+    {
+      "scenario": "manager desk reads pay but cannot mutate founder-owned policy",
+      "at": "2026-11-28T00:38:22.266Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "dashboard": 200,
+        "dashboardLocked": false,
+        "pay": 200,
+        "sharedRateEdit": 200,
+        "rateSetByRole": "relationship_manager",
+        "lmsDenied": 403,
+        "ms": 27
+      }
+    },
+    {
+      "scenario": "session state and event stream are role-safe",
+      "at": "2026-11-28T00:38:22.293Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "studentStatus": 200,
+        "trainerStatus": 200,
+        "events": 25,
+        "ms": 18
+      }
+    },
+    {
+      "scenario": "session clock, handoff and board actions stay trainer-owned",
+      "at": "2026-11-28T00:38:22.311Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "heartbeat": 200,
+        "denied": 403,
+        "opened": 200,
+        "share": 200,
+        "ink": 200,
+        "studentInk": 403,
+        "ms": 24
+      }
+    },
+    {
+      "scenario": "quiz selection stays correctness-free until trainer reveal",
+      "at": "2026-11-28T00:38:22.341Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "questionId": "dev_ratio_q4",
+        "quizLaunched": false,
+        "forcedAdvances": 0,
+        "selectionStatus": 200,
+        "mirrorSeq": 31,
+        "safe": true,
+        "ms": 7
+      }
+    },
+    {
+      "scenario": "live AI provider chain answers through freelm",
+      "at": "2026-11-28T00:38:22.353Z",
+      "ok": false,
+      "mode": "mock",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "mock database disables the live-only provider ping",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "live AI probe stays founder-only",
+      "at": "2026-11-28T00:38:22.354Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "anonymous": 401,
+        "student": 403,
+        "ms": 5
+      }
+    },
+    {
+      "scenario": "recording links stay private and bearer-free in listings",
+      "at": "2026-11-28T00:38:22.360Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "trainer": 200,
+        "anonymous": 401,
+        "readyRecordings": 0,
+        "bearerFreeUrls": 0,
+        "ms": 5
+      }
+    },
+    {
+      "scenario": "recording controls refuse every non-trainer role",
+      "at": "2026-11-28T00:38:22.365Z",
+      "ok": true,
+      "mode": "mock",
+      "detail": {
+        "ok": true,
+        "student": 403,
+        "founder": 403,
+        "relationshipManager": 403,
+        "ms": 9
+      }
+    },
+    {
+      "scenario": "real egress start not exercised by automated probe",
+      "at": "2026-11-28T00:38:22.376Z",
+      "ok": false,
+      "mode": "mock",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "Starting LiveKit Egress creates a real recording; it is left to a trainer-controlled session, while authorization and link privacy are verified above."
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "live database reads use Supabase without service-role disclosure",
+      "at": "2026-11-28T00:38:22.376Z",
+      "ok": false,
+      "mode": "mock",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "mock mode has no live database",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "Razorpay and WhatsApp are honestly skipped",
+      "at": "2026-11-28T00:38:22.376Z",
+      "ok": false,
+      "mode": "mock",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "Razorpay keys are empty and Twilio/WhatsApp are deliberately out of scope for this walkthrough; no fake success is claimed."
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "signed native wrappers remain blocked on this Windows runner",
+      "at": "2026-11-28T00:38:22.376Z",
+      "ok": false,
+      "mode": "mock",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "IPA signing and TestFlight need macOS/Xcode plus Apple signing assets; the web/PWA source is verified here."
+      },
+      "skipped": true
+    }
+  ]
+}

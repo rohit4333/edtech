@@ -99,6 +99,18 @@ async function main() {
     ok(/No generated planner/.test(emptyAssigned.body.message), 'the empty state is explicit');
     equal(generationCalls, 0, 'the assigned-planner surface never generates');
 
+    /* The live Supabase facade returns a promise from listBatches. The trainer
+       surface must await it instead of calling .filter on the promise. */
+    const originalListBatches = db.listBatches;
+    db.listBatches = async function () { return []; };
+    try {
+      const asyncBatches = await request('GET', '/api/lms/assigned-planners', undefined, trainer);
+      equal(asyncBatches.status, 200, 'an async batch facade returns an honest empty surface');
+      equal(asyncBatches.body.count, 0, 'an async batch facade never crashes into a 500');
+    } finally {
+      db.listBatches = originalListBatches;
+    }
+
     const emptyGuidance = await request('GET',
       '/api/lms/planner-guidance?studentId=usr_student_001', undefined, trainer);
     equal(emptyGuidance.status, 200, 'quiz guidance is available before generation');

@@ -1176,6 +1176,25 @@
     push('clear', { page: 1 });
   });
 
+  /* ------------------------------------------- one fixed natural-ratio rule
+     Every uploaded screenshot, question-card image and pushed board card uses
+     this helper. A caller supplies only the available box; the image's natural
+     width/height decide both sides, so no screen size or tool can stretch,
+     crop or re-ratio the original. */
+  function fitNaturalBox(naturalWidth, naturalHeight, box) {
+    var ratio = (naturalWidth || 16) / (naturalHeight || 9);
+    var w = Math.max(0, Number(box.w) || 0);
+    var h = w / ratio;
+    if (box.h && h > box.h) { h = box.h; w = h * ratio; }
+    if (box.minH && h < box.minH && box.minH * ratio <= (box.maxW || box.w)) {
+      h = box.minH;
+      w = h * ratio;
+    }
+    if (box.maxW && w > box.maxW) { w = box.maxW; h = w / ratio; }
+    if (box.maxH && h > box.maxH) { h = box.maxH; w = h * ratio; }
+    return { w: w, h: h, ratio: ratio };
+  }
+
   /* -------------------------------------------------------- screenshots */
   function loadBitmap(dataUrl) {
     return new Promise(function (resolve, reject) {
@@ -1217,10 +1236,10 @@
     if (!trainer || !dataUrl) return Promise.resolve(false);
     return compactImage(dataUrl).then(function (compact) {
       return loadBitmap(compact).then(function (image) {
-        var ratio = (image.naturalWidth || 16) / (image.naturalHeight || 9);
-        var w = 0.72;
-        var h = w / ratio;
-        if (h > 0.78) { h = 0.78; w = h * ratio; }
+        var fitted = fitNaturalBox(image.naturalWidth, image.naturalHeight,
+          { w: 0.72, h: 0.78 });
+        var w = fitted.w;
+        var h = fitted.h;
         var offset = imageCount % 4;
         var record = {
           kind: 'image',
@@ -1335,20 +1354,13 @@
       var imageWidth = 0;
       var imageHeight = 0;
       if (image) {
-        var ratio = (image.bitmap.naturalWidth || 16) / (image.bitmap.naturalHeight || 9);
-        imageWidth = maxWidth;
-        imageHeight = imageWidth / ratio;
-        if (imageHeight > 520) { imageHeight = 520; imageWidth = imageHeight * ratio; }
-        /* A very wide question must never be stretched taller just to meet the
+        /* A very wide question is never stretched taller just to meet the
            minimum height: the uploaded ratio always wins. */
-        if (imageHeight < 180 && imageHeight * ratio <= maxWidth) {
-          imageHeight = 180;
-          imageWidth = imageHeight * ratio;
-        }
-        if (imageWidth > maxWidth) {
-          imageWidth = maxWidth;
-          imageHeight = imageWidth / ratio;
-        }
+        var fitted = fitNaturalBox(image.bitmap.naturalWidth, image.bitmap.naturalHeight, {
+          w: maxWidth, h: 520, minH: 180, maxW: maxWidth
+        });
+        imageWidth = fitted.w;
+        imageHeight = fitted.h;
       }
       var textTop = pad + 52;
       var height = textTop + lines.length * lineHeight +
@@ -1458,17 +1470,13 @@
       if (opts.open !== false) open();
       return compactImage(card.data).then(function (compact) {
         return loadBitmap(compact).then(function (bitmap) {
-          var ratio = (bitmap.naturalWidth || 16) / (bitmap.naturalHeight || 9);
-          var w = card.hasImage ? 0.42 : 0.36;
-          var h = w / ratio;
-          var maxH = card.hasImage ? 0.46 : 0.34;
-          var maxW = card.hasImage ? 0.62 : 0.52;
-          if (h > maxH) { h = maxH; w = h * ratio; }
-          /* The card is fitted, never stretched: a wide image stays wide. */
-          if (w > maxW) {
-            w = maxW;
-            h = w / ratio;
-          }
+          var fitted = fitNaturalBox(bitmap.naturalWidth, bitmap.naturalHeight, {
+            w: card.hasImage ? 0.42 : 0.36,
+            h: card.hasImage ? 0.46 : 0.34,
+            maxW: card.hasImage ? 0.62 : 0.52
+          });
+          var w = fitted.w;
+          var h = fitted.h;
           var box = {
             x: Math.max(0, 0.97 - w),
             y: 0.035,

@@ -53,6 +53,16 @@
         <svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg>
         <span class="mic-level" id="peerLevel" aria-hidden="true"><i></i></span>
       </span>
+      <button class="tile-menu-btn trainer-only" id="peerAccessBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Student access controls" hidden>
+        <svg class="icon" aria-hidden="true"><use href="#i-more"/></svg>
+      </button>
+      <div class="tile-menu trainer-only" id="peerAccessMenu" role="menu" aria-label="Student access controls" hidden>
+        <button type="button" id="paMediaBtn" role="menuitem"><span>Student controls</span><b data-control-label>On</b></button>
+        <button type="button" id="paMicBtn" role="menuitem"><span>Microphone</span><b data-control-label>On</b></button>
+        <button type="button" id="paCamBtn" role="menuitem"><span>Camera</span><b data-control-label>On</b></button>
+        <button type="button" id="paReactBtn" role="menuitem"><span>Emoji reactions</span><b data-control-label>On</b></button>
+        <button type="button" id="paSketchBtn" role="menuitem"><span>Quiz scratch tools</span><b data-control-label>On</b></button>
+      </div>
       <span class="tile-wait" id="peerWait">Waiting to connect…</span>
     </section>
   </div>
@@ -83,6 +93,7 @@
   <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5L21 8v8l-5-2.5"/></symbol>
   <symbol id="i-cam-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10 6h4a2 2 0 0 1 2 2v3.5l5-2.5v8l-5-2.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></symbol>
 </svg>
 
 <p class="visually-hidden" id="connectLive" role="status" aria-live="polite"></p>

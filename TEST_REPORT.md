@@ -282,3 +282,14 @@ The pasted assessment was checked against the current code, excluding demo crede
 - VERIFIED — [U+2026-11-26] All in-repo defects A-01…A-09 are FIXED; A-09 was already fixed by the v3.1.0 documentation pass and is recorded, not re-applied. B-01…B-06 remain `BLOCKED_EXTERNAL`, G-01…G-03 remain unchanged gaps, and no live provider success is claimed [src: TPFF_BLOCKERS.md:9-40]; [src: E2E_TEST_LOG.md:55-64,82].
 - VERIFIED — [U~2026-11-26] Final pre-commit inventory is 41/32/9: 206 tracked files, 41 `git status --porcelain=v1 --untracked-files=all` paths, 32 modified tracked paths and 9 untracked paths including `E2E_TEST_LOG.md` and `TPFF_BLOCKERS.md`; earlier 25/18/7 and 28/19/9 snapshots remain in H-25. After the v4.0.0 documentation commit the 9 untracked paths become tracked, but the final commit hash is `UNKNOWN_AT_AUTHORING_TIME` [src: E2E_TEST_LOG.md:46,70-82]; [ev: user-supplied v4.0.0 final pre-commit inventory, 2026-11-26].
 - VERIFIED — [U+2026-11-26] Documentation validation printed `VALIDATION=PASS` with `unknown=26 however=31 tests=36 files=215 env=59`, `EXACT_STRINGS_MISSING=0` and `CITATION_PATH_FAILURES=0`; `PROJECT_FLOW_INDEX.json` parsed with `JSON_PARSE=OK` [src: TPFF_UPDATE_REPORT.md §U10]; [ev: tpff_final_validate.ps1 final run, 2026-11-26].
+
+## Current-state addendum (2026-11-28)
+
+The figures above remain historical. The current verified state for this branch is:
+
+- **Automated suite:** 65 chained Node suites pass with `DATABASE_MODE=mock`; explicit `EXITCODE=0` from `npm.cmd test` [ev: `C:\Users\rohit\AppData\Local\Temp\opencode\npm-test-final3.log`]. New suites include `mcpPlannerServer: 30 assertions`, `mcpRmServer: 32 assertions`, and the expanded `lmsPlannerAccess: 48 assertions` with an async Supabase batch-facade regression.
+- **Mock HTTP master:** 31 checks, 26 passed, 5 explicit skips, 0 failed [ev: `scripts/e2e-master-mock-log.json`].
+- **Live read-only HTTP master:** 31 checks, 21 passed, 10 explicit skips, 0 failed against `DATABASE_MODE=supabase` [ev: `scripts/e2e-master-log.json`]. Real Supabase reads, founder-only live AI chain and private recording authorization were exercised; mutations were disabled.
+- **Live companion HTTP:** 37 checks, 36 passed, 1 explicit skip, 0 failed [ev: `scripts/e2e-live-log.json`].
+- **MCP:** founder, RM and planner-designer servers share `mcp-core.js`. Planner publishing stays founder-approved through the existing suggestion queue; no autonomous publish tool exists.
+- **Not claimed:** Razorpay charge, Twilio/WhatsApp delivery, real joined-room recording, runner-based migration apply, live Realtime mode change, signed IPA/TestFlight, exact production planner copy and LMS pixel-match. See `E2E_LOG.md`, `PENDING_RULES.md` and `MCP_DESIGN.md`.

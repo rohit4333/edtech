@@ -129,7 +129,7 @@ Exactly: **Home · Pricing · Terms · Privacy · Refund · Contact · Book Demo
 | Services | `server/services/` | LiveKit tokens, Egress and webhook reconciliation, SigV4 recording links, freelm/AI chain, Resend email, payouts, attendance, leave, presence, moderation, notification, logger, media permissions, network quality, badges, celebrations, reactions, reaction permissions, founder settings, chat Worker bridge, mastery self-practice, parent chat/DLP. |
 | Data | `server/db/index.js`, `mock.js`, `supabase.js`, `schema.sql` | Facade, demo store, service-role adapter, canonical schema. |
 | Migrations | `server/migrations/0001…0012`, `server/migrate.js` | Ordered SQL (chat audit logs, planner agent, LiveKit-only presence labels), checksum guards, dry-run runner. |
-| Tests | `server/tests/*.test.js` | 55 suites, including `livekitWebhooks`, `reminderTimezone`, `subjectExpansion`, `plannerAgent`, `studentDoubtQuota` and `unifiedApp`; see `LIVE_QA_REPORT.md` and current `DATABASE_MODE=mock npm test` results. |
+| Tests | `server/tests/*.test.js` | 65 suites, including `livekitWebhooks`, `reminderTimezone`, `subjectExpansion`, `plannerAgent`, `studentDoubtQuota` and `unifiedApp`; see `LIVE_QA_REPORT.md` and current `DATABASE_MODE=mock npm test` results. |
 | Config | `server/config/policy.json`, `server/.env.example` | Business thresholds and env variable names (no secrets). |
 | DevOps | `.github/workflows/ci.yml`, `Dockerfile`, `docker-compose.yml`, `render.yaml`, `railway.json` | CI, containers, deployment manifests. |
 
@@ -342,9 +342,16 @@ Browser surface
 
 ### 5.11 Testing and delivery
 
-- 55 suites cover services, serializers, privacy, nav/static surfaces, API smoke, LiveKit/freelm readiness, Egress, signed webhooks, reminders/timezones, role-scoped recording access, persistence, operations, media/network controls, engagement controls, founder settings, planner designer, subject expansion, planner agent, Study Buddy daily image quota, unified role-driven app and parent chat contracts.
+- 65 suites cover services, serializers, privacy, nav/static surfaces, API smoke, LiveKit/freelm readiness, Egress, signed webhooks, reminders/timezones, role-scoped recording access, persistence, operations, media/network controls, engagement controls, founder settings, planner designer, planner MCP profiles, RM MCP boundaries, subject expansion, planner agent, Study Buddy daily image quota, unified role-driven app and parent chat contracts.
 - Plain `node` + `assert` is intentional: no Jest/Vitest dependency, deterministic local runs.
 - CI runs on `.github/workflows/ci.yml`; `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json` cover container/deploy shapes.
+
+### 5.12 Internal MCP profiles
+
+- `server/mcp-core.js` is the shared stdio JSON-RPC, auth, tool registry and structuredContent layer for all three internal servers; missing tokens refuse startup before discovery.
+- `mcp-server.js` keeps the founder's three read/dry-run tools. `mcp-rm-server.js` exposes RM desk reads and one draft-only base-rate proposal. `mcp-planner-server.js` exposes designer tools under `review` and `author` profiles only.
+- The planner author profile files a pending suggestion into the existing founder review queue; there is no `publish_planner_draft` tool and no autonomous publishing profile. The browser `planner_agent` user role remains fail-closed.
+- See `MCP_DESIGN.md` and `.mcp.json.example`. Exact production narrative, batch mapping and LMS visual reference are still founder-pending; the dev-only fixture is never a founder-generated planner.
 
 ---
 
@@ -360,7 +367,7 @@ Browser surface
 | Get an RTC token | Yes | Yes | Yes, only after both pass | No |
 | Watch a private recording | Any class (RM also any class) | Own class only | Own class only | Own child only |
 | Start/end session | Yes | Yes | No | No |
-| Edit planner / draw on board | Yes | Yes | Yes (draw) | No |
+| Edit/publish planner / draw on board | Yes / founder-approved MCP suggestion | View assigned planner only; draw on board | Draw on board only | No |
 | Read realtime log | Yes | Yes | **No** | No |
 | Use Trainer Desk support chat | Yes | Yes | No | No |
 | Use Study Buddy doubt chat | Yes | No | Yes | No |
@@ -382,13 +389,13 @@ npm start
 # open http://localhost:4000
 ```
 
-Demo logins (password `mathify-demo`): `founder@mathify.app`, `trainer@mathify.app`, `student@mathify.app`, `parent@mathify.app` (linked to `usr_student_001`).
+Demo logins (password `mathify-demo`): `founder@mathify.app`, `rm@mathify.app` (temporary manager credential), `trainer@mathify.app`, `student@mathify.app`, `parent@mathify.app` (shared parent/kid sign-in linked to `usr_student_001`). The manager can issue the generated trainer-only recovery password `firstname@mathify123` after KYC plus grant.
 
 ### Verify
 
 ```powershell
 $env:DATABASE_MODE = 'mock'
-npm test                 # 55 suites
+npm test                 # 65 suites
 npm run migrate          # dry run, prints checksums
 ```
 
@@ -401,7 +408,7 @@ Useful classroom URLs:
 
 Browser smoke should show: mic/camera on by default, Join disabled until **Check speed** passes for both people, trainer **Access** button present only on the trainer view, student trophies on the student desk, Trainer Desk / Study Buddy panels in the respective dashboards, self-practice batches of 10 with no answer key in the response, the parent/trainer chat unread badge clearing on read, `422 CONTENT_BLOCKED` with no echoed text for contact/social attempts, and zero console errors.
 
-Historical live status (evidence round, not the current provider stack): one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Those ledgers are preserved in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`. Current validation is 55/55 deterministic suites plus real HTTP, signed webhook, reminder/timezone and service-role SQL checks: signed LiveKit tokens, two-sided network gates, the freelm → Gemini → Groq → Cloudflare chain, guarded chat, role isolation, policy/practice contracts, role-scoped signed recording links and fail-closed Egress/payment/email paths. See `LIVE_QA_REPORT.md`; Egress storage is configured, while a real joined-room MP4, Resend delivery, Razorpay, Twilio and Worker deploy permission remain explicitly gated.
+Historical live status (evidence round, not the current provider stack): one Workers AI text call passed and local Agora token generation passed with fresh two-sided checks. Those ledgers are preserved in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`. Current validation is 65/65 deterministic suites plus real HTTP, signed webhook, reminder/timezone and service-role SQL checks: signed LiveKit tokens, two-sided network gates, the freelm → Gemini → Groq → Cloudflare chain, guarded chat, role isolation, policy/practice contracts, role-scoped signed recording links and fail-closed Egress/payment/email paths. See `LIVE_QA_REPORT.md`; Egress storage is configured, while a real joined-room MP4, Resend delivery, Razorpay, Twilio and Worker deploy permission remain explicitly gated.
 
 v4.0.0 status [U~2026-11-26]: the 10-role audit found and fixed A-01…A-09 (A-09 was already fixed in v3.1.0 and is only recorded here); B-01…B-06 remain `BLOCKED_EXTERNAL` and G-01…G-03 remain unchanged gaps. Historical final validation was 36/36 suites, a 136-file syntax sweep with zero failures, a seven-file migration dry run and a clean diff check apart from CRLF warnings. No live provider, migration apply, commit or push was performed in that pass. See `E2E_TEST_LOG.md`, `TPFF_BLOCKERS.md` and `TEST_REPORT.md` §v4.0.0 final validation addendum.
 
@@ -428,7 +435,7 @@ v4.0.1 status [U+2026-11-26]: branch `feat/student-rtc-control-perfection` adds 
 | Alerting (Sentry/Pino sinks) | Structured logging exists; external alerting is future work. |
 | Distributed rate limiting | In-process limiter is fine for one instance; shared store needed for multi-replica. |
 | Founder-editable settings screens | Live as reviewed runtime drafts. Money fields are read-only; file-backed deployment policy still needs explicit approval. |
-| Planner designer v1 | Live as local authoring/export. Publish and pack import remain disabled. |
+| Planner designer v1 | Designer MCP drafts/validates/regenerates; author profile files a pending founder-reviewed suggestion. No autonomous publish tool; pack import remains disabled. |
 | LiveKit Join in browser smoke | Not clicked: it would request real camera/mic. Token, room-ownership, observer-grant and gate contracts are covered by tests. |
 | LiveKit live verification | Real POST/GET token signing, room ownership and observer gates are verified live in `LIVE_QA_REPORT.md`; interactive camera/mic join and optional agent dispatch remain unclicked. |
 | freelm live verification | `/api/ai/test-ping` is live-only, founder-only and required two real provider successes; provider attribution is reported by the stage that actually answered. No key is returned. |

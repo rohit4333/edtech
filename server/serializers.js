@@ -4,6 +4,7 @@ const payoutService = require('./services/payoutService');
 const attendancePolicy = require('./services/attendancePolicy');
 const mediaPermission = require('./services/mediaPermissionService');
 const reactionPermission = require('./services/reactionPermissionService');
+const sketchPermission = require('./services/sketchPermissionService');
 const networkQuality = require('./services/networkQualityService');
 const presenceService = require('./services/presenceService');
 const sessionAccess = require('./services/sessionAccessService');
@@ -459,6 +460,10 @@ async function toSessionState(session, user) {
   const subject = await subjectService.forSession(session);
   const media = mediaPermission.normalize(session.mediaPermissions);
   const applause = reactionPermission.normalize(session.reactionPermissions);
+  const sketch = sketchPermission.normalize(session.sketchPermissions);
+  const currentQuestionId = session.quiz.currentQuestionId || null;
+  const liveSelection = currentQuestionId && session.quiz.liveSelections
+    ? session.quiz.liveSelections[currentQuestionId] : null;
   const presenceSnapshot = await presenceService.compute(session);
   const minimumQuota = sessionTiming.minimumQuota(presenceSnapshot);
   /* A live legacy session has no join webhook, so its own startedAt is the
@@ -483,6 +488,12 @@ async function toSessionState(session, user) {
     boardVersion: session.board.version,
     quizStatus: session.quiz.status,
     quizPhase: session.quiz.phase,
+    liveQuizSelection: liveSelection && Number.isInteger(Number(liveSelection.optionIndex))
+      ? {
+        questionId: currentQuestionId,
+        optionIndex: Number(liveSelection.optionIndex),
+        at: typeof liveSelection.at === 'string' ? liveSelection.at : null
+      } : null,
     reteachRequired: Boolean(session.reteachRequired),
     unlockedNext: Boolean(session.unlockedNext),
     currentTopicId: session.currentTopicId || null,
@@ -497,7 +508,8 @@ async function toSessionState(session, user) {
       canViewTrainerInstructions: trainerView,
       canViewAnswerKey: trainerView,
       canEditPlanner: trainerView,
-      canDraw: true,
+      canDraw: trainerView || sketch.studentCanSketch,
+      canStudentSketch: sketch.studentCanSketch,
       canToggleMedia: trainerView || media.studentCanToggleMedia,
       canStudentToggleMedia: media.studentCanToggleMedia,
       canStudentApplaud: applause.studentCanApplaud,
@@ -515,6 +527,10 @@ async function toSessionState(session, user) {
       studentCanReact: applause.studentCanReact,
       studentCanApplaud: applause.studentCanApplaud,
       version: applause.version
+    },
+    sketchPermissions: {
+      studentCanSketch: sketch.studentCanSketch,
+      version: sketch.version
     },
     network: networkQuality.stateFor(session, user),
     roomAccess: sessionAccess.evaluate(session, user),

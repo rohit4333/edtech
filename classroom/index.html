@@ -364,17 +364,34 @@
         </header>
         <div class="quiz-split">
           <div class="quiz-student">
-            <span class="mono">Student view · Ishaan</span>
-            <h2 id="quizQuestion">Which ratio is equivalent to 3 : 5?</h2>
-            <img class="quiz-question-image" id="quizQuestionImage" alt="" hidden>
-            <p class="quiz-practice-badge" id="quizPracticeBadge" role="status" hidden>Practice Question: Let's try this one together!</p>
-            <div class="student-opts" id="quizOptions"></div>
-            <div class="student-actions">
-              <button class="mini" id="quizHint" type="button">Hint</button>
-              <button class="mini" id="quizSkip" type="button">Skip</button>
-              <button class="btn btn-coral btn-sm" id="quizSubmit" type="button" disabled>Submit</button>
+            <div class="quiz-popup" id="studentQuizPopup">
+              <div class="quiz-popup-main" id="quizSketchSurface">
+                <span class="mono">Student view · <span id="quizStudentName">Ishaan</span></span>
+                <h2 id="quizQuestion">Which ratio is equivalent to 3 : 5?</h2>
+                <img class="quiz-question-image aspect-safe" id="quizQuestionImage" alt="" hidden>
+                <canvas class="quiz-sketch-canvas" id="quizSketchCanvas" aria-label="Sketch over this question"></canvas>
+              </div>
+              <div class="quiz-sketch-tools" id="quizSketchTools" role="toolbar" aria-label="Quiz sketch tools">
+                <button type="button" data-quiz-tool="pen" aria-pressed="true" title="Pen">Pen</button>
+                <button type="button" data-quiz-tool="highlighter" aria-pressed="false" title="Highlighter">Highlighter</button>
+                <button type="button" data-quiz-tool="eraser" aria-pressed="false" title="Erase a whole stroke">Eraser</button>
+                <span class="quiz-sketch-sep" aria-hidden="true"></span>
+                <button class="quiz-swatch is-ink" type="button" data-quiz-color="ink" aria-pressed="true" aria-label="Ink colour" title="Ink"></button>
+                <button class="quiz-swatch is-coral" type="button" data-quiz-color="coral" aria-pressed="false" aria-label="Coral colour" title="Coral"></button>
+                <button class="quiz-swatch is-teal" type="button" data-quiz-color="teal" aria-pressed="false" aria-label="Teal colour" title="Teal"></button>
+                <span class="quiz-sketch-sep" aria-hidden="true"></span>
+                <button type="button" id="quizSketchClear" title="Clear all sketch strokes">Clear</button>
+                <span class="quiz-sketch-state" id="quizSketchState">Ready</span>
+              </div>
+              <p class="quiz-practice-badge" id="quizPracticeBadge" role="status" hidden>Practice Question: Let's try this one together!</p>
+              <div class="student-opts" id="quizOptions"></div>
+              <div class="student-actions">
+                <button class="mini" id="quizHint" type="button">Hint</button>
+                <button class="mini" id="quizSkip" type="button">Skip</button>
+                <button class="btn btn-coral btn-sm" id="quizSubmit" type="button" disabled>Submit</button>
+              </div>
+              <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer, then submit.</p>
             </div>
-            <p class="quiz-feedback" id="quizFeedback" aria-live="polite">Choose one answer, then submit.</p>
           </div>
           <div class="quiz-trainer trainer-only">
             <div class="quiz-trainer-head">
@@ -386,6 +403,16 @@
                   <button type="button" id="quizActionSkip">Skip Question</button>
                 </div>
               </div>
+            </div>
+            <div class="quiz-popup quiz-popup-trainer" id="trainerQuizPopup">
+              <div class="quiz-popup-main">
+                <span class="mono">Student’s question · live mirror</span>
+                <h2 id="quizMirrorQuestion">Which ratio is equivalent to 3 : 5?</h2>
+                <img class="quiz-question-image aspect-safe" id="quizMirrorImage" alt="" hidden>
+                <canvas class="quiz-sketch-canvas" id="quizMirrorSketchCanvas" aria-label="Student sketch mirror"></canvas>
+              </div>
+              <div class="quiz-mirror-options" id="quizMirrorOptions"></div>
+              <p class="quiz-mirror-state" id="quizMirrorState" aria-live="polite">Waiting for a choice.</p>
             </div>
             <div class="quiz-controls">
               <button class="btn btn-coral btn-sm" id="quizPushBoard" type="button" title="Explain this question on the shared whiteboard (stem and image only)" aria-label="Explain this question on the board">Explain on board</button>
@@ -1136,7 +1163,7 @@
         <button class="sheet-x" type="button" data-close-sheet aria-label="Close Student Control"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
       </header>
       <div class="sheet-body">
-        <p class="control-intro">Media and reaction permissions for this 1:1 session live here. Changes apply to the student's live classroom immediately.</p>
+        <p class="control-intro">Media, reaction and quiz-scratch permissions for this 1:1 session live here. A revoke stays in force for the whole session until you grant it again.</p>
 
         <div class="control-group">
           <h3>Camera &amp; microphone</h3>
@@ -1167,8 +1194,16 @@
         </div>
 
         <div class="control-group">
+          <h3>Quiz scratch tools</h3>
+          <button class="control-row" type="button" id="scSketchBtn" aria-pressed="true">
+            <span><b>Pen, highlighter &amp; eraser</b><small>On by default · revoking lasts for every quiz in this session</small></span>
+            <span class="control-state" data-control-label>On</span>
+          </button>
+        </div>
+
+        <div class="control-group">
           <h3>Front desk</h3>
-          <p class="control-hint">Board sharing, reward badges, Star moments and Open progress stay visible on the trainer desk. This sheet only holds live media and reaction permissions.</p>
+          <p class="control-hint">Board sharing, reward badges, Star moments and Open progress stay visible on the trainer desk. This sheet holds live media, reaction and scratch permissions.</p>
         </div>
       </div>
       <footer class="sheet-foot">

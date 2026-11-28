@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "Mathify kid-friendly weekly planner rubric",
+  "promptVersion": "weekly-planner-v1",
+  "maxAttempts": 3,
+  "passScore": 85,
+  "hardGates": [
+    "schema",
+    "prompt_version",
+    "curriculum_alignment",
+    "narrative_continuity",
+    "practice_sequence",
+    "kid_safe_content",
+    "session_invariants"
+  ],
+  "scored": [
+    { "id": "narrative_continuity", "weight": 25 },
+    { "id": "practice_sequence", "weight": 25 },
+    { "id": "differentiation", "weight": 20 },
+    { "id": "topic_fidelity", "weight": 20 },
+    { "id": "brevity", "weight": 10 }
+  ],
+  "sessionRules": {
+    "unlockCorrectPerSection": 3,
+    "quiz": "80/10/+15%/80",
+    "levels": ["1", "2", "3"],
+    "questionTransfer": "stem+image-only",
+    "wrongAnswer": "trainer-reveal-only"
+  },
+  "pendingFounderInput": [
+    "exact_production_narrative_script",
+    "batch_to_planner_assignment_rules",
+    "lms_visual_reference"
+  ],
+  "note": "A draft may be filed for founder review while inputs are pending, but the trace must say so. No temporary dev fixture may be treated as an authored planner."
+}

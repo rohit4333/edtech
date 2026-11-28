@@ -104,6 +104,118 @@ async function main() {
       regrant.body.mediaPermissions.forceCameraOn === false,
       'granting access clears the force flags');
 
+    /* Quiz scratch is granted by default, but a trainer revoke is sticky for
+       the whole session, including later questions. */
+    const sketchInitial = await request('GET', '/api/sessions/ses_math_001/state', undefined, student);
+    check(sketchInitial.body.state.sketchPermissions.studentCanSketch === true &&
+      sketchInitial.body.state.sketchPermissions.version === 0,
+    'quiz scratch tools are granted by default');
+    const studentSketchSet = await request('POST', '/api/sessions/ses_math_001/sketch-permission', {
+      studentCanSketch: false
+    }, student);
+    check(studentSketchSet.status === 403, 'a student cannot revoke their own scratch tools');
+
+    const launch = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/launch', {}, trainer);
+    const quizSession = launch.body && launch.body.session;
+    const question = quizSession && quizSession.quiz && quizSession.quiz.questions &&
+      quizSession.quiz.questions.find(function (item) {
+        return item.id === quizSession.quiz.currentQuestionId;
+      });
+    check(launch.status === 200 && Boolean(question),
+      'a live question is available for the scratch permission check');
+
+    const stroke = {
+      questionId: question && question.id,
+      action: 'stroke',
+      stroke: { tool: 'pen', color: 'coral', weight: 'normal', points: [[0.1, 0.1], [0.2, 0.2]] }
+    };
+    check((await request('POST', '/api/sessions/ses_math_001/quiz/sketch', stroke, student)).status === 200,
+      'the child may sketch while the permission is granted');
+
+    const unsafeSketch = await request('POST', '/api/sessions/ses_math_001/quiz/sketch', {
+      questionId: question && question.id,
+      action: 'stroke',
+      stroke: {
+        id: 'sketch_unsafe',
+        tool: 'laser',
+        color: 'amber',
+        weight: 'bold',
+        points: [[0.4, 0.4], [0.5, 0.5]],
+        answer: 2,
+        hint: 'do not leak me'
+      }
+    }, student);
+    check(unsafeSketch.status === 200,
+      'an unsafe sketch payload is accepted only after server sanitising');
+    const earlySketchEvents = await request('GET', '/api/sessions/ses_math_001/events?limit=200',
+      undefined, student);
+    const lastSketch = earlySketchEvents.body.events.filter(function (event) {
+      return event.event === 'quiz.sketch.changed';
+    }).pop();
+    check(Boolean(lastSketch) && lastSketch.payload.stroke.tool === 'pen' &&
+      lastSketch.payload.stroke.color === 'ink' &&
+      !/answer|correct|hint|why|explain|trainer|instruction|misconception|key/i.test(
+        JSON.stringify(lastSketch)),
+    'sketch events allow only the kid tools, three colours and safe fields');
+    const boardInkDenied = await request('POST', '/api/sessions/ses_math_001/board/ink', {
+      page: 1,
+      stroke: { tool: 'pen', color: 'ink', points: [[0, 0], [1, 1]] }
+    }, student);
+    check(boardInkDenied.status === 403,
+      'quiz scratch permission never grants full whiteboard ink access');
+
+    const sketchRevoke = await request('POST', '/api/sessions/ses_math_001/sketch-permission', {
+      studentCanSketch: false
+    }, trainer);
+    check(sketchRevoke.status === 200 &&
+      sketchRevoke.body.sketchPermissions.studentCanSketch === false &&
+      sketchRevoke.body.sketchPermissions.version > 0,
+    'trainer can revoke quiz scratch tools');
+    const afterSketchRevoke = await request('GET', '/api/sessions/ses_math_001/state', undefined, student);
+    check(afterSketchRevoke.body.state.sketchPermissions.studentCanSketch === false &&
+      afterSketchRevoke.body.state.permissions.canStudentSketch === false,
+    'child state keeps the scratch tools revoked');
+    check((await request('POST', '/api/sessions/ses_math_001/quiz/sketch', {
+      questionId: question && question.id, action: 'clear'
+    }, student)).status === 403, 'the server rejects scratch writes after revoke');
+
+    const nextQuestionResponse = await request('POST', '/api/trainer/sessions/ses_math_001/quiz/next', {
+      force: true
+    }, trainer);
+    const nextSession = nextQuestionResponse.body && nextQuestionResponse.body.session;
+    const nextQuestion = nextSession && nextSession.quiz && nextSession.quiz.questions &&
+      nextSession.quiz.questions.find(function (item) {
+        return item.id === nextSession.quiz.currentQuestionId;
+      });
+    const stickyState = await request('GET', '/api/sessions/ses_math_001/state', undefined, student);
+    check(stickyState.body.state.sketchPermissions.studentCanSketch === false,
+      'revocation survives the next question');
+
+    const sketchGrant = await request('POST', '/api/sessions/ses_math_001/sketch-permission', {
+      studentCanSketch: true
+    }, trainer);
+    check(sketchGrant.status === 200 &&
+      sketchGrant.body.sketchPermissions.studentCanSketch === true &&
+      sketchGrant.body.sketchPermissions.version > sketchRevoke.body.sketchPermissions.version,
+    'only an explicit trainer grant restores the scratch tools');
+
+    const sketchEvents = await request('GET', '/api/sessions/ses_math_001/events?limit=200', undefined, student);
+    const sketchEvent = sketchEvents.body.events.filter(function (event) {
+      return event.event === 'sketch.permission.changed';
+    }).pop();
+    check(Boolean(sketchEvent) && sketchEvent.payload.studentCanSketch === true &&
+      !/answer|correct|hint|trainer|instruction|misconception|key/i.test(JSON.stringify(sketchEvent)),
+    'scratch permission events are versioned, safe and visible to the child');
+
+    /* Live option mirroring carries the selected index but never correctness. */
+    const selection = await request('POST', '/api/student/sessions/ses_math_001/quiz/selection', {
+      questionId: (nextQuestion || question) && (nextQuestion || question).id,
+      optionIndex: 0
+    }, student);
+    check(selection.status === 200 &&
+      selection.body.selected.optionIndex === 0 && selection.body.selected.correct === undefined,
+    'the child can mirror an option choice without revealing correctness');
+
     /* Both sides must pass. A student cannot submit for the trainer role. */
     const low = await request('POST', '/api/sessions/ses_math_001/network-check', {
       downloadMbps: 4, uploadMbps: 3, latencyMs: 90
@@ -199,6 +311,7 @@ async function main() {
     const classroomApp = read('classroom/app.js');
     const livekit = read('classroom/livekit.js');
     const sessionLayer = read('classroom/session.js');
+    const sessionCss = read('classroom/session.css');
     const classroomHtml = read('classroom/index.html');
     const trainerHtml = read('trainer/index.html');
     const studentHtml = read('student/index.html');
@@ -228,6 +341,29 @@ async function main() {
       'students start with media controls enabled in the classroom');
     check(/id="studentMediaAccessBtn"/.test(classroomHtml),
       'trainer media access control is present');
+    check(/id="scSketchBtn"/.test(classroomHtml) &&
+      /studentCanSketch: true/.test(classroomApp),
+    'trainer sheet exposes sticky quiz scratch permission');
+    check(/id="quizSketchCanvas"/.test(classroomHtml) &&
+      /data-quiz-tool="pen"/.test(classroomHtml) &&
+      /data-quiz-tool="highlighter"/.test(classroomHtml) &&
+      /data-quiz-tool="eraser"/.test(classroomHtml) &&
+      /id="quizSketchClear"/.test(classroomHtml) &&
+      ['ink', 'coral', 'teal'].every(function (color) {
+        return new RegExp('data-quiz-color="' + color + '"').test(classroomHtml);
+      }),
+    'quiz popup exposes pen, highlighter, eraser, clear and exactly three colours');
+    check(/id="trainerQuizPopup"/.test(classroomHtml) &&
+      /id="quizMirrorOptions"/.test(classroomHtml) &&
+      /quiz\.option\.selected/.test(sessionLayer) &&
+      /paintMirrorSelection/.test(sessionLayer) &&
+      !/paintReveal\(\)[\s\S]{0,120}quiz\.option\.selected/.test(sessionLayer),
+    'trainer sees a correctness-free paired question mirror');
+    check(/sketch\.permission\.changed/.test(sessionLayer) &&
+      /quizSketchTools\.classList\.toggle\('is-disabled'/.test(sessionLayer) &&
+      /\.quiz-sketch-tools\.is-disabled button/.test(sessionCss) &&
+      /\.is-sketch-disabled \.quiz-sketch-canvas/.test(sessionCss),
+    'revoked scratch tools stay visible but dull and non-interactive');
     check(/id="networkCheckBtn"/.test(classroomHtml),
       'connection check control is present in the call panel');
     check(/function reaffirmMedia\(\)/.test(livekit) &&

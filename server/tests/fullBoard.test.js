@@ -308,14 +308,22 @@ async function main() {
       sessionJs.indexOf("$$('.trainer-only').forEach(function (el) { el.remove(); });") !== -1 &&
       fullBoardCss.indexOf('body.board-open.view-student .full-board-tools') !== -1,
     'laser pen and zoom controls stay on the trainer dashboard, never on the child board');
-    ok(fullBoardJs.indexOf('var ratio = (image.naturalWidth || 16) / (image.naturalHeight || 9);') !== -1 &&
-      fullBoardJs.indexOf('imageHeight = imageWidth / ratio;') !== -1 &&
-      fullBoardJs.indexOf('if (imageWidth > maxWidth) {') !== -1 &&
-      fullBoardJs.indexOf('if (w > maxW) {') !== -1 &&
-      sessionCss.indexOf('max-width:min(100%,420px);width:auto;height:auto;') !== -1 &&
-      sessionCss.indexOf('object-fit:contain') !== -1 &&
-      sessionCss.indexOf('width:min(100%,420px);max-height:220px') === -1,
-    'uploaded images and question cards keep their natural aspect ratio on both screens');
+    const ratioBlock = fullBoardJs.match(/function fitNaturalBox\([\s\S]*?\n  \}/);
+    ok(Boolean(ratioBlock) &&
+      (fullBoardJs.match(/fitNaturalBox\(/g) || []).length >= 4 &&
+      ratioBlock[0].indexOf('(naturalWidth || 16) / (naturalHeight || 9)') !== -1 &&
+      ratioBlock[0].indexOf('w / ratio') !== -1 &&
+      !/naturalWidth \|\| 16\) \/ \(image\.naturalHeight/.test(fullBoardJs.replace(ratioBlock[0], '')) &&
+      tokens.indexOf('.aspect-safe{') !== -1 &&
+      tokens.indexOf('width:auto;') !== -1 &&
+      tokens.indexOf('height:auto;') !== -1 &&
+      tokens.indexOf('aspect-ratio:auto;') !== -1 &&
+      tokens.indexOf('object-fit:contain;') !== -1 &&
+      classroom.indexOf('class="quiz-question-image aspect-safe" id="quizQuestionImage"') !== -1 &&
+      classroom.indexOf('class="quiz-question-image aspect-safe" id="quizMirrorImage"') !== -1 &&
+      /\.quiz-question-image\{[^}]*\}/.test(sessionCss) &&
+      (sessionCss.match(/\.quiz-question-image\{[^}]*\}/) || [''])[0].indexOf('height:') === -1,
+    'one fixed natural-ratio rule covers quiz, board and uploaded images on every screen');
     ok(fullBoardCss.indexOf('body.board-open .top .full-board-tools') !== -1 &&
       /\.full-board \.full-board-canvas-wrap\{[^}]*inset:0/.test(fullBoardCss) &&
       fullBoardCss.indexOf('dock-left') === -1 &&

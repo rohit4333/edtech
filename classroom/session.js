@@ -433,6 +433,17 @@
   var quizExit = $('#quizExit');
   var quizQuestion = $('#quizQuestion');
   var quizQuestionImage = $('#quizQuestionImage');
+  var quizStudentName = $('#quizStudentName');
+  var quizSketchSurface = $('#quizSketchSurface');
+  var quizSketchCanvas = $('#quizSketchCanvas');
+  var quizSketchTools = $('#quizSketchTools');
+  var quizSketchClear = $('#quizSketchClear');
+  var quizSketchState = $('#quizSketchState');
+  var quizMirrorQuestion = $('#quizMirrorQuestion');
+  var quizMirrorImage = $('#quizMirrorImage');
+  var quizMirrorCanvas = $('#quizMirrorSketchCanvas');
+  var quizMirrorOptions = $('#quizMirrorOptions');
+  var quizMirrorState = $('#quizMirrorState');
   var quizOptions = $('#quizOptions');
   var quizFeedback = $('#quizFeedback');
   var quizHint = $('#quizHint');
@@ -606,6 +617,18 @@
     parallelSolved: false,
     pollTimer: null
   };
+
+  /* The quiz scratch tools are a separate session permission from the full
+     whiteboard. The server owns the sticky flag; this is only the browser
+     mirror, so a revoked child can never re-enable the surface locally. */
+  var quizSketchPermission = { studentCanSketch: true, version: 0 };
+  var quizSketchStrokes = [];
+  var quizMirrorStrokes = [];
+  var quizSketchActive = null;
+  var quizSketchTool = 'pen';
+  var quizSketchColor = 'ink';
+  var QUIZ_SKETCH_COLORS = { ink: '#0E1420', coral: '#FF5B2E', teal: '#12968C' };
+
   /* Only the question stem and its attached image may cross to the board.
      Options, answer keys, hints and trainer notes stay in the quiz layer. A
      trainer must press Push to whiteboard; a render or state sync never does it. */
@@ -1102,6 +1125,355 @@
     }
   }
 
+  /* ------------------------------------------------ quiz scratch + mirror */
+  function canQuizSketch() {
+    return studentView && quizSketchPermission.studentCanSketch === true &&
+      quizLive() && isAnswerable();
+  }
+
+  function quizStrokeId() {
+    return 'qsk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+  }
+
+  function quizCanvasSurface(canvas) {
+    if (!canvas) return null;
+    var rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    var width = Math.max(1, Math.round(rect.width * dpr));
+    var height = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    return { ctx: ctx, rect: rect };
+  }
+
+  function drawQuizStroke(ctx, stroke, rect) {
+    if (!ctx || !stroke || !Array.isArray(stroke.points) || !stroke.points.length) return;
+    var points = stroke.points.filter(function (point) {
+      return Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]);
+    });
+    if (!points.length) return;
+    ctx.save();
+    ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.28 : 1;
+    ctx.strokeStyle = QUIZ_SKETCH_COLORS[stroke.color] || QUIZ_SKETCH_COLORS.ink;
+    ctx.lineWidth = stroke.tool === 'highlighter' ? 17 : 2.6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    points.forEach(function (point, index) {
+      var x = Math.min(1, Math.max(0, point[0])) * rect.width;
+      var y = Math.min(1, Math.max(0, point[1])) * rect.height;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    if (points.length === 1) {
+      ctx.lineTo(points[0][0] * rect.width + 0.01, points[0][1] * rect.height + 0.01);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function paintQuizSketchCanvases() {
+    var studentSurface = quizCanvasSurface(quizSketchCanvas);
+    var studentStrokes = quizSketchActive
+      ? quizSketchStrokes.concat([quizSketchActive.stroke])
+      : quizSketchStrokes;
+    if (studentSurface) {
+      studentStrokes.forEach(function (stroke) {
+        drawQuizStroke(studentSurface.ctx, stroke, studentSurface.rect);
+      });
+    }
+    var mirrorSurface = quizCanvasSurface(quizMirrorCanvas);
+    if (mirrorSurface) {
+      quizMirrorStrokes.forEach(function (stroke) {
+        drawQuizStroke(mirrorSurface.ctx, stroke, mirrorSurface.rect);
+      });
+    }
+  }
+
+  function quizPointFromEvent(event) {
+    if (!quizSketchCanvas) return null;
+    var rect = quizSketchCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return [
+      Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+      Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+    ];
+  }
+
+  function publishQuizSketch(action) {
+    var item = currentQuizItem();
+    var client = classroomApi();
+    if (!studentView || !sessionId || !item || !hasApiAccess() ||
+        !client || typeof client.saveQuizSketch !== 'function') return;
+    client.saveQuizSketch(sessionId, Object.assign({ questionId: item.id }, action))
+      .catch(function () {
+        toast('Sketch sync was unavailable. Your answer is still saved.');
+      });
+  }
+
+  function upsertQuizStroke(list, stroke) {
+    if (!stroke || typeof stroke.id !== 'string') return;
+    var index = -1;
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].id === stroke.id) { index = i; break; }
+    }
+    var clean = {
+      id: stroke.id,
+      tool: stroke.tool === 'highlighter' ? 'highlighter' : 'pen',
+      color: QUIZ_SKETCH_COLORS[stroke.color] ? stroke.color : 'ink',
+      weight: 'normal',
+      points: Array.isArray(stroke.points) ? stroke.points.slice(0, 2000) : []
+    };
+    if (index >= 0) list[index] = clean;
+    else list.push(clean);
+  }
+
+  function applyQuizSketchEvent(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    var item = currentQuizItem();
+    if (!item || payload.questionId !== item.id) return;
+    if (payload.action === 'clear') {
+      quizSketchStrokes = [];
+      quizMirrorStrokes = [];
+      paintQuizSketchCanvases();
+      return;
+    }
+    if (payload.action === 'erase' && Array.isArray(payload.strokeIds)) {
+      var ids = payload.strokeIds.filter(function (id) { return typeof id === 'string'; });
+      quizSketchStrokes = quizSketchStrokes.filter(function (stroke) {
+        return ids.indexOf(stroke.id) === -1;
+      });
+      quizMirrorStrokes = quizMirrorStrokes.filter(function (stroke) {
+        return ids.indexOf(stroke.id) === -1;
+      });
+      paintQuizSketchCanvases();
+      return;
+    }
+    if (payload.action === 'stroke' && payload.stroke) {
+      upsertQuizStroke(quizSketchStrokes, payload.stroke);
+      upsertQuizStroke(quizMirrorStrokes, payload.stroke);
+      paintQuizSketchCanvases();
+    }
+  }
+
+  function applyQuizSketchPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(quizSketchPermission.version) || 0);
+    if (incoming && incoming < current) return;
+    quizSketchPermission = {
+      studentCanSketch: value.studentCanSketch !== false,
+      version: incoming || current
+    };
+    var enabled = studentView && quizSketchPermission.studentCanSketch === true;
+    if (quizSketchSurface) quizSketchSurface.classList.toggle('is-sketch-disabled', !enabled);
+    if (quizSketchTools) quizSketchTools.classList.toggle('is-disabled', !enabled);
+    $$('button', quizSketchTools).forEach(function (button) {
+      button.disabled = !enabled;
+      button.setAttribute('aria-disabled', String(!enabled));
+    });
+    if (quizSketchState) {
+      quizSketchState.textContent = enabled
+        ? 'Ready'
+        : (studentView ? 'Paused by trainer' : 'Student tools');
+    }
+    if (!enabled) {
+      quizSketchActive = null;
+      paintQuizSketchCanvases();
+    }
+  }
+
+  function setQuizSketchTool(next) {
+    if (['pen', 'highlighter', 'eraser'].indexOf(next) === -1) return;
+    if (!canQuizSketch()) return;
+    quizSketchTool = next;
+    $$('[data-quiz-tool]', quizSketchTools).forEach(function (button) {
+      var active = button.getAttribute('data-quiz-tool') === next;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function setQuizSketchColor(next) {
+    if (!QUIZ_SKETCH_COLORS[next]) return;
+    if (!canQuizSketch()) return;
+    quizSketchColor = next;
+    if (quizSketchTool === 'eraser') setQuizSketchTool('pen');
+    $$('[data-quiz-color]', quizSketchTools).forEach(function (button) {
+      var active = button.getAttribute('data-quiz-color') === next;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function clearQuizSketch() {
+    if (!canQuizSketch()) return;
+    quizSketchStrokes = [];
+    quizMirrorStrokes = [];
+    quizSketchActive = null;
+    paintQuizSketchCanvases();
+    publishQuizSketch({ action: 'clear' });
+  }
+
+  function eraseQuizSketchAt(point) {
+    if (!point || !canQuizSketch()) return;
+    var found = '';
+    for (var i = quizSketchStrokes.length - 1; i >= 0; i -= 1) {
+      var points = quizSketchStrokes[i].points || [];
+      var hit = points.some(function (candidate) {
+        var dx = candidate[0] - point[0];
+        var dy = candidate[1] - point[1];
+        return Math.sqrt(dx * dx + dy * dy) < 0.045;
+      });
+      if (hit) { found = quizSketchStrokes[i].id; break; }
+    }
+    if (!found) return;
+    quizSketchStrokes = quizSketchStrokes.filter(function (stroke) { return stroke.id !== found; });
+    quizMirrorStrokes = quizMirrorStrokes.filter(function (stroke) { return stroke.id !== found; });
+    paintQuizSketchCanvases();
+    publishQuizSketch({ action: 'erase', strokeIds: [found] });
+  }
+
+  function bindQuizSketch() {
+    if (quizSketchTools) {
+      quizSketchTools.addEventListener('click', function (event) {
+        var button = event.target && event.target.closest
+          ? event.target.closest('button') : null;
+        if (!button || button.disabled || !quizSketchTools.contains(button)) return;
+        if (button.hasAttribute('data-quiz-tool')) {
+          setQuizSketchTool(button.getAttribute('data-quiz-tool'));
+        } else if (button.hasAttribute('data-quiz-color')) {
+          setQuizSketchColor(button.getAttribute('data-quiz-color'));
+        } else if (button === quizSketchClear) {
+          clearQuizSketch();
+        }
+      });
+    }
+    if (quizSketchCanvas) {
+      quizSketchCanvas.addEventListener('pointerdown', function (event) {
+        if (!canQuizSketch()) return;
+        event.preventDefault();
+        var point = quizPointFromEvent(event);
+        if (!point) return;
+        if (quizSketchTool === 'eraser') {
+          eraseQuizSketchAt(point);
+          return;
+        }
+        quizSketchActive = {
+          pointerId: event.pointerId,
+          stroke: {
+            id: quizStrokeId(),
+            tool: quizSketchTool === 'highlighter' ? 'highlighter' : 'pen',
+            color: quizSketchColor,
+            weight: 'normal',
+            points: [point]
+          }
+        };
+        try { quizSketchCanvas.setPointerCapture(event.pointerId); } catch (error) {}
+        paintQuizSketchCanvases();
+      });
+      quizSketchCanvas.addEventListener('pointermove', function (event) {
+        if (!quizSketchActive || event.pointerId !== quizSketchActive.pointerId) return;
+        event.preventDefault();
+        var point = quizPointFromEvent(event);
+        if (!point) return;
+        var points = quizSketchActive.stroke.points;
+        var last = points[points.length - 1];
+        var dx = point[0] - last[0];
+        var dy = point[1] - last[1];
+        if (Math.sqrt(dx * dx + dy * dy) < 0.004) return;
+        points.push(point);
+        paintQuizSketchCanvases();
+      });
+      function finishQuizStroke(event) {
+        if (!quizSketchActive || (event && event.pointerId !== quizSketchActive.pointerId)) return;
+        var stroke = quizSketchActive.stroke;
+        quizSketchActive = null;
+        try { quizSketchCanvas.releasePointerCapture(event.pointerId); } catch (error) {}
+        if (stroke.points.length === 1) {
+          stroke.points.push([
+            Math.min(1, stroke.points[0][0] + 0.002),
+            Math.min(1, stroke.points[0][1] + 0.002)
+          ]);
+        }
+        upsertQuizStroke(quizSketchStrokes, stroke);
+        upsertQuizStroke(quizMirrorStrokes, stroke);
+        paintQuizSketchCanvases();
+        publishQuizSketch({ action: 'stroke', strokeId: stroke.id, stroke: stroke });
+      }
+      quizSketchCanvas.addEventListener('pointerup', finishQuizStroke);
+      quizSketchCanvas.addEventListener('pointercancel', finishQuizStroke);
+    }
+    window.addEventListener('resize', function () {
+      window.requestAnimationFrame(paintQuizSketchCanvases);
+    });
+  }
+
+  function renderQuizMirror(item) {
+    if (quizMirrorQuestion) quizMirrorQuestion.textContent = item.q || '';
+    if (quizMirrorImage) {
+      var imageSrc = quizImageSource(item.image);
+      quizMirrorImage.hidden = !imageSrc;
+      if (imageSrc && quizMirrorImage.getAttribute('src') !== imageSrc) {
+        quizMirrorImage.src = imageSrc;
+      }
+      quizMirrorImage.alt = imageSrc ? 'Question image' : '';
+    }
+    if (quizMirrorOptions) {
+      quizMirrorOptions.innerHTML = '';
+      (item.options || []).forEach(function (option, i) {
+        var row = document.createElement('div');
+        row.className = 'mirror-opt';
+        row.setAttribute('data-mirror-opt', String(i));
+        var letter = document.createElement('span');
+        letter.className = 'opt-letter';
+        letter.textContent = 'ABCD'.charAt(i);
+        var text = document.createElement('span');
+        text.textContent = option;
+        row.appendChild(letter);
+        row.appendChild(text);
+        quizMirrorOptions.appendChild(row);
+      });
+    }
+    paintMirrorSelection(null);
+  }
+
+  function paintMirrorSelection(index) {
+    if (!quizMirrorOptions) return;
+    var valid = Number.isInteger(index);
+    $$('[data-mirror-opt]', quizMirrorOptions).forEach(function (row, i) {
+      row.classList.toggle('is-picked', valid && i === index);
+      row.setAttribute('aria-pressed', String(valid && i === index));
+    });
+    if (quizMirrorState) {
+      quizMirrorState.textContent = valid
+        ? 'Selected option ' + 'ABCD'.charAt(index) + ' · feedback pending.'
+        : 'Waiting for a choice.';
+    }
+  }
+
+  function paintSelectedOption(index, announce) {
+    if (!Number.isInteger(index)) return;
+    quizState.chosen = index;
+    $$('button', quizOptions).forEach(function (option, i) {
+      option.classList.toggle('is-picked', i === index);
+      option.setAttribute('aria-pressed', String(i === index));
+    });
+    paintMirrorSelection(index);
+    if (announce !== false) {
+      setFeedback('Option ' + 'ABCD'.charAt(index) + ' selected. Submit to save.', '');
+      setAnswerState(studentLabel() + ' has not submitted yet.');
+    }
+    setTrainerActions();
+  }
+
   function renderQuiz() {
     var item = questions[quizState.index];
     if (!item) return;
@@ -1111,6 +1483,10 @@
     quizState.attemptId = null;
     quizState.revealRecorded = false;
     quizState.parallelSolved = false;
+    quizSketchStrokes = [];
+    quizMirrorStrokes = [];
+    quizSketchActive = null;
+    if (quizStudentName) quizStudentName.textContent = studentLabel();
 
     if (quizQuestion) quizQuestion.textContent = item.q;
     if (quizQuestionImage) {
@@ -1121,6 +1497,10 @@
       }
       quizQuestionImage.alt = imageSrc ? 'Question image' : '';
     }
+    renderQuizMirror(item);
+    applyQuizSketchPermission(quizSketchPermission);
+    window.requestAnimationFrame(paintQuizSketchCanvases);
+
     if (isRequiredQuestion(item)) {
       setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
     } else {
@@ -1168,15 +1548,17 @@
     if (!btn || !isAnswerable() || quizState.answered) return;
     var chosen = Number(btn.getAttribute('data-opt'));
     if (!Number.isInteger(chosen)) return;
-    quizState.chosen = chosen;
+    paintSelectedOption(chosen, true);
 
-    $$('button', quizOptions).forEach(function (option, i) {
-      option.classList.toggle('is-picked', i === chosen);
-      option.setAttribute('aria-pressed', String(i === chosen));
-    });
-    setFeedback('Option ' + 'ABCD'.charAt(chosen) + ' selected. Submit to save.', '');
-    setAnswerState(studentLabel() + ' has not submitted yet.');
-    setTrainerActions();
+    /* Selection is still not submission. The server mirrors only the option
+       index so the trainer's paired popup can show the choice live; no attempt
+       is created and no correctness field exists on this channel. */
+    if (studentView && sessionId && hasApiAccess() && item && item.id) {
+      var client = classroomApi();
+      if (client && typeof client.selectQuizOption === 'function') {
+        client.selectQuizOption(sessionId, item.id, chosen).catch(function () {});
+      }
+    }
   }
 
   function submitQuizAnswer() {
@@ -1744,6 +2126,27 @@
       /* The event carries no hint text. Fetch the granted hint from the safe state. */
       syncStudentQuestion();
       refreshGuide();
+    } else if ((event.event === 'quiz.option.selected' ||
+                event.event === 'quiz.answer.saved') && isTrainer && quizLive()) {
+      var mirror = event.payload || {};
+      var item = currentQuizItem();
+      var optionIndex = Number(mirror.optionIndex);
+      if (item && mirror.questionId === item.id && Number.isInteger(optionIndex) &&
+          optionIndex >= 0 && optionIndex < (item.options || []).length) {
+        paintMirrorSelection(optionIndex);
+        setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(optionIndex) +
+          '. Trainer feedback is pending.');
+      }
+    } else if (event.event === 'quiz.sketch.changed' && quizLive()) {
+      applyQuizSketchEvent(event.payload || {});
+    } else if (event.event === 'sketch.permission.changed') {
+      if (api.applySketchPermission) api.applySketchPermission(event.payload || {});
+      applyQuizSketchPermission(event.payload || {});
+      if (studentView) {
+        toast(event.payload && event.payload.studentCanSketch === false
+          ? 'Your trainer paused the quiz sketch tools.'
+          : 'Your trainer restored the quiz sketch tools.');
+      }
     } else if (event.event === 'board.shared') {
       var boardShared = Boolean(event.payload && event.payload.shared);
       if (isTrainer) setFrontBoardShareState(boardShared);
@@ -2009,15 +2412,41 @@
   window.addEventListener('resize', clampPip);
   requestAnimationFrame(clampPip);
 
+  /* A reload must not lose the live choice or hand a revoked child fresh tools.
+     The server state is authoritative; the shared event stream only updates it. */
+  function restoreQuizMirrorState() {
+    var client = classroomApi();
+    if (!sessionId || !client || typeof client.getSessionState !== 'function') {
+      return Promise.resolve(false);
+    }
+    return client.getSessionState(sessionId).then(function (state) {
+      if (!state) return false;
+      applyQuizSketchPermission(state.sketchPermissions);
+      var live = state.liveQuizSelection;
+      var item = currentQuizItem();
+      var index = Number(live && live.optionIndex);
+      if (live && item && live.questionId === item.id && Number.isInteger(index) &&
+          index >= 0 && index < (item.options || []).length) {
+        if (studentView) paintSelectedOption(index, false);
+        else paintMirrorSelection(index);
+      }
+      return true;
+    }).catch(function () { return false; });
+  }
+
   /* ------------------------------------------------------------------ init */
-  var roleReady = syncViewerRoleFromState();
+  var roleReady = syncViewerRoleFromState().then(function () {
+    applyQuizSketchPermission(api.sketchPermission ? api.sketchPermission() : null);
+    bindQuizSketch();
+    return true;
+  });
   var quizReady = roleReady.then(function () {
     if (isTrainer) loadTrainerSession();
     return loadQuizQuestions();
   }).then(function () {
     if (document.body.classList.contains('quiz-live')) renderQuiz();
-    return true;
-  });
+    return restoreQuizMirrorState();
+  }).then(function () { return true; });
   updateReadiness();
   paintQuizClock();
 

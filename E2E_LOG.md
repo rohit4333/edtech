@@ -120,3 +120,34 @@ All pages were opened with fresh cache-bust query strings, service workers unreg
   - `student dashboard question totals increase after new-check attempts`
 - `board share default off is reflected in fresh session state` was recorded as an explicit `skipped` result, not a fake pass: `/api/sessions/ses_math_001/state` exposes only `boardVersion` and no board-share flag. Board share OFF/ON is verified statically and in the browser instead (`fullBoard.css` `#DC2626` / `#15803D`, front control `Share with kid` Off with `aria-pressed=false`). The probe did not call `/board/share` and did not end presence.
 - The runner and committed JSON were updated to redact token/secret/password/authorization fields before logging, so demo JWTs and refresh tokens are not committed. Syntax check on `scripts/e2e-live.js` passed after the redaction change.
+
+## Final master verification round (2026-11-28)
+
+This is the final evidence round for the handoff. All commands used portable Node 20; no token, password, KYC document value, bank number or provider secret was written to a log.
+
+### Automated suite
+
+- Command: from `server/`, `$env:DATABASE_MODE = "mock"; npm.cmd test`.
+- Result: **EXITCODE=0**. Log: `C:\Users\rohit\AppData\Local\Temp\opencode\npm-test-final3.log`; code record: `npm-test-final3-exit.txt`.
+- All 65 chained suites passed, including `mcpServer: 55 checks`, `mcpPlannerServer: 30 assertions`, `mcpRmServer: 32 assertions`, `lmsPlannerAccess: 48 assertions`, `navContract: 229`, `privacyBoundary: 234`, `rtcControls: 65`, `cameraConnect: 53`, `fullBoard: 107`, `temporaryPlannerFlow: 92`, `preflightFlow: 28`, `credentialLogin: 20`, `trainerOnboarding: 50` and `rmPayAccess: 39`.
+- Expected log noise only: AI provider fallbacks, mock/offline Supabase and LiveKit notices, unconfigured email digests, and the deliberate `[SECURITY] Trainer-only fields detected in student payload!` scrubber message.
+
+### Real HTTP master runner
+
+- Mock command: `node scripts/e2e-master.js` against `http://127.0.0.1:4004`.
+- Mock result: **31 checks, 26 passed, 5 skipped, 0 failed**. Log: `scripts/e2e-master-mock-log.json` (`2026-11-28T00:38:22.377Z`). The five skips are live-only provider/database checks, the deliberately unexercised real Egress recording, unconfigured payments/WhatsApp and signed native wrappers.
+- Live read-only command: `MATHIFY_BASE=http://127.0.0.1:4014 MATHIFY_RUN_MODE=live MATHIFY_ALLOW_MUTATIONS=0 node scripts/e2e-master.js`.
+- Live result: **31 checks, 21 passed, 10 skipped, 0 failed**. Log: `scripts/e2e-master-log.json` (`2026-11-28T00:38:52.437Z`). Verified real Supabase reads without service-role disclosure, the founder-only live AI chain (`freelm`, with three attempted providers and two successes), private recording listings, role-refused recording controls and all identity/permission boundaries. Mutation flows, real Egress start, Razorpay/WhatsApp and native signing were explicitly skipped, not claimed.
+- Browser/HTTP companion: `node scripts/e2e-live.js` against `http://127.0.0.1:4004`.
+- Companion result: **37 checks, 36 passed, 1 skipped, 0 failed**. Log: `scripts/e2e-live-log.json` (`2026-11-28T00:38:25.118Z`). The only skip is the board-share default: `/api/sessions/:id/state` exposes `boardVersion` but no share flag, so no default was inferred; OFF `#DC2626` / ON `#15803D` remains verified statically and in the board UI.
+
+### MCP and live-mode fixes in this round
+
+- All three MCP servers now use `server/mcp-core.js`; the founder server keeps its unchanged three-tool contract and `FOUNDER_TOKEN_REQUIRED` error code. RM and planner servers use their own fail-closed tokens and redacted audit path.
+- `MCP_DESIGN.md` now states the final decision plainly: designer `review` and `author` profiles only, author files a pending suggestion, founder accepts or rejects through `/api/lms/planner-suggestion/:id/decide`, and no autonomous publish tool exists.
+- Live mode exposed a `PLANNER_UNAVAILABLE` 500 because `db.listBatches()` is async in the Supabase adapter. `server/routes/lmsPlanner.js` now awaits it; `lmsPlannerAccess.test.js` adds an async-facade regression assertion and passes 48 checks.
+- The seeded manager KYC record was added to mock data and an idempotent labelled demo seed script (`server/scripts/seed-demo-rm-onboarding.js`) was added for live read-only verification. It changes no password, pay policy or trainer record.
+
+### Final honesty statement
+
+No production deployment, runner-based migration apply, Razorpay charge, Twilio/WhatsApp message, live joined-room MP4 or signed IPA/TestFlight build was performed. Exact production planner narrative, batch-to-planner mapping and the LMS visual reference are still founder-pending, so no fabricated planner or pixel-match is claimed.

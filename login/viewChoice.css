@@ -1,0 +1,106 @@
+/* Post-login view chooser. No credentials live here: the browser simply picks
+   which already-authenticated desk to open, with the server still owning role. */
+
+.choice-main{
+  min-height:calc(100vh - 180px);
+  display:grid;
+  place-items:center;
+  padding:48px 18px 64px;
+}
+.choice-card{
+  width:min(760px,100%);
+  padding:clamp(22px,4vw,42px);
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:var(--card);
+  box-shadow:0 28px 72px -46px rgba(14,20,32,.48);
+}
+.choice-eyebrow{
+  display:block;
+  margin-bottom:10px;
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--coral-deep);
+}
+.choice-card h1{
+  margin:0;
+  font-size:clamp(28px,4.4vw,44px);
+  font-weight:400;
+  letter-spacing:-.045em;
+  line-height:1.06;
+}
+.choice-lede{
+  max-width:58ch;
+  margin:14px 0 22px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.6;
+}
+.choice-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;
+}
+.choice-option{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  width:100%;
+  min-height:148px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--paper);
+  color:var(--ink);
+  text-align:left;
+  transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.choice-option:hover:not(:disabled){
+  border-color:rgba(14,20,32,.42);
+  background:#FFFDF8;
+  transform:translateY(-2px);
+  box-shadow:0 16px 32px -24px rgba(14,20,32,.55);
+}
+.choice-option:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
+.choice-option:disabled{opacity:.55;cursor:wait}
+.choice-icon{
+  display:grid;
+  place-items:center;
+  width:34px;
+  height:34px;
+  border-radius:9px;
+  background:var(--coral-soft);
+  color:var(--coral-deep);
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:700;
+}
+.choice-option b{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.choice-option small{max-width:30ch;color:var(--muted);font-size:11px;line-height:1.5}
+.choice-status{
+  min-height:20px;
+  margin:18px 0 0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+}
+.choice-status[data-tone="error"]{color:var(--coral-deep)}
+.choice-foot{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:20px;
+  padding-top:16px;
+  border-top:1px solid var(--line-soft);
+  font-size:11px;
+}
+.choice-foot a{color:var(--coral-deep);text-decoration:none;border-bottom:1px solid currentColor}
+.choice-foot span{margin-left:auto;color:var(--faint)}
+@media (max-width:620px){
+  .choice-main{padding:26px 12px 40px}
+  .choice-card{padding:20px 16px;border-radius:14px}
+  .choice-option{min-height:126px;padding:14px}
+}

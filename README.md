@@ -129,9 +129,22 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 | Role | Email | Password |
 | --- | --- | --- |
 | Founder | `founder@mathify.app` | `mathify-demo` |
+| Relationship manager (temporary) | `rm@mathify.app` | `mathify-demo` |
 | Trainer | `trainer@mathify.app` | `mathify-demo` |
 | Student | `student@mathify.app` | `mathify-demo` |
-| Parent (linked to `usr_student_001`) | `parent@mathify.app` | `mathify-demo` |
+| Parent / kid (shared sign-in, linked to `usr_student_001`) | `parent@mathify.app` | `mathify-demo` |
+
+After sign-in, one chooser offers the parent and kid views for the shared family credential; staff accounts see only their own verified desk. A relationship manager can additionally issue the generated trainer-only recovery password `firstname@mathify123` to a KYC-verified, already-granted trainer; the manager cannot choose that value or touch founder pay.
+
+## Internal MCP tooling
+
+Three stdio MCP servers share `server/mcp-core.js`; they are internal founder/RM tooling, never an end-user surface. `.mcp.json.example` lists the launch commands and token variable names only.
+
+- `server/mcp-server.js` — founder read/dry-run tools (`MCP_FOUNDER_TOKEN`); `tools/list` and `tools/call` are refused without a token. Payout, allotment and reschedule outputs are proposals requiring founder approval.
+- `server/mcp-rm-server.js` — RM-scoped reads plus one draft-only base-rate proposal (`MCP_RM_TOKEN`, optional `MCP_RM_USER_ID`). Salary edits, fines, KYC reveals, credentials, planner tools and policy writes are not registered.
+- `server/mcp-planner-server.js` — planner designer (`MCP_PLANNER_DESIGNER_TOKEN` review profile; `MCP_PLANNER_AUTHOR_TOKEN` author profile). It drafts, validates, cross-checks and regenerates against `server/config/planner-rubric.json`; the author profile files a `pending` suggestion that the founder accepts or rejects through `/api/lms/planner-suggestion/:id/decide`. There is no autonomous publish tool. The browser `planner_agent` role remains disabled.
+
+References and rollout are recorded in `MCP_DESIGN.md`; contract tests are `mcpServer`, `mcpRmServer` and `mcpPlannerServer` in the full suite.
 
 ## Design rules
 

@@ -1,0 +1,421 @@
+{
+  "at": "2026-11-28T00:38:52.437Z",
+  "base": "http://127.0.0.1:4014",
+  "mode": "live",
+  "mutations": false,
+  "total": 31,
+  "passed": 21,
+  "failed": 0,
+  "skipped": 10,
+  "scenarios": [
+    {
+      "scenario": "health and public configuration",
+      "at": "2026-11-28T00:38:31.857Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "mode": "live",
+        "base": "http://127.0.0.1:4014",
+        "ms": 79
+      }
+    },
+    {
+      "scenario": "sign in founder",
+      "at": "2026-11-28T00:38:31.941Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "founder",
+        "ms": 756
+      }
+    },
+    {
+      "scenario": "sign in relationship_manager",
+      "at": "2026-11-28T00:38:32.698Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "relationship_manager",
+        "ms": 248
+      }
+    },
+    {
+      "scenario": "sign in trainer",
+      "at": "2026-11-28T00:38:32.947Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "trainer",
+        "ms": 228
+      }
+    },
+    {
+      "scenario": "sign in student",
+      "at": "2026-11-28T00:38:33.176Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "student",
+        "ms": 259
+      }
+    },
+    {
+      "scenario": "sign in parent",
+      "at": "2026-11-28T00:38:33.436Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "parent",
+        "ms": 249
+      }
+    },
+    {
+      "scenario": "sign in planner",
+      "at": "2026-11-28T00:38:33.685Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "role": "planner_agent",
+        "ms": 237
+      }
+    },
+    {
+      "scenario": "post-login view chooser is server-owned",
+      "at": "2026-11-28T00:38:33.923Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "parentView": 200,
+        "kidView": 200,
+        "denied": [
+          403,
+          403
+        ],
+        "ms": 1863
+      }
+    },
+    {
+      "scenario": "demo booking creates a real shared family credential",
+      "at": "2026-11-28T00:38:35.971Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 201,
+        "demoId": "demo_1795826315974_9831eb",
+        "hasCredential": "[redacted]",
+        "ms": 1845
+      }
+    },
+    {
+      "scenario": "booked family can sign in and read demo status",
+      "at": "2026-11-28T00:38:37.816Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "loginStatus": 200,
+        "statusStatus": 200,
+        "noticeStatus": 200,
+        "ms": 1174
+      }
+    },
+    {
+      "scenario": "staff can see the demo queue but never the family password",
+      "at": "2026-11-28T00:38:38.990Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "queueStatus": 200,
+        "listed": true,
+        "credentialCheckStatus": "[redacted]",
+        "ms": 707
+      }
+    },
+    {
+      "scenario": "public registration creates an active student and a pending trainer",
+      "at": "2026-11-28T00:38:39.697Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "live run is read-only",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "new student sign-in reaches the student dashboard",
+      "at": "2026-11-28T00:38:39.698Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "no new student in this run",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "trainer uploads KYC documents",
+      "at": "2026-11-28T00:38:39.698Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "no pending trainer in this run",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "trainer submits KYC once and founder grants the desk",
+      "at": "2026-11-28T00:38:39.699Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "no pending trainer in this run",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "RM can issue only the generated trainer password",
+      "at": "2026-11-28T00:38:39.699Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "no granted trainer in this run",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "founder people, pay and audit desks return real data",
+      "at": "2026-11-28T00:38:39.699Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "trainers": 10,
+        "auditEntries": 50,
+        "founderGratitudeVisible": true,
+        "ms": 2230
+      }
+    },
+    {
+      "scenario": "founder gratitude credit is protected from every role",
+      "at": "2026-11-28T00:38:41.931Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "founderProtected": 400,
+        "rmSettings": 403,
+        "rmSalary": 403,
+        "rmPenalty": 403,
+        "ms": 696
+      }
+    },
+    {
+      "scenario": "founder-only planner writes stay closed to trainer and agent",
+      "at": "2026-11-28T00:38:42.627Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "trainerEdit": 403,
+        "trainerRegenerate": 403,
+        "agentMutation": 403,
+        "assigned": 200,
+        "ms": 1599
+      }
+    },
+    {
+      "scenario": "manager desk reads pay but cannot mutate founder-owned policy",
+      "at": "2026-11-28T00:38:44.226Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "dashboard": 200,
+        "dashboardLocked": false,
+        "pay": 200,
+        "sharedRateEdit": 200,
+        "rateSetByRole": "relationship_manager",
+        "lmsDenied": 403,
+        "ms": 2985
+      }
+    },
+    {
+      "scenario": "session state and event stream are role-safe",
+      "at": "2026-11-28T00:38:47.211Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "studentStatus": 200,
+        "trainerStatus": 200,
+        "events": 49,
+        "ms": 2634
+      }
+    },
+    {
+      "scenario": "session clock, handoff and board actions stay trainer-owned",
+      "at": "2026-11-28T00:38:49.845Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "live run is read-only",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "quiz selection stays correctness-free until trainer reveal",
+      "at": "2026-11-28T00:38:49.845Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "live run is read-only",
+        "ms": 0
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "live AI provider chain answers through freelm",
+      "at": "2026-11-28T00:38:49.846Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "status": 200,
+        "provider": "freelm",
+        "mode": "live",
+        "successes": 2,
+        "attempted": [
+          "gemini",
+          "groq",
+          "cloudflare"
+        ],
+        "ms": 985
+      }
+    },
+    {
+      "scenario": "live AI probe stays founder-only",
+      "at": "2026-11-28T00:38:50.831Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "anonymous": 401,
+        "student": 403,
+        "ms": 177
+      }
+    },
+    {
+      "scenario": "recording links stay private and bearer-free in listings",
+      "at": "2026-11-28T00:38:51.008Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "trainer": 200,
+        "anonymous": 401,
+        "readyRecordings": 0,
+        "bearerFreeUrls": 0,
+        "ms": 509
+      }
+    },
+    {
+      "scenario": "recording controls refuse every non-trainer role",
+      "at": "2026-11-28T00:38:51.517Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "student": 403,
+        "founder": 403,
+        "relationshipManager": 403,
+        "ms": 541
+      }
+    },
+    {
+      "scenario": "real egress start not exercised by automated probe",
+      "at": "2026-11-28T00:38:52.058Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "Starting LiveKit Egress creates a real recording; it is left to a trainer-controlled session, while authorization and link privacy are verified above."
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "live database reads use Supabase without service-role disclosure",
+      "at": "2026-11-28T00:38:52.059Z",
+      "ok": true,
+      "mode": "live",
+      "detail": {
+        "ok": true,
+        "database": "supabase",
+        "configured": true,
+        "publicKeyAvailable": true,
+        "serviceRoleDisclosed": false,
+        "trainers": 10,
+        "ms": 376
+      }
+    },
+    {
+      "scenario": "Razorpay and WhatsApp are honestly skipped",
+      "at": "2026-11-28T00:38:52.436Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "Razorpay keys are empty and Twilio/WhatsApp are deliberately out of scope for this walkthrough; no fake success is claimed."
+      },
+      "skipped": true
+    },
+    {
+      "scenario": "signed native wrappers remain blocked on this Windows runner",
+      "at": "2026-11-28T00:38:52.437Z",
+      "ok": false,
+      "mode": "live",
+      "detail": {
+        "ok": false,
+        "skipped": true,
+        "reason": "IPA signing and TestFlight need macOS/Xcode plus Apple signing assets; the web/PWA source is verified here."
+      },
+      "skipped": true
+    }
+  ]
+}

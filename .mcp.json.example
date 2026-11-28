@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "mathify-founder": {
+      "command": "node",
+      "args": ["server/mcp-server.js"],
+      "env": {
+        "MCP_FOUNDER_TOKEN": "${MCP_FOUNDER_TOKEN}"
+      }
+    },
+    "mathify-rm": {
+      "command": "node",
+      "args": ["server/mcp-rm-server.js"],
+      "env": {
+        "MCP_RM_TOKEN": "${MCP_RM_TOKEN}"
+      }
+    },
+    "mathify-planner-review": {
+      "command": "node",
+      "args": ["server/mcp-planner-server.js"],
+      "env": {
+        "MCP_PLANNER_DESIGNER_TOKEN": "${MCP_PLANNER_DESIGNER_TOKEN}"
+      }
+    },
+    "mathify-planner-author": {
+      "command": "node",
+      "args": ["server/mcp-planner-server.js"],
+      "env": {
+        "MCP_PLANNER_AUTHOR_TOKEN": "${MCP_PLANNER_AUTHOR_TOKEN}"
+      }
+    }
+  }
+}

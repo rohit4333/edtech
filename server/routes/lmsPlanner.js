@@ -260,8 +260,9 @@ async function selectionForBatch(batch) {
   });
 }
 
-function trainerBatches(req) {
-  return db.listBatches().filter(function (batch) {
+async function trainerBatches(req) {
+  const all = await Promise.resolve(db.listBatches());
+  return (Array.isArray(all) ? all : []).filter(function (batch) {
     return batch && batch.trainerId === req.user.id && batch.studentId;
   });
 }
@@ -291,7 +292,7 @@ router.get('/assigned-planners', auth.requireAuth,
   auth.requireRole('trainer'), auth.requireClassAccess,
   async function (req, res) {
     try {
-      const assigned = await Promise.all(trainerBatches(req).map(assignedForBatch));
+      const assigned = await Promise.all((await trainerBatches(req)).map(assignedForBatch));
       const items = assigned.filter(Boolean);
       return res.json({
         assignedPlanners: items,
@@ -330,7 +331,7 @@ router.get('/planner-guidance', auth.requireAuth,
         error.status = 400;
         throw error;
       }
-      const batch = trainerBatches(req).find(function (item) {
+      const batch = (await trainerBatches(req)).find(function (item) {
         return item.studentId === studentId;
       });
       if (!batch) {

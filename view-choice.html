@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mathify — Choose your view</title>
+<meta name="description" content="After signing in, choose the parent or kid view for the shared family account, or open your verified staff desk.">
+<link rel="stylesheet" href="assets/poppins.css">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="public.css">
+<link rel="stylesheet" href="login/login.css">
+<link rel="stylesheet" href="login/viewChoice.css">
+</head>
+<body class="login-page">
+
+<header class="site-nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+    <nav class="login-nav" aria-label="Choose view navigation">
+      <a href="apps.html">All dashboards</a>
+      <a href="contact.html">Need help?</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap choice-main">
+  <section class="choice-card" aria-labelledby="choiceTitle">
+    <span class="mono choice-eyebrow">Signed in · one more step</span>
+    <h1 id="choiceTitle">Who is using Mathify?</h1>
+    <p class="choice-lede" id="choiceIntro">Choose the view you want to open. Your account and its permissions are verified by the server before any desk opens.</p>
+    <div class="choice-grid" id="choiceGrid" aria-live="polite"></div>
+    <p class="choice-status" id="choiceStatus" role="alert" aria-live="polite" hidden></p>
+    <div class="choice-foot">
+      <a href="/login.html">Use a different account</a>
+      <span>No password or token is stored in this chooser.</span>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap foot-inner">
+    <a href="apps.html">All dashboards</a>
+    <a href="index.html">Home</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="refund.html">Refund</a>
+    <a href="contact.html">Contact</a>
+    <span class="c">© 2026 Mathify</span>
+  </div>
+</footer>
+
+<script src="shared/sessionKeepalive.js" defer></script>
+<script src="login/viewChoice.js" defer></script>
+</body>
+</html>

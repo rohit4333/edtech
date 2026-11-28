@@ -34,6 +34,15 @@ async function main() {
     'the camera-check page has exactly the two participant feeds');
   check(/id="startSessionBtn"/.test(connectHtml) && /Open whiteboard/.test(connectHtml),
     'the trainer has an explicit Open whiteboard handoff');
+  check(/id="peerAccessBtn"/.test(connectHtml) && /id="peerAccessMenu"/.test(connectHtml) &&
+    ['paMediaBtn', 'paMicBtn', 'paCamBtn', 'paReactBtn', 'paSketchBtn'].every(function (id) {
+      return new RegExp('id="' + id + '"').test(connectHtml);
+    }),
+  'the trainer camera deck has a three-dot access menu for every student right');
+  check(/applyMediaPermission\(state\.mediaPermissions\)/.test(connectJs) &&
+    /applySketchPermission\(state\.sketchPermissions\)/.test(connectJs) &&
+    /rtc\.media\.control\.changed/.test(connectJs),
+  'the camera page applies persisted permissions instead of URL intent');
   check(!/session\.js|app\.js|livekit\.js|cursorRelay\.js/.test(connectHtml),
     'the camera-check page never loads the classroom session layer');
   check(!/presence['"]/.test(connectJs),

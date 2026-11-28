@@ -406,6 +406,107 @@ async function main() {
     };
   });
 
+  await check('camera deck access menu and sticky scratch permission are live', async function () {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'classroom', 'connect.html'), 'utf8');
+    const client = fs.readFileSync(path.join(__dirname, '..', 'classroom', 'connect.js'), 'utf8');
+    const markers = ['peerAccessBtn', 'peerAccessMenu', 'paMediaBtn', 'paMicBtn', 'paCamBtn',
+      'paReactBtn', 'paSketchBtn'];
+    const missing = markers.filter(function (id) { return html.indexOf('id="' + id + '"') === -1; });
+    const stateR = await stateFor(tokens.student);
+    const permissions = stateR.body && stateR.body.state && stateR.body.state.sketchPermissions;
+    const denied = await req('POST', '/api/sessions/' + SESSION_ID + '/sketch-permission', {
+      studentCanSketch: false
+    }, tokens.student);
+    const revoke = await req('POST', '/api/sessions/' + SESSION_ID + '/sketch-permission', {
+      studentCanSketch: false
+    }, tokens.trainer);
+    const after = await stateFor(tokens.student);
+    const restore = await req('POST', '/api/sessions/' + SESSION_ID + '/sketch-permission', {
+      studentCanSketch: true
+    }, tokens.trainer);
+    return {
+      ok: missing.length === 0 && denied.status === 403 && revoke.status === 200 &&
+        after.body.state.sketchPermissions.studentCanSketch === false &&
+        restore.body.sketchPermissions.studentCanSketch === true &&
+        /applyMediaPermission\(state\.mediaPermissions\)/.test(client) &&
+        /applySketchPermission\(state\.sketchPermissions\)/.test(client),
+      missingMarkers: missing,
+      defaultPermission: permissions,
+      deniedStatus: denied.status,
+      revoked: after.body.state.sketchPermissions,
+      restored: restore.body.sketchPermissions,
+      ms: stateR.ms + denied.ms + revoke.ms + after.ms + restore.ms
+    };
+  });
+
+  await check('quiz popup scratch toolkit and paired trainer mirror are wired', async function () {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'classroom', 'index.html'), 'utf8');
+    const client = fs.readFileSync(path.join(__dirname, '..', 'classroom', 'session.js'), 'utf8');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'classroom', 'session.css'), 'utf8');
+    const tools = ['quizSketchCanvas', 'quizSketchClear', 'trainerQuizPopup', 'quizMirrorOptions'];
+    const missing = tools.filter(function (id) { return html.indexOf('id="' + id + '"') === -1; });
+    const colors = ['ink', 'coral', 'teal'].filter(function (color) {
+      return html.indexOf('data-quiz-color="' + color + '"') === -1;
+    });
+    return {
+      ok: missing.length === 0 && colors.length === 0 &&
+        /data-quiz-tool="pen"/.test(html) && /data-quiz-tool="highlighter"/.test(html) &&
+        /data-quiz-tool="eraser"/.test(html) &&
+        /quiz\.option\.selected/.test(client) && /paintMirrorSelection/.test(client) &&
+        /quiz-sketch-tools\.is-disabled button/.test(css),
+      missingMarkers: missing,
+      missingColors: colors,
+      ms: 0
+    };
+  });
+
+  await check('post-login view chooser verifies identity and only the shared family pair', async function () {
+    const chooser = await req('GET', '/view-choice.html');
+    const html = chooser.status === 200 && typeof chooser.body === 'string' ? chooser.body : '';
+    const toParent = await req('POST', '/api/auth/view', { view: 'parent' }, tokens.student);
+    const toKid = await req('POST', '/api/auth/view', { view: 'student' }, tokens.parent);
+    const escalate = await req('POST', '/api/auth/view', { view: 'founder' }, tokens.trainer);
+    const manager = await req('POST', '/api/auth/view', {
+      view: 'relationship_manager'
+    }, tokens.student);
+    const parentMe = toParent.body && toParent.body.token
+      ? await req('GET', '/api/auth/me', undefined, toParent.body.token) : null;
+    return {
+      ok: chooser.status === 200 && html.indexOf('id="choiceGrid"') !== -1 &&
+        html.indexOf('type="password"') === -1 &&
+        toParent.status === 200 && toParent.body.user.role === 'parent' &&
+        toParent.body.refreshToken === undefined &&
+        Boolean(parentMe && parentMe.status === 200 && parentMe.body.user.role === 'parent') &&
+        toKid.status === 200 && toKid.body.user.role === 'student' &&
+        escalate.status === 403 && manager.status === 403,
+      chooserStatus: chooser.status,
+      parentView: toParent.status,
+      kidView: toKid.status,
+      escalations: [escalate.status, manager.status],
+      ms: chooser.ms + toParent.ms + toKid.ms + escalate.ms + manager.ms
+    };
+  });
+
+  await check('one fixed natural-ratio rule for quiz, planner and board images', async function () {
+    const root = path.join(__dirname, '..');
+    const tokensCss = fs.readFileSync(path.join(root, 'shared', 'tokens.css'), 'utf8');
+    const sessionCss = fs.readFileSync(path.join(root, 'classroom', 'session.css'), 'utf8');
+    const html = fs.readFileSync(path.join(root, 'classroom', 'index.html'), 'utf8');
+    const board = fs.readFileSync(path.join(root, 'shared', 'fullBoard.js'), 'utf8');
+    const block = board.match(/function fitNaturalBox\([\s\S]*?\n  \}/);
+    return {
+      ok: /\.aspect-safe\{[^}]*width:auto;[^}]*height:auto;[^}]*aspect-ratio:auto;[^}]*object-fit:contain;/.test(tokensCss) &&
+        html.indexOf('class="quiz-question-image aspect-safe" id="quizQuestionImage"') !== -1 &&
+        html.indexOf('class="quiz-question-image aspect-safe" id="quizMirrorImage"') !== -1 &&
+        /\.quiz-question-image\{[^}]*\}/.test(sessionCss) &&
+        (sessionCss.match(/\.quiz-question-image\{[^}]*\}/) || [''])[0].indexOf('height:') === -1 &&
+        Boolean(block) && (board.match(/fitNaturalBox\(/g) || []).length >= 4 &&
+        block[0].indexOf('w / ratio') !== -1,
+      helperUses: (board.match(/fitNaturalBox\(/g) || []).length,
+      ms: 0
+    };
+  });
+
   await check('temporary planner guide visible in trainer state', async function () {
     const stateR = await stateFor(tokens.trainer);
     const sessionR = await trainerSessionFor(tokens.trainer);
@@ -532,6 +633,29 @@ async function main() {
       prematureLeaks: leaks,
       studentPhase: studentQuiz && studentQuiz.phase,
       ms: launch.ms + answer.ms + studentR.ms
+    };
+  });
+
+  await check('student option choice mirrors to the trainer without correctness', async function () {
+    const events = await req('GET', '/api/sessions/' + SESSION_ID + '/events?limit=200',
+      undefined, tokens.trainer);
+    const list = events.body && Array.isArray(events.body.events) ? events.body.events : [];
+    const mirror = list.filter(function (event) {
+      return event.event === 'quiz.option.selected' && event.payload &&
+        event.payload.questionId === live.firstQuestionId;
+    }).pop();
+    const safe = mirror && mirror.payload
+      ? Object.keys(mirror.payload).every(function (key) {
+        return !/answer|correct|hint|explanation|key/i.test(key);
+      }) : false;
+    return {
+      ok: events.status === 200 && !!mirror && mirror.payload.fromRole === 'student' &&
+        Number.isInteger(mirror.payload.optionIndex) && safe,
+      questionId: live.firstQuestionId,
+      mirroredOption: mirror && mirror.payload.optionIndex,
+      seq: mirror && mirror.seq,
+      safeKeys: safe,
+      ms: events.ms
     };
   });
 

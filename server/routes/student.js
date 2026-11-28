@@ -44,6 +44,57 @@ router.get('/sessions/:sessionId', auth.loadSession, function (req, res) {
   });
 });
 
+/* A live, correctness-free mirror of the child's current option choice. The
+   trainer sees the same question popup and the highlighted option before any
+   reveal; no attempt, key or explanation is carried on this channel. */
+router.post('/sessions/:sessionId/quiz/selection', auth.loadSession, function (req, res) {
+  const body = req.body || {};
+  const session = req.sessionRecord;
+  const question = serializers.quizQuestionsFor(session).find(function (item) {
+    return item.id === body.questionId;
+  });
+  const optionIndex = Number(body.optionIndex);
+
+  if (!question || !Number.isInteger(optionIndex) ||
+      optionIndex < 0 || optionIndex >= question.options.length) {
+    return res.status(400).json({ error: 'INVALID_SELECTION', message: 'Unknown question or option.' });
+  }
+  if (session.quiz.status !== 'live' || ['answering', 'recheck'].indexOf(session.quiz.phase) === -1) {
+    return res.status(409).json({
+      error: 'QUIZ_NOT_ACCEPTING_SELECTION',
+      message: 'Selection is available only while the question is answerable.'
+    });
+  }
+  if (session.quiz.currentQuestionId && question.id !== session.quiz.currentQuestionId) {
+    return res.status(409).json({ error: 'WRONG_QUESTION', message: 'This is not the current question.' });
+  }
+  const attempts = Array.isArray(session.quiz.attempts) ? session.quiz.attempts : [];
+  if (attempts.some(function (item) { return item.questionId === question.id; })) {
+    return res.status(409).json({
+      error: 'ALREADY_ANSWERED',
+      message: 'The saved choice cannot be changed after submission.'
+    });
+  }
+
+  const at = new Date().toISOString();
+  return Promise.resolve(db.updateSession(session.id, function (current) {
+    current.quiz.liveSelections = current.quiz.liveSelections || {};
+    current.quiz.liveSelections[question.id] = { optionIndex: optionIndex, at: at };
+    return current;
+  })).then(function () {
+    realtime.publish(session.id, 'quiz.option.selected', {
+      questionId: question.id,
+      optionIndex: optionIndex,
+      fromRole: 'student',
+      at: at
+    });
+    return res.json({
+      ok: true,
+      selected: { questionId: question.id, optionIndex: optionIndex, at: at }
+    });
+  });
+});
+
 router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req, res) {
   const body = req.body || {};
   const session = req.sessionRecord;
@@ -91,6 +142,8 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
 
   return Promise.resolve(db.updateSession(session.id, function (current) {
     current.quiz.attempts.push(attempt);
+    current.quiz.liveSelections = current.quiz.liveSelections || {};
+    current.quiz.liveSelections[question.id] = { optionIndex: optionIndex, at: attempt.at };
     current.quiz.phase = 'awaiting_reveal';
     return current;
   })).then(function (updated) {
@@ -100,6 +153,12 @@ router.post('/sessions/:sessionId/quiz/answers', auth.loadSession, function (req
       questionId: question.id,
       attemptId: attempt.id,
       optionIndex: optionIndex,
+      at: attempt.at
+    });
+    realtime.publish(session.id, 'quiz.option.selected', {
+      questionId: question.id,
+      optionIndex: optionIndex,
+      fromRole: 'student',
       at: attempt.at
     });
 

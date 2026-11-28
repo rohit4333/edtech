@@ -56,6 +56,25 @@ ok(loginScript.indexOf('mathify.student.token') !== -1 &&
 'login page stores tokens the dashboards actually read');
 ok(!/mathify-demo/.test(loginScript),
   'login page contains no hard-coded demo password');
+const chooserHtml = read('view-choice.html');
+const chooserScript = read('login/viewChoice.js');
+ok(loginScript.indexOf('/view-choice.html') !== -1 &&
+  loginScript.indexOf("'mathify.postLogin'") !== -1,
+'credential sign-in hands off to the post-login view chooser');
+ok(chooserHtml.indexOf('id="choiceGrid"') !== -1 &&
+  chooserHtml.indexOf('id="loginForm"') === -1 &&
+  chooserHtml.indexOf('type="password"') === -1,
+'view chooser has view cards and no second credential form');
+ok(chooserScript.indexOf("'/auth/me'") !== -1 &&
+  chooserScript.indexOf("'/auth/view'") !== -1 &&
+  chooserScript.indexOf("'mathify.viewChoice'") !== -1,
+'view chooser verifies identity, mints only allowed views and stores the session choice');
+const sharedBlock = chooserScript.match(/var SHARED_VIEWS = \{([\s\S]*?)\n  \};/);
+ok(Boolean(sharedBlock) &&
+  sharedBlock[1].indexOf("parent: ['parent', 'student']") !== -1 &&
+  sharedBlock[1].indexOf("student: ['student', 'parent']") !== -1 &&
+  !/trainer:|relationship_manager:|founder:|planner_agent:/.test(sharedBlock[1]),
+'only the shared family pair offers alternate views');
 const appsHtml = read('apps.html');
 ok(appsHtml.indexOf('login.html?role=student') !== -1 &&
   appsHtml.indexOf('login.html?role=trainer') !== -1,

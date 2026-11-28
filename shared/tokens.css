@@ -124,6 +124,19 @@ a{color:inherit;text-decoration:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 svg{display:block}
 img{max-width:100%}
+
+/* One fixed rule for every uploaded or rendered question/planner image.
+   The intrinsic width/height decide the shape; the viewport only decides the
+   available space. Nothing crops, stretches or changes ratio with screen size.
+   Component classes may add padding and a max width, never a fixed height. */
+.aspect-safe{
+  display:block;
+  width:auto;
+  height:auto;
+  aspect-ratio:auto;
+  object-fit:contain;
+  max-width:100%;
+}
 ::selection{background:var(--coral);color:var(--ink)}
 
 :focus-visible{

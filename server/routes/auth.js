@@ -196,6 +196,41 @@ router.post('/refresh', async function (req, res, next) {
   }
 });
 
+/* Post-login view switch for the one shared parent/kid credential. It reuses
+   the signed-in identity and the existing shared-role allowlist; it never
+   broadens role escalation, mints a refresh token or changes the JWT claim
+   semantics. Staff views are only ever their own verified canonical role. */
+router.post('/view', auth.requireAuth, async function (req, res, next) {
+  const view = String((req.body || {}).view || '');
+  try {
+    if (!LOGIN_ROLES.has(view)) {
+      return res.status(400).json({ error: 'INVALID_VIEW', message: 'Unknown app view.' });
+    }
+    const canonical = await db.findUserById(req.user.id);
+    if (!canonical || (canonical.status !== 'active' && canonical.status !== 'pending')) {
+      return res.status(401).json({ error: 'UNAUTHORIZED', message: 'Sign in again to continue.' });
+    }
+    if (view !== canonical.role && !sharedLoginPair(canonical.role, view)) {
+      return res.status(403).json({ error: 'ROLE_DENIED', message: 'That view is not available to this account.' });
+    }
+    /* The shared login resolves to a different underlying account per role.
+       Resolve the requested view by email so the child desk sees the child's
+       own sessions and the parent desk keeps the linked child record. */
+    const target = view === canonical.role
+      ? canonical
+      : await db.findUserByEmail(canonical.email, view);
+    if (!target || (target.status !== 'active' && target.status !== 'pending')) {
+      return res.status(403).json({ error: 'ROLE_DENIED', message: 'That view is not available to this account.' });
+    }
+    return res.json({
+      token: tokenService.sign(target),
+      user: auth.publicUser(target)
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/demo', function (req, res) {
   if (config.isProduction && String(process.env.ENABLE_DEMO_LOGINS || '').toLowerCase() !== 'true') {
     return res.status(404).json({ error: 'NOT_FOUND', message: 'Demo accounts are disabled.' });

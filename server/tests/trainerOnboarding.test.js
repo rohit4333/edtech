@@ -160,33 +160,54 @@ async function main() {
   ok(week.days.some(function (day) { return day.classes.some(function (item) { return item.batchCode === batch.code; }); }),
     'allotted batch appears in the weekly calendar');
 
-  function todayInstant(offsetMs) {
-    const candidate = new Date(Date.now() + offsetMs);
-    const today = new Date().toISOString().slice(0, 10);
-    if (candidate.toISOString().slice(0, 10) === today) return candidate.toISOString();
-    return today + 'T23:59:00.000Z';
+  /* The dashboard groups by UTC date, so a real clock in the first 51 minutes
+     of the day cannot express a session that is 50 minutes old today. Pin a
+     midday clock only for these serializer calls; every other test keeps the
+     real clock. */
+  const realDate = Date;
+  const noonUtc = new realDate(new realDate().toISOString().slice(0, 10) + 'T12:00:00.000Z').getTime();
+  function withNoonClock(run) {
+    function FixedDate() {
+      const args = Array.prototype.slice.call(arguments);
+      if (!args.length) return new realDate(noonUtc);
+      if (args.length === 1) return new realDate(args[0]);
+      return new realDate(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+    }
+    FixedDate.prototype = realDate.prototype;
+    FixedDate.now = function () { return noonUtc; };
+    FixedDate.parse = realDate.parse;
+    FixedDate.UTC = realDate.UTC;
+    global.Date = FixedDate;
+    try { return run(); } finally { global.Date = realDate; }
+  }
+  function noonInstant(offsetMs) {
+    return new realDate(noonUtc + offsetMs).toISOString();
   }
   /* Both sessions stay inside the dashboard's today window. The live one still
      owns the desk link through the 55-minute server close so the trainer cannot
      miss the minute-50 warning or the auto-close event. */
-  const liveStart = todayInstant(-51 * 60000);
-  const nextStart = todayInstant(30 * 60000);
+  const liveStart = noonInstant(-51 * 60000);
+  const nextStart = noonInstant(30 * 60000);
   const liveSessions = [
     { id: 'ses_active_50', status: 'live', startedAt: liveStart, studentId: studentId, code: 'LIVE', planner: [] },
     { id: 'ses_next', status: 'scheduled', startedAt: nextStart, studentId: studentId, code: 'NEXT', planner: [] }
   ];
   const viewer = { id: trainerId, role: 'trainer', name: 'Ananya Rao' };
-  const dashboard = serializers.toTrainerDashboard(viewer, liveSessions, []);
+  const dashboard = withNoonClock(function () {
+    return serializers.toTrainerDashboard(viewer, liveSessions, []);
+  });
   equal(dashboard.summary.sessionsTaken, 1, 'a session past 50 minutes counts as taken');
   equal(dashboard.summary.sessionsRemaining, 1, 'the remaining counter excludes the taken session');
   equal(dashboard.nextSession.id, 'ses_active_50', 'the desk stays with the live class through the warning window');
   equal(dashboard.nextSession.activeThroughMinutes, 55, 'dashboard advertises the 55-minute server close window');
 
-  const closedStart = todayInstant(-56 * 60000);
-  const afterClose = serializers.toTrainerDashboard(viewer, [
-    Object.assign({}, liveSessions[0], { startedAt: closedStart }),
-    liveSessions[1]
-  ], []);
+  const closedStart = noonInstant(-56 * 60000);
+  const afterClose = withNoonClock(function () {
+    return serializers.toTrainerDashboard(viewer, [
+      Object.assign({}, liveSessions[0], { startedAt: closedStart }),
+      liveSessions[1]
+    ], []);
+  });
   equal(afterClose.nextSession.id, 'ses_next', 'the next session link is promoted after the server close window');
 
   const server = await new Promise(function (resolve) {

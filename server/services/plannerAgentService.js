@@ -18,12 +18,24 @@ const COLLECTION = 'planner_agent_suggestion';
    the route or browser, so a future caller cannot quietly restore authoring. */
 const AGENT_MUTATIONS_ENABLED = false;
 
+/* The browser planner_agent user role stays disabled. Only an explicit MCP
+   service identity with a recognised authoring profile may file an idea, and
+   even then it files a pending suggestion for founder review — never an
+   active planner. */
+const AUTHOR_PROFILES = new Set(['planner_designer']);
+
 function assertAgentMutationEnabled() {
   if (AGENT_MUTATIONS_ENABLED) return;
   throw fail(
     'Planner-agent mutations are disabled until the founder explicitly re-enables them.',
     'PLANNER_AGENT_MUTATIONS_DISABLED', 403
   );
+}
+
+function assertAuthoringAllowed(actor, profile) {
+  if (profile && AUTHOR_PROFILES.has(profile) && actor && actor.service === true &&
+      actor.profile === profile) return;
+  assertAgentMutationEnabled();
 }
 
 function fail(message, code, status) {
@@ -74,8 +86,8 @@ async function list(input) {
   });
 }
 
-async function propose(input, actor) {
-  assertAgentMutationEnabled();
+async function propose(input, actor, profile) {
+  assertAuthoringAllowed(actor, profile);
   const body = input || {};
   if (!actor || actor.role !== 'planner_agent') {
     throw fail('Only the planner agent can file an alternate idea.', 'FORBIDDEN_ROLE', 403);
@@ -100,7 +112,7 @@ async function propose(input, actor) {
     targetVersion: active.version,
     targetAuthoredByRole: active.authoredByRole,
     authorId: actor.id,
-    authorRole: 'planner_agent',
+    authorRole: profile && AUTHOR_PROFILES.has(profile) ? 'planner_designer' : 'planner_agent',
     createdAt: new Date().toISOString(),
     decidedAt: null,
     decidedBy: null
@@ -149,6 +161,7 @@ async function decide(id, decision, actor) {
 
 module.exports = {
   COLLECTION: COLLECTION,
+  AUTHOR_PROFILES: AUTHOR_PROFILES,
   list: list,
   propose: propose,
   decide: decide,

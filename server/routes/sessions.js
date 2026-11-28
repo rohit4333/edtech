@@ -16,6 +16,7 @@ const badges = require('../services/badgeService');
 const celebrations = require('../services/celebrationService');
 const reactions = require('../services/reactionService');
 const reactionPermission = require('../services/reactionPermissionService');
+const sketchPermission = require('../services/sketchPermissionService');
 const appPolicy = require('../config/policy.json');
 const requireTrainerAccess = require('../middleware/trainerAccess');
 const demoService = require('../services/demoService');
@@ -116,6 +117,7 @@ const SHARED_EVENTS = [
   'quiz.assistance.granted', 'quiz.completed', 'quiz.ended', 'session.ended', 'page.changed',
   'chat.sent', 'board.shared', 'board.opened', 'board.ink', 'rtc.media.control.changed', 'network.check.completed',
   'badge.awarded', 'shared.celebration', 'reaction.sent', 'reaction.permission.changed',
+  'sketch.permission.changed', 'quiz.sketch.changed', 'quiz.option.selected',
   'founder.observer.changed', 'ide.state.updated', 'challenge.published',
   'session.warning', 'session.auto_closed', 'participant.joined', 'participant.left'
 ];
@@ -263,6 +265,39 @@ function cleanInkStroke(value) {
      form teaching text or hidden field can ride along with the ink. */
   if (BOARD_SHAPES.has(value.tool)) ink.shape = value.tool;
   return ink;
+}
+
+/* Quiz scratch is narrower than the teaching board: pen, highlighter and the
+   three kid colours only. Eraser/clear are whole-stroke actions, never free
+   text, and every action is still checked against the persisted permission. */
+const QUIZ_SKETCH_TOOLS = new Set(['pen', 'highlighter']);
+const QUIZ_SKETCH_COLORS = new Set(['ink', 'coral', 'teal']);
+
+function cleanQuizSketch(value) {
+  if (!value || typeof value !== 'object') return null;
+  const action = value.action;
+  if (action === 'clear') return { action: 'clear' };
+  if (action === 'erase') {
+    const ids = Array.isArray(value.strokeIds)
+      ? value.strokeIds.slice(0, 200).filter(function (id) {
+        return typeof id === 'string' && id.length > 0 && id.length <= 100;
+      }) : [];
+    return ids.length ? { action: 'erase', strokeIds: ids } : null;
+  }
+  if (action !== 'stroke') return null;
+  const stroke = cleanInkStroke(value.stroke);
+  if (!stroke) return null;
+  return {
+    action: 'stroke',
+    stroke: {
+      id: typeof value.strokeId === 'string' && value.strokeId.length <= 100
+        ? value.strokeId : 'sketch_' + Date.now(),
+      tool: QUIZ_SKETCH_TOOLS.has(stroke.tool) ? stroke.tool : 'pen',
+      color: QUIZ_SKETCH_COLORS.has(stroke.color) ? stroke.color : 'ink',
+      weight: stroke.weight,
+      points: stroke.points
+    }
+  };
 }
 
 /* A trainer may paste a screenshot from the private planner. Only raster data
@@ -519,6 +554,79 @@ router.post('/:sessionId/reaction-permission', auth.requireRole('trainer', 'foun
       .then(function (event) {
         return res.json({ ok: true, reactionPermissions: permissions, seq: event.seq });
       });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/* Trainer-owned quiz scratch permission. It starts granted, but a revoke is
+   sticky for the session and survives every quiz launch and question change. */
+router.post('/:sessionId/sketch-permission', auth.requireRole('trainer', 'founder'), async function (req, res, next) {
+  try {
+    const body = req.body || {};
+    if (typeof body.studentCanSketch !== 'boolean') {
+      return res.status(400).json({
+        error: 'INVALID_SKETCH_PERMISSION',
+        message: 'studentCanSketch must be true or false.'
+      });
+    }
+    const permissions = sketchPermission.setPermission(req.sessionRecord.sketchPermissions,
+      { studentCanSketch: body.studentCanSketch });
+    const updated = await db.updateSession(req.sessionRecord.id, function (session) {
+      session.sketchPermissions = permissions;
+      return session;
+    });
+    if (!updated) {
+      return res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'Session not found.' });
+    }
+    return realtime.publish(updated.id, 'sketch.permission.changed', sketchPermission.eventPayload(permissions))
+      .then(function (event) {
+        return res.json({ ok: true, sketchPermissions: permissions, seq: event.seq });
+      });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/* Quiz scratch actions are relayed only while the persisted permission says
+   the child may draw. A stale or tampered client is rejected at the server. */
+router.post('/:sessionId/quiz/sketch', auth.requireRole('student', 'founder'), function (req, res, next) {
+  try {
+    const session = req.sessionRecord;
+    if (!sketchPermission.normalize(session.sketchPermissions).studentCanSketch) {
+      return res.status(403).json({
+        error: 'SKETCH_REVOKED',
+        message: 'The trainer has paused the scratch tools for this session.'
+      });
+    }
+    const body = req.body || {};
+    const questionId = typeof body.questionId === 'string' ? body.questionId.slice(0, 120) : '';
+    const action = cleanQuizSketch(body);
+    if (!questionId || !action) {
+      return res.status(400).json({
+        error: 'INVALID_SKETCH_ACTION',
+        message: 'A known question and a safe scratch action are required.'
+      });
+    }
+    if (session.quiz.status !== 'live' ||
+        ['answering', 'recheck'].indexOf(session.quiz.phase) === -1) {
+      return res.status(409).json({
+        error: 'QUIZ_NOT_ACCEPTING_SKETCH',
+        message: 'Scratch tools follow the live question only.'
+      });
+    }
+    const question = serializers.quizQuestionsFor(session).find(function (item) {
+      return item.id === questionId;
+    });
+    if (!question || (session.quiz.currentQuestionId && question.id !== session.quiz.currentQuestionId)) {
+      return res.status(409).json({ error: 'WRONG_QUESTION', message: 'This is not the current question.' });
+    }
+    const payload = { questionId: questionId, action: action.action, at: new Date().toISOString() };
+    if (action.action === 'stroke') payload.stroke = action.stroke;
+    if (action.action === 'erase') payload.strokeIds = action.strokeIds;
+    return realtime.publish(session.id, 'quiz.sketch.changed', payload).then(function (event) {
+      return res.json({ ok: true, seq: event.seq });
+    });
   } catch (error) {
     return next(error);
   }

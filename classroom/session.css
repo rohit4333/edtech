@@ -456,14 +456,154 @@ body.quiz-live.view-student .quiz-stage{border-color:rgba(255,91,46,.34)}
   letter-spacing:-.045em;
   line-height:1.08;
 }
+/* Sizing comes only from the canonical .aspect-safe rule in shared/tokens.css.
+   This class adds the popup's frame and a component max width; no fixed height
+   and no forced ratio, so the original image ratio survives every screen size. */
 .quiz-question-image{
-  display:block;max-width:min(100%,420px);width:auto;height:auto;
-  max-height:220px;aspect-ratio:auto;object-fit:contain;
+  max-width:min(100%,420px);
   margin-top:14px;padding:8px;
   border:1px solid var(--line);border-radius:12px;
   background:var(--paper);box-shadow:0 8px 24px rgba(14,20,32,.08)
 }
 .quiz-question-image[hidden]{display:none}
+
+/* The question popup is the one surface shared by both views. Its canvas sits
+   over the stem/image only; option selection and submission stay below it. */
+.quiz-popup{
+  position:relative;
+  max-width:720px;
+  padding:16px 18px 18px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.9);
+  box-shadow:0 18px 48px -34px rgba(14,20,32,.5);
+}
+.quiz-popup-main{position:relative;min-height:78px}
+.quiz-popup-main > .mono{
+  display:block;
+  font-size:8px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.quiz-popup-main h2{margin-top:8px}
+.quiz-sketch-canvas{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+  cursor:crosshair;
+}
+.quiz-sketch-tools{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:12px;
+  padding-top:11px;
+  border-top:1px solid var(--line-soft);
+}
+.quiz-sketch-tools button{
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid var(--line);
+  border-radius:var(--r-full);
+  background:var(--card);
+  color:var(--muted);
+  font-size:9px;
+  font-weight:600;
+  transition:border-color .15s ease,background .15s ease,color .15s ease,opacity .15s ease;
+}
+.quiz-sketch-tools button:hover:not(:disabled){border-color:rgba(14,20,32,.36);color:var(--ink)}
+.quiz-sketch-tools button.is-active{
+  border-color:rgba(14,20,32,.5);
+  background:var(--cream);
+  color:var(--ink);
+  box-shadow:inset 0 0 0 1px rgba(14,20,32,.08);
+}
+.quiz-sketch-tools .quiz-swatch{
+  width:20px;
+  min-height:20px;
+  height:20px;
+  padding:0;
+  border-radius:50%;
+  border:2px solid transparent;
+  box-shadow:inset 0 0 0 1px rgba(14,20,32,.16);
+}
+.quiz-sketch-tools .quiz-swatch.is-ink{background:#0E1420}
+.quiz-sketch-tools .quiz-swatch.is-coral{background:#FF5B2E}
+.quiz-sketch-tools .quiz-swatch.is-teal{background:#12968C}
+.quiz-sketch-tools .quiz-swatch.is-active{border-color:var(--ink);box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+.quiz-sketch-sep{width:1px;height:18px;background:var(--line)}
+.quiz-sketch-state{
+  margin-left:auto;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.quiz-sketch-tools.is-disabled button{
+  opacity:.38;
+  filter:grayscale(1);
+  cursor:not-allowed;
+  box-shadow:none;
+}
+.is-sketch-disabled .quiz-sketch-canvas{pointer-events:none;cursor:default}
+.quiz-popup-trainer{
+  max-width:none;
+  margin-top:16px;
+  padding:12px;
+  border-color:rgba(253,250,243,.14);
+  background:rgba(255,255,255,.055);
+  box-shadow:none;
+}
+.quiz-popup-trainer .quiz-popup-main{min-height:62px}
+.quiz-popup-trainer h2{font-size:15px;line-height:1.25}
+.quiz-popup-trainer .quiz-sketch-canvas{pointer-events:none}
+.quiz-mirror-options{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:10px;
+}
+.mirror-opt{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-height:34px;
+  padding:6px 8px;
+  border:1px solid rgba(253,250,243,.12);
+  border-radius:7px;
+  background:rgba(4,8,15,.3);
+  color:rgba(253,250,243,.82);
+  font-size:10px;
+}
+.mirror-opt .opt-letter{
+  flex:none;
+  width:20px;
+  height:20px;
+  border-color:rgba(253,250,243,.18);
+  background:rgba(253,250,243,.08);
+  color:rgba(253,250,243,.7);
+}
+.mirror-opt.is-picked{
+  border-color:var(--teal, #12968C);
+  background:rgba(18,150,140,.16);
+  color:var(--paper);
+  box-shadow:inset 0 0 0 1px rgba(18,150,140,.25);
+}
+.quiz-mirror-state{
+  margin:10px 0 0;
+  font-family:var(--mono);
+  font-size:8px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:rgba(253,250,243,.58);
+}
 .student-opts{
   display:grid;
   grid-template-columns:1fr 1fr;

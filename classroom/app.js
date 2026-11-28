@@ -215,6 +215,7 @@
       }
       if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
       if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
+      if (state && state.sketchPermissions) applySketchPermission(state.sketchPermissions);
       if (state && state.network) applyNetworkState(state.network);
       if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
       applySubject(state && state.subject);
@@ -725,7 +726,9 @@
   var scMuteBtn = $('#scMuteMicBtn');
   var scCameraBtn = $('#scCameraOffBtn');
   var scBoardBtn = $('#scBoardBtn');
+  var scSketchBtn = $('#scSketchBtn');
   var reactionPermissionState = { studentCanReact: true, studentCanApplaud: true, version: 0 };
+  var sketchPermissionState = { studentCanSketch: true, version: 0 };
 
   function setIcon(button, id) {
     var use = button && button.querySelector('use');
@@ -891,6 +894,26 @@
       version: incoming || current
     };
     applyReactButton();
+  }
+
+  function applySketchPermission(value) {
+    if (!value || typeof value !== 'object') return;
+    var incoming = Math.max(0, Number(value.version) || 0);
+    var current = Math.max(0, Number(sketchPermissionState.version) || 0);
+    if (incoming && incoming < current) return;
+    sketchPermissionState = {
+      studentCanSketch: value.studentCanSketch !== false,
+      version: incoming || current
+    };
+    if (!scSketchBtn) return;
+    var allowed = sketchPermissionState.studentCanSketch === true;
+    scSketchBtn.classList.toggle('is-on', allowed);
+    scSketchBtn.setAttribute('aria-pressed', String(allowed));
+    var label = $('[data-control-label]', scSketchBtn);
+    if (label) label.textContent = allowed ? 'On' : 'Off';
+    scSketchBtn.title = allowed
+      ? 'Kid can use quiz scratch tools · click to revoke'
+      : 'Scratch tools paused for this session · click to grant again';
   }
 
   function applyTrainerMediaButtons() {
@@ -1121,6 +1144,25 @@
       toast('Emoji permission update failed: ' + error.message);
     }).then(function () {
       scReactBtn.disabled = false;
+    });
+  });
+
+  scSketchBtn && scSketchBtn.addEventListener('click', function () {
+    if (!sessionId || !classroomApi || typeof classroomApi.setSketchPermission !== 'function') {
+      toast('Scratch permission needs a live session.');
+      return;
+    }
+    var next = sketchPermissionState.studentCanSketch !== true;
+    scSketchBtn.disabled = true;
+    classroomApi.setSketchPermission(sessionId, next).then(function (permission) {
+      applySketchPermission(permission);
+      toast(next
+        ? 'Scratch tools granted for this session.'
+        : 'Scratch tools paused for the rest of this session.');
+    }).catch(function (error) {
+      toast('Scratch permission update failed: ' + error.message);
+    }).then(function () {
+      scSketchBtn.disabled = false;
     });
   });
 
@@ -1790,6 +1832,8 @@
     mediaPermission: function () { return mediaPermission; },
     applyReactionPermission: applyReactionPermission,
     reactionPermission: function () { return reactionPermissionState; },
+    applySketchPermission: applySketchPermission,
+    sketchPermission: function () { return sketchPermissionState; },
     applyNetworkState: applyNetworkState,
     networkState: function () { return networkState; },
     applyObserverState: applyObserverState,

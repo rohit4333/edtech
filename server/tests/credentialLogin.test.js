@@ -73,6 +73,36 @@ async function main() {
     ok(sharedStudent.status === 200 && sharedStudent.body.user.role === 'student',
       'the parent alias also opens the student desk when that app was opened');
 
+    /* Post-login view switching only honours the verified shared pair. It
+       mints an access token, never a refresh token or a stronger role claim. */
+    const parentView = await request('POST', '/api/auth/view', {
+      view: 'parent'
+    }, student.body.token);
+    ok(parentView.status === 200 && parentView.body.user.role === 'parent' &&
+      Boolean(parentView.body.token) && parentView.body.refreshToken === undefined,
+    'the kid view can open the parent view with a short-lived access token');
+    const parentViewMe = await request('GET', '/api/auth/me', undefined, parentView.body.token);
+    ok(parentViewMe.status === 200 && parentViewMe.body.user.role === 'parent',
+      'the minted parent view token is verified on a protected read');
+    const kidView = await request('POST', '/api/auth/view', {
+      view: 'student'
+    }, sharedParent.body.token);
+    ok(kidView.status === 200 && kidView.body.user.role === 'student' &&
+      Boolean(kidView.body.token),
+    'the parent view can open the kid view for the same family credential');
+    const viewEscalation = await request('POST', '/api/auth/view', {
+      view: 'founder'
+    }, trainer.body.token);
+    ok(viewEscalation.status === 403 && viewEscalation.body.error === 'ROLE_DENIED',
+      'a verified trainer cannot switch to the founder view after login');
+    const managerEscalation = await request('POST', '/api/auth/view', {
+      view: 'relationship_manager'
+    }, student.body.token);
+    ok(managerEscalation.status === 403 && managerEscalation.body.error === 'ROLE_DENIED',
+      'a family credential cannot switch to the manager view after login');
+    assert.deepStrictEqual(Object.keys(parentView.body.user).sort(), ['id', 'name', 'role']);
+    checks += 1;
+
     const roleEscalation = await request('POST', '/api/auth/login', {
       email: 'trainer@mathify.app', password: 'mathify-demo', role: 'founder'
     });

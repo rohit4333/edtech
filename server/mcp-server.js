@@ -1,12 +1,16 @@
-/* Founder MCP-style JSON-RPC server over stdio.
+/* Founder MCP server over stdio.
  *
  * Contract: three read-only tools. The process needs MCP_FOUNDER_TOKEN at
  * startup; without it, tools/list and tools/call are refused. Data comes from
  * the existing service-role db facade in live mode and the mock store in mock
  * mode. Nothing here pays, allots, reschedules, or creates a payment link.
  * Proposals are drafts that always require explicit founder approval.
+ *
+ * JSON-RPC framing, fail-closed auth and structuredContent come from the shared
+ * mcp-core used by the RM and planner-designer servers.
  */
 
+const core = require('./mcp-core');
 const config = require('./config');
 const db = require('./db');
 const policy = require('./config/policy.json');
@@ -14,7 +18,6 @@ const payoutService = require('./services/payoutService');
 const attendancePolicy = require('./services/attendancePolicy');
 const masteryGating = require('./services/masteryGating');
 
-const PROTOCOL_VERSION = '2025-06-18';
 const SERVER_NAME = 'mathify-founder-read-dryrun';
 const SERVER_VERSION = '0.1.0';
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -65,39 +68,13 @@ const tools = [
   }
 ];
 
-const TOOL_NAMES = tools.map(function (tool) { return tool.name; });
-
-function rpcResult(id, result) {
-  return { jsonrpc: '2.0', id: id === undefined ? null : id, result: result };
-}
-
-function rpcError(id, code, message, data) {
-  const error = { code: code, message: message };
-  if (data !== undefined) error.data = data;
-  return { jsonrpc: '2.0', id: id === undefined ? null : id, error: error };
-}
-
-function toolError(code, message) {
-  const error = new Error(message);
-  error.toolError = true;
-  error.code = code;
-  return error;
-}
-
-function authError() {
-  const error = new Error('Founder authorization token is required.');
-  error.rpcCode = -32001;
-  error.rpcData = { code: 'FOUNDER_TOKEN_REQUIRED' };
-  error.code = 'FOUNDER_TOKEN_REQUIRED';
-  return error;
-}
+const rpcResult = core.rpcResult;
+const rpcError = core.rpcError;
+const toolError = core.toolError;
+const clone = core.clone;
 
 function founderToken() {
   return String(process.env.MCP_FOUNDER_TOKEN || process.env.MCP_FOUNDER_AUTH_TOKEN || '').trim();
-}
-
-function clone(value) {
-  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
 function array(value) {
@@ -166,10 +143,6 @@ function createServer(options) {
   const activePolicy = settings.policy || policy;
   const dataSource = settings.databaseMode || config.databaseMode || 'mock';
   const asOf = settings.asOf || new Date().toISOString();
-
-  function requireFounder() {
-    if (!authorized) throw authError();
-  }
 
   function currentPeriod() {
     const date = new Date(asOf);
@@ -440,126 +413,29 @@ function createServer(options) {
     get_trainer_attendance: getTrainerAttendance
   };
 
-  async function callTool(name, args) {
-    requireFounder();
-    if (typeof name !== 'string' || TOOL_NAMES.indexOf(name) === -1) {
-      throw toolError('UNKNOWN_TOOL', 'Unknown tool: ' + String(name || ''));
-    }
-    const input = args && typeof args === 'object' && !Array.isArray(args) ? args : {};
-    return handlers[name](input);
-  }
-
-  async function handleMessage(message) {
-    if (!message || typeof message !== 'object' || Array.isArray(message) ||
-        message.jsonrpc !== '2.0' || typeof message.method !== 'string') {
-      return rpcError(null, -32600, 'Invalid Request');
-    }
-    const id = Object.prototype.hasOwnProperty.call(message, 'id') ? message.id : null;
-
-    try {
-      if (message.method === 'initialize') {
-        return rpcResult(id, {
-          protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
-          instructions: 'Founder read/dry-run tools only. Proposals require approval and are never executed.'
-        });
-      }
-
-      if (message.method === 'tools/list') {
-        requireFounder();
-        return rpcResult(id, { tools: clone(tools) });
-      }
-
-      if (message.method === 'tools/call') {
-        requireFounder();
-        const params = message.params && typeof message.params === 'object' && !Array.isArray(message.params)
-          ? message.params : {};
-        if (typeof params.name !== 'string') {
-          return rpcError(id, -32602, 'Invalid params', { code: 'INVALID_TOOL_NAME' });
-        }
-        const args = params.arguments !== undefined ? params.arguments : params.args;
-        const payload = await callTool(params.name, args);
-        return rpcResult(id, {
-          content: [{ type: 'text', text: JSON.stringify(payload) }],
-          structuredContent: payload,
-          isError: false
-        });
-      }
-
-      return rpcError(id, -32601, 'Method not found', { method: message.method });
-    } catch (error) {
-      if (error && error.rpcCode) {
-        return rpcError(id, error.rpcCode, error.message, error.rpcData);
-      }
-      if (error && error.toolError) {
-        return rpcError(id, -32602, error.message, { code: error.code });
-      }
-      return rpcError(id, -32603, 'Internal error', { code: error && error.code || 'INTERNAL_ERROR' });
-    }
-  }
-
-  return {
-    tools: clone(tools),
-    callTool: callTool,
-    handleMessage: handleMessage,
-    isAuthorized: function () { return authorized; }
-  };
-}
-
-function writeLine(value) {
-  process.stdout.write(JSON.stringify(value) + '\n');
+  return core.createServer({
+    token: token,
+    authorized: authorized,
+    tools: tools,
+    handlers: handlers,
+    name: SERVER_NAME,
+    version: SERVER_VERSION,
+    instructions: 'Founder read/dry-run tools only. Proposals require approval and are never executed.',
+    authCode: 'FOUNDER_TOKEN_REQUIRED',
+    authMessage: 'Founder authorization token is required.',
+    profile: 'founder'
+  });
 }
 
 /* Startup fails closed. A missing founder token never reaches tool discovery
  * or tool execution. */
 function start() {
-  const token = founderToken();
-  if (!token) {
-    process.stderr.write(
-      SERVER_NAME + ': MCP_FOUNDER_TOKEN is required; stdio startup refused.\n'
-    );
-    process.exitCode = 1;
-    return null;
-  }
-
-  const server = createServer({ token: token });
-  let buffer = '';
-  let tail = Promise.resolve();
-
-  process.stdin.setEncoding('utf8');
-  process.stdin.on('data', function (chunk) {
-    buffer += chunk;
-    let index;
-    while ((index = buffer.indexOf('\n')) !== -1) {
-      const line = buffer.slice(0, index);
-      buffer = buffer.slice(index + 1);
-      if (!line.trim()) continue;
-      tail = tail.then(function () {
-        let message;
-        try {
-          message = JSON.parse(line);
-        } catch (error) {
-          writeLine(rpcError(null, -32700, 'Parse error'));
-          return;
-        }
-        const work = Array.isArray(message)
-          ? Promise.all(message.map(function (item) { return server.handleMessage(item); }))
-          : server.handleMessage(message);
-        return Promise.resolve(work).then(writeLine, function (error) {
-          writeLine(rpcError(null, -32603, 'Internal error', {
-            code: error && error.code || 'INTERNAL_ERROR'
-          }));
-        });
-      });
-    }
+  return core.start(SERVER_NAME, [
+    { env: 'MCP_FOUNDER_TOKEN', profile: 'founder' },
+    { env: 'MCP_FOUNDER_AUTH_TOKEN', profile: 'founder' }
+  ], function (options) {
+    return createServer({ token: options.token, authorized: options.authorized });
   });
-
-  process.stdin.on('end', function () {
-    tail.then(function () { /* all buffered requests answered */ });
-  });
-
-  return server;
 }
 
 const defaultServer = createServer();

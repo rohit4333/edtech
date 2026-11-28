@@ -2,7 +2,7 @@
 
 Role-based API behind the trainer dashboard, student dashboard and live 1:1 session. Teaching is strictly **1-on-1**; there are no group classes.
 
-This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; Agora transport has been removed. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 55 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
+This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; Agora transport has been removed. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 65 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
 **Current providers:** LiveKit (RTC, tokens, Egress, webhooks) · private S3-compatible/R2 storage with short-lived SigV4 links (recordings) · Resend (all mail) · freelm → Gemini → Groq → Cloudflare Workers AI (every model call) · Supabase service role (live persistence) · Razorpay (packs) · Twilio (WhatsApp). Agora, Nodemailer/SMTP, OpenAI and DeepSeek are not current providers.
 
@@ -30,11 +30,12 @@ Demo accounts (password `mathify-demo`, or `DEMO_PASSWORD` from `.env`):
 | Role | Email |
 | --- | --- |
 | Founder | founder@mathify.app |
+| Relationship manager (temporary) | rm@mathify.app |
 | Trainer | trainer@mathify.app |
 | Student | student@mathify.app |
-| Parent (linked to `usr_student_001`) | parent@mathify.app |
+| Parent / kid (shared sign-in, linked to `usr_student_001`) | parent@mathify.app |
 
-`GET /api/auth/demo` returns the same list. Founder and RM demo accounts are `founder@mathify.app` and `rm@mathify.app` with the same demo password.
+`GET /api/auth/demo` returns the same list. The temporary RM demo credential is `rm@mathify.app` with the same demo password. After login, `POST /api/auth/view` opens only the parent/kid pair for the family credential; staff views remain tied to their verified account. The manager desk can issue the generated trainer-only recovery password `firstname@mathify123` after KYC plus grant, but cannot choose the value or change founder-set pay.
 
 `PATCH /api/admin/people/:id/password` is the scoped credential-recovery endpoint. `{ "generated": true }` issues the existing `firstname@mathify123` value and is allowed to a relationship manager only for a trainer whose KYC is on file and whose access was granted; any supplied `password` returns `403 RM_PASSWORD_CHOICE_DENIED`, other target roles return `403`, and an ungranted trainer returns `422 KYC_OR_GRANT_REQUIRED`. The founder keeps chosen-password and any-role override. Both roles are audited (`password.temp_issued` / `password.granted`) without writing the password value. [ev: local HTTP contract check, 2026-11-26]
 
@@ -373,9 +374,19 @@ Other configured payout rules:
 
 Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.
 
+## Internal MCP tooling
+
+All three stdio servers share `mcp-core.js`; they are internal tooling, never an end-user surface. Missing tokens refuse startup before `tools/list`.
+
+- `mcp-server.js` — founder read/dry-run tools, token `MCP_FOUNDER_TOKEN`.
+- `mcp-rm-server.js` — RM-scoped reads plus a draft-only base-rate proposal, token `MCP_RM_TOKEN` and optional `MCP_RM_USER_ID`.
+- `mcp-planner-server.js` — planner designer, `MCP_PLANNER_DESIGNER_TOKEN` review profile and `MCP_PLANNER_AUTHOR_TOKEN` author profile. The author profile files a pending suggestion for founder decision; no tool publishes a planner and there is no autonomous profile. The browser `planner_agent` role stays fail-closed.
+
+See `../MCP_DESIGN.md` and `../.mcp.json.example`. Use `DATABASE_MODE=mock node tests/mcpServer.test.js`, `node tests/mcpRmServer.test.js` and `node tests/mcpPlannerServer.test.js` for focused contract checks.
+
 ## Testing
 
-Fifty-two Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `batchRenewalMail.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
+Sixty-five Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `mcpServer.test.js`, `mcpRmServer.test.js`, `mcpPlannerServer.test.js`, `lmsPlannerAccess.test.js` (including the async Supabase `listBatches` regression), `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `batchRenewalMail.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 

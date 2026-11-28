@@ -204,7 +204,7 @@ const webRoot = path.resolve(__dirname, '..');
 const publicFiles = new Set([
   'index.html', 'apps.html', 'pricing.html', 'terms.html',
   'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
-  'landing.css', 'landing.js', 'login.html', 'sw.js'
+  'landing.css', 'landing.js', 'login.html', 'view-choice.html', 'sw.js'
 ]);
 /* The installable web app assets are public static files. No server source,
    migration, environment file or credential is inside this directory. */
