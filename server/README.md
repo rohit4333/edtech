@@ -161,7 +161,7 @@ Realtime events:
 
 Student Control is the single trainer surface for `/media-permission`, `/media-state`, `/reaction-permission`, badge awards, board sharing, quiz controls and session end. Celebrations are server-owned through `/celebrate`; clients may only send a trigger id and allowlisted preference ids. A server quiz launch also opens the student quiz view so celebrations stay suppressed in both tabs.
 
-In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` and `trainer/` wire `/state`, `/events` and a LiveKit call panel whose room, identity and token always come from the server.
+In mock mode the event stream is a bounded in-memory cursor log; in live mode it is the `mathify_session_events` outbox. Both are read through the scrubbed `/events` endpoint with an exclusive `since` cursor. Supabase Realtime canvas strokes are optional and carry no answer key. `classroom/` and `trainer/` wire `/state`, `/events` and a LiveKit call panel whose room, identity and token always come from the server. Camera look and audio visual are browser-only: local previews and LiveKit levels use `AudioContext`/`AnalyserNode` or `participant.audioLevel`, preferences stay in role-scoped `localStorage`, and no sample or background choice enters an API, presence, pay or clock payload.
 
 #### Quiz Wacom overlay over Supabase Realtime
 

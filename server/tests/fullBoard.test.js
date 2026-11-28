@@ -490,8 +490,8 @@ async function main() {
     );
     ok(
       fullBoardJs.indexOf("var tool = 'select'") !== -1 &&
-        classroom.indexOf('data-board-tool="select" aria-pressed="true"') !== -1 &&
-        classroom.indexOf('data-board-tool="pen" aria-pressed="false"') !== -1,
+        /data-board-tool="select"\s+aria-pressed="true"/.test(classroom) &&
+        /data-board-tool="pen"\s+aria-pressed="false"/.test(classroom),
       'the trainer whiteboard opens in select mode, never already sketching'
     );
     ok(
@@ -524,9 +524,9 @@ async function main() {
     );
     ok(
       classroom.indexOf('<div class="full-board-tools" role="toolbar"') !== -1 &&
-        classroom.indexOf('class="trainer-only" data-board-tool="laser"') !== -1 &&
-        classroom.indexOf('class="trainer-only" id="fullBoardZoomIn"') !== -1 &&
-        classroom.indexOf('class="trainer-only" id="fullBoardZoomOut"') !== -1 &&
+        /class="trainer-only"\s+data-board-tool="laser"/.test(classroom) &&
+        /class="trainer-only"\s+id="fullBoardZoomIn"/.test(classroom) &&
+        /class="trainer-only"\s+id="fullBoardZoomOut"/.test(classroom) &&
         sessionJs.indexOf("$$('.trainer-only').forEach(function (el) { el.remove(); });") !== -1 &&
         fullBoardCss.indexOf('body.board-open.view-student .full-board-tools') !== -1,
       'laser pen and zoom controls stay on the trainer dashboard, never on the child board'
@@ -545,9 +545,8 @@ async function main() {
         tokens.indexOf('height:auto;') !== -1 &&
         tokens.indexOf('aspect-ratio:auto;') !== -1 &&
         tokens.indexOf('object-fit:contain;') !== -1 &&
-        classroom.indexOf('class="quiz-question-image aspect-safe" id="quizQuestionImage"') !==
-          -1 &&
-        classroom.indexOf('class="quiz-question-image aspect-safe" id="quizMirrorImage"') !== -1 &&
+        /class="quiz-question-image aspect-safe"\s+id="quizQuestionImage"/.test(classroom) &&
+        /class="quiz-question-image aspect-safe"\s+id="quizMirrorImage"/.test(classroom) &&
         /\.quiz-question-image\{[^}]*\}/.test(sessionCss) &&
         (sessionCss.match(/\.quiz-question-image\{[^}]*\}/) || [''])[0].indexOf('height:') === -1,
       'one fixed natural-ratio rule covers quiz, board and uploaded images on every screen'
@@ -856,7 +855,7 @@ async function main() {
       'the board never falls back to a docked dashboard panel'
     );
 
-    const pipStart = classroom.indexOf('<section class="call-pip"');
+    const pipStart = classroom.search(/<section\s+class="call-pip"/);
     const pipEnd = classroom.indexOf('</section>', pipStart);
     const pipMarkup = classroom.slice(pipStart, pipEnd);
     ok(
@@ -890,7 +889,7 @@ async function main() {
     ok(
       pipMarkup.indexOf('id="pipResize"') !== -1 &&
         pipMarkup.indexOf('aria-label="Resize video window"') !== -1 &&
-        callCss.indexOf('.call-pip .pip-resize{') !== -1 &&
+        /\.call-pip \.pip-resize\s*\{/.test(callCss) &&
         sessionJs.indexOf('var pipDragTarget = pip || pipHead') !== -1 &&
         sessionJs.indexOf("pipResize.addEventListener('pointerdown'") !== -1,
       'the camera deck is movable from anywhere and resizable from its corner grip'

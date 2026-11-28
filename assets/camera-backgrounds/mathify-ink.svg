@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title">
+  <title id="title">Mathify ink camera background</title>
+  <defs>
+    <radialGradient id="ink" cx="50%" cy="42%" r="72%">
+      <stop offset="0" stop-color="#1B2433"/>
+      <stop offset="1" stop-color="#09101B"/>
+    </radialGradient>
+    <pattern id="lines" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M56 0H0V56" fill="none" stroke="#12968C" stroke-opacity=".12" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="focus" cx="50%" cy="46%" r="54%">
+      <stop offset="0" stop-color="#12968C" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#12968C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#ink)"/>
+  <rect width="1600" height="900" fill="url(#lines)"/>
+  <rect width="1600" height="900" fill="url(#focus)"/>
+  <g fill="none" stroke="#FDFAF3" stroke-opacity=".18" stroke-width="2">
+    <path d="M72 196c96-124 208-124 304 0s208 124 304 0"/>
+    <path d="M920 714l112-64 112 64-112 64z"/>
+    <circle cx="1032" cy="714" r="112"/>
+    <path d="M1032 602v224M920 714h224"/>
+  </g>
+  <g fill="#12968C" fill-opacity=".42" font-family="Poppins, Arial, sans-serif" font-size="36">
+    <text x="82" y="804">∫ f(x) dx</text>
+    <text x="1296" y="152">∑ n²</text>
+  </g>
+  <g font-family="Poppins, Arial, sans-serif" font-size="30" font-weight="600" fill="#FDFAF3" fill-opacity=".88">
+    <text x="1332" y="842">Mathify<tspan fill="#12968C">.</tspan></text>
+  </g>
+</svg>

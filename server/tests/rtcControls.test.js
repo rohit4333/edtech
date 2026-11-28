@@ -619,6 +619,8 @@ async function main() {
     const cameraJs = read('classroom/connect.js');
     const cameraCss = read('classroom/connect.css');
     const cameraLookModule = read('classroom/camera-background.js');
+    const mediaUiJs = read('shared/rtcMediaUi.js');
+    const sharedLookCss = read('shared/cameraLook.css');
 
     check(
       /id="cameraLook"/.test(cameraHtml) &&
@@ -671,6 +673,60 @@ async function main() {
       'remote evidence is used only from an exposed stream and is otherwise local-only'
     );
 
+    /* The in-session PiP is the third camera surface: it mirrors the same
+       LiveKit audio levels and the same local, role-scoped camera look. */
+    check(
+      /shared\/rtcMediaUi\.css/.test(classroomHtml) &&
+        classroomHtml.indexOf('shared/rtcMediaUi.js') !== -1 &&
+        classroomHtml.indexOf('shared/rtcMediaUi.js') < classroomHtml.indexOf('livekit.js'),
+      'the whiteboard deck loads the shared audio-level helper before the call client'
+    );
+    check(
+      /id="selfPipLevel"/.test(classroomHtml) &&
+        /id="peerPipLevel"/.test(classroomHtml) &&
+        /id="selfPipSpeaking"/.test(classroomHtml) &&
+        /id="peerPipSpeaking"/.test(classroomHtml) &&
+        (classroomHtml.match(/data-media-frame/g) || []).length >= 2,
+      'both in-session camera tiles expose teal level bars and speaking badges'
+    );
+    check(
+      /helper\.bind\(state\.room/.test(livekit) &&
+        /participant\.audioLevel/.test(mediaUiJs) &&
+        /state\.mediaUi/.test(livekit) &&
+        /setMediaControlsLocked/.test(livekit),
+      'in-session audio animation follows LiveKit levels and survives control updates'
+    );
+    check(
+      /viewerRole: isStudentViewer\(\) \? 'student' : 'trainer'/.test(classroomApp) &&
+        /resolveViewerRole/.test(livekit) &&
+        /state\.viewerRole/.test(livekit),
+      'PiP camera look uses the same role as the signed-in session viewer'
+    );
+    check(
+      ['pipLookBtn', 'pipLookPanel', 'pipBackground', 'pipLighting', 'pipLookReset'].every(
+        function (id) {
+          return new RegExp('id="' + id + '"').test(classroomHtml);
+        }
+      ) &&
+        /data-camera-look-layer/.test(classroomHtml) &&
+        /shared\/cameraLook\.css/.test(classroomHtml),
+      'the in-session deck exposes the opt-in background, lighting and reset panel'
+    );
+    check(
+      /function bindPipCameraLook\(\)/.test(livekit) &&
+        /function syncPipCameraLook\(\)/.test(livekit) &&
+        /state\.controlsLocked/.test(livekit) &&
+        /helper\.init/.test(livekit),
+      'PiP camera look disables itself while student controls are revoked'
+    );
+    check(
+      /mathify-paper\.svg/.test(sharedLookCss) &&
+        /mathify-ink\.svg/.test(sharedLookCss) &&
+        /mathify-coral\.svg/.test(sharedLookCss) &&
+        /blur\(7px\)/.test(sharedLookCss),
+      'the shared look stylesheet uses the generated brand assets and radial blur'
+    );
+
     check(
       !/livekit-client@/.test(trainerHtml) &&
         trainerHtml.indexOf('src="livekit.js"') === -1 &&
@@ -678,8 +734,8 @@ async function main() {
       'the trainer desk has no second live-call panel or duplicated SDK'
     );
     const observerRoleAt = livekit.indexOf("rtc.role === 'subscriber'");
-    const observerGuardAt = livekit.indexOf(
-      'if (state.observer || !state.room || !state.room.localParticipant) return Promise.resolve(false);'
+    const observerGuardAt = livekit.search(
+      /if \(state\.observer \|\| !state\.room \|\| !state\.room\.localParticipant\)\s*return Promise\.resolve\(false\);/
     );
     const publishAt = livekit.indexOf('setCameraEnabled(Boolean(enabled))');
     check(

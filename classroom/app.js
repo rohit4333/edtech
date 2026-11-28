@@ -5,8 +5,12 @@
 (function () {
   'use strict';
 
-  var $ = function (sel, root) { return (root || document).querySelector(sel); };
-  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var $ = function (sel, root) {
+    return (root || document).querySelector(sel);
+  };
+  var $$ = function (sel, root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  };
 
   /* ------------------------------------------------------------------ toast */
   var toastEl = $('#toast');
@@ -16,16 +20,21 @@
     toastEl.textContent = message;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3200);
+    toastTimer = setTimeout(function () {
+      toastEl.classList.remove('show');
+    }, 3200);
   }
 
   $$('[data-toast]').forEach(function (el) {
-    el.addEventListener('click', function () { toast(el.getAttribute('data-toast')); });
+    el.addEventListener('click', function () {
+      toast(el.getAttribute('data-toast'));
+    });
   });
 
   /* -------------------------------------------------- session context + api */
   var params = new URLSearchParams(window.location.search);
-  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
+  var sessionId =
+    window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
   var classroomApi = window.mathifyClassroomApi || null;
   var studentName = 'Student';
 
@@ -37,23 +46,30 @@
     forceCameraOn: false,
     studentMuted: false,
     studentCameraOff: false,
-    version: 0
+    version: 0,
   };
   var networkState = null;
-  var viewerRole = (window.MATHIFY_USER && window.MATHIFY_USER.role) ||
-    (classroomApi && classroomApi.role) || 'trainer';
+  var viewerRole =
+    (window.MATHIFY_USER && window.MATHIFY_USER.role) ||
+    (classroomApi && classroomApi.role) ||
+    'trainer';
   if (params.get('view') === 'student' || params.get('role') === 'student') viewerRole = 'student';
 
   function isStudentViewer() {
-    return params.get('view') === 'student' || params.get('role') === 'student' ||
-      viewerRole === 'student';
+    return (
+      params.get('view') === 'student' ||
+      params.get('role') === 'student' ||
+      viewerRole === 'student'
+    );
   }
 
   function applyStudentName(value) {
     var next = String(value || '').trim();
     if (!next) return;
     studentName = next;
-    $$('[data-student-name]').forEach(function (el) { el.textContent = next; });
+    $$('[data-student-name]').forEach(function (el) {
+      el.textContent = next;
+    });
     renderChat();
   }
 
@@ -61,19 +77,45 @@
      The browser never selects the subject. A missing or unknown subject is
      always mathematics, so existing maths screens render exactly as before. */
   var SUBJECT_DEFAULTS = {
-    math: { subject: 'math', label: 'Mathematics', shortLabel: 'Math', workspace: 'board', strands: [] },
-    coding: { subject: 'coding', label: 'Coding', shortLabel: 'Coding', workspace: 'ide', strands: [] },
-    english: { subject: 'english', label: 'English Communication', shortLabel: 'English', workspace: 'literacy', strands: [] }
+    math: {
+      subject: 'math',
+      label: 'Mathematics',
+      shortLabel: 'Math',
+      workspace: 'board',
+      strands: [],
+    },
+    coding: {
+      subject: 'coding',
+      label: 'Coding',
+      shortLabel: 'Coding',
+      workspace: 'ide',
+      strands: [],
+    },
+    english: {
+      subject: 'english',
+      label: 'English Communication',
+      shortLabel: 'English',
+      workspace: 'literacy',
+      strands: [],
+    },
   };
   var SUBJECT_ALIASES = {
-    math: 'math', maths: 'math', mathematics: 'math', numeracy: 'math',
-    coding: 'coding', code: 'coding', programming: 'coding', javascript: 'coding',
-    english: 'english', communication: 'english', 'english communication': 'english'
+    math: 'math',
+    maths: 'math',
+    mathematics: 'math',
+    numeracy: 'math',
+    coding: 'coding',
+    code: 'coding',
+    programming: 'coding',
+    javascript: 'coding',
+    english: 'english',
+    communication: 'english',
+    'english communication': 'english',
   };
   var subjectState = SUBJECT_DEFAULTS.math;
   var subjectBaseTitles = {
     lesson: $('.lesson-line b') && $('.lesson-line b').textContent,
-    board: $('.board-head h1') && $('.board-head h1').textContent
+    board: $('.board-head h1') && $('.board-head h1').textContent,
   };
 
   function normalizeSubject(value) {
@@ -81,7 +123,10 @@
     if (value && typeof value === 'object') {
       raw = value.subject || value.slug || value.name || 'math';
     }
-    var key = String(raw || 'math').trim().toLowerCase().replace(/[_-]+/g, ' ');
+    var key = String(raw || 'math')
+      .trim()
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
     key = SUBJECT_ALIASES[key] || (SUBJECT_DEFAULTS[key] ? key : 'math');
     var base = SUBJECT_DEFAULTS[key];
     var next = {
@@ -89,7 +134,7 @@
       label: base.label,
       shortLabel: base.shortLabel,
       workspace: base.workspace,
-      strands: []
+      strands: [],
     };
     if (value && typeof value === 'object') {
       if (typeof value.label === 'string' && value.label.trim()) next.label = value.label.trim();
@@ -108,14 +153,16 @@
     var lesson = $('.lesson-line b');
     var boardTitle = $('.board-head h1');
     if (lesson) {
-      lesson.textContent = next.subject === 'math' && subjectBaseTitles.lesson
-        ? subjectBaseTitles.lesson
-        : '1:1 · ' + (next.label || 'Session');
+      lesson.textContent =
+        next.subject === 'math' && subjectBaseTitles.lesson
+          ? subjectBaseTitles.lesson
+          : '1:1 · ' + (next.label || 'Session');
     }
     if (boardTitle) {
-      boardTitle.textContent = next.subject === 'math' && subjectBaseTitles.board
-        ? subjectBaseTitles.board
-        : (next.shortLabel || next.label) + ' practice';
+      boardTitle.textContent =
+        next.subject === 'math' && subjectBaseTitles.board
+          ? subjectBaseTitles.board
+          : (next.shortLabel || next.label) + ' practice';
     }
   }
 
@@ -134,9 +181,9 @@
     var english = document.getElementById('englishStage');
     var board = $('.board');
     [coding, english].forEach(function (panel) {
-      if (panel) panel.hidden = panel === coding
-        ? subjectState.subject !== 'coding'
-        : subjectState.subject !== 'english';
+      if (panel)
+        panel.hidden =
+          panel === coding ? subjectState.subject !== 'coding' : subjectState.subject !== 'english';
     });
     /* Keep the whiteboard out of the stage while a subject workspace is
        active. An in-progress math quiz owns board visibility, so do not
@@ -164,16 +211,19 @@
     var coding = document.getElementById('codingStage');
     var english = document.getElementById('englishStage');
     var board = $('.board');
-    var target = view === 'board' ? board
-      : (subjectState.subject === 'coding' ? coding : english);
+    var target = view === 'board' ? board : subjectState.subject === 'coding' ? coding : english;
     if (!target) return;
     [board, coding, english].forEach(function (panel) {
       if (panel) panel.hidden = panel !== target;
     });
     var boardOpen = view === 'board';
     document.body.classList.toggle('subject-board-open', boardOpen);
-    if (boardOpen && typeof window.classroomSession !== 'undefined' &&
-        window.classroomSession && typeof window.classroomSession.fitCanvas === 'function') {
+    if (
+      boardOpen &&
+      typeof window.classroomSession !== 'undefined' &&
+      window.classroomSession &&
+      typeof window.classroomSession.fitCanvas === 'function'
+    ) {
       setTimeout(window.classroomSession.fitCanvas, 40);
     }
   });
@@ -192,7 +242,9 @@
       if (label && observer && observer.active) label.textContent = observer.name || 'Founder';
     }
     if (optIn) {
-      var isFounder = classroomApi && typeof classroomApi.viewerRole === 'function' &&
+      var isFounder =
+        classroomApi &&
+        typeof classroomApi.viewerRole === 'function' &&
         classroomApi.viewerRole() === 'founder';
       optIn.hidden = !isFounder;
       if (isFounder && toggle) toggle.checked = founderObserverOptIn;
@@ -205,27 +257,33 @@
 
   function loadSessionContext() {
     if (!sessionId || !classroomApi) return Promise.resolve(false);
-    return classroomApi.getSessionState(sessionId).then(function (state) {
-      var name = state && state.participants && state.participants.student &&
-        state.participants.student.name;
-      applyStudentName(name);
-      if (state && state.viewerRole) {
-        viewerRole = state.viewerRole;
-        window.MATHIFY_USER = window.MATHIFY_USER || { role: state.viewerRole };
-      }
-      if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
-      if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
-      if (state && state.sketchPermissions) applySketchPermission(state.sketchPermissions);
-      if (state && state.network) applyNetworkState(state.network);
-      if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
-      applySubject(state && state.subject);
-      applyObserverState(state);
-      return true;
-    }).catch(function (error) {
-      console.warn('[mathify] Session context unavailable:', error.message);
-      toast('Session data unavailable · local preview only.');
-      return false;
-    });
+    return classroomApi
+      .getSessionState(sessionId)
+      .then(function (state) {
+        var name =
+          state &&
+          state.participants &&
+          state.participants.student &&
+          state.participants.student.name;
+        applyStudentName(name);
+        if (state && state.viewerRole) {
+          viewerRole = state.viewerRole;
+          window.MATHIFY_USER = window.MATHIFY_USER || { role: state.viewerRole };
+        }
+        if (state && state.mediaPermissions) applyMediaPermission(state.mediaPermissions);
+        if (state && state.reactionPermissions) applyReactionPermission(state.reactionPermissions);
+        if (state && state.sketchPermissions) applySketchPermission(state.sketchPermissions);
+        if (state && state.network) applyNetworkState(state.network);
+        if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
+        applySubject(state && state.subject);
+        applyObserverState(state);
+        return true;
+      })
+      .catch(function (error) {
+        console.warn('[mathify] Session context unavailable:', error.message);
+        toast('Session data unavailable · local preview only.');
+        return false;
+      });
   }
 
   /* ----------------------------------------------------------------- timers */
@@ -259,8 +317,7 @@
     var absolute = Math.abs(Math.floor(seconds));
     var m = Math.floor(absolute / 60);
     var s = absolute % 60;
-    return (negative ? '-' : '') + (m < 10 ? '0' : '') + m + ':' +
-      (s < 10 ? '0' : '') + s;
+    return (negative ? '-' : '') + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
   }
 
   /* The warning is a staff cue. The server filters it from child event streams;
@@ -273,9 +330,10 @@
   function sessionWarningCopy(details, seconds) {
     var info = details || {};
     var minutes = Math.ceil(Math.max(0, seconds) / 60) || 5;
-    var label = info.minimumQuotaReached === true
-      ? 'Minimum time complete · ' + minutes + ' min left'
-      : 'Class ends in ' + minutes + ' minutes';
+    var label =
+      info.minimumQuotaReached === true
+        ? 'Minimum time complete · ' + minutes + ' min left'
+        : 'Class ends in ' + minutes + ' minutes';
     if (info.childPresent === true || info.childJoined === true) {
       label += ' · class ends in 5 minutes';
     }
@@ -326,19 +384,24 @@
     /* The anchor is the server's counted active time. It only advances while
        the trainer is present; a disconnect freezes it and a rejoin continues
        from the same total instead of restarting the class. */
-    var delta = timerRunning && timerAnchorAt !== null
-      ? Math.floor((Date.now() - timerAnchorAt) / 1000) : 0;
+    var delta =
+      timerRunning && timerAnchorAt !== null ? Math.floor((Date.now() - timerAnchorAt) / 1000) : 0;
     recTime.textContent = timerClock(timerAnchorSeconds + Math.max(0, delta));
     paintSessionWarning();
   }
 
   function applySessionTiming(value) {
     timingState = value || null;
-    var activeSeconds = timingState && timingState.timerSeconds !== null &&
-      timingState.timerSeconds !== undefined
-      ? timingState.timerSeconds : (timingState && timingState.offsetSeconds);
-    if (!timingState || timingState.waitingForTrainer ||
-        activeSeconds === null || activeSeconds === undefined) {
+    var activeSeconds =
+      timingState && timingState.timerSeconds !== null && timingState.timerSeconds !== undefined
+        ? timingState.timerSeconds
+        : timingState && timingState.offsetSeconds;
+    if (
+      !timingState ||
+      timingState.waitingForTrainer ||
+      activeSeconds === null ||
+      activeSeconds === undefined
+    ) {
       timerAnchorAt = null;
       timerAnchorSeconds = null;
       timerRunning = false;
@@ -357,14 +420,17 @@
       if (!warningStateShown) {
         var cueSeconds = timingState.minimumQuota && Number(timingState.minimumQuota.cueSeconds);
         if (!Number.isFinite(cueSeconds)) cueSeconds = 5 * 60;
-        showSessionWarning({
-          minimumQuotaReached: true,
-          childPresent: timingState.childPresent === true,
-          childJoined: timingState.childPresent === true,
-          classType: timingState.classType,
-          countdownSeconds: cueSeconds,
-          minimumQuota: timingState.minimumQuota
-        }, false);
+        showSessionWarning(
+          {
+            minimumQuotaReached: true,
+            childPresent: timingState.childPresent === true,
+            childJoined: timingState.childPresent === true,
+            classType: timingState.classType,
+            countdownSeconds: cueSeconds,
+            minimumQuota: timingState.minimumQuota,
+          },
+          false
+        );
       }
     } else {
       warningStateShown = false;
@@ -378,9 +444,14 @@
      trainer drops and rejoins without relying on a browser-owned timer. */
   function refreshTiming() {
     if (!sessionId || !classroomApi || typeof classroomApi.getSessionState !== 'function') return;
-    classroomApi.getSessionState(sessionId).then(function (state) {
-      if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
-    }).catch(function () { /* the next refresh retries */ });
+    classroomApi
+      .getSessionState(sessionId)
+      .then(function (state) {
+        if (state && state.sessionTiming) applySessionTiming(state.sessionTiming);
+      })
+      .catch(function () {
+        /* the next refresh retries */
+      });
   }
 
   var stepSeconds = 12 * 60 + 40;
@@ -407,14 +478,14 @@
   var messages = [
     { whoKey: 'student', text: 'Can we do one more bar model?', time: '5:09' },
     { who: 'You', text: 'After this one — page 2.', time: '5:09', me: true },
-    { whoKey: 'student', text: 'Got it — 1 part is 6 cm.', time: '5:10' }
+    { whoKey: 'student', text: 'Got it — 1 part is 6 cm.', time: '5:10' },
   ];
 
   function nowTime() {
     var d = new Date();
     var h = d.getHours();
     var m = d.getMinutes();
-    return ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m;
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m;
   }
 
   function renderChat() {
@@ -425,9 +496,9 @@
         wrap.className = 'chat-msg' + (m.me ? ' me' : '');
         var who = document.createElement('span');
         who.className = 'cm-who';
-        who.appendChild(document.createTextNode(
-          m.who || (m.whoKey === 'student' ? studentName : 'You')
-        ));
+        who.appendChild(
+          document.createTextNode(m.who || (m.whoKey === 'student' ? studentName : 'You'))
+        );
         var time = document.createElement('time');
         time.textContent = m.time;
         who.appendChild(time);
@@ -456,7 +527,7 @@
     if (isNaN(d.getTime())) d = new Date();
     var h = d.getHours();
     var m = d.getMinutes();
-    return ((h % 12) || 12) + ':' + (m < 10 ? '0' : '') + m;
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m;
   }
 
   function appendChat(message, own) {
@@ -465,10 +536,10 @@
     if (message.id) seenChatIds[message.id] = true;
     messages.push({
       id: message.id,
-      who: own ? 'You' : (message.from === 'student' ? studentName : 'Trainer'),
+      who: own ? 'You' : message.from === 'student' ? studentName : 'Trainer',
       text: message.text,
       time: message.time || chatTime(message.at),
-      me: Boolean(own)
+      me: Boolean(own),
     });
     renderChat();
   }
@@ -485,15 +556,18 @@
         toast('Local preview · message saved in this browser only.');
         return;
       }
-      classroomApi.sendChat(sessionId, value).then(function (message) {
-        appendChat(message, true);
-        clearUnread();
-        var status = $('#chatStatus');
-        if (status) status.textContent = 'Message sent to ' + studentName + '.';
-      }).catch(function (error) {
-        if (input) input.value = value;
-        toast('Message could not be sent: ' + error.message);
-      });
+      classroomApi
+        .sendChat(sessionId, value)
+        .then(function (message) {
+          appendChat(message, true);
+          clearUnread();
+          var status = $('#chatStatus');
+          if (status) status.textContent = 'Message sent to ' + studentName + '.';
+        })
+        .catch(function (error) {
+          if (input) input.value = value;
+          toast('Message could not be sent: ' + error.message);
+        });
       input && input.focus();
     });
     $('input', form) && $('input', form).addEventListener('focus', clearUnread);
@@ -501,14 +575,19 @@
 
   function pollChat() {
     if (!sessionId || !classroomApi || typeof classroomApi.getSessionEvents !== 'function') return;
-    classroomApi.getSessionEvents(sessionId, chatCursor).then(function (events) {
-      events.forEach(function (event) {
-        chatCursor = Math.max(chatCursor, Number(event.seq) || 0);
-        if (event.event !== 'chat.sent') return;
-        var payload = event.payload || {};
-        appendChat(payload, classroomApi.role === payload.from);
+    classroomApi
+      .getSessionEvents(sessionId, chatCursor)
+      .then(function (events) {
+        events.forEach(function (event) {
+          chatCursor = Math.max(chatCursor, Number(event.seq) || 0);
+          if (event.event !== 'chat.sent') return;
+          var payload = event.payload || {};
+          appendChat(payload, classroomApi.role === payload.from);
+        });
+      })
+      .catch(function () {
+        /* Local preview keeps the visible log usable. */
       });
-    }).catch(function () { /* Local preview keeps the visible log usable. */ });
   }
   if (sessionId) {
     pollChat();
@@ -530,7 +609,9 @@
       lastTrigger = trigger || document.activeElement;
       sheetLayer.hidden = false;
     }
-    sheets.forEach(function (s) { s.hidden = s !== sheet; });
+    sheets.forEach(function (s) {
+      s.hidden = s !== sheet;
+    });
     activeSheet = sheet;
     if (id === 'sheet-chat') clearUnread();
     var focusTarget = id === 'sheet-chat' ? $('input', sheet) : $('.sheet-x', sheet);
@@ -542,9 +623,15 @@
   function closeSheet() {
     if (!sheetLayer || sheetLayer.hidden) return;
     sheetLayer.hidden = true;
-    sheets.forEach(function (s) { s.hidden = true; });
+    sheets.forEach(function (s) {
+      s.hidden = true;
+    });
     activeSheet = null;
-    if (lastTrigger && lastTrigger.offsetParent !== null && typeof lastTrigger.focus === 'function') {
+    if (
+      lastTrigger &&
+      lastTrigger.offsetParent !== null &&
+      typeof lastTrigger.focus === 'function'
+    ) {
       lastTrigger.focus();
     }
   }
@@ -567,8 +654,12 @@
         return;
       }
       if (event.key !== 'Tab' || !activeSheet) return;
-      var focusables = $$('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', activeSheet)
-        .filter(function (el) { return el.getClientRects().length > 0; });
+      var focusables = $$(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        activeSheet
+      ).filter(function (el) {
+        return el.getClientRects().length > 0;
+      });
       if (!focusables.length) return;
       var first = focusables[0];
       var last = focusables[focusables.length - 1];
@@ -588,17 +679,28 @@
   var chatBtn = $('#chatBtn');
   var endBtn = $('#endBtn');
 
-  peopleBtn && peopleBtn.addEventListener('click', function () { openSheet('sheet-people', peopleBtn); });
-  openPeople && openPeople.addEventListener('click', function () { openSheet('sheet-people', openPeople); });
-  handBtn && handBtn.addEventListener('click', function () { openSheet('sheet-people', handBtn); });
+  peopleBtn &&
+    peopleBtn.addEventListener('click', function () {
+      openSheet('sheet-people', peopleBtn);
+    });
+  openPeople &&
+    openPeople.addEventListener('click', function () {
+      openSheet('sheet-people', openPeople);
+    });
+  handBtn &&
+    handBtn.addEventListener('click', function () {
+      openSheet('sheet-people', handBtn);
+    });
 
-  chatBtn && chatBtn.addEventListener('click', function () {
-    openSheet('sheet-chat', chatBtn);
-  });
+  chatBtn &&
+    chatBtn.addEventListener('click', function () {
+      openSheet('sheet-chat', chatBtn);
+    });
 
-  endBtn && endBtn.addEventListener('click', function () {
-    openSheet('sheet-end', endBtn);
-  });
+  endBtn &&
+    endBtn.addEventListener('click', function () {
+      openSheet('sheet-end', endBtn);
+    });
 
   /* --------------------------------------------------------------- end class */
   var confirmEnd = $('#confirmEnd');
@@ -624,7 +726,9 @@
 
   function showRecapSheet() {
     closeSheet();
-    setTimeout(function () { openSheet('sheet-recap', endBtn); }, 160);
+    setTimeout(function () {
+      openSheet('sheet-recap', endBtn);
+    }, 160);
   }
 
   function endClass() {
@@ -636,13 +740,14 @@
     }
     if (recapStatus) recapStatus.textContent = 'Saving recap…';
 
-    var recap = window.mathifySubjectCopy && typeof window.mathifySubjectCopy.recapFor === 'function'
-      ? window.mathifySubjectCopy.recapFor(subjectState, studentName)
-      : {
-        summary: 'Ratios · Lesson 15 with ' + studentName,
-        highlights: ['Bar models', 'Equivalent ratios'],
-        homework: 'Practice sheet 3'
-      };
+    var recap =
+      window.mathifySubjectCopy && typeof window.mathifySubjectCopy.recapFor === 'function'
+        ? window.mathifySubjectCopy.recapFor(subjectState, studentName)
+        : {
+            summary: 'Ratios · Lesson 15 with ' + studentName,
+            highlights: ['Bar models', 'Equivalent ratios'],
+            homework: 'Practice sheet 3',
+          };
     var payload = { recap: recap };
     /* The server owns the score unless a signed-in host supplies one. */
     if (typeof window.MATHIFY_QUIZ_SCORE === 'number') {
@@ -653,65 +758,70 @@
       payload.recordingUrl = recordingLink.value.trim();
     }
 
-    var task = sessionId && classroomApi
-      ? classroomApi.endSession(sessionId, payload)
-      : Promise.reject({ code: 'NO_SESSION', message: 'No live session id.' });
+    var task =
+      sessionId && classroomApi
+        ? classroomApi.endSession(sessionId, payload)
+        : Promise.reject({ code: 'NO_SESSION', message: 'No live session id.' });
 
-    task.then(function (data) {
-      ending = false;
-      paintEnded('saved');
-      var recap = data && data.recap;
-      if (recap) {
-        window.MATHIFY_SESSION_RECAP = recap;
-        if (recapStatus && recap.endedAt) {
-          recapStatus.textContent = 'Session · saved ' + new Date(recap.endedAt).toLocaleTimeString();
-        }
-        if (recap.recordingUrl) {
-          var recordingNote = $('#recordingNote');
-          if (recordingNote) {
-            recordingNote.textContent = 'Recording link is ready to share with ' +
-              studentName + '’s parent.';
+    task
+      .then(function (data) {
+        ending = false;
+        paintEnded('saved');
+        var recap = data && data.recap;
+        if (recap) {
+          window.MATHIFY_SESSION_RECAP = recap;
+          if (recapStatus && recap.endedAt) {
+            recapStatus.textContent =
+              'Session · saved ' + new Date(recap.endedAt).toLocaleTimeString();
+          }
+          if (recap.recordingUrl) {
+            var recordingNote = $('#recordingNote');
+            if (recordingNote) {
+              recordingNote.textContent =
+                'Recording link is ready to share with ' + studentName + '’s parent.';
+            }
           }
         }
-      }
-      toast('Session ended · recap saved to ' + studentName + '’s profile.');
-      showRecapSheet();
-    }).catch(function (error) {
-      ending = false;
-      if (confirmEnd) {
-        confirmEnd.disabled = false;
-        confirmEnd.textContent = 'End & save recap';
-      }
-      if (error.code === 'SESSION_ALREADY_ENDED') {
-        paintEnded('already ended');
-        toast('This session was already ended.');
+        toast('Session ended · recap saved to ' + studentName + '’s profile.');
         showRecapSheet();
-        return;
-      }
-      if (error.code === 'PARALLEL_CHECK_REQUIRED') {
-        if (recapStatus) recapStatus.textContent = 'Finish the parallel check first';
-        toast('Finish the parallel check before ending the session.');
-        return;
-      }
-      if (error.code === 'NO_SESSION' || error.name === 'TypeError' || error.status === 404) {
-        paintEnded('preview · not saved');
-        toast('Local preview · no live session, so nothing was saved.');
-        showRecapSheet();
-        return;
-      }
-      if (recapStatus) recapStatus.textContent = 'Could not save · retry';
-      toast('Could not save the session: ' + error.message);
-    });
+      })
+      .catch(function (error) {
+        ending = false;
+        if (confirmEnd) {
+          confirmEnd.disabled = false;
+          confirmEnd.textContent = 'End & save recap';
+        }
+        if (error.code === 'SESSION_ALREADY_ENDED') {
+          paintEnded('already ended');
+          toast('This session was already ended.');
+          showRecapSheet();
+          return;
+        }
+        if (error.code === 'PARALLEL_CHECK_REQUIRED') {
+          if (recapStatus) recapStatus.textContent = 'Finish the parallel check first';
+          toast('Finish the parallel check before ending the session.');
+          return;
+        }
+        if (error.code === 'NO_SESSION' || error.name === 'TypeError' || error.status === 404) {
+          paintEnded('preview · not saved');
+          toast('Local preview · no live session, so nothing was saved.');
+          showRecapSheet();
+          return;
+        }
+        if (recapStatus) recapStatus.textContent = 'Could not save · retry';
+        toast('Could not save the session: ' + error.message);
+      });
   }
 
   confirmEnd && confirmEnd.addEventListener('click', endClass);
 
   var sendRecap = $('#sendRecap');
-  sendRecap && sendRecap.addEventListener('click', function () {
-    sendRecap.disabled = true;
-    sendRecap.textContent = 'Recap ready';
-    toast('Recap ready for ' + studentName + '’s parent.');
-  });
+  sendRecap &&
+    sendRecap.addEventListener('click', function () {
+      sendRecap.disabled = true;
+      sendRecap.textContent = 'Recap ready';
+      toast('Recap ready for ' + studentName + '’s parent.');
+    });
 
   /* -------------------------------------------------------------- media bar */
   var micBtn = $('#micBtn');
@@ -735,7 +845,9 @@
     if (use) use.setAttribute('href', id);
   }
 
-  function callModule() { return window.mathifyClassroomLiveKit; }
+  function callModule() {
+    return window.mathifyClassroomLiveKit;
+  }
 
   var micOn = true;
   var camOn = true;
@@ -783,21 +895,30 @@
     toast('Your trainer has locked audio and video controls.');
   }
 
-  micBtn && micBtn.addEventListener('click', function () {
-    if (!mediaAllowed() || micBtn.disabled) { rejectLockedControl(); return; }
-    setMicVisual(!micOn);
-    var micCall = callModule();
-    if (micCall && typeof micCall.setMicEnabled === 'function') micCall.setMicEnabled(micOn);
-    toast(micOn ? 'Microphone on.' : 'Microphone muted.');
-  });
+  micBtn &&
+    micBtn.addEventListener('click', function () {
+      if (!mediaAllowed() || micBtn.disabled) {
+        rejectLockedControl();
+        return;
+      }
+      setMicVisual(!micOn);
+      var micCall = callModule();
+      if (micCall && typeof micCall.setMicEnabled === 'function') micCall.setMicEnabled(micOn);
+      toast(micOn ? 'Microphone on.' : 'Microphone muted.');
+    });
 
-  camBtn && camBtn.addEventListener('click', function () {
-    if (!mediaAllowed() || camBtn.disabled) { rejectLockedControl(); return; }
-    setCameraVisual(!camOn);
-    var camCall = callModule();
-    if (camCall && typeof camCall.setCameraEnabled === 'function') camCall.setCameraEnabled(camOn);
-    toast(camOn ? 'Camera on.' : 'Camera off.');
-  });
+  camBtn &&
+    camBtn.addEventListener('click', function () {
+      if (!mediaAllowed() || camBtn.disabled) {
+        rejectLockedControl();
+        return;
+      }
+      setCameraVisual(!camOn);
+      var camCall = callModule();
+      if (camCall && typeof camCall.setCameraEnabled === 'function')
+        camCall.setCameraEnabled(camOn);
+      toast(camOn ? 'Camera on.' : 'Camera off.');
+    });
 
   function setMediaButtonsLocked(locked) {
     [micBtn, camBtn].forEach(function (button) {
@@ -806,15 +927,18 @@
       button.setAttribute('aria-disabled', String(Boolean(locked)));
       button.title = locked
         ? 'Locked by your trainer · audio and camera stay on'
-        : (button === micBtn ? 'Mute microphone' : 'Turn off camera');
+        : button === micBtn
+          ? 'Mute microphone'
+          : 'Turn off camera';
     });
   }
 
   function forceStudentMediaOn() {
     var call = callModule();
-    var result = call && typeof call.forceMediaOn === 'function'
-      ? call.forceMediaOn()
-      : { micApplied: false, cameraApplied: false, joined: false };
+    var result =
+      call && typeof call.forceMediaOn === 'function'
+        ? call.forceMediaOn()
+        : { micApplied: false, cameraApplied: false, joined: false };
     setMicVisual(true);
     setCameraVisual(true);
     return result;
@@ -825,9 +949,12 @@
     var allowed = mediaPermission.studentCanToggleMedia === true;
     accessBtn.classList.toggle('is-on', allowed);
     accessBtn.setAttribute('aria-pressed', String(allowed));
-    accessBtn.setAttribute('aria-label', allowed
-      ? 'Access on — revoke student audio and video controls'
-      : 'Access off — allow student audio and video controls');
+    accessBtn.setAttribute(
+      'aria-label',
+      allowed
+        ? 'Access on — revoke student audio and video controls'
+        : 'Access off — allow student audio and video controls'
+    );
     accessBtn.title = allowed
       ? 'Student can mute and switch camera off · click to lock'
       : 'Student controls locked · click to allow';
@@ -891,7 +1018,7 @@
     reactionPermissionState = {
       studentCanReact: value.studentCanReact !== false,
       studentCanApplaud: value.studentCanApplaud !== false,
-      version: incoming || current
+      version: incoming || current,
     };
     applyReactButton();
   }
@@ -903,7 +1030,7 @@
     if (incoming && incoming < current) return;
     sketchPermissionState = {
       studentCanSketch: value.studentCanSketch !== false,
-      version: incoming || current
+      version: incoming || current,
     };
     if (!scSketchBtn) return;
     var allowed = sketchPermissionState.studentCanSketch === true;
@@ -931,7 +1058,9 @@
       scCameraBtn.setAttribute('aria-pressed', String(cameraOff));
       var cameraLabel = $('[data-control-label]', scCameraBtn);
       if (cameraLabel) cameraLabel.textContent = cameraOff ? 'Off' : 'On';
-      scCameraBtn.title = cameraOff ? 'Kid camera is off · click to turn it on' : 'Turn off the kid’s camera';
+      scCameraBtn.title = cameraOff
+        ? 'Kid camera is off · click to turn it on'
+        : 'Turn off the kid’s camera';
     }
   }
 
@@ -958,7 +1087,7 @@
       forceCameraOn: value.forceCameraOn === true,
       studentMuted: value.studentMuted === true,
       studentCameraOff: value.studentCameraOff === true,
-      version: incoming || current
+      version: incoming || current,
     };
     applyAccessButton();
     applyTrainerMediaButtons();
@@ -967,8 +1096,8 @@
 
     /* An intentional trainer mute/camera-off always wins over the Access
        force-on default. A null track means "leave it as it is". */
-    var micOn = mediaPermission.studentMuted ? false : (!allowed ? true : null);
-    var cameraOn = mediaPermission.studentCameraOff ? false : (!allowed ? true : null);
+    var micOn = mediaPermission.studentMuted ? false : !allowed ? true : null;
+    var cameraOn = mediaPermission.studentCameraOff ? false : !allowed ? true : null;
     var remoteResult = null;
     function applyRemoteState() {
       var call = callModule();
@@ -989,9 +1118,9 @@
       }
       applyRemoteState();
       var message = applied.joined
-        ? (remoteResult && (!remoteResult.micApplied || !remoteResult.cameraApplied)
+        ? remoteResult && (!remoteResult.micApplied || !remoteResult.cameraApplied)
           ? 'Trainer locked controls. Some devices could not be switched as requested.'
-          : 'Trainer locked media controls. Microphone and camera are on.')
+          : 'Trainer locked media controls. Microphone and camera are on.'
         : 'Trainer locked media controls. Microphone and camera will start on when you join.';
       if (lockedCall && typeof lockedCall.setStatus === 'function') lockedCall.setStatus(message);
       toast('Your trainer locked audio and video controls.');
@@ -1002,8 +1131,13 @@
         openCall.setMediaControlsLocked(false);
       }
       applyRemoteState();
-      if (remoteResult && (remoteResult.micApplied === false || remoteResult.cameraApplied === false)) {
-        toast('Your trainer changed audio or video. Allow device access if a control did not change.');
+      if (
+        remoteResult &&
+        (remoteResult.micApplied === false || remoteResult.cameraApplied === false)
+      ) {
+        toast(
+          'Your trainer changed audio or video. Allow device access if a control did not change.'
+        );
       }
     }
     return Promise.resolve(true);
@@ -1026,14 +1160,26 @@
       var needDown = Number(required.downloadMbps) || 15;
       var needUp = Number(required.uploadMbps) || 10;
       var maxLatency = Number(required.maxLatencyMs) || 250;
-      if (Number.isFinite(down) && Number.isFinite(up) && Number.isFinite(latency) &&
-          down > 0 && up > 0) {
-        var ratio = Math.min(down / needDown, up / needUp,
-          maxLatency / Math.max(1, latency));
+      if (
+        Number.isFinite(down) &&
+        Number.isFinite(up) &&
+        Number.isFinite(latency) &&
+        down > 0 &&
+        up > 0
+      ) {
+        var ratio = Math.min(down / needDown, up / needUp, maxLatency / Math.max(1, latency));
         bars = Math.max(1, Math.min(5, Math.ceil(ratio * 5)));
         level = ['', 'poor', 'fair', 'good', 'strong', 'excellent'][bars];
-        label = 'Connection ' + level + ' · ' + down + ' Mbps down, ' + up +
-          ' Mbps up, ' + latency + ' ms';
+        label =
+          'Connection ' +
+          level +
+          ' · ' +
+          down +
+          ' Mbps down, ' +
+          up +
+          ' Mbps up, ' +
+          latency +
+          ' ms';
       } else if (own.ok === false || own.status === 'expired') {
         bars = 1;
         level = 'poor';
@@ -1055,8 +1201,12 @@
     var reason = ready ? '' : 'Both people must pass the connection speed check before class.';
     var call = callModule();
     if (call && typeof call.setNetworkReady === 'function') call.setNetworkReady(ready, reason);
-    if (window.mathifyNetworkCheck && typeof window.mathifyNetworkCheck.describe === 'function' &&
-        call && typeof call.setStatus === 'function') {
+    if (
+      window.mathifyNetworkCheck &&
+      typeof window.mathifyNetworkCheck.describe === 'function' &&
+      call &&
+      typeof call.setStatus === 'function'
+    ) {
       call.setStatus(window.mathifyNetworkCheck.describe(value));
     }
   }
@@ -1067,25 +1217,37 @@
       return;
     }
     var buttons = [accessBtn, scMediaBtn].filter(Boolean);
-    buttons.forEach(function (button) { button.disabled = true; });
-    classroomApi.setMediaPermission(sessionId, next).then(function (permission) {
-      applyMediaPermission(permission);
-      toast(next
-        ? 'Student may now mute and switch off the camera.'
-        : 'Student controls locked; audio and camera stay on.');
-    }).catch(function (error) {
-      toast('Media access update failed: ' + error.message);
-    }).then(function () {
-      buttons.forEach(function (button) { button.disabled = false; });
+    buttons.forEach(function (button) {
+      button.disabled = true;
     });
+    classroomApi
+      .setMediaPermission(sessionId, next)
+      .then(function (permission) {
+        applyMediaPermission(permission);
+        toast(
+          next
+            ? 'Student may now mute and switch off the camera.'
+            : 'Student controls locked; audio and camera stay on.'
+        );
+      })
+      .catch(function (error) {
+        toast('Media access update failed: ' + error.message);
+      })
+      .then(function () {
+        buttons.forEach(function (button) {
+          button.disabled = false;
+        });
+      });
   }
 
-  accessBtn && accessBtn.addEventListener('click', function () {
-    setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
-  });
-  scMediaBtn && scMediaBtn.addEventListener('click', function () {
-    setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
-  });
+  accessBtn &&
+    accessBtn.addEventListener('click', function () {
+      setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
+    });
+  scMediaBtn &&
+    scMediaBtn.addEventListener('click', function () {
+      setStudentMediaAccess(mediaPermission.studentCanToggleMedia !== true);
+    });
 
   function setTrainerMedia(patch, message) {
     if (!sessionId || !classroomApi || typeof classroomApi.setTrainerMediaState !== 'function') {
@@ -1093,78 +1255,105 @@
       return;
     }
     var buttons = [scMuteBtn, scCameraBtn].filter(Boolean);
-    buttons.forEach(function (button) { button.disabled = true; });
-    classroomApi.setTrainerMediaState(sessionId, patch).then(function (permission) {
-      applyMediaPermission(permission);
-      toast(message);
-    }).catch(function (error) {
-      toast('Media control update failed: ' + error.message);
-    }).then(function () {
-      buttons.forEach(function (button) { button.disabled = false; });
+    buttons.forEach(function (button) {
+      button.disabled = true;
     });
+    classroomApi
+      .setTrainerMediaState(sessionId, patch)
+      .then(function (permission) {
+        applyMediaPermission(permission);
+        toast(message);
+      })
+      .catch(function (error) {
+        toast('Media control update failed: ' + error.message);
+      })
+      .then(function () {
+        buttons.forEach(function (button) {
+          button.disabled = false;
+        });
+      });
   }
 
-  scMuteBtn && scMuteBtn.addEventListener('click', function () {
-    var next = mediaPermission.studentMuted !== true;
-    setTrainerMedia({ micOn: !next }, next ? 'Kid is muted.' : 'Kid microphone is on.');
-  });
-  scCameraBtn && scCameraBtn.addEventListener('click', function () {
-    var next = mediaPermission.studentCameraOff !== true;
-    setTrainerMedia({ cameraOn: !next }, next ? 'Kid camera is off.' : 'Kid camera is on.');
-  });
-
-  scApplauseBtn && scApplauseBtn.addEventListener('click', function () {
-    if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
-      toast('Applause permission needs a live session.');
-      return;
-    }
-    var next = reactionPermissionState.studentCanApplaud !== true;
-    scApplauseBtn.disabled = true;
-    classroomApi.setReactionPermission(sessionId, { studentCanApplaud: next }).then(function (permission) {
-      applyReactionPermission(permission);
-      toast(next ? 'Student may applaud again.' : 'Applause paused for this student.');
-    }).catch(function (error) {
-      toast('Applause permission update failed: ' + error.message);
-    }).then(function () {
-      scApplauseBtn.disabled = false;
+  scMuteBtn &&
+    scMuteBtn.addEventListener('click', function () {
+      var next = mediaPermission.studentMuted !== true;
+      setTrainerMedia({ micOn: !next }, next ? 'Kid is muted.' : 'Kid microphone is on.');
     });
-  });
-
-  scReactBtn && scReactBtn.addEventListener('click', function () {
-    if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
-      toast('Emoji permission needs a live session.');
-      return;
-    }
-    var next = reactionPermissionState.studentCanReact !== true;
-    scReactBtn.disabled = true;
-    classroomApi.setReactionPermission(sessionId, { studentCanReact: next }).then(function (permission) {
-      applyReactionPermission(permission);
-      toast(next ? 'Student may use emoji again.' : 'Emoji reactions paused for this student.');
-    }).catch(function (error) {
-      toast('Emoji permission update failed: ' + error.message);
-    }).then(function () {
-      scReactBtn.disabled = false;
+  scCameraBtn &&
+    scCameraBtn.addEventListener('click', function () {
+      var next = mediaPermission.studentCameraOff !== true;
+      setTrainerMedia({ cameraOn: !next }, next ? 'Kid camera is off.' : 'Kid camera is on.');
     });
-  });
 
-  scSketchBtn && scSketchBtn.addEventListener('click', function () {
-    if (!sessionId || !classroomApi || typeof classroomApi.setSketchPermission !== 'function') {
-      toast('Scratch permission needs a live session.');
-      return;
-    }
-    var next = sketchPermissionState.studentCanSketch !== true;
-    scSketchBtn.disabled = true;
-    classroomApi.setSketchPermission(sessionId, next).then(function (permission) {
-      applySketchPermission(permission);
-      toast(next
-        ? 'Scratch tools granted for this session.'
-        : 'Scratch tools paused for the rest of this session.');
-    }).catch(function (error) {
-      toast('Scratch permission update failed: ' + error.message);
-    }).then(function () {
-      scSketchBtn.disabled = false;
+  scApplauseBtn &&
+    scApplauseBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
+        toast('Applause permission needs a live session.');
+        return;
+      }
+      var next = reactionPermissionState.studentCanApplaud !== true;
+      scApplauseBtn.disabled = true;
+      classroomApi
+        .setReactionPermission(sessionId, { studentCanApplaud: next })
+        .then(function (permission) {
+          applyReactionPermission(permission);
+          toast(next ? 'Student may applaud again.' : 'Applause paused for this student.');
+        })
+        .catch(function (error) {
+          toast('Applause permission update failed: ' + error.message);
+        })
+        .then(function () {
+          scApplauseBtn.disabled = false;
+        });
     });
-  });
+
+  scReactBtn &&
+    scReactBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.setReactionPermission !== 'function') {
+        toast('Emoji permission needs a live session.');
+        return;
+      }
+      var next = reactionPermissionState.studentCanReact !== true;
+      scReactBtn.disabled = true;
+      classroomApi
+        .setReactionPermission(sessionId, { studentCanReact: next })
+        .then(function (permission) {
+          applyReactionPermission(permission);
+          toast(next ? 'Student may use emoji again.' : 'Emoji reactions paused for this student.');
+        })
+        .catch(function (error) {
+          toast('Emoji permission update failed: ' + error.message);
+        })
+        .then(function () {
+          scReactBtn.disabled = false;
+        });
+    });
+
+  scSketchBtn &&
+    scSketchBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.setSketchPermission !== 'function') {
+        toast('Scratch permission needs a live session.');
+        return;
+      }
+      var next = sketchPermissionState.studentCanSketch !== true;
+      scSketchBtn.disabled = true;
+      classroomApi
+        .setSketchPermission(sessionId, next)
+        .then(function (permission) {
+          applySketchPermission(permission);
+          toast(
+            next
+              ? 'Scratch tools granted for this session.'
+              : 'Scratch tools paused for the rest of this session.'
+          );
+        })
+        .catch(function (error) {
+          toast('Scratch permission update failed: ' + error.message);
+        })
+        .then(function () {
+          scSketchBtn.disabled = false;
+        });
+    });
 
   var sharing = false;
   function setBoardShare(next) {
@@ -1175,7 +1364,9 @@
       shareBtn.setAttribute('aria-label', sharing ? 'Stop sharing board' : 'Share board');
       shareBtn.title = sharing ? 'Stop sharing board' : 'Share board';
     }
-    $$('.call-pip').forEach(function (pip) { pip.classList.toggle('is-sharing', sharing); });
+    $$('.call-pip').forEach(function (pip) {
+      pip.classList.toggle('is-sharing', sharing);
+    });
     applyBoardButton();
     /* Sound is paused whenever a shared surface is visible. */
     var engagement = window.classroomEngagement;
@@ -1184,26 +1375,32 @@
     }
   }
 
-  shareBtn && shareBtn.addEventListener('click', function () {
-    setBoardShare(!sharing);
-    toast(sharing ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
-  });
-  scBoardBtn && scBoardBtn.addEventListener('click', function () {
-    if (!sessionId || !classroomApi || typeof classroomApi.shareBoard !== 'function') {
-      toast('Board sharing needs a live session.');
-      return;
-    }
-    var next = !sharing;
-    scBoardBtn.disabled = true;
-    classroomApi.shareBoard(sessionId, next).then(function () {
-      setBoardShare(next);
-      toast(next ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
-    }).catch(function (error) {
-      toast('Board sharing update failed: ' + error.message);
-    }).then(function () {
-      scBoardBtn.disabled = false;
+  shareBtn &&
+    shareBtn.addEventListener('click', function () {
+      setBoardShare(!sharing);
+      toast(sharing ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
     });
-  });
+  scBoardBtn &&
+    scBoardBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.shareBoard !== 'function') {
+        toast('Board sharing needs a live session.');
+        return;
+      }
+      var next = !sharing;
+      scBoardBtn.disabled = true;
+      classroomApi
+        .shareBoard(sessionId, next)
+        .then(function () {
+          setBoardShare(next);
+          toast(next ? 'Board shared with ' + studentName + '.' : 'Board share stopped.');
+        })
+        .catch(function (error) {
+          toast('Board sharing update failed: ' + error.message);
+        })
+        .then(function () {
+          scBoardBtn.disabled = false;
+        });
+    });
 
   /* Quiz mode is handled in session.js so the board can be hidden cleanly. */
 
@@ -1289,7 +1486,7 @@
   var layers = {
     1: { strokes: [], undo: [], redo: [] },
     2: { strokes: [], undo: [], redo: [] },
-    3: { strokes: [], undo: [], redo: [] }
+    3: { strokes: [], undo: [], redo: [] },
   };
   var page = 1;
   var tool = 'pen';
@@ -1299,14 +1496,18 @@
   var savedTimer = null;
   var deskZoom = 1;
 
-  function layer() { return layers[page]; }
+  function layer() {
+    return layers[page];
+  }
 
   function cloneStrokes(list) {
     return list.map(function (s) {
       return {
         tool: s.tool,
         color: s.color,
-        points: s.points.map(function (p) { return [p[0], p[1]]; })
+        points: s.points.map(function (p) {
+          return [p[0], p[1]];
+        }),
       };
     });
   }
@@ -1393,10 +1594,7 @@
     var rect = canvas.getBoundingClientRect();
     var x = (event.clientX - rect.left) / rect.width;
     var y = (event.clientY - rect.top) / rect.height;
-    return [
-      Math.min(Math.max(x, 0), 1),
-      Math.min(Math.max(y, 0), 1)
-    ];
+    return [Math.min(Math.max(x, 0), 1), Math.min(Math.max(y, 0), 1)];
   }
 
   function setTool(next) {
@@ -1479,11 +1677,15 @@
   }
 
   $$('[data-tool]').forEach(function (btn) {
-    btn.addEventListener('click', function () { setTool(btn.getAttribute('data-tool')); });
+    btn.addEventListener('click', function () {
+      setTool(btn.getAttribute('data-tool'));
+    });
   });
 
   $$('[data-color]').forEach(function (btn) {
-    btn.addEventListener('click', function () { setColor(btn.getAttribute('data-color')); });
+    btn.addEventListener('click', function () {
+      setColor(btn.getAttribute('data-color'));
+    });
   });
 
   $$('[data-act]').forEach(function (btn) {
@@ -1495,12 +1697,22 @@
     });
   });
 
-  pagePrev && pagePrev.addEventListener('click', function () { if (page > 1) setPage(page - 1); });
-  pageNext && pageNext.addEventListener('click', function () { if (page < pageEls.length) setPage(page + 1); });
+  pagePrev &&
+    pagePrev.addEventListener('click', function () {
+      if (page > 1) setPage(page - 1);
+    });
+  pageNext &&
+    pageNext.addEventListener('click', function () {
+      if (page < pageEls.length) setPage(page + 1);
+    });
 
   if (canvas && ctx && paper) {
     function interactiveTarget(target) {
-      return target && target.closest && target.closest('button, a, input, select, textarea, [data-expand], .trainer-panel');
+      return (
+        target &&
+        target.closest &&
+        target.closest('button, a, input, select, textarea, [data-expand], .trainer-panel')
+      );
     }
 
     paper.addEventListener('pointerdown', function (event) {
@@ -1510,7 +1722,9 @@
       event.preventDefault();
       drawing = true;
       activePointer = event.pointerId;
-      try { paper.setPointerCapture(event.pointerId); } catch (e) {}
+      try {
+        paper.setPointerCapture(event.pointerId);
+      } catch (e) {}
       var l = layer();
       l.undo.push(cloneStrokes(l.strokes));
       if (l.undo.length > 40) l.undo.shift();
@@ -1525,8 +1739,8 @@
     paper.addEventListener('pointermove', function (event) {
       if (brush && (tool === 'eraser' || tool === 'marker')) {
         var rect = paper.getBoundingClientRect();
-        brush.style.left = (event.clientX - rect.left) + 'px';
-        brush.style.top = (event.clientY - rect.top) + 'px';
+        brush.style.left = event.clientX - rect.left + 'px';
+        brush.style.top = event.clientY - rect.top + 'px';
         brush.style.opacity = '1';
       }
       if (!drawing || event.pointerId !== activePointer) return;
@@ -1536,9 +1750,9 @@
       if (!stroke) return;
       var p = pointFromEvent(event);
       var last = stroke.points[stroke.points.length - 1];
-      var rect = canvas.getBoundingClientRect();
-      var dx = (p[0] - last[0]) * rect.width;
-      var dy = (p[1] - last[1]) * rect.height;
+      var canvasRect = canvas.getBoundingClientRect();
+      var dx = (p[0] - last[0]) * canvasRect.width;
+      var dy = (p[1] - last[1]) * canvasRect.height;
       if (Math.sqrt(dx * dx + dy * dy) < 1.4) return;
       stroke.points.push(p);
       drawSegment(stroke, last, p);
@@ -1560,8 +1774,8 @@
     paper.addEventListener('pointerenter', function (event) {
       if (brush && (tool === 'eraser' || tool === 'marker')) {
         var rect = paper.getBoundingClientRect();
-        brush.style.left = (event.clientX - rect.left) + 'px';
-        brush.style.top = (event.clientY - rect.top) + 'px';
+        brush.style.left = event.clientX - rect.left + 'px';
+        brush.style.top = event.clientY - rect.top + 'px';
         brush.style.opacity = '1';
       }
     });
@@ -1569,7 +1783,9 @@
 
   window.addEventListener('resize', fitCanvas);
   if (window.ResizeObserver && paper) {
-    new ResizeObserver(function () { fitCanvas(); }).observe(paper);
+    new ResizeObserver(function () {
+      fitCanvas();
+    }).observe(paper);
   }
 
   /* ---------------------------------------------------------------- shortcuts */
@@ -1587,7 +1803,10 @@
       setDeskZoom(deskZoom + 0.1);
       return;
     }
-    if (command && (shortcutKey === '-' || shortcutKey === '_' || event.code === 'NumpadSubtract')) {
+    if (
+      command &&
+      (shortcutKey === '-' || shortcutKey === '_' || event.code === 'NumpadSubtract')
+    ) {
       event.preventDefault();
       setDeskZoom(deskZoom - 0.1);
       return;
@@ -1638,10 +1857,11 @@
     classroomCall.init({
       sessionId: sessionId,
       statusNode: $('#callStatus'),
+      viewerRole: isStudentViewer() ? 'student' : 'trainer',
       micEnabled: micOn,
       cameraEnabled: camOn,
       networkReady: false,
-      networkReason: 'Run the connection speed check before class.'
+      networkReason: 'Run the connection speed check before class.',
     });
   }
   renderNetworkMeter(networkState);
@@ -1651,7 +1871,7 @@
       sessionId: sessionId,
       api: classroomApi,
       button: $('#networkCheckBtn'),
-      onState: applyNetworkState
+      onState: applyNetworkState,
     });
     /* The speed test runs quietly on entry; its button is no longer shown on
        the camera tile, but the result still gates the Join control. */
@@ -1666,7 +1886,9 @@
   if (startPage >= 1 && startPage <= 3) setPage(startPage);
   var startSheet = params.get('sheet');
   if (startSheet) {
-    setTimeout(function () { openSheet('sheet-' + startSheet, null); }, 80);
+    setTimeout(function () {
+      openSheet('sheet-' + startSheet, null);
+    }, 80);
   }
 
   requestAnimationFrame(function () {
@@ -1674,20 +1896,28 @@
     renderChat();
   });
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function () { fitCanvas(); });
+    document.fonts.ready.then(function () {
+      fitCanvas();
+    });
   }
 
   /* -------------------------------------------------- concrete quick actions */
   function copyText(text, successMessage) {
-    if (!text) { toast('Nothing available to copy yet.'); return Promise.resolve(false); }
+    if (!text) {
+      toast('Nothing available to copy yet.');
+      return Promise.resolve(false);
+    }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(text).then(function () {
-        toast(successMessage);
-        return true;
-      }).catch(function () {
-        toast('Copy was blocked by the browser.');
-        return false;
-      });
+      return navigator.clipboard
+        .writeText(text)
+        .then(function () {
+          toast(successMessage);
+          return true;
+        })
+        .catch(function () {
+          toast('Copy was blocked by the browser.');
+          return false;
+        });
     }
     var field = document.createElement('textarea');
     field.value = text;
@@ -1697,7 +1927,11 @@
     document.body.appendChild(field);
     field.select();
     var copied = false;
-    try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+    try {
+      copied = document.execCommand('copy');
+    } catch (error) {
+      copied = false;
+    }
     document.body.removeChild(field);
     toast(copied ? successMessage : 'Copy is unavailable in this browser.');
     return Promise.resolve(copied);
@@ -1721,11 +1955,14 @@
         toast('Recording link is available when a live session is connected.');
         return;
       }
-      classroomApi.getSessionState(sessionId).then(function (state) {
-        copyText(state && state.recordingUrl, 'Recording link copied.');
-      }).catch(function (error) {
-        toast('Recording link is not ready yet: ' + error.message);
-      });
+      classroomApi
+        .getSessionState(sessionId)
+        .then(function (state) {
+          copyText(state && state.recordingUrl, 'Recording link copied.');
+        })
+        .catch(function (error) {
+          toast('Recording link is not ready yet: ' + error.message);
+        });
     });
   }
 
@@ -1737,14 +1974,25 @@
         return;
       }
       notifyParentBtn.disabled = true;
-      classroomApi.notifyParent(sessionId, 'Your child is in a live 1-on-1 maths session.')
+      classroomApi
+        .notifyParent(sessionId, 'Your child is in a live 1-on-1 maths session.')
         .then(function (data) {
           var delivery = (data && data.delivery) || {};
-          var sent = Boolean((delivery.slack && delivery.slack.sent) || (delivery.email && delivery.email.sent));
-          toast(sent ? 'Parent recap sent.' : 'Recap prepared · parent messaging is not configured in this preview.');
+          var sent = Boolean(
+            (delivery.slack && delivery.slack.sent) || (delivery.email && delivery.email.sent)
+          );
+          toast(
+            sent
+              ? 'Parent recap sent.'
+              : 'Recap prepared · parent messaging is not configured in this preview.'
+          );
         })
-        .catch(function (error) { toast('Parent recap failed: ' + error.message); })
-        .then(function () { notifyParentBtn.disabled = false; });
+        .catch(function (error) {
+          toast('Parent recap failed: ' + error.message);
+        })
+        .then(function () {
+          notifyParentBtn.disabled = false;
+        });
     });
   }
 
@@ -1768,40 +2016,59 @@
   var badgeSelect = $('#badgeSelect');
   var awardBadgeBtn = $('#awardBadgeBtn');
   if (classroomApi && typeof classroomApi.getPublicConfig === 'function') {
-    classroomApi.getPublicConfig().then(function (config) {
-      if (!badgeSelect || !Array.isArray(config.badges)) return;
-      badgeSelect.innerHTML = '';
-      config.badges.forEach(function (badge) {
-        var option = document.createElement('option');
-        option.value = badge.id;
-        option.textContent = badge.label + ' · ' + badge.points + ' pts';
-        badgeSelect.appendChild(option);
+    classroomApi
+      .getPublicConfig()
+      .then(function (config) {
+        if (!badgeSelect || !Array.isArray(config.badges)) return;
+        badgeSelect.innerHTML = '';
+        config.badges.forEach(function (badge) {
+          var option = document.createElement('option');
+          option.value = badge.id;
+          option.textContent = badge.label + ' · ' + badge.points + ' pts';
+          badgeSelect.appendChild(option);
+        });
+      })
+      .catch(function () {
+        /* static options remain usable */
       });
-    }).catch(function () { /* static options remain usable */ });
   }
-  awardBadgeBtn && awardBadgeBtn.addEventListener('click', function () {
-    if (!sessionId || !classroomApi || typeof classroomApi.awardBadge !== 'function') {
-      toast('Badges can be awarded in a live session.');
-      return;
-    }
-    var badgeId = badgeSelect && badgeSelect.value;
-    if (!badgeId) { toast('Choose a badge first.'); return; }
-    awardBadgeBtn.disabled = true;
-    classroomApi.awardBadge(sessionId, badgeId).then(function (badge) {
-      toast(badge.label + ' awarded · ' + badge.points + ' reward points.');
-    }).catch(function (error) {
-      toast('Badge award failed: ' + error.message);
-    }).then(function () {
-      awardBadgeBtn.disabled = false;
+  awardBadgeBtn &&
+    awardBadgeBtn.addEventListener('click', function () {
+      if (!sessionId || !classroomApi || typeof classroomApi.awardBadge !== 'function') {
+        toast('Badges can be awarded in a live session.');
+        return;
+      }
+      var badgeId = badgeSelect && badgeSelect.value;
+      if (!badgeId) {
+        toast('Choose a badge first.');
+        return;
+      }
+      awardBadgeBtn.disabled = true;
+      classroomApi
+        .awardBadge(sessionId, badgeId)
+        .then(function (badge) {
+          toast(badge.label + ' awarded · ' + badge.points + ' reward points.');
+        })
+        .catch(function (error) {
+          toast('Badge award failed: ' + error.message);
+        })
+        .then(function () {
+          awardBadgeBtn.disabled = false;
+        });
     });
-  });
 
   var saveBoardBtn = $('#saveBoardBtn');
   if (saveBoardBtn && canvas) {
     saveBoardBtn.addEventListener('click', function () {
-      if (typeof canvas.toBlob !== 'function') { toast('Board export is unavailable in this browser.'); return; }
+      if (typeof canvas.toBlob !== 'function') {
+        toast('Board export is unavailable in this browser.');
+        return;
+      }
       canvas.toBlob(function (blob) {
-        if (!blob) { toast('Board export failed.'); return; }
+        if (!blob) {
+          toast('Board export failed.');
+          return;
+        }
         var url = URL.createObjectURL(blob);
         var link = document.createElement('a');
         link.href = url;
@@ -1809,7 +2076,9 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        setTimeout(function () {
+          URL.revokeObjectURL(url);
+        }, 1000);
         toast('Board saved as an image.');
       }, 'image/png');
     });
@@ -1822,26 +2091,41 @@
     closeSheet: closeSheet,
     fitCanvas: fitCanvas,
     setPage: setPage,
-    currentPage: function () { return page; },
+    currentPage: function () {
+      return page;
+    },
     sessionId: sessionId,
     api: classroomApi,
     livekit: window.mathifyClassroomLiveKit,
-    studentName: function () { return studentName; },
+    studentName: function () {
+      return studentName;
+    },
     setStudentName: applyStudentName,
     applyMediaPermission: applyMediaPermission,
-    mediaPermission: function () { return mediaPermission; },
+    mediaPermission: function () {
+      return mediaPermission;
+    },
     applyReactionPermission: applyReactionPermission,
-    reactionPermission: function () { return reactionPermissionState; },
+    reactionPermission: function () {
+      return reactionPermissionState;
+    },
     applySketchPermission: applySketchPermission,
-    sketchPermission: function () { return sketchPermissionState; },
+    sketchPermission: function () {
+      return sketchPermissionState;
+    },
     applyNetworkState: applyNetworkState,
-    networkState: function () { return networkState; },
+    networkState: function () {
+      return networkState;
+    },
     applyObserverState: applyObserverState,
-    sessionTiming: function () { return timingState; },
+    sessionTiming: function () {
+      return timingState;
+    },
     applySessionTiming: applySessionTiming,
     showSessionWarning: showSessionWarning,
     clearSessionWarning: clearSessionWarning,
-    subject: function () { return subjectState; }
+    subject: function () {
+      return subjectState;
+    },
   };
-
 })();

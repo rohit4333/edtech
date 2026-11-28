@@ -32,6 +32,7 @@ async function main() {
   const cameraLookJs = read('classroom/camera-background.js');
   const mediaUiJs = read('shared/rtcMediaUi.js');
   const mediaUiCss = read('shared/rtcMediaUi.css');
+  const sharedLookCss = read('shared/cameraLook.css');
   check(
     /id="selfVideo"/.test(connectHtml) && /id="peerVideo"/.test(connectHtml),
     'the camera-check page has exactly the two participant feeds'
@@ -186,6 +187,28 @@ async function main() {
     connectHtml.indexOf('camera-background.js') !== -1 &&
       connectHtml.indexOf('camera-background.js') < connectHtml.indexOf('connect.js'),
     'the local camera-look helper loads before the camera client'
+  );
+  check(
+    /shared\/cameraLook\.css/.test(connectHtml) &&
+      /data-camera-look-layer/.test(connectHtml) &&
+      /data-camera-video/.test(connectHtml),
+    'the camera deck uses the shared camera-look layer and video target'
+  );
+  ['mathify-paper.svg', 'mathify-ink.svg', 'mathify-coral.svg'].forEach(function (name) {
+    const image = read('assets/camera-backgrounds/' + name);
+    check(
+      /viewBox="0 0 1600 900"/.test(image) && /Mathify/.test(image),
+      'the branded ' + name + ' camera background is a local versioned asset'
+    );
+    check(
+      sharedLookCss.indexOf('camera-backgrounds/' + name) !== -1,
+      'the shared camera-look stylesheet offers ' + name
+    );
+  });
+  check(
+    /backdrop-filter: blur/.test(sharedLookCss) &&
+      /segmentation or ML model is bundled/.test(sharedLookCss),
+    'blur stays an honest radial soft-focus with no segmentation claim'
   );
   check(
     !/<iframe\b/i.test(connectHtml) && !/href=["']#["']/.test(connectHtml),

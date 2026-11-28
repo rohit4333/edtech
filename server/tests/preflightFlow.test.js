@@ -68,6 +68,36 @@ async function main() {
   );
   ok(preflightCss.includes('preflight-presets'), 'preset controls are styled');
 
+  ok(
+    preflight.includes('shared/cameraLook.css') &&
+      preflight.includes('data-camera-look-layer') &&
+      ['preflightBackground', 'preflightLighting', 'preflightLookReset', 'preflightLookHint'].every(
+        function (id) {
+          return preflight.includes('id="' + id + '"');
+        }
+      ),
+    'the readiness gate offers the same local background, lighting and reset choices'
+  );
+  ok(
+    preflight.indexOf('camera-background.js') !== -1 &&
+      preflight.indexOf('camera-background.js') < preflight.indexOf('preflight.js'),
+    'the readiness gate loads camera look before its own client'
+  );
+  ok(
+    preflightJs.includes('bindCameraLook()') &&
+      preflightJs.includes('syncCameraLook()') &&
+      preflightJs.includes('startMicMeter(stream)') &&
+      preflightJs.includes('stopMicMeter()'),
+    'readiness binds camera look and ties the mic meter to the real preview stream'
+  );
+  ok(
+    preflight.includes('id="checkMicLevel"') &&
+      preflight.includes('id="checkMicResume"') &&
+      /AudioContext/.test(preflightJs) &&
+      /createAnalyser\(/.test(preflightJs),
+    'readiness shows real mic energy and a resume action for a suspended context'
+  );
+
   ok(connect.includes('id="startSessionBtn"'), 'camera page keeps the tested control id');
   ok(connect.includes('>Open whiteboard<'), 'camera page offers the whiteboard option');
   ok(
@@ -89,6 +119,14 @@ async function main() {
   ok(
     sw.includes("'/classroom/preflight.html'") && sw.includes("'/classroom/preflight.js'"),
     'PWA precache includes the readiness gate'
+  );
+  ok(
+    sw.includes("'/classroom/camera-background.js'") &&
+      sw.includes("'/shared/cameraLook.css'") &&
+      ['mathify-paper.svg', 'mathify-ink.svg', 'mathify-coral.svg'].every(function (name) {
+        return sw.includes('/assets/camera-backgrounds/' + name);
+      }),
+    'PWA precache includes camera look and the branded background assets'
   );
   ok(manifest.includes('/classroom/preflight.html'), 'PWA shortcut opens the readiness gate');
 

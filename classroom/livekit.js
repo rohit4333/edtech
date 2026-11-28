@@ -21,6 +21,9 @@
     remoteVideoTrack: null,
     remoteAudioTrack: null,
     remoteAudioElement: null,
+    mediaUi: null,
+    cameraLook: null,
+    viewerRole: 'trainer',
     listeners: [],
     joined: false,
     joining: false,
@@ -33,7 +36,7 @@
     networkReady: false,
     networkReason: 'Run the connection speed check before class.',
     peerLabel: '',
-    handlers: null
+    handlers: null,
   };
 
   var keepAliveTimer = null;
@@ -54,7 +57,7 @@
     setObserverOptIn: setObserverOptIn,
     reaffirmMedia: reaffirmMedia,
     setStatus: status,
-    getState: getState
+    getState: getState,
   };
 
   function sdk() {
@@ -71,6 +74,22 @@
     return error;
   }
 
+  function resolveViewerRole(opts) {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'student' || params.get('role') === 'student') return 'student';
+    } catch (error) {
+      /* browser without URLSearchParams keeps the inferred role */
+    }
+    if (opts && opts.viewerRole === 'student') return 'student';
+    var classroomApi = window.mathifyClassroomApi;
+    var detected =
+      classroomApi && typeof classroomApi.viewerRole === 'function'
+        ? classroomApi.viewerRole()
+        : (window.MATHIFY_USER && window.MATHIFY_USER.role) || (classroomApi && classroomApi.role);
+    return detected === 'student' ? 'student' : 'trainer';
+  }
+
   function findNodes() {
     var pip = document.getElementById('callPip');
     if (!pip) return null;
@@ -85,7 +104,7 @@
       leaveBtn: document.getElementById('callLeaveBtn'),
       live: document.getElementById('pipLive'),
       liveWord: document.getElementById('pipLiveWord'),
-      status: state.statusNode || document.getElementById('callStatus')
+      status: state.statusNode || document.getElementById('callStatus'),
     };
   }
 
@@ -104,9 +123,17 @@
 
   function clear(node) {
     if (!node) return;
-    try { node.innerHTML = ''; } catch (error) { /* detached node */ }
+    try {
+      node.innerHTML = '';
+    } catch (error) {
+      /* detached node */
+    }
     if ('srcObject' in node) {
-      try { node.srcObject = null; } catch (error) { /* read-only */ }
+      try {
+        node.srcObject = null;
+      } catch (error) {
+        /* read-only */
+      }
     }
   }
 
@@ -118,10 +145,9 @@
     var nodes = state.nodes;
     if (!nodes) return;
     if (nodes.joinBtn) {
-      nodes.joinBtn.disabled = state.destroyed || state.joined || state.joining ||
-        !state.sessionId || !state.networkReady;
-      var joinLabel = state.joining ? 'Joining…'
-        : (state.networkReady ? 'Join call' : 'Check speed');
+      nodes.joinBtn.disabled =
+        state.destroyed || state.joined || state.joining || !state.sessionId || !state.networkReady;
+      var joinLabel = state.joining ? 'Joining…' : state.networkReady ? 'Join call' : 'Check speed';
       var joinText = nodes.joinBtn.querySelector('.label');
       if (joinText) joinText.textContent = joinLabel;
       else nodes.joinBtn.textContent = joinLabel;
@@ -155,14 +181,22 @@
 
   function detach(track, element) {
     if (!track || !element || typeof track.detach !== 'function') return;
-    try { track.detach(element); } catch (error) { /* track already closed */ }
+    try {
+      track.detach(element);
+    } catch (error) {
+      /* track already closed */
+    }
   }
 
   function clearRemoteMedia() {
     detach(state.remoteVideoTrack, state.nodes && state.nodes.remote);
     if (state.remoteAudioElement) detach(state.remoteAudioTrack, state.remoteAudioElement);
     if (state.remoteAudioElement) {
-      try { state.remoteAudioElement.pause(); } catch (error) { /* already paused */ }
+      try {
+        state.remoteAudioElement.pause();
+      } catch (error) {
+        /* already paused */
+      }
       if (state.remoteAudioElement.parentNode) {
         state.remoteAudioElement.parentNode.removeChild(state.remoteAudioElement);
       }
@@ -175,12 +209,112 @@
   }
 
   function clearLocalMedia() {
-    detach(state.cameraPublication && state.cameraPublication.videoTrack,
-      state.nodes && state.nodes.local);
+    detach(
+      state.cameraPublication && state.cameraPublication.videoTrack,
+      state.nodes && state.nodes.local
+    );
     state.micPublication = null;
     state.cameraPublication = null;
     clear(state.nodes && state.nodes.local);
     markVideo(state.nodes && state.nodes.localTile, false);
+    syncPipCameraLook();
+  }
+
+  function localCameraTrack() {
+    if (!state.cameraPublication) return null;
+    return state.cameraPublication.videoTrack || state.cameraPublication.track || null;
+  }
+
+  function syncPipCameraLook() {
+    if (!state.cameraLook || typeof state.cameraLook.setFeedAvailable !== 'function') return;
+    var track = localCameraTrack();
+    var usable = Boolean(
+      track && track.readyState !== 'ended' && track.enabled !== false && track.muted !== true
+    );
+    if (state.viewerRole === 'student' && state.controlsLocked) usable = false;
+    state.cameraLook.setFeedAvailable(usable);
+  }
+
+  function bindPipCameraLook() {
+    var helper = window.mathifyCameraLook;
+    if (!helper || typeof helper.init !== 'function') return;
+    if (!state.nodes || !state.nodes.pip || !state.nodes.localTile) return;
+    try {
+      state.cameraLook = {
+        controller: helper,
+        setFeedAvailable: function (available) {
+          helper.setFeedAvailable(Boolean(available));
+        },
+        dispose: function () {
+          helper.setFeedAvailable(false);
+        },
+      };
+      helper.init({
+        role: state.viewerRole,
+        tile: state.nodes.localTile,
+        panel: state.nodes.pip.querySelector('#pipLookPanel'),
+        hintNode: state.nodes.pip.querySelector('#pipLookHint'),
+        backgroundSelect: state.nodes.pip.querySelector('#pipBackground'),
+        lightingSelect: state.nodes.pip.querySelector('#pipLighting'),
+        resetButton: state.nodes.pip.querySelector('#pipLookReset'),
+        getTrack: localCameraTrack,
+      });
+    } catch (error) {
+      state.cameraLook = null;
+      return;
+    }
+    var button = state.nodes.pip.querySelector('#pipLookBtn');
+    var panel = state.nodes.pip.querySelector('#pipLookPanel');
+    if (button && panel && typeof button.addEventListener === 'function') {
+      button.addEventListener('click', function (event) {
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        var open = panel.hidden;
+        panel.hidden = !open;
+        button.setAttribute('aria-expanded', String(open));
+        if (!open) syncPipCameraLook();
+      });
+      panel.addEventListener('click', function (event) {
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+      });
+    }
+    syncPipCameraLook();
+  }
+
+  /* The whiteboard PiP uses LiveKit's own participant.audioLevel, not a second
+     microphone capture. The shared helper paints teal level bars, tile borders
+     and speaking badges from the same levels that drive the live room. */
+  function bindMediaUi() {
+    var helper = window.mathifyRtcMediaUi;
+    if (!helper || typeof helper.bind !== 'function' || !state.room) return;
+    if (!state.nodes || !state.nodes.pip) return;
+    if (state.mediaUi && typeof state.mediaUi.dispose === 'function') {
+      try {
+        state.mediaUi.dispose();
+      } catch (error) {
+        /* already detached */
+      }
+    }
+    state.mediaUi = null;
+    try {
+      state.mediaUi = helper.bind(state.room, {
+        events: window.LivekitClient && window.LivekitClient.RoomEvent,
+        icons: { on: '#i-mic', off: '#i-mic-off' },
+        self: {
+          tile: state.nodes.localTile,
+          mic: state.nodes.pip.querySelector('#selfPipMic'),
+          speaking: state.nodes.pip.querySelector('#selfPipSpeaking'),
+          level: state.nodes.pip.querySelector('#selfPipLevel'),
+        },
+        peer: {
+          tile: state.nodes.remoteTile,
+          mic: state.nodes.pip.querySelector('#peerPipMic'),
+          speaking: state.nodes.pip.querySelector('#peerPipSpeaking'),
+          level: state.nodes.pip.querySelector('#peerPipLevel'),
+        },
+      });
+    } catch (error) {
+      state.mediaUi = null;
+    }
   }
 
   function wireRoomEvents() {
@@ -234,8 +368,11 @@
       status('Connection interrupted. Trying to reconnect…');
     });
     on(room, events.Reconnected, function () {
-      status(state.observer ? 'Observing the 1:1 call.'
-        : 'Reconnected. Camera and voice stay in this 1:1 room.');
+      status(
+        state.observer
+          ? 'Observing the 1:1 call.'
+          : 'Reconnected. Camera and voice stay in this 1:1 room.'
+      );
     });
 
     on(room, events.LocalTrackPublished, function (publication) {
@@ -246,24 +383,34 @@
         publication.videoTrack.attach(state.nodes.local);
         markVideo(state.nodes.localTile, true);
       }
+      syncPipCameraLook();
     });
 
     on(room, events.LocalTrackUnpublished, function (publication) {
       if (!publication || publication.source !== 'camera') return;
-      detach(state.cameraPublication && state.cameraPublication.videoTrack,
-        state.nodes && state.nodes.local);
+      detach(
+        state.cameraPublication && state.cameraPublication.videoTrack,
+        state.nodes && state.nodes.local
+      );
       state.cameraPublication = null;
       clear(state.nodes && state.nodes.local);
       markVideo(state.nodes && state.nodes.localTile, false);
+      syncPipCameraLook();
     });
 
     on(room, events.TrackMuted, function (publication, participant) {
       if (!participant || participant.identity !== state.identity) return;
-      if (publication.source === 'camera') markVideo(state.nodes && state.nodes.localTile, false);
+      if (publication.source === 'camera') {
+        markVideo(state.nodes && state.nodes.localTile, false);
+        syncPipCameraLook();
+      }
     });
     on(room, events.TrackUnmuted, function (publication, participant) {
       if (!participant || participant.identity !== state.identity) return;
-      if (publication.source === 'camera') markVideo(state.nodes && state.nodes.localTile, true);
+      if (publication.source === 'camera') {
+        markVideo(state.nodes && state.nodes.localTile, true);
+        syncPipCameraLook();
+      }
     });
 
     on(room, events.TrackSubscriptionFailed, function () {
@@ -284,7 +431,11 @@
   function clearRemoteAudio() {
     detach(state.remoteAudioTrack, state.remoteAudioElement);
     if (state.remoteAudioElement) {
-      try { state.remoteAudioElement.pause(); } catch (error) { /* already paused */ }
+      try {
+        state.remoteAudioElement.pause();
+      } catch (error) {
+        /* already paused */
+      }
       if (state.remoteAudioElement.parentNode) {
         state.remoteAudioElement.parentNode.removeChild(state.remoteAudioElement);
       }
@@ -294,44 +445,60 @@
   }
 
   function applyMic(enabled) {
-    if (state.observer || !state.room || !state.room.localParticipant) return Promise.resolve(false);
+    if (state.observer || !state.room || !state.room.localParticipant)
+      return Promise.resolve(false);
     if (state.controlsLocked && !enabled) return Promise.resolve(false);
     return Promise.resolve(state.room.localParticipant.setMicrophoneEnabled(Boolean(enabled)))
       .then(function (publication) {
         state.micPublication = publication || null;
         return Boolean(publication);
       })
-      .catch(function () { return false; });
+      .catch(function () {
+        return false;
+      });
   }
 
   function applyCamera(enabled) {
-    if (state.observer || !state.room || !state.room.localParticipant) return Promise.resolve(false);
+    if (state.observer || !state.room || !state.room.localParticipant)
+      return Promise.resolve(false);
     if (state.controlsLocked && !enabled) return Promise.resolve(false);
     return Promise.resolve(state.room.localParticipant.setCameraEnabled(Boolean(enabled)))
       .then(function (publication) {
         state.cameraPublication = publication || null;
         return Boolean(publication);
       })
-      .catch(function () { return false; });
+      .catch(function () {
+        return false;
+      });
   }
 
   function setMicEnabled(enabled) {
     if (state.observer) return Promise.resolve(false);
     state.micEnabled = Boolean(enabled);
+    if (state.mediaUi && typeof state.mediaUi.setMicState === 'function') {
+      state.mediaUi.setMicState('self', state.micEnabled);
+    }
     return applyMic(state.micEnabled);
   }
 
   function setCameraEnabled(enabled) {
     if (state.observer) return Promise.resolve(false);
     state.cameraEnabled = Boolean(enabled);
+    syncPipCameraLook();
     return applyCamera(state.cameraEnabled);
   }
 
   /* Ordered revoke transition: call this BEFORE setMediaControlsLocked(true). */
   function forceMediaOn() {
     if (state.observer) {
-      return { micApplied: false, cameraApplied: false, micTrackPresent: false,
-        cameraTrackPresent: false, joined: state.joined, observer: true };
+      return {
+        micApplied: false,
+        cameraApplied: false,
+        micTrackPresent: false,
+        cameraTrackPresent: false,
+        joined: state.joined,
+        observer: true,
+      };
     }
     state.micEnabled = true;
     state.cameraEnabled = true;
@@ -343,7 +510,7 @@
       cameraApplied: canApply,
       micTrackPresent: canApply,
       cameraTrackPresent: canApply,
-      joined: state.joined
+      joined: state.joined,
     };
   }
 
@@ -351,8 +518,14 @@
      A null value means "leave this track as it is". */
   function applyTrainerMediaState(settings) {
     if (state.observer) {
-      return { micApplied: false, cameraApplied: false, micTrackPresent: false,
-        cameraTrackPresent: false, joined: state.joined, observer: true };
+      return {
+        micApplied: false,
+        cameraApplied: false,
+        micTrackPresent: false,
+        cameraTrackPresent: false,
+        joined: state.joined,
+        observer: true,
+      };
     }
     var input = settings || {};
     var result = {
@@ -360,7 +533,7 @@
       cameraApplied: false,
       micTrackPresent: Boolean(state.micPublication),
       cameraTrackPresent: Boolean(state.cameraPublication),
-      joined: state.joined
+      joined: state.joined,
     };
     if (input.micOn === true || input.micOn === false) {
       if (input.micOn === false && state.controlsLocked) {
@@ -385,14 +558,17 @@
 
   function setMediaControlsLocked(locked) {
     state.controlsLocked = Boolean(locked);
+    syncPipCameraLook();
     return state.controlsLocked;
   }
 
   function setNetworkReady(ready, reason) {
     state.networkReady = Boolean(ready);
-    state.networkReason = reason || (state.networkReady
-      ? 'Join the private 1:1 call.'
-      : 'Run the connection speed check before class.');
+    state.networkReason =
+      reason ||
+      (state.networkReady
+        ? 'Join the private 1:1 call.'
+        : 'Run the connection speed check before class.');
     syncButtons();
     return state.networkReady;
   }
@@ -400,8 +576,14 @@
   function reaffirmMedia() {
     if (state.observer || !state.joined || !state.room) return false;
     var changed = false;
-    if (state.micEnabled) { applyMic(true); changed = true; }
-    if (state.cameraEnabled) { applyCamera(true); changed = true; }
+    if (state.micEnabled) {
+      applyMic(true);
+      changed = true;
+    }
+    if (state.cameraEnabled) {
+      applyCamera(true);
+      changed = true;
+    }
     return changed;
   }
 
@@ -462,10 +644,16 @@
       })
       .then(function (rtc) {
         if (state.destroyed) throw makeError('TOKEN_UNAVAILABLE', 'Call was closed.');
-        var valid = rtc && typeof rtc.token === 'string' && rtc.token.length > 0 &&
-          typeof rtc.url === 'string' && rtc.url.length > 0 &&
-          typeof rtc.roomName === 'string' && rtc.roomName.length > 0 &&
-          typeof rtc.identity === 'string' && rtc.identity.length > 0 &&
+        var valid =
+          rtc &&
+          typeof rtc.token === 'string' &&
+          rtc.token.length > 0 &&
+          typeof rtc.url === 'string' &&
+          rtc.url.length > 0 &&
+          typeof rtc.roomName === 'string' &&
+          rtc.roomName.length > 0 &&
+          typeof rtc.identity === 'string' &&
+          rtc.identity.length > 0 &&
           rtc.provider === 'livekit' &&
           (rtc.mode === 'livekit' || rtc.mode === 'mock');
         if (!valid) throw makeError('TOKEN_UNAVAILABLE', 'No usable LiveKit token.');
@@ -481,9 +669,11 @@
           state.joined = true;
           state.joining = false;
           setLive(state.observer ? 'Observing' : 'Live', 'on');
-          status(state.observer
-            ? 'Observing the 1:1 call (mock). No media is sent.'
-            : 'Connected in mock mode. No media is sent.');
+          status(
+            state.observer
+              ? 'Observing the 1:1 call (mock). No media is sent.'
+              : 'Connected in mock mode. No media is sent.'
+          );
           labelPeer();
           syncButtons();
           return true;
@@ -494,28 +684,32 @@
         wireRoomEvents();
         status(state.observer ? 'Joining as observer…' : 'Joining…');
 
-        return state.room.connect(rtc.url, rtc.token, { autoSubscribe: true })
+        return state.room
+          .connect(rtc.url, rtc.token, { autoSubscribe: true })
           .then(function () {
             if (typeof state.room.startAudio === 'function') {
-              return Promise.resolve(state.room.startAudio()).catch(function () { return undefined; });
+              return Promise.resolve(state.room.startAudio()).catch(function () {
+                return undefined;
+              });
             }
             return undefined;
           })
           .then(function () {
+            bindMediaUi();
             if (state.observer) return undefined;
             /* Publish camera + microphone through the documented Room helper. */
-            return Promise.resolve(
-              state.room.localParticipant.enableCameraAndMicrophone()
-            ).then(function () {
-              return Promise.all([
-                state.room.localParticipant.setMicrophoneEnabled(state.micEnabled),
-                state.room.localParticipant.setCameraEnabled(state.cameraEnabled)
-              ]);
-            }).then(function (publications) {
-              state.micPublication = publications && publications[0] || null;
-              state.cameraPublication = publications && publications[1] || null;
-              return undefined;
-            });
+            return Promise.resolve(state.room.localParticipant.enableCameraAndMicrophone())
+              .then(function () {
+                return Promise.all([
+                  state.room.localParticipant.setMicrophoneEnabled(state.micEnabled),
+                  state.room.localParticipant.setCameraEnabled(state.cameraEnabled),
+                ]);
+              })
+              .then(function (publications) {
+                state.micPublication = (publications && publications[0]) || null;
+                state.cameraPublication = (publications && publications[1]) || null;
+                return undefined;
+              });
           })
           .then(function () {
             if (state.destroyed) {
@@ -525,20 +719,27 @@
             state.joined = true;
             state.joining = false;
             if (!state.observer && !keepAliveTimer) {
-              keepAliveTimer = setInterval(function () { reaffirmMedia(); }, 5000);
+              keepAliveTimer = setInterval(function () {
+                reaffirmMedia();
+              }, 5000);
             }
             var seconds = Number(rtc.expiresInSeconds || 0);
             if (seconds > 0 && !expiryTimer) {
-              expiryTimer = setTimeout(function () {
-                status('The call token is expiring soon. Leave and rejoin to continue.');
-              }, Math.max(1000, (seconds - 120) * 1000));
+              expiryTimer = setTimeout(
+                function () {
+                  status('The call token is expiring soon. Leave and rejoin to continue.');
+                },
+                Math.max(1000, (seconds - 120) * 1000)
+              );
             }
             labelPeer();
             syncButtons();
             setLive(state.observer ? 'Observing' : 'Live', 'on');
-            status(state.observer
-              ? 'Observing the 1:1 call. You can see and hear the participants; they cannot see or hear you.'
-              : 'Connected. Camera and voice stay in this 1:1 room.');
+            status(
+              state.observer
+                ? 'Observing the 1:1 call. You can see and hear the participants; they cannot see or hear you.'
+                : 'Connected. Camera and voice stay in this 1:1 room.'
+            );
             return true;
           });
       })
@@ -555,15 +756,42 @@
     var room = state.room;
     var done = Promise.resolve();
 
-    if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
-    if (expiryTimer) { clearTimeout(expiryTimer); expiryTimer = null; }
+    if (keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = null;
+    }
+    if (expiryTimer) {
+      clearTimeout(expiryTimer);
+      expiryTimer = null;
+    }
 
     if (room) {
       state.listeners.forEach(function (pair) {
-        try { room.off(pair[0], pair[1]); } catch (error) { /* room already closed */ }
+        try {
+          room.off(pair[0], pair[1]);
+        } catch (error) {
+          /* room already closed */
+        }
       });
     }
     state.listeners = [];
+
+    if (state.mediaUi && typeof state.mediaUi.dispose === 'function') {
+      try {
+        state.mediaUi.dispose();
+      } catch (error) {
+        /* already detached */
+      }
+    }
+    state.mediaUi = null;
+
+    if (state.cameraLook && typeof state.cameraLook.dispose === 'function') {
+      try {
+        state.cameraLook.dispose();
+      } catch (error) {
+        /* already detached */
+      }
+    }
 
     clearRemoteMedia();
     clearLocalMedia();
@@ -578,9 +806,13 @@
       try {
         var leaving = room.disconnect(true);
         if (leaving && typeof leaving.catch === 'function') {
-          done = leaving.catch(function () { return undefined; });
+          done = leaving.catch(function () {
+            return undefined;
+          });
         }
-      } catch (error) { /* room was never connected */ }
+      } catch (error) {
+        /* room was never connected */
+      }
       state.disconnecting = false;
     }
 
@@ -604,14 +836,18 @@
     var nodes = state.nodes;
     if (!nodes) return;
     state.handlers = {
-      join: function () { joinClassroom(); },
-      leave: function () { leave(); },
+      join: function () {
+        joinClassroom();
+      },
+      leave: function () {
+        leave();
+      },
       unload: function () {
         if (state.joined || state.joining || state.room) forceCleanup();
       },
       visible: function () {
         if (!document.hidden && state.joined) reaffirmMedia();
-      }
+      },
     };
     if (nodes.joinBtn) nodes.joinBtn.addEventListener('click', state.handlers.join);
     if (nodes.leaveBtn) nodes.leaveBtn.addEventListener('click', state.handlers.leave);
@@ -648,14 +884,26 @@
     if (typeof opts.networkReady === 'boolean') state.networkReady = opts.networkReady;
     if (typeof opts.networkReason === 'string') state.networkReason = opts.networkReason;
     state.observer = opts.observer === true;
+    state.viewerRole = resolveViewerRole(opts);
     state.destroyed = false;
+    if (state.cameraLook && typeof state.cameraLook.dispose === 'function') {
+      try {
+        state.cameraLook.dispose();
+      } catch (error) {
+        /* already detached */
+      }
+    }
+    state.cameraLook = null;
     state.nodes = findNodes();
+    bindPipCameraLook();
     bind();
     syncButtons();
     setLive('Off', 'off');
-    status(state.sessionId
-      ? 'Ready for a private 1:1 call. Join when you are.'
-      : 'Open a session to use live video.');
+    status(
+      state.sessionId
+        ? 'Ready for a private 1:1 call. Join when you are.'
+        : 'Open a session to use live video.'
+    );
     return api;
   }
 
@@ -688,7 +936,7 @@
       controlsLocked: state.controlsLocked,
       observer: state.observer,
       networkReady: state.networkReady,
-      networkReason: state.networkReason
+      networkReason: state.networkReason,
     };
   }
 

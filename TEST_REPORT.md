@@ -308,3 +308,9 @@ The figures above remain historical. The current verified state for this branch 
 - VERIFIED — The local helper contains no API, presence, pay, clock, `sessionId` or console surface; mic levels use `AudioContext` + `AnalyserNode` and remote levels require a real `MediaStream`. Active animation is teal; coral is only muted [ev: static and behavioural assertions in both focused suites].
 - VERIFIED — A privacy-boundary false positive was found because the camera-look configuration key was named `hint:`, matching the quiz hint-text guard. It was renamed to `hintNode`; `privacyBoundary: 239 assertions passed` afterwards [ev: targeted suite rerun, 2026-11-28].
 - NOT CLAIMED — ML person segmentation, remote levels without an exposed stream, or guaranteed advanced camera constraints. Blur is a radial soft-focus and Mathify backgrounds are masked washes; limitations are documented in `classroom/camera-background.js`.
+
+### All-surface audio visual and camera look evidence (2026-11-28)
+
+- VERIFIED — `cameraConnect: 106 assertions passed`, `rtcControls: 79 assertions passed`, `preflightFlow: 33 assertions passed`, and the full 65-suite coverage run exited `0` with statements `81.66%`, branches `65.74%`, functions `79.53%`, lines `81.66%` [ev: `C:\Users\rohit\AppData\Local\Temp\opencode\audio-background-commit-verified-test.log`].
+- VERIFIED — Both roles are covered on all three camera surfaces: readiness preview, shared camera deck and in-session PiP. The PiP uses LiveKit `participant.audioLevel` and disables local look while student controls are revoked [ev: static assertions in `rtcControls.test.js` and `preflightFlow.test.js`].
+- VERIFIED — The three branded Mathify backgrounds are local SVG assets referenced by `shared/cameraLook.css` and precached by the service worker. The remote image generator failed authentication, so no generated raster dependency was introduced [ev: `assets/camera-backgrounds/`, `sw.js`, `cameraConnect.test.js`].

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../assets/poppins.css" />
     <link rel="stylesheet" href="../shared/tokens.css" />
     <link rel="stylesheet" href="../shared/rtcMediaUi.css" />
+    <link rel="stylesheet" href="../shared/cameraLook.css" />
     <link rel="stylesheet" href="../shared/rewardDeck.css" />
     <link rel="stylesheet" href="connect.css" />
   </head>
@@ -51,8 +52,13 @@
           data-muted="false"
           aria-label="Your camera"
         >
-          <video id="selfVideo" autoplay muted playsinline></video>
-          <div class="camera-look-layer" id="cameraLookLayer" aria-hidden="true"></div>
+          <video id="selfVideo" data-camera-video autoplay muted playsinline></video>
+          <div
+            class="camera-look-layer"
+            id="cameraLookLayer"
+            data-camera-look-layer
+            aria-hidden="true"
+          ></div>
           <span class="audio-pulse" id="selfAudioPulse" aria-hidden="true"></span>
           <div class="tile-placeholder" id="selfPlaceholder"><span id="selfInitials">AR</span></div>
           <span class="tile-name" id="selfName">You</span>

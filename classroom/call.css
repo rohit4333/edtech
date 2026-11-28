@@ -4,132 +4,269 @@
    no new panel, no gradients, no heavy elevation.
    ========================================================================== */
 
-.call-pip .pip-video{
-  position:absolute;
-  inset:0;
-  z-index:1;
-  overflow:hidden;
-  background:var(--ink);
-  pointer-events:none;
+.call-pip .pip-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: var(--ink);
+  pointer-events: none;
 }
-.call-pip .pip-video video{
-  display:block;
-  width:100% !important;
-  height:100% !important;
-  object-fit:cover;
+.call-pip .pip-video video {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
 }
-.call-pip .dock-tile.has-video .dock-initials{display:none}
+.call-pip .dock-tile.has-video .dock-initials {
+  display: none;
+}
 .call-pip .dock-tile b,
-.call-pip .dock-tile .dock-mic{z-index:2}
+.call-pip .dock-tile .dock-mic {
+  z-index: 2;
+}
+/* LiveKit-level evidence: the shared helper writes --mic-level from
+   participant.audioLevel. Teal bars follow real audio; muted tiles stay coral. */
+.call-pip .dock-audio {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.call-pip .dock-audio .dock-mic {
+  position: static;
+  width: 15px;
+  height: 15px;
+  opacity: 0.9;
+}
+.call-pip .dock-level {
+  width: 22px;
+  height: 4px;
+}
+.call-pip .rtc-speaking {
+  top: auto;
+  bottom: 14px;
+  left: 5px;
+  padding: 3px 6px;
+  font-size: 8px;
+}
+/* Local camera look stays opt-in and compact. The panel sits outside the
+   clipped video tile so its selects remain usable at small PiP sizes. */
+.call-pip .pip-look-btn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 4;
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(253, 250, 243, 0.2);
+  border-radius: 999px;
+  background: rgba(12, 18, 29, 0.72);
+  color: rgba(253, 250, 243, 0.78);
+  font: 600 8px/1 var(--mono, monospace);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.call-pip .pip-look-btn:hover {
+  color: var(--paper);
+  border-color: rgba(18, 150, 140, 0.65);
+}
+.call-pip .pip-look-panel {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 9;
+  width: min(320px, 90vw);
+  margin-top: 4px;
+  padding: 8px;
+  border-color: rgba(18, 150, 140, 0.32);
+  background: rgba(10, 16, 26, 0.96);
+  box-shadow: 0 18px 36px -22px rgba(0, 0, 0, 0.9);
+}
+.call-pip .pip-look-panel[hidden] {
+  display: none !important;
+}
+.call-pip .pip-look-panel .camera-look-hint {
+  font-size: 9px;
+}
+.call-pip .pip-look-panel .camera-look-controls {
+  gap: 6px;
+}
+.call-pip .pip-look-panel .camera-look-field select {
+  max-width: 126px;
+}
 
-.call-pip .pip-call-bar{
-  flex:none;
-  display:flex;
-  gap:4px;
-  padding:5px 6px 3px;
-  border-top:1px solid rgba(253,250,243,.1);
+.call-pip .pip-call-bar {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 5px 6px 3px;
+  border-top: 1px solid rgba(253, 250, 243, 0.1);
 }
-.call-pip .pip-call-btn{
-  flex:1;
-  min-width:0;
-  padding:4px 6px;
-  border:1px solid rgba(253,250,243,.2);
-  border-radius:var(--r-xs);
-  background:transparent;
-  color:rgba(253,250,243,.72);
-  font:500 8px/1.2 var(--sans);
-  letter-spacing:.02em;
-  cursor:pointer;
+.call-pip .pip-call-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid rgba(253, 250, 243, 0.2);
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: rgba(253, 250, 243, 0.72);
+  font: 500 8px/1.2 var(--sans);
+  letter-spacing: 0.02em;
+  cursor: pointer;
 }
-.call-pip .pip-call-btn:hover:not(:disabled){
-  border-color:rgba(253,250,243,.5);
-  color:var(--paper);
+.call-pip .pip-call-btn:hover:not(:disabled) {
+  border-color: rgba(253, 250, 243, 0.5);
+  color: var(--paper);
 }
-.call-pip .pip-call-btn:disabled{opacity:.4;cursor:default}
-.call-pip .pip-call-btn.is-primary{border-color:var(--coral-deep);color:#FFB49E}
+.call-pip .pip-call-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.call-pip .pip-call-btn.is-primary {
+  border-color: var(--coral-deep);
+  color: #ffb49e;
+}
 
-.call-pip .pip-call-status{
-  flex:none;
-  min-height:0;
-  padding:0 7px 6px;
-  overflow:hidden;
-  color:rgba(253,250,243,.55);
-  font:400 8px/1.35 var(--sans);
-  text-overflow:ellipsis;
-  white-space:nowrap;
+.call-pip .pip-call-status {
+  flex: none;
+  min-height: 0;
+  padding: 0 7px 6px;
+  overflow: hidden;
+  color: rgba(253, 250, 243, 0.55);
+  font: 400 8px/1.35 var(--sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.call-pip.is-collapsed .pip-call-status{display:none}
-.call-pip .pip-observer-notice{
-  flex:none;
-  margin:0;
-  padding:4px 7px 5px;
-  border-top:1px solid rgba(255,180,158,.35);
-  color:#FFD2C4;
-  font:500 8px/1.35 var(--sans);
+.call-pip.is-collapsed .pip-call-status {
+  display: none;
 }
-.call-pip .pip-observer-opt-in{
-  flex:none;
-  display:flex;
-  gap:5px;
-  align-items:center;
-  padding:3px 7px 6px;
-  color:rgba(253,250,243,.78);
-  font:500 8px/1.3 var(--sans);
+.call-pip .pip-observer-notice {
+  flex: none;
+  margin: 0;
+  padding: 4px 7px 5px;
+  border-top: 1px solid rgba(255, 180, 158, 0.35);
+  color: #ffd2c4;
+  font: 500 8px/1.35 var(--sans);
+}
+.call-pip .pip-observer-opt-in {
+  flex: none;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 7px 6px;
+  color: rgba(253, 250, 243, 0.78);
+  font: 500 8px/1.3 var(--sans);
 }
 .call-pip.is-collapsed .pip-observer-notice,
-.call-pip.is-collapsed .pip-observer-opt-in{display:none}
-
-.call-pip .pip-live[data-state="off"]{color:rgba(253,250,243,.45)}
-.call-pip .pip-live[data-state="off"] i{
-  background:rgba(253,250,243,.4);
-  animation:none;
+.call-pip.is-collapsed .pip-observer-opt-in {
+  display: none;
 }
-.call-pip .pip-live[data-state="pending"]{color:#FFD9C8}
+
+.call-pip .pip-live[data-state='off'] {
+  color: rgba(253, 250, 243, 0.45);
+}
+.call-pip .pip-live[data-state='off'] i {
+  background: rgba(253, 250, 243, 0.4);
+  animation: none;
+}
+.call-pip .pip-live[data-state='pending'] {
+  color: #ffd9c8;
+}
 
 /* The camera window is a pure two-feed visual. Call controls and status live
    in the session header or run silently; observer notices float separately so
    privacy is still visible without cluttering the cameras. */
-.call-pip{
-  padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
-  backdrop-filter:none;-webkit-backdrop-filter:none
+.call-pip {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .call-pip .pip-head,
-.call-pip .pip-call-bar{display:none !important}
+.call-pip .pip-call-bar {
+  display: none !important;
+}
 /* The camera deck stays a pure two-feed visual, but it is a real window: the
    whole deck is the drag surface and an unobtrusive corner grip resizes it. */
-.call-pip{cursor:grab;user-select:none;-webkit-user-select:none}
-.call-pip:active{cursor:grabbing}
-.call-pip .pip-resize{
-  display:grid;
-  place-items:center;
-  width:22px;
-  height:22px;
-  padding:0;
-  border:0;
-  border-bottom-right-radius:8px;
-  color:rgba(253,250,243,.55);
-  background:rgba(12,18,29,.72);
-  font:600 10px/1 var(--mono);
-  opacity:.5;
-  transition:opacity .12s ease,background-color .12s ease;
+.call-pip {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.call-pip:active {
+  cursor: grabbing;
+}
+.call-pip .pip-resize {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-bottom-right-radius: 8px;
+  color: rgba(253, 250, 243, 0.55);
+  background: rgba(12, 18, 29, 0.72);
+  font: 600 10px/1 var(--mono);
+  opacity: 0.5;
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease;
 }
 .call-pip:hover .pip-resize,
 .call-pip:focus-within .pip-resize,
-.call-pip.is-resizing .pip-resize{opacity:1;background:rgba(12,18,29,.94);color:var(--paper)}
-.call-pip .pip-body{flex:1;height:100%;padding:0;gap:2px}
-.call-pip .dock-tile{border-radius:8px}
-.call-runtime{display:none}
+.call-pip.is-resizing .pip-resize {
+  opacity: 1;
+  background: rgba(12, 18, 29, 0.94);
+  color: var(--paper);
+}
+.call-pip .pip-body {
+  flex: 1;
+  height: 100%;
+  padding: 0;
+  gap: 2px;
+}
+.call-pip .dock-tile {
+  border-radius: 8px;
+}
+.call-runtime {
+  display: none;
+}
 .call-runtime[hidden],
 .observer-floating[hidden],
-.observer-floating-opt[hidden]{display:none !important}
-.observer-floating,
-.observer-floating-opt{
-  position:fixed;left:12px;bottom:12px;z-index:226;
-  max-width:min(320px,calc(100% - 24px));margin:0;
-  padding:7px 10px;border:1px solid var(--line);border-radius:var(--r-xs);
-  background:rgba(253,250,243,.96);color:var(--ink);
-  box-shadow:0 10px 30px rgba(14,20,32,.16);
-  font:500 9px/1.4 var(--sans)
+.observer-floating-opt[hidden] {
+  display: none !important;
 }
-.observer-floating b{color:var(--coral-deep)}
-.observer-floating-opt{display:flex;align-items:center;gap:7px;bottom:52px;cursor:pointer}
+.observer-floating,
+.observer-floating-opt {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 226;
+  max-width: min(320px, calc(100% - 24px));
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: rgba(253, 250, 243, 0.96);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(14, 20, 32, 0.16);
+  font: 500 9px/1.4 var(--sans);
+}
+.observer-floating b {
+  color: var(--coral-deep);
+}
+.observer-floating-opt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  bottom: 52px;
+  cursor: pointer;
+}

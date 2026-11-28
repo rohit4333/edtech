@@ -5,7 +5,7 @@
  * so auth, pay, presence, attendance and provider data are never cached. */
 'use strict';
 
-var CACHE = 'mathify-webapp-v38';
+var CACHE = 'mathify-webapp-v39';
 var OFFLINE = '/webapp/offline.html';
 var SHELL = [
   '/',
@@ -30,9 +30,12 @@ var SHELL = [
   '/rm/index.html',
   '/classroom/index.html',
   '/classroom/connect.html',
+  '/classroom/connect.js',
+  '/classroom/connect.css',
   '/classroom/preflight.html',
   '/classroom/preflight.js',
   '/classroom/preflight.css',
+  '/classroom/camera-background.js',
   '/classroom/app.js',
   '/classroom/session.js',
   '/classroom/call.css',
@@ -46,61 +49,104 @@ var SHELL = [
   '/webapp/offline.html',
   '/shared/tokens.css',
   '/shared/sessionKeepalive.js',
+  '/shared/rtcMediaUi.js',
+  '/shared/rtcMediaUi.css',
+  '/shared/cameraLook.css',
   '/shared/fullBoard.js',
   '/shared/fullBoard.css',
+  '/assets/camera-backgrounds/mathify-paper.svg',
+  '/assets/camera-backgrounds/mathify-ink.svg',
+  '/assets/camera-backgrounds/mathify-coral.svg',
   '/public.css',
   '/landing.css',
-  '/landing.js'
+  '/landing.js',
 ];
 
 self.addEventListener('install', function (event) {
-  event.waitUntil(caches.open(CACHE).then(function (cache) {
-    return Promise.all(SHELL.map(function (url) {
-      return cache.add(url).catch(function () { /* optional asset */ });
-    }));
-  }).then(function () { return self.skipWaiting(); }));
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then(function (cache) {
+        return Promise.all(
+          SHELL.map(function (url) {
+            return cache.add(url).catch(function () {
+              /* optional asset */
+            });
+          })
+        );
+      })
+      .then(function () {
+        return self.skipWaiting();
+      })
+  );
 });
 
 self.addEventListener('activate', function (event) {
-  event.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (key) { return key !== CACHE; })
-      .map(function (key) { return caches.delete(key); }));
-  }).then(function () { return self.clients.claim(); }));
+  event.waitUntil(
+    caches
+      .keys()
+      .then(function (keys) {
+        return Promise.all(
+          keys
+            .filter(function (key) {
+              return key !== CACHE;
+            })
+            .map(function (key) {
+              return caches.delete(key);
+            })
+        );
+      })
+      .then(function () {
+        return self.clients.claim();
+      })
+  );
 });
 
 function isPrivate(pathname) {
-  return pathname.indexOf('/api/') === 0 ||
+  return (
+    pathname.indexOf('/api/') === 0 ||
     pathname.indexOf('/view-choice') === 0 ||
     pathname.indexOf('/founder-admin') === 0 ||
     pathname.indexOf('/livekit') === 0 ||
     pathname.indexOf('/network/probe') === 0 ||
-    pathname.indexOf('/webhook') === 0;
+    pathname.indexOf('/webhook') === 0
+  );
 }
 
 function networkFirst(request) {
   var cacheName = CACHE;
-  return fetch(request).then(function (response) {
-    if (response && response.ok && response.type === 'basic') {
-      var copy = response.clone();
-      caches.open(cacheName).then(function (cache) { cache.put(request, copy); });
-    }
-    return response;
-  }).catch(function () {
-    return caches.match(request).then(function (cached) {
-      return cached || caches.match(OFFLINE);
+  return fetch(request)
+    .then(function (response) {
+      if (response && response.ok && response.type === 'basic') {
+        var copy = response.clone();
+        caches.open(cacheName).then(function (cache) {
+          cache.put(request, copy);
+        });
+      }
+      return response;
+    })
+    .catch(function () {
+      return caches.match(request).then(function (cached) {
+        return cached || caches.match(OFFLINE);
+      });
     });
-  });
 }
 
 function staleWhileRevalidate(request) {
   return caches.match(request).then(function (cached) {
-    var refresh = fetch(request).then(function (response) {
-      if (response && response.ok && response.type === 'basic') {
-        var copy = response.clone();
-        caches.open(CACHE).then(function (cache) { cache.put(request, copy); });
-      }
-      return response;
-    }).catch(function () { return cached; });
+    var refresh = fetch(request)
+      .then(function (response) {
+        if (response && response.ok && response.type === 'basic') {
+          var copy = response.clone();
+          caches.open(CACHE).then(function (cache) {
+            cache.put(request, copy);
+          });
+        }
+        return response;
+      })
+      .catch(function () {
+        return cached;
+      });
     return cached || refresh;
   });
 }
@@ -109,7 +155,11 @@ self.addEventListener('fetch', function (event) {
   var request = event.request;
   if (request.method !== 'GET') return;
   var url;
-  try { url = new URL(request.url); } catch (error) { return; }
+  try {
+    url = new URL(request.url);
+  } catch (error) {
+    return;
+  }
   if (url.origin !== self.location.origin || isPrivate(url.pathname)) return;
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request));

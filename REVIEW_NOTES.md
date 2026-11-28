@@ -343,3 +343,12 @@
 - CI now fails on moderate audit findings, ESLint errors or any suite failure. `npm test` runs all 65 suites through `scripts/run-tests.js` under c8 and reports coverage to the console plus `coverage/` artefacts.
 - The pre-commit hook runs lint-staged with ESLint and Prettier only on staged files. Private vulnerability reporting and standardized issue/PR templates were added.
 - Demo passwords are no longer printed in active READMEs; they live in `server/.env.example` and `/api/auth/demo` remains disabled in production. Existing founder-only gates and the planner approval queue were unchanged.
+
+## All-surface audio visual and camera look (2026-11-28)
+
+- Founder question: “everywhere auditory visual feed should be displayed” and “backgrounds and blurring … if not implement it”. Both roles are now covered on the readiness gate, the shared camera deck and the in-session whiteboard PiP.
+- Readiness gate: real local mic energy via `AudioContext` + `AnalyserNode`, a resume action for suspended contexts, and the same local background/lighting choices as the camera deck. It still never joins a LiveKit room and never starts the clock; only the trainer's Join heartbeat does that.
+- Shared camera deck: unchanged honest analyser evidence, with local-only remote caveat. Its camera look now uses the shared stylesheet and the generated brand assets.
+- In-session PiP: both trainer and kid tiles paint LiveKit `participant.audioLevel` through `shared/rtcMediaUi.js`, with teal speaking levels and coral only for muted. Local camera look can be opened from the small **Look** control and disables itself when the student's media controls are revoked. No second capture is created.
+- The generated image service failed authentication, so the three branded Mathify presets are local SVG assets under `assets/camera-backgrounds/`. They are versioned, precached by the service worker and require no external image host.
+- Presence, pay, class clock, recording, quiz correctness, permission state and the trainer-only board handoff were not changed. 65/65 suites pass with `DATABASE_MODE=mock`; focused counts are in `E2E_LOG.md`.

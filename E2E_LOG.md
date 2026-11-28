@@ -172,3 +172,13 @@ No production deployment, runner-based migration apply, Razorpay charge, Twilio/
 - Assertions cover the five background presets, three lighting presets, Reset, role-namespaced `localStorage`, live-feed gating, revoked-control lockout, best-effort constraint fallback, real RMS/frequency measurement, teal active animation, coral reserved for muted, local-only remote caveat, no iframe, no `href="#"`, and no network/presence/pay/clock surface in the local helper.
 - Honest limitation: no ML person segmentation is bundled. Blur is a radial soft-focus and the Mathify presets are masked washes; advanced camera constraints and `backdrop-filter` are browser-dependent. Remote mic animation requires the existing LiveKit audio element to expose a real `MediaStream`.
 - Integration fix: the privacy-boundary suite correctly flagged a camera-look config key named `hint:` as potential embedded quiz hint text. It was renamed to `hintNode`; `privacyBoundary: 239 assertions passed` afterwards, with no policy rule weakened.
+
+### All-surface audio visual and camera look verification (2026-11-28)
+
+- Focused commands with `DATABASE_MODE=mock`: `cameraConnect: 106 assertions passed`, `rtcControls: 79 assertions passed`, `preflightFlow: 33 assertions passed`.
+- Full command: `$env:DATABASE_MODE = "mock"; npm test` exited `0` and printed `All 65 suites passed.` Log: `C:\Users\rohit\AppData\Local\Temp\opencode\audio-background-commit-verified-test.log`.
+- Final coverage after the hook-normalised sources: statements `81.66%` (`23995/29382`), branches `65.74%` (`4783/7275`), functions `79.53%`, lines `81.66%` (`23995/29382`).
+- The husky/lint-staged hook normalised the touched client HTML, CSS and JS with Prettier. Board and RTC contract assertions now use whitespace-tolerant regexes for attribute and rule spacing; no policy assertion was removed or weakened.
+- The readiness gate now renders a real local mic meter with a resume action. The shared camera deck keeps its analyser-based local/remote evidence. The in-session PiP uses LiveKit `participant.audioLevel` for both tiles through `shared/rtcMediaUi.js`; no second microphone capture is opened.
+- Camera look was extended to the readiness preview and the in-session PiP, sharing `shared/cameraLook.css` and role-scoped `localStorage` with the camera deck. The three Mathify presets are local branded SVG assets generated under `assets/camera-backgrounds/` after the remote image service failed authentication; no external image dependency is introduced.
+- The PWA precache was bumped to `mathify-webapp-v39` and includes the new helper, stylesheet and background assets. Presence, pay, clock, quiz correctness, permission state and the trainer-only handoff were not touched.

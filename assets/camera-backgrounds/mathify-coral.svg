@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title">
+  <title id="title">Mathify coral camera background</title>
+  <defs>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF5EF"/>
+      <stop offset="1" stop-color="#F6D9CC"/>
+    </linearGradient>
+    <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="2" fill="#B83A16" fill-opacity=".12"/>
+    </pattern>
+    <radialGradient id="calm" cx="50%" cy="46%" r="54%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".88"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#coral)"/>
+  <rect width="1600" height="900" fill="url(#dots)"/>
+  <rect width="1600" height="900" fill="url(#calm)"/>
+  <g fill="none" stroke="#B83A16" stroke-opacity=".20" stroke-width="2">
+    <circle cx="142" cy="146" r="62"/>
+    <path d="M80 146h124M142 84v124"/>
+    <path d="M1380 668l88 50-88 50-88-50z"/>
+    <path d="M1292 718h176M1380 668v100"/>
+  </g>
+  <g fill="#12968C" fill-opacity=".34" font-family="Poppins, Arial, sans-serif" font-size="36">
+    <text x="74" y="802">½ · ¼ · ¾</text>
+    <text x="1302" y="154">y = mx + c</text>
+  </g>
+  <g font-family="Poppins, Arial, sans-serif" font-size="30" font-weight="600" fill="#1B2433" fill-opacity=".82">
+    <text x="1332" y="842">Mathify<tspan fill="#12968C">.</tspan></text>
+  </g>
+</svg>
