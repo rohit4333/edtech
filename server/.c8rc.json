@@ -1,0 +1,18 @@
+{
+  "all": true,
+  "include": [
+    "*.js",
+    "auth/**/*.js",
+    "config/**/*.js",
+    "db/**/*.js",
+    "jobs/**/*.js",
+    "middleware/**/*.js",
+    "routes/**/*.js",
+    "scripts/*.js",
+    "services/**/*.js"
+  ],
+  "exclude": ["tests/**", "node_modules/**", "coverage/**", "scripts/seed-demo-rm-onboarding.js"],
+  "reporter": ["text-summary", "lcov", "json-summary"],
+  "reports-dir": "coverage",
+  "check-coverage": false
+}

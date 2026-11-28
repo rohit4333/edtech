@@ -1,0 +1,9 @@
+{
+  "**/*.js": [
+    "server/node_modules/.bin/eslint --config server/eslint.config.js --fix",
+    "server/node_modules/.bin/prettier --config server/.prettierrc.json --ignore-path server/.prettierignore --write"
+  ],
+  "**/*.{json,md,yml,yaml,css,html}": [
+    "server/node_modules/.bin/prettier --config server/.prettierrc.json --ignore-path server/.prettierignore --write"
+  ]
+}

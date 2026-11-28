@@ -8,39 +8,39 @@ This repository contains the Mathify dashboard website and its API layer. Live t
 
 ## Current service providers
 
-| Concern | Current provider / service | What is true now |
-| --- | --- | --- |
-| 1:1 live video | **LiveKit** | Server-signed `AccessToken`, server-derived `mathify-<sessionId>` room, `wss://` media URL. Agora transport has been removed. |
-| Class recording | **LiveKit Egress → private S3-compatible/R2 storage** | Trainer-only start/stop; signed LiveKit webhooks reconcile status and final object key; role-scoped short-lived SigV4 GET links. No public object URL is stored. |
-| Transactional email | **Resend** | All mail, including reminders and password resets. No SMTP/Nodemailer sender remains; missing keys fail closed. |
-| AI/LLM calls | **freelm → Gemini → Groq → Cloudflare Workers AI** | One chain for server and Worker source; image questions use Gemini → Cloudflare. OpenAI/DeepSeek are unused. |
-| Persistence | **Supabase service role** | Live mode never falls back to demo identities; browser sees only the publishable key. |
-| Payments / WhatsApp | **Razorpay / Twilio** | Both remain credential-gated and fail closed when unset. |
+| Concern             | Current provider / service                            | What is true now                                                                                                                                                 |
+| ------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1:1 live video      | **LiveKit**                                           | Server-signed `AccessToken`, server-derived `mathify-<sessionId>` room, `wss://` media URL. Agora transport has been removed.                                    |
+| Class recording     | **LiveKit Egress → private S3-compatible/R2 storage** | Trainer-only start/stop; signed LiveKit webhooks reconcile status and final object key; role-scoped short-lived SigV4 GET links. No public object URL is stored. |
+| Transactional email | **Resend**                                            | All mail, including reminders and password resets. No SMTP/Nodemailer sender remains; missing keys fail closed.                                                  |
+| AI/LLM calls        | **freelm → Gemini → Groq → Cloudflare Workers AI**    | One chain for server and Worker source; image questions use Gemini → Cloudflare. OpenAI/DeepSeek are unused.                                                     |
+| Persistence         | **Supabase service role**                             | Live mode never falls back to demo identities; browser sees only the publishable key.                                                                            |
+| Payments / WhatsApp | **Razorpay / Twilio**                                 | Both remain credential-gated and fail closed when unset.                                                                                                         |
 
 ## Surfaces
 
-| Path | What it is |
-| --- | --- |
-| `index.html` | Public landing page — 1-on-1 tutoring, tutor profile and demo. |
-| `apps.html` | Suite hub linking the live dashboards. |
-| `home/index.html` | Redirect to the root public home. |
-| `student/index.html` | Student dashboard — Mastery with self-practice, sessions, recordings, reward trophies, wallet and Study Buddy chat. |
-| `trainer/index.html` | Trainer console — attendance, timeline, attention queue, Trainer Desk support chat and parent-thread unread badge. Live classes start from the camera check and open in the classroom. |
-| `parent/index.html` | Parent desk — private 1-on-1 human thread with the child's trainer, unread count and DLP-safe send feedback. |
-| `classroom/index.html` | 1:1 live classroom — planner, whiteboard, quizzer, video and notes. |
-| `lms/` | LMS surface (partial) with local planner designer. |
-| `founder/` | Founder settings drafts — policy, mastery and trainer policy; money widgets are read-only. |
-| `server/` | Express API, mock DB, auth/RBAC, quizzer, LiveKit tokens/egress/webhooks, the shared AI chain, Resend email and Razorpay seams. Cloudflare Workers AI is a required final chain stage, not a legacy provider. |
-| `worker-core.mjs`, `worker.js`, `wrangler.toml` | Cloudflare Worker source plus a platform-free shared prompt/validation core using the same freelm → Gemini → Groq → Cloudflare chain. Deployment remains permission-gated. |
+| Path                                            | What it is                                                                                                                                                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`                                    | Public landing page — 1-on-1 tutoring, tutor profile and demo.                                                                                                                                                |
+| `apps.html`                                     | Suite hub linking the live dashboards.                                                                                                                                                                        |
+| `home/index.html`                               | Redirect to the root public home.                                                                                                                                                                             |
+| `student/index.html`                            | Student dashboard — Mastery with self-practice, sessions, recordings, reward trophies, wallet and Study Buddy chat.                                                                                           |
+| `trainer/index.html`                            | Trainer console — attendance, timeline, attention queue, Trainer Desk support chat and parent-thread unread badge. Live classes start from the camera check and open in the classroom.                        |
+| `parent/index.html`                             | Parent desk — private 1-on-1 human thread with the child's trainer, unread count and DLP-safe send feedback.                                                                                                  |
+| `classroom/index.html`                          | 1:1 live classroom — planner, whiteboard, quizzer, video and notes.                                                                                                                                           |
+| `lms/`                                          | LMS surface (partial) with local planner designer.                                                                                                                                                            |
+| `founder/`                                      | Founder settings drafts — policy, mastery and trainer policy; money widgets are read-only.                                                                                                                    |
+| `server/`                                       | Express API, mock DB, auth/RBAC, quizzer, LiveKit tokens/egress/webhooks, the shared AI chain, Resend email and Razorpay seams. Cloudflare Workers AI is a required final chain stage, not a legacy provider. |
+| `worker-core.mjs`, `worker.js`, `wrangler.toml` | Cloudflare Worker source plus a platform-free shared prompt/validation core using the same freelm → Gemini → Groq → Cloudflare chain. Deployment remains permission-gated.                                    |
 
 ## Current state
 
-- 49 Node test suites (`DATABASE_MODE=mock npm test` → `EXIT=0`), including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js`, `parentChat.test.js`, `founderAdmin.test.js`, `relationshipManager.test.js`, `registration.test.js`, `passwordFlow.test.js`, `adminAudit.test.js`, `fullBoard.test.js`, `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js`, `securityHardening.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress; current local and live evidence is in `LIVE_QA_REPORT.md`.
-- `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `migrate`, `seed`, `reminders` and `reminders:once`. CI runs `reminders:once` every five minutes; the web process keeps its timer disabled. The job checks 24-hour/1-hour reminders, the 15-minute parent + trainer join window and the trainer-only 2-minute warning.
+- 65 Node test suites (`DATABASE_MODE=mock npm test` → `EXIT=0`), including `liveReadiness.test.js`, `livePersistence.test.js`, `liveOperations.test.js`, `rtcControls.test.js`, `engagementControls.test.js`, `parentChat.test.js`, `founderAdmin.test.js`, `relationshipManager.test.js`, `registration.test.js`, `passwordFlow.test.js`, `adminAudit.test.js`, `fullBoard.test.js`, `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `recordingAccess.test.js`, `securityHardening.test.js` and `apiSmoke.test.js`. Tests use plain `node` + `assert` — no Jest, Vitest, Playwright or Cypress. `npm test` now wraps the ordered suite runner with c8 and writes text-summary, lcov and json-summary coverage reports to `server/coverage/`; current local and live evidence is in `LIVE_QA_REPORT.md` and `E2E_LOG.md`.
+- `.github/workflows/ci.yml`, a `Dockerfile`, `docker-compose.yml`, `render.yaml` and `railway.json`; root `package.json` provides `start`, `dev`, `test`, `test:raw`, `lint`, `format`, `format:all`, `format:check`, `format:check:all`, `audit`, `migrate`, `seed`, `reminders` and `reminders:once`. CI audits all dependencies at `moderate`, runs ESLint, runs the coverage-wrapped suite and reviews migrations. CI also runs `reminders:once` every five minutes; the web process keeps its timer disabled. That job checks 24-hour/1-hour reminders, the 15-minute parent + trainer join window and the trainer-only 2-minute warning.
 - `server/db/schema.sql` plus eight ordered reviewed SQL migrations through `0009_recordings_storage.sql`, checked by a dry-run/checksum runner. No runner-based live migration has been applied; the private `recordings` bucket and its hardened session-reader policy were applied separately through the linked Supabase MCP after review.
 - Default runtime is the in-memory mock store. `DATABASE_MODE=supabase` selects the completed service-role adapter in `server/db/supabase.js`; production never silently falls back to demo identities.
 - Structured feedback (`POST /api/generate-feedback`) goes through the shared `cloudflareAiService` boundary with a `system`/`user` message array; curriculum drafts and both dashboard chats enter the same `freelm → Gemini → Groq → Cloudflare` chain. `worker-core.mjs` is the platform-free core used by the Worker source and the local Express bridge; it is not a legacy provider. Mock mode returns deterministic replies before any provider call. No browser code receives Cloudflare, Supabase, freelm or LiveKit secrets. LiveKit tokens are server-signed from the verified session; transactional email uses Resend; the contact booking API stores validated requests and notifies configured channels.
-- Founder/RM people desks are backed by an append-only manager audit. The founder can grant any non-founder credential, choose a password and edit pay. A relationship manager can grant access and, only for a KYC-verified trainer with an existing access grant, issue the generated `firstname@mathify123` temporary password; the manager cannot choose the value, revoke a desk, set salary or edit founder-set pay. Free account creation and password reset live at `/register.html` and `/password-reset.html`. Browser interaction, live Supabase, live providers and migration apply are NOT verified in this run. [ev: `npm.cmd test --prefix server`; local HTTP contract check, 2026-11-26]
+- Founder/RM people desks are backed by an append-only manager audit. The founder can grant any non-founder credential, choose a password and edit pay. A relationship manager can grant access and, only for a KYC-verified trainer with an existing access grant, issue the server-generated temporary password; the manager cannot choose the value, revoke a desk, set salary or edit founder-set pay. Free account creation and password reset live at `/register.html` and `/password-reset.html`. Browser interaction, live Supabase, live providers and migration apply are NOT verified in this run. [ev: `npm.cmd test --prefix server`; local HTTP contract check, 2026-11-26]
 - Trainer Desk answers payout (₹300–₹400 per completed 1-on-1 session; exact pay is per the trainer contract/offer letter or as stated during onboarding), the 48-hour notice rule, fines and bonuses, and routes severe complaints to `founder@mathify.app`. Study Buddy gives Socratic hints and visual analogies only, never a final answer; it accepts PNG/JPG/WEBP/GIF images up to 1 MB.
 - Mastery self-practice offers 10 questions per batch and another 10 on demand, ramping difficulty 15% per batch, with a hard cap of 80 questions per topic (8 batches) and no cross-topic cap. Answer keys stay in service-only `practice_batches` records; the browser receives prompts, options and a private boolean only.
 - A private **parent ↔ trainer** human chat is available to the new demo parent for their own child (`usr_student_001`) and to trainers only for assigned students; the founder can audit all threads. Messages are 1-on-1, carry per-recipient unread counts and mark-read, and are never AI. Regex DLP blocks email, URL/`www`, phone/`+country`/10-digit numbers, `@handle`s and social platform names: a blocked message is not delivered, echoed, stored or published to realtime; instead a founder-only flag records actor id/role, reason code, masked preview and timestamp, and the sender gets `422 CONTENT_BLOCKED`. No new SQL migration is needed — messages, unread state and flags live in the existing service-only `mathify_records` store, and browser Data API roles have no access.
@@ -95,6 +95,8 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 ### Classroom media and connection rules
 
 - Students start with microphone and camera controls. The trainer's **Access** button grants or revokes that ability; a student is rejected by the server with `403` if they try to change the flag themselves.
+- The camera check has a preview-only **Camera look** panel: Background `Off / Blur / Mathify paper / Mathify ink / Mathify coral`, Lighting `Auto / Brighter / Softer`, and Reset. Choices are stored only in namespaced `localStorage` and never enter a lesson API or media payload. There is no bundled ML segmentation: blur is an honest radial soft-focus and the presets are masked Paper & Ink washes. Lighting makes best-effort track constraints with a compensation-only fallback plus a preview-only CSS correction; advanced constraints are never required for startup. Controls disable whenever the feed is unavailable or revoked.
+- The same deck shows real mic evidence from `AudioContext` + `AnalyserNode`: a greenish/teal animated bar group and tile pulse scale with measured RMS energy, with a frequency-energy fallback. Idle/stopped/unavailable tracks stay still and neutral, coral is reserved for an actually muted track, and a **Resume audio visual** action handles suspended contexts. Remote animation appears only when the existing LiveKit audio element exposes a real `MediaStream`; otherwise the UI says “Local mic only · remote level is not shared.” Audio analysis makes no server call and never changes presence, pay, clock or permissions.
 - Revoking always forces the student's local tracks on **before** the buttons are locked. If a browser cannot actually enable a track (permission denied, stopped track, offline tab), the classroom says so instead of claiming audio/video are on. The server state remains authoritative and is re-read on the next load or event.
 - Quiz and whiteboard transitions, tab focus and a light in-call keep-alive reaffirm the chosen media state on every device type — laptop/PC, Android/iPad tablet and Android/iOS phone. A silent mobile suspension cannot leave a camera or mic off mid-lesson.
 - A 1:1 call cannot start until **both** verified participants pass a fresh connection check: at least `15 Mbps` download, `10 Mbps` upload and under `250 ms` latency. Results expire after 15 minutes. `Check speed` is a manual control beside Join; Join stays disabled until both people are ready, and the LiveKit token endpoint fails closed with `NETWORK_BELOW_MINIMUM`. Raw measurements are peer-private; events carry only pass/fail and readiness.
@@ -126,15 +128,20 @@ The shared session event stream uses a bounded in-memory cursor log in mock mode
 
 ## Demo logins
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Founder | `founder@mathify.app` | `mathify-demo` |
-| Relationship manager (temporary) | `rm@mathify.app` | `mathify-demo` |
-| Trainer | `trainer@mathify.app` | `mathify-demo` |
-| Student | `student@mathify.app` | `mathify-demo` |
-| Parent / kid (shared sign-in, linked to `usr_student_001`) | `parent@mathify.app` | `mathify-demo` |
+Local mock identities are listed below. Their demo password is configured by `DEMO_PASSWORD`
+in `server/.env.example`; do not commit a filled `server/.env`. `GET /api/auth/demo` is the
+runtime source for local UI helpers and returns no contact details. It is disabled whenever
+`NODE_ENV=production` unless `ENABLE_DEMO_LOGINS=true` is set deliberately.
 
-After sign-in, one chooser offers the parent and kid views for the shared family credential; staff accounts see only their own verified desk. A relationship manager can additionally issue the generated trainer-only recovery password `firstname@mathify123` to a KYC-verified, already-granted trainer; the manager cannot choose that value or touch founder pay.
+| Role                                                       | Email                 |
+| ---------------------------------------------------------- | --------------------- |
+| Founder                                                    | `founder@mathify.app` |
+| Relationship manager (temporary)                           | `rm@mathify.app`      |
+| Trainer                                                    | `trainer@mathify.app` |
+| Student                                                    | `student@mathify.app` |
+| Parent / kid (shared sign-in, linked to `usr_student_001`) | `parent@mathify.app`  |
+
+After sign-in, one chooser offers the parent and kid views for the shared family credential; staff accounts see only their own verified desk. A relationship manager can additionally issue the server-generated trainer-only recovery password to a KYC-verified, already-granted trainer; the manager cannot choose that value or touch founder pay.
 
 ## Internal MCP tooling
 
@@ -145,6 +152,14 @@ Three stdio MCP servers share `server/mcp-core.js`; they are internal founder/RM
 - `server/mcp-planner-server.js` — planner designer (`MCP_PLANNER_DESIGNER_TOKEN` review profile; `MCP_PLANNER_AUTHOR_TOKEN` author profile). It drafts, validates, cross-checks and regenerates against `server/config/planner-rubric.json`; the author profile files a `pending` suggestion that the founder accepts or rejects through `/api/lms/planner-suggestion/:id/decide`. There is no autonomous publish tool. The browser `planner_agent` role remains disabled.
 
 References and rollout are recorded in `MCP_DESIGN.md`; contract tests are `mcpServer`, `mcpRmServer` and `mcpPlannerServer` in the full suite.
+
+## Quality, security and contributions
+
+- CI runs `npm audit --audit-level=moderate`, `npm run lint` and the coverage-wrapped `npm test` from `server/`. The full suite, focused suites and migration dry run are deterministic in `DATABASE_MODE=mock`.
+- ESLint 9, Prettier 3, husky 9 and lint-staged 15 are dev-only tools in `server/`. The husky pre-commit hook uses root `.lintstagedrc.json` to run ESLint `--fix` and Prettier `--write` on staged files; `npm run format:check` audits the shared tooling without writing, while `npm run format:check:all` exposes the legacy full-repo formatting backlog.
+- Coverage reports are written to `server/coverage/` and are git-ignored. `server/.c8rc.json` controls reporters and source inclusion.
+- Report vulnerabilities privately to **security@mathify.app**; see `SECURITY.md`. Do not paste credentials, tokens, KYC documents, bank details or student data into issues.
+- `.github/ISSUE_TEMPLATE/bug_report.md`, `.github/ISSUE_TEMPLATE/feature_request.md` and `.github/pull_request_template.md` capture role, surface, reproduction steps and founder-approval state.
 
 ## Design rules
 

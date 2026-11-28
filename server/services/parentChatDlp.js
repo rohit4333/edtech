@@ -17,7 +17,7 @@ const REASONS = Object.freeze({
   CONTACT_SCHEME: 'Contact link',
   SOCIAL_HANDLE: 'Social handle',
   SOCIAL_PLATFORM: 'Off-platform social contact',
-  PERSONAL_CONTACT: 'Personal contact request'
+  PERSONAL_CONTACT: 'Personal contact request',
 });
 
 const NEUTRAL_BLOCK_MESSAGE =
@@ -28,47 +28,57 @@ const RULES = [
     code: 'EMAIL_ADDRESS',
     label: REASONS.EMAIL_ADDRESS,
     regexes: [/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i],
-    mask: function () { return 'a••@••'; }
+    mask: function () {
+      return 'a••@••';
+    },
   },
   {
     code: 'PHONE_NUMBER',
     label: REASONS.PHONE_NUMBER,
     regexes: [
-      /\+\d{1,3}[\s.\-]?\d{5}[\s.\-]?\d{5}\b/,
-      /\+\d[\d\s().\-]{7,}\d\b/,
-      /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/,
-      /\b\d{10}\b/
+      /\+\d{1,3}[\s.-]?\d{5}[\s.-]?\d{5}\b/,
+      /\+\d[\d\s().-]{7,}\d\b/,
+      /\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b/,
+      /\b\d{10}\b/,
     ],
-    mask: maskPhone
+    mask: maskPhone,
   },
   {
     code: 'URL_LINK',
     label: REASONS.URL_LINK,
     regexes: [
       /\b(?:https?:\/\/|www\.)[^\s<>"']+/i,
-      /\b(?:[a-z0-9-]+\.)+(?:com|org|net|in|co|io|me|tv|app|info|biz|edu|gov|xyz|online|site)\b(?:\/\S*)?/i
+      /\b(?:[a-z0-9-]+\.)+(?:com|org|net|in|co|io|me|tv|app|info|biz|edu|gov|xyz|online|site)\b(?:\/\S*)?/i,
     ],
-    mask: function () { return '••••://••••'; }
+    mask: function () {
+      return '••••://••••';
+    },
   },
   {
     code: 'CONTACT_SCHEME',
     label: REASONS.CONTACT_SCHEME,
     regexes: [/\b(?:mailto|tel):[^\s<>"']*/i],
-    mask: function () { return '••••:••••'; }
+    mask: function () {
+      return '••••:••••';
+    },
   },
   {
     code: 'SOCIAL_HANDLE',
     label: REASONS.SOCIAL_HANDLE,
     regexes: [/(?:^|[\s(])@[A-Za-z0-9_]{2,}\b/],
-    mask: function () { return '@••••'; }
+    mask: function () {
+      return '@••••';
+    },
   },
   {
     code: 'SOCIAL_PLATFORM',
     label: REASONS.SOCIAL_PLATFORM,
     regexes: [
-      /\b(?:whatsapp|wa\.me|instagram|insta|telegram|facebook|fb|twitter|tiktok|snapchat|linkedin|discord|signal|messenger|viber|wechat)\b/i
+      /\b(?:whatsapp|wa\.me|instagram|insta|telegram|facebook|fb|twitter|tiktok|snapchat|linkedin|discord|signal|messenger|viber|wechat)\b/i,
     ],
-    mask: function () { return '••••'; }
+    mask: function () {
+      return '••••';
+    },
   },
   {
     code: 'PERSONAL_CONTACT',
@@ -78,10 +88,12 @@ const RULES = [
       /\b(?:call|text|message|dm|ping|reach|contact|add|follow|connect)\s+(?:me|us|you|him|her)?\s*(?:on|at|via|in)?\s*(?:my|your)?\s*(?:number|phone|mobile|email|inbox|handle|id|instagram|whatsapp|telegram|facebook|twitter|tiktok|snapchat)\b/i,
       /\b(?:share|send|drop|give)\s+(?:me|us)?\s*(?:your|his|her)?\s*(?:contact|number|email|id|handle)\b/i,
       /\b(?:outside|off)\s+(?:of\s+)?(?:the\s+)?(?:app|platform|mathify|chat)\b/i,
-      /\b(?:private|personal)\s+(?:number|email|chat|message|account|contact)\b/i
+      /\b(?:private|personal)\s+(?:number|email|chat|message|account|contact)\b/i,
     ],
-    mask: function () { return '••••'; }
-  }
+    mask: function () {
+      return '••••';
+    },
+  },
 ];
 
 /* Flat regex map for quick unit assertions, e.g. REGEXES.EMAIL_ADDRESS.test(text). */
@@ -102,7 +114,9 @@ function maskPhone(value) {
 }
 
 function maskPreview(code, matchedText) {
-  const rule = RULES.find(function (item) { return item.code === code; });
+  const rule = RULES.find(function (item) {
+    return item.code === code;
+  });
   if (!rule) return '••••';
   return rule.mask(matchedText);
 }
@@ -124,7 +138,7 @@ function inspect(value) {
             code: rule.code,
             label: rule.label,
             matchedText: match[0],
-            maskedPreview: maskPreview(rule.code, match[0])
+            maskedPreview: maskPreview(rule.code, match[0]),
           };
         }
         return;
@@ -138,7 +152,7 @@ function inspect(value) {
       reason: null,
       reasonLabel: null,
       reasons: [],
-      maskedPreview: null
+      maskedPreview: null,
     };
   }
 
@@ -147,7 +161,7 @@ function inspect(value) {
     reason: primary.code,
     reasonLabel: primary.label,
     reasons: seen.slice(),
-    maskedPreview: primary.maskedPreview
+    maskedPreview: primary.maskedPreview,
   };
 }
 
@@ -188,5 +202,5 @@ module.exports = {
   detect: inspect,
   isBlocked: isBlocked,
   maskPhone: maskPhone,
-  maskPreview: maskPreview
+  maskPreview: maskPreview,
 };

@@ -8,6 +8,7 @@
 - Open item: no production/Supabase/LiveKit/Razorpay credentials or deployed URL are configured in this environment, so the live target still needs to be confirmed.
 
 ## Planned page sequence
+
 1. Trainer dashboard / Start class
 2. Shared connect page — trainer
 3. Shared connect page — student waiting
@@ -23,6 +24,7 @@
 ## Review entries
 
 ### 1. Trainer dashboard / Start class
+
 - URL: `http://127.0.0.1:4004/trainer/today?review=1795812288938&live=1795812290…`
 - Dev label: `DEV PAGE · Trainer dashboard / Start class`
 - Rendered at: `1795812288938` (tab focused)
@@ -35,6 +37,7 @@
 - Reason logged: camera/mic and network checking already happens automatically during normal session joining on the connect page, so a separate camera-test action is useless to the trainer. Student dashboard device check was not part of this update.
 
 ### Copilot / Trainer Desk review notes
+
 - Current contents: one floating panel with two modes — `Mathify copilot` (chips: Differentiate today’s set, Draft a parent note, Summarise last session) and `Mathify Trainer Desk` (chips: What is the session payout?, 48-hour cancellation rule, How do leaves work?, Attendance bonus rules).
 - Current backend: copilot → `POST /api/trainer/copilot/query` → `chatAssistant.reply('trainer')` → Workers AI with academic context only (subject/curriculum/grade/chapter/language); no pay or personal data reaches it. Trainer Desk → `POST /api/chat/trainer-support` → Worker core with static facts mirrored from `server/config/policy.json` (`₹300–₹400`, `48 hours`, `₹2,000`, etc.), not the signed-in trainer’s own pay/ledger.
 - Requirement logged: clicking any suggested option/chip must **paste the text into the typing area**, not send it. The query is sent only when the user presses Enter / the send button. The same applies to `[data-ask]` entry points.
@@ -42,6 +45,7 @@
 - Requirement logged: session payout and all Trainer Desk offers/info must be extracted from that trainer’s own pay/database records (pay rate, payouts, leave/attendance, protected founder credit, policy values) — not generic/static/random answers. Student names, contact details and trainer-only leaks must remain blocked.
 
 ### Notification / announcement clarification
+
 - User clarification: the trainer notification/announcement surface exists so the trainer knows when the RM or founder sends them a notice, or when a parent sends them a message — things like that. The announcement surface is for that purpose.
 - Current state: `Announcements` is a collapsed list in the trainer dashboard fed by `/api/announcements`; founder/RM can author notices via `/api/admin/announcements`, targeted to trainers/students/both/one account, with unread badge and mark-read. Parent messages are a separate `parent-chat` unread badge and thread panel. The top bell button is currently static demo text (`3 notifications: 2 parent replies and 1 quiz update`) and does not read live counts.
 - Requirement logged: make the trainer notification surface live and unified for incoming RM/founder notices and parent messages; replace the static bell/toast with real unread counts and a working inbox. Founder/RM identity details and student contact details must still be stripped.
@@ -52,6 +56,7 @@
 - Status: awaiting `go`
 
 ### 2. Shared connect page — trainer
+
 - URL: `http://127.0.0.1:4004/classroom/connect.html?sessionId=ses_math_001&role=trainer&camera=1&review=1795813213950&live=…`
 - Dev label: `DEV PAGE · Shared connect page`
 - Rendered at: `1795813213950` (tab focused)
@@ -65,6 +70,7 @@
 - Status: awaiting `go`
 
 ### 3. Shared connect page — student waiting
+
 - URL: `http://127.0.0.1:4004/classroom/connect.html?sessionId=ses_math_001&role=student&view=student&state=live&review=1795813589044&live=1795813591960`
 - Dev label: `DEV PAGE · Shared connect page`
 - Rendered at: `1795813589044` (tab focused)
@@ -75,6 +81,7 @@
 - Status: awaiting `go`
 
 ### 4. Trainer whiteboard / shared board
+
 - URL: `http://127.0.0.1:4004/classroom/index.html?sessionId=ses_math_001&role=trainer&board=full&review=1795813751611&live=1795813755120`
 - Dev label: `DEV PAGE · Trainer whiteboard / shared board`
 - Rendered at: `1795813751611` (tab focused)
@@ -86,6 +93,7 @@
 - Status: awaiting `go`
 
 ### 5. Student shared whiteboard
+
 - URL: `http://127.0.0.1:4004/classroom/index.html?sessionId=ses_math_001&role=student&view=student&review=1795813896967&live=1795813900480`
 - Dev label: `DEV PAGE · Student shared whiteboard`
 - Rendered at: `1795813896967` (tab focused)
@@ -96,6 +104,7 @@
 - Status: awaiting `go`
 
 ### 6. Trainer planner designer / question handoff
+
 - URL: `http://127.0.0.1:4004/lms/index.html?review=1795814193535&live=1795814196590`
 - Dev label: `DEV PAGE · Trainer planner designer`
 - Rendered at: `1795814193535` (tab focused; planner sheet opened via `Planner designer`)
@@ -108,6 +117,7 @@
 - Status: awaiting `go`
 
 ### 7. Quiz sheet / trainer
+
 - URL: `http://127.0.0.1:4004/classroom/index.html?sessionId=ses_math_001&role=trainer&sheet=quiz&review=1795814528846&live=1795814532496`
 - Dev label: `DEV PAGE · Quiz sheet / trainer`
 - Rendered at: `1795814528846` (tab focused)
@@ -125,6 +135,7 @@
 - Status: awaiting `go`
 
 ### 8. Quiz sheet / student
+
 - URL: `http://127.0.0.1:4004/classroom/index.html?sessionId=ses_math_001&role=student&view=student&quiz=1&review=1795815075668&live=1795815079565`
 - Dev label: `DEV PAGE · Quiz sheet / student`
 - Rendered at: `1795815075668` (tab focused)
@@ -138,6 +149,7 @@
 - Status: awaiting `go`
 
 ### 9. Classroom engagement, reactions, network bar, session detail
+
 - URL: `http://127.0.0.1:4004/classroom/index.html?sessionId=ses_math_001&role=trainer&review=1795815914762&live=1795815914763`
 - Dev label: `DEV PAGE · Classroom / trainer`
 - Rendered at: `1795815914762` (tab focused; session detail and chat sheets opened via their buttons)
@@ -154,6 +166,7 @@
 - Status: pending
 
 ### 10. LMS curriculum library
+
 - URL: `http://127.0.0.1:4004/lms/index.html?review=1795816239116&live=1795816239116#libraryHealth`
 - Dev label: `DEV PAGE · LMS curriculum library`
 - Rendered at: `1795816239116` (tab focused)
@@ -165,6 +178,7 @@
 - Status: awaiting `go`
 
 ### 11. Landing page
+
 - URL: `http://127.0.0.1:4004/?review=1795816366972&live=1795816370008`
 - Dev label: `DEV PAGE · Landing page`
 - Rendered at: `1795816366972` (tab focused)
@@ -181,27 +195,32 @@
 ## Compiled changes to implement after full review
 
 ### A — Trainer dashboard, copilot, notifications
+
 1. Remove **Camera only** from the trainer dashboard. `connect.html` stays reachable for direct links/testing, but `Start class` is the only trainer entry into the connect flow. Camera/mic/network checking already happens automatically during joining.
 2. Copilot/Trainer Desk chips and `[data-ask]` suggestions must **paste into the typing area**, not send. Send only on Enter / send button.
 3. Trainer Desk payout/info must be derived from the signed-in trainer’s own pay/database records (rate, payouts, leave, attendance, protected founder credit, policy values). No static/random answers and no student contact/trainer-only leaks.
 4. Replace the static bell/toast with a live mailbox-style inbox for RM/founder notices and parent messages: real unread counts, bell left of profile, close button, each message opens in the same panel with Back, and an internal scrollbar only when content exceeds the panel.
 
 ### B — Connect page camera/mic (trainer and student)
+
 5. Mic/camera buttons react immediately with optimistic state, then reconcile with the LiveKit/server result.
 6. After permission, the tile shows live local/remote video with name, mic and speaking overlays on the frame.
 7. Add a fluctuating greenish audio-level indicator tied to receiving volume.
 8. Highlight the active speaker with a coloured border using project palette tokens — teal (`--teal`) for speaking/level, coral for muted/attention.
 
 ### C — Board tools
+
 9. Ink dropdown must be page-centred every time, whether opened from Pen or Highlighter, and must never slide over the camera deck.
 10. Shapes control shows a default selected shape on the main button; a menu choice becomes the new default shown on the button.
 
 ### D — Planner / LMS
+
 11. Remove all trainer planner-design/generation/mutation access from UI and server. Trainer gets **view-only** access to the planner assigned by batch. All creation/update/regeneration is founder-only. Planner-agent mutation stays disabled until the founder explicitly re-enables it. This is already recorded in `PENDING_RULES.md`; do not fabricate extraction before each planner is founder-generated.
 12. Trainer quiz view must fetch planner-provided **suggested edits** and **hint additions** (depends on item 11/founder-generated planners).
 13. Design the complete LMS curriculum library around trainer view-only/founder authoring. Fix the trainer course grid showing `00` despite 60 catalog curricula. Exact visual reference for “like that” was not supplied — if a specific layout is expected, the founder must provide the page/screenshot before pixel-matching.
 
 ### E — Quiz, trainer side
+
 14. Remove the whole **Scratchpad · blank space** section.
 15. Add an explicit **Push to whiteboard** control for deliberate question transfer.
 16. Remove **Explain** from Quiz actions; no separate Wacom/new-whiteboard overlay.
@@ -210,23 +229,27 @@
 19. Make the trainer quiz view compact and remove the duplicate **board sharing** control beside reward badge/Star moment. Keep one canonical sharing control elsewhere.
 
 ### F — Quiz, student side
+
 20. Remove the scratchpad section from the student/kid quiz stage too.
 21. Keep options interactive, but add an explicit **Submit** button: selecting an option must not send immediately.
 22. On Submit, the answer reflects back to the trainer immediately; the trainer alone controls reveal. No correctness or answer key before reveal.
 23. Fix trainer/student quiz state sync — the student must not drift to a different question or an ended quiz while the trainer sees a live one.
 
 ### G — Classroom / live session shell
+
 24. Make the engagement bar and reaction sets visible with reward badge and Star moment on every session page; remove the duplicate board-sharing button from that row.
 25. Student live session: remove the **Shared board** link; show only what the trainer pushes (board/quiz/lesson), not a dashboard navigation link.
 26. Once a session starts, hide the student balance, credit pack and full Mathify header/dashboard block. Use a full-screen class shell with **floating decks only** for signal strength, recording timer/status, **End session**, hand-up and chat.
 27. Remove **1-1 / guided practice** and standing quiz cards from the live session (they remain dashboard features). Show **chapter name** and **topic name** in small floating decks.
 
 ### H — Landing and contact
+
 28. `contact.html` uses the exact same shared booking frame/flow as the home page demo form (`#demoForm` + `landing.js` behaviour): same fields, progress, validation, time chips, Your request, success/credentials and status behaviour.
 29. In **Your request**, never mention `35 min` demo. Say **book a demo** and adjust all additive/summary sentences accordingly, including the post-booking WhatsApp message/contact card copy.
 30. Change every demo-duration occurrence of `35 min` / `35-minute` in `index.html` to `50 min` / `50-minute`, including `35-minute live session` → `50 min. demo` and `Book the 35-minute demo`. Do not touch the separate server-side `35-minute child gate` payout rule.
 
 ### I — Still blocked / explicitly out of scope
+
 - Copilot → Trainer Desk handoff behaviour (paste-and-wait vs auto-send after switching modes) is still unresolved and needs a founder choice before implementation.
 - Founder-generated planners and batch-to-planner assignment rules are still pending; no fake extraction or trainer authoring.
 - Production origin/Supabase/LiveKit credentials are unavailable; walkthrough remains on local mock HTTP `127.0.0.1:4004`.
@@ -234,6 +257,7 @@
 - Development badge stays on every rendered page during implementation, hidden by `?devLabel=0`, and is removed only after final development review.
 
 ## Implementation pass 1 — landing / contact booking frame
+
 - Implemented compiled items 28–30 only. No other compiled change has been applied yet.
 - Changed `index.html`: all five demo-duration strings now read 50 (`50-minute live session`, `Fifty minutes`, `Book the 50-minute demo`, `50:00`, orb `50`). The inline booking card was replaced by `#demoBookingMount`.
 - Added `shared/demo-booking.js`: one shared two-step booking card/flow used by both pages; **Your request** now says `I would like to book a demo`, never a minute count; post-submit WhatsApp copy says `I just requested a demo`.
@@ -246,6 +270,7 @@
 - Re-rendered contact page: `http://127.0.0.1:4004/contact.html?review=1795817268425&live=1795817268426` — dev label `DEV PAGE · contact.html`, card class `booking-card reveal is-visible`, opacity `1`, form and all 8 fields visible, 4 time chips, no `35` strings, no console errors. Step 2 flow generated the same duration-neutral request text and showed Back.
 
 ## Implementation pass 2 — board tools
+
 - Implemented compiled items 9–10 only.
 - `shared/fullBoard.css`: the ink row is now `position:fixed`, horizontally centred and placed below the floating tool deck. The board-open override was split so group menus keep their old caret-relative position.
 - `shared/fullBoard.js`: `anchorInkPanel()` became `centreInkPanel()`; pen and highlighter both call it, so the row always lands at the page centre. The panel is moved to `document.body` while the board is open because the tool deck's `backdrop-filter` otherwise creates a containing block for `position:fixed`; it is restored on close.
@@ -255,6 +280,7 @@
 - `node --check shared/fullBoard.js` passed.
 
 ## Implementation pass 3 — trainer dashboard, copilot, notifications
+
 - Implemented compiled items 1–4.
 - `trainer/index.html`: removed `#cameraOnlyBtn`; `#startClass` is the sole dashboard entry. Static toast bell replaced by `#notificationBtn` / `#notificationBadge` / `#notificationPanel` mailbox shell placed before `#profileBtn`.
 - `trainer/app.js`: `openCameraPage` → `openConnectPage` with no `&camera=1`; `.ai-chips` and `[data-ask]` now paste into `#aiInput` and focus it without sending; `openPanel(true)` avoids focus overwriting pasted text. Trainer Desk replies now combine live signed-in-trainer pay/dashboard/attendance/leave records under **From your records** with the worker's **General Mathify policy**; no invented figures.
@@ -263,6 +289,7 @@
 - Rendered trainer dashboard: `http://127.0.0.1:4004/trainer/today?review=1795818026539&live=1795818026540` — dev label `DEV PAGE · Trainer dashboard / Start class`, no Camera only button, Start class present, bell before profile, no `href="#"`, no iframe. A copilot chip pasted `Differentiate today’s set` into `#aiInput` without creating a user message. Mailbox opened with close button and internal scroll; mock data honestly showed no notices/messages. No console errors.
 
 ## Implementation pass 4 — connect media controls
+
 - Implemented compiled items 5–8.
 - Added `shared/rtcMediaUi.js` / `.css` with `window.mathifyRtcMediaUi`, binding `ActiveSpeakersChanged`, `TrackMuted`, `TrackUnmuted`, `ParticipantDisconnected` and `Disconnected`, throttled `audioLevel` painting and teal/coral frame states.
 - `classroom/connect.js`: mic/camera clicks now render optimistically, reconcile from the real LiveKit participant flags when the promise resolves, and restore the prior state with a status message on failure. Added request tickets so rapid toggles cannot overwrite each other.
@@ -272,6 +299,7 @@
 - At this stage student connect used the same page and handed off to `index.html` on `classroomOpen`; that early behaviour was corrected in pass 8 — the child now waits on the camera feed and follows the trainer's explicit `board.opened` handoff instead.
 
 ## Implementation pass 5 — LMS / planner view-only
+
 - Implemented compiled items 11–13 within the bounds of `PENDING_RULES.md`: trainer sees a view-only, batch-scoped assigned planner; all authoring and regeneration is founder-only; planner-agent mutation stays disabled; no planner content is fabricated.
 - `lms/app.js`: `applyRolePresentation()` is now actually called (it was defined but never invoked), and `loadCatalog()` is awaited before the first count/card repaint. Trainer library now shows the real `60` catalog curricula instead of `00`; `New course`, `Import pack` and planner mutation surfaces are hidden for trainers, the planner button reads `Assigned planner`, and the role banner states the read-only policy.
 - `lms/autoPlanner.js`: founder/planner-agent loads wait for a real curriculum and grade instead of calling `/api/lms/planner?subject=math`, which could only return `UNKNOWN_CURRICULUM`. No academic selection is guessed.
@@ -282,17 +310,20 @@
 - Exact visual reference for the LMS layout was never supplied, so layout was not pixel-matched; the surface follows the existing Paper & Ink theme.
 
 ## Implementation pass 6 — temporary dev Ratio Railway planner fixture
+
 - `scripts/fixtures/temporary-ratio-planner.json`: `id: dev_ratio_railway_v1`, `status: temporary_dev_fixture`, with the warning “Local test fixture only. Not a founder-generated planner. Never load in production.” It carries one continuous kid-friendly Mira story (`Mira and the Snack Cart`, railway stops Apple Orchard → Ribbon Bridge → Bead Garden) across 3 concepts × 3 practice questions (`dev_ratio_q1`–`dev_ratio_q9`). `completionRule.type=three_correct_unlocks_next_section`, `minimumCorrectPerSection=3`, plus `practiceRequiresCorrect`, `retestGeneratesReplacement` and `trainerOverride`. Answer keys, hints, explanations, trainer instructions and misconceptions exist in the fixture for trainer-side use only.
 - `server/services/temporaryPlannerFixture.js`: `validate()` requires the dev status, story and questions; `build()` converts the JSON into the existing quiz shape plus a guide; `apply()` attaches `plannerGuide` and a `ready`/`draft` quiz to the selected session. `guideFor(session, 'trainer')` keeps all sections, story beats and trainer-only notes. `guideFor(session, 'student')` recalculates progress from live correct attempts, truncates concepts/story beats to the current section and emits question cards containing only `id`, `stem` and `image`; `answerIndex`, `hint`, `explanation`, `trainerInstructions` and `misconceptions` are never copied into the student view. `sectionStats()`, `pendingSection()` and `nextQuestionId()` implement the three-correct gate.
 - `scripts/load-dev-planner-fixture.js`: explicit mock/dev loader (`node -r ./scripts/load-dev-planner-fixture.js server/index.js`; `MATHIFY_DEV_PLANNER_SESSION` overrides `ses_math_001`). It skips when `NODE_ENV=production`, creates no endpoint and no trainer mutation/generation path. `server/serializers.js` exposes the role-scoped `plannerGuide` on trainer/student session views and session state; sessions without the fixture omit the field.
 
 ## Implementation pass 7 — wrong-answer flow and retest
+
 - Trainer `#quizPushBoard` / `pushQuizQuestionToBoard()` is an explicit **Explain on board** action. It sends only that exact current question's `{q, image}` to `window.MathifyFullBoard.pushQuestion`; options, answerIndex, hint, explanation, trainer notes and misconceptions stay in the quiz layer, and no render/state sync pushes automatically. The planner designer handoff is likewise stem/image only.
 - **Retest** (`#quizRetest`) calls the existing `POST /api/trainer/sessions/:sessionId/quiz/new-check` with `replace: true`, the failed question id and the section concept/topic id. The server generates one AI parallel question, groups it under the requested section, replaces the failed card, clears its attempts/reveals and makes it current with `phase: 'recheck'`; the realtime payload carries no answer key. **New check on same concept** uses the same endpoint without `replace`; a labelled local scaffold is only the failure fallback.
 - Unlock rule: `pendingSection()` returns `CURRENT_QUESTION_REQUIRED` (409) while the current question is unsolved, then `SECTION_PRACTICE_REQUIRED` (409) until 3 correct answers exist in that section. Ordinary quizzes keep `PARALLEL_CHECK_REQUIRED`. `#quizForceNext` / `force: true` remains an explicit trainer override, recorded with questionId, sectionId, forcedBy and timestamp.
 - `server/tests/temporaryPlannerFlow.test.js` covers the fixture shape, student sanitization, launch, wrong-answer block, retest replacement/current/same-section grouping, nine retained correct answers through completion, guide counts and the student dashboard question-total delta. `server/tests/preflightFlow.test.js` covers the readiness gate below. Verification results will be appended in `E2E_LOG.md`; no test run is claimed here.
 
 ## Implementation pass 8 — readiness gate → camera → whiteboard
+
 - New `classroom/preflight.html`, `classroom/preflight.js` and `classroom/preflight.css`: camera/microphone permission + preview, network check, mic/camera room presets forwarded to the camera page, and role-specific actions. Trainer **Join the session** POSTs an active `/api/sessions/:sessionId/presence` heartbeat, which starts the server-owned class clock. There is no student bypass button: once the child's own checks finish, the page opens the shared camera feed automatically with `clock=check`; the child never starts the clock. Preflight itself never joins a LiveKit room.
 - Links now enter through preflight: trainer `Start class` (`trainer/app.js`), student join (`student/app.js`), subject panels, `apps.html`, unified shell “Join on this device”, and notification/reminder join URLs (`notificationService.js`, `parentReminderService.js`). PWA precache (`sw.js`) and shortcut (`webapp/manifest.webmanifest`) were updated too.
 - Flow: preflight → shared full-screen camera page `classroom/connect.html` (self and peer feeds visible to both roles; the child waits there for the trainer). Trainer presence only updates the child's waiting copy. Trainer-only **Open whiteboard** publishes `POST /api/sessions/:sessionId/board/open` (`board.opened`), and the child follows that explicit event into the whiteboard; a child cannot publish the handoff. Then one explicit trainer **Share with kid** board action (`#shareBoardBtn`, `POST /api/sessions/:sessionId/board/share`) makes the board visible → close whiteboard (`#fullBoardFullscreen` → `backToCamera()`) returns to the camera page with `MATHIFY_STAY_PRESENT`, so clock and recording continue until **End session**. The camera page's preview room still cannot start attendance, pay or the clock by itself.
@@ -306,3 +337,9 @@
 - Final verification: 65/65 deterministic suites (`EXITCODE=0`), mock master HTTP 26 pass / 0 fail / 5 skip, live read-only master HTTP 21 pass / 0 fail / 10 skip, and live companion HTTP 36 pass / 0 fail / 1 skip. Exact logs and commands are in `E2E_LOG.md`.
 - Live read-only mode used real Supabase reads and a real AI chain ping; Razorpay, Twilio/WhatsApp, real Egress recording, live Realtime mode change, runner-based migration apply and signed iOS build remain honestly gated.
 - This review log is now closed; no further development changes are pending from the compiled list.
+
+## Engineering-quality close-out (2026-11-28)
+
+- CI now fails on moderate audit findings, ESLint errors or any suite failure. `npm test` runs all 65 suites through `scripts/run-tests.js` under c8 and reports coverage to the console plus `coverage/` artefacts.
+- The pre-commit hook runs lint-staged with ESLint and Prettier only on staged files. Private vulnerability reporting and standardized issue/PR templates were added.
+- Demo passwords are no longer printed in active READMEs; they live in `server/.env.example` and `/api/auth/demo` remains disabled in production. Existing founder-only gates and the planner approval queue were unchanged.

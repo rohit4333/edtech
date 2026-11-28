@@ -36,10 +36,13 @@ jobs:
       - name: Install API dependencies
         run: npm ci
 
-      - name: Audit production dependencies
-        run: npm audit --omit=dev
+      - name: Audit all dependencies for moderate issues
+        run: npm audit --audit-level=moderate
 
-      - name: Run full test suite
+      - name: Lint source
+        run: npm run lint
+
+      - name: Run full test suite with coverage
         run: npm test
 
       - name: Review migration plan (dry run)

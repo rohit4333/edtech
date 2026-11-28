@@ -1,7 +1,8 @@
 /* Seed demo data into Supabase. The mock store already ships with demo records. */
-require('../config'); // Loads server/.env regardless of the working directory.
+const config = require('../config'); // Loads server/.env regardless of the working directory.
 
-const SENSITIVE_KEY = /authorization|cookie|token|secret|password|passwd|credential|api[-_ ]?key|access[-_ ]?key|private[-_ ]?key/i;
+const SENSITIVE_KEY =
+  /authorization|cookie|token|secret|password|passwd|credential|api[-_ ]?key|access[-_ ]?key|private[-_ ]?key/i;
 
 function safeString(value, max) {
   return String(value === null || value === undefined ? '' : value)
@@ -17,14 +18,17 @@ function redact(value, seen, depth) {
   if (value === null || value === undefined) return value;
   if (typeof value === 'string') return safeString(value);
   if (typeof value === 'number' || typeof value === 'boolean') return value;
-  if (value instanceof Error) return { name: safeString(value.name, 80), message: safeString(value.message) };
+  if (value instanceof Error)
+    return { name: safeString(value.name, 80), message: safeString(value.message) };
   if (depth > 5) return '[truncated]';
   if (typeof value !== 'object') return '[unsupported]';
   if (seen.has(value)) return '[circular]';
   seen.add(value);
 
   if (Array.isArray(value)) {
-    return value.slice(0, 25).map(function (item) { return redact(item, seen, depth + 1); });
+    return value.slice(0, 25).map(function (item) {
+      return redact(item, seen, depth + 1);
+    });
   }
 
   const output = {};
@@ -35,12 +39,28 @@ function redact(value, seen, depth) {
 }
 
 async function main() {
-  const mode = String(process.env.DATABASE_MODE || 'mock').trim().toLowerCase();
+  const mode = String(process.env.DATABASE_MODE || 'mock')
+    .trim()
+    .toLowerCase();
+
+  /* Demo identities and their password are development-only. Production must
+     opt in explicitly for an isolated walkthrough environment. */
+  if (
+    config.isProduction &&
+    String(process.env.ENABLE_DEMO_LOGINS || '').toLowerCase() !== 'true'
+  ) {
+    console.error(
+      'Refusing to seed demo identities in production. Set ENABLE_DEMO_LOGINS=true only for an isolated walkthrough environment.'
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   if (mode !== 'supabase') {
     console.log(
-      'Seed skipped: DATABASE_MODE=' + safeString(mode, 40) +
-      '. The in-memory store already ships with demo users and sessions.'
+      'Seed skipped: DATABASE_MODE=' +
+        safeString(mode, 40) +
+        '. The in-memory store already ships with demo users and sessions.'
     );
     return;
   }

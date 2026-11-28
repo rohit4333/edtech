@@ -25,19 +25,22 @@ Health check:
 GET http://localhost:4000/api/health
 ```
 
-Demo accounts (password `mathify-demo`, or `DEMO_PASSWORD` from `.env`):
+Demo accounts are local mock identities only. Their password comes from `DEMO_PASSWORD` in
+`.env.example`; it is not printed here. `GET /api/auth/demo` returns the role list for local UI
+helpers and is disabled when `NODE_ENV=production` unless `ENABLE_DEMO_LOGINS=true` is set
+deliberately.
 
-| Role | Email |
-| --- | --- |
-| Founder | founder@mathify.app |
-| Relationship manager (temporary) | rm@mathify.app |
-| Trainer | trainer@mathify.app |
-| Student | student@mathify.app |
-| Parent / kid (shared sign-in, linked to `usr_student_001`) | parent@mathify.app |
+| Role                                                       | Email               |
+| ---------------------------------------------------------- | ------------------- |
+| Founder                                                    | founder@mathify.app |
+| Relationship manager (temporary)                           | rm@mathify.app      |
+| Trainer                                                    | trainer@mathify.app |
+| Student                                                    | student@mathify.app |
+| Parent / kid (shared sign-in, linked to `usr_student_001`) | parent@mathify.app  |
 
-`GET /api/auth/demo` returns the same list. The temporary RM demo credential is `rm@mathify.app` with the same demo password. After login, `POST /api/auth/view` opens only the parent/kid pair for the family credential; staff views remain tied to their verified account. The manager desk can issue the generated trainer-only recovery password `firstname@mathify123` after KYC plus grant, but cannot choose the value or change founder-set pay.
+After login, `POST /api/auth/view` opens only the parent/kid pair for the family credential; staff views remain tied to their verified account. The manager desk can issue the server-generated trainer-only recovery password after KYC plus grant, but cannot choose the value or change founder-set pay.
 
-`PATCH /api/admin/people/:id/password` is the scoped credential-recovery endpoint. `{ "generated": true }` issues the existing `firstname@mathify123` value and is allowed to a relationship manager only for a trainer whose KYC is on file and whose access was granted; any supplied `password` returns `403 RM_PASSWORD_CHOICE_DENIED`, other target roles return `403`, and an ungranted trainer returns `422 KYC_OR_GRANT_REQUIRED`. The founder keeps chosen-password and any-role override. Both roles are audited (`password.temp_issued` / `password.granted`) without writing the password value. [ev: local HTTP contract check, 2026-11-26]
+`PATCH /api/admin/people/:id/password` is the scoped credential-recovery endpoint. `{ "generated": true }` issues the server-generated trainer value and is allowed to a relationship manager only for a trainer whose KYC is on file and whose access was granted; any supplied `password` returns `403 RM_PASSWORD_CHOICE_DENIED`, other target roles return `403`, and an ungranted trainer returns `422 KYC_OR_GRANT_REQUIRED`. The founder keeps chosen-password and any-role override. Both roles are audited (`password.temp_issued` / `password.granted`) without writing the password value. [ev: local HTTP contract check, 2026-11-26]
 
 ## Auth
 
@@ -45,7 +48,7 @@ Demo accounts (password `mathify-demo`, or `DEMO_PASSWORD` from `.env`):
 POST /api/auth/login
 Content-Type: application/json
 
-{ "email": "trainer@mathify.app", "password": "mathify-demo" }
+{ "email": "trainer@mathify.app", "password": "<DEMO_PASSWORD from .env>" }
 ```
 
 Response:
@@ -60,51 +63,51 @@ Send the token as `Authorization: Bearer <token>`.
 
 ### Trainer / founder
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/trainer/dashboard` | Hero, today timeline, attention queue and metric sources |
-| `GET` | `/api/trainer/score` | Teaching score shape; value stays null until bands are configured |
-| `GET` | `/api/trainer/payouts` | Current payout with base pay, fines, bonus, MVT award and daily trend, plus a persistent pay/fine tracker that switches from the 15-minute trainer-only rule to the child 35 + trainer 50 rule as soon as the child joins |
-| `GET` | `/api/trainer/payouts/:period` | Payout for a `YYYY-MM` period |
-| `GET` | `/api/trainer/attention` | Derived planner, quiz, draft, attendance and recording signals |
-| `GET` | `/api/trainer/attendance` | Six-session attendance register with present/absent/late/leave/unattended states |
-| `PATCH` | `/api/trainer/attendance/:sessionId` | Set one student's status for a session |
-| `POST` | `/api/trainer/attendance/:sessionId/save` | Save records and return the refreshed register |
-| `GET` | `/api/trainer/sessions` | Sessions owned by the trainer |
-| `GET` | `/api/trainer/sessions/:sessionId` | Full planner, pages, trainer notes, quiz answer key |
-| `PATCH` | `/api/trainer/sessions/:sessionId/planner` | Replace planner or toggle one item |
-| `PATCH` | `/api/trainer/sessions/:sessionId/page` | Set current page, 1–3 |
-| `GET` | `/api/trainer/quiz/templates` | Curriculum templates available for AI drafts |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/launch` | Start quiz, reset attempts, publish event |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/reveal` | Reveal one question or all to the student |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/next` | Advance; completes the quiz after the last question |
-| `GET` | `/api/trainer/sessions/:sessionId/quiz/drafts` | AI drafts awaiting trainer approval |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/drafts/:draftId/approve` | Approve a draft into the live question set |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/reteach` | Freeze quiz during reteach |
-| `POST` | `/api/trainer/sessions/:sessionId/quiz/new-check` | Add a fresh parallel question from the same objective |
-| `POST` | `/api/chat/trainer-support` | Trainer/founder only: Mathify Trainer Desk support reply from verified payout, leave and policy facts |
+| Method  | Path                                                            | Purpose                                                                                                                                                                                                                   |
+| ------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`   | `/api/trainer/dashboard`                                        | Hero, today timeline, attention queue and metric sources                                                                                                                                                                  |
+| `GET`   | `/api/trainer/score`                                            | Teaching score shape; value stays null until bands are configured                                                                                                                                                         |
+| `GET`   | `/api/trainer/payouts`                                          | Current payout with base pay, fines, bonus, MVT award and daily trend, plus a persistent pay/fine tracker that switches from the 15-minute trainer-only rule to the child 35 + trainer 50 rule as soon as the child joins |
+| `GET`   | `/api/trainer/payouts/:period`                                  | Payout for a `YYYY-MM` period                                                                                                                                                                                             |
+| `GET`   | `/api/trainer/attention`                                        | Derived planner, quiz, draft, attendance and recording signals                                                                                                                                                            |
+| `GET`   | `/api/trainer/attendance`                                       | Six-session attendance register with present/absent/late/leave/unattended states                                                                                                                                          |
+| `PATCH` | `/api/trainer/attendance/:sessionId`                            | Set one student's status for a session                                                                                                                                                                                    |
+| `POST`  | `/api/trainer/attendance/:sessionId/save`                       | Save records and return the refreshed register                                                                                                                                                                            |
+| `GET`   | `/api/trainer/sessions`                                         | Sessions owned by the trainer                                                                                                                                                                                             |
+| `GET`   | `/api/trainer/sessions/:sessionId`                              | Full planner, pages, trainer notes, quiz answer key                                                                                                                                                                       |
+| `PATCH` | `/api/trainer/sessions/:sessionId/planner`                      | Replace planner or toggle one item                                                                                                                                                                                        |
+| `PATCH` | `/api/trainer/sessions/:sessionId/page`                         | Set current page, 1–3                                                                                                                                                                                                     |
+| `GET`   | `/api/trainer/quiz/templates`                                   | Curriculum templates available for AI drafts                                                                                                                                                                              |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/launch`                  | Start quiz, reset attempts, publish event                                                                                                                                                                                 |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/reveal`                  | Reveal one question or all to the student                                                                                                                                                                                 |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/next`                    | Advance; completes the quiz after the last question                                                                                                                                                                       |
+| `GET`   | `/api/trainer/sessions/:sessionId/quiz/drafts`                  | AI drafts awaiting trainer approval                                                                                                                                                                                       |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/drafts/:draftId/approve` | Approve a draft into the live question set                                                                                                                                                                                |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/reteach`                 | Freeze quiz during reteach                                                                                                                                                                                                |
+| `POST`  | `/api/trainer/sessions/:sessionId/quiz/new-check`               | Add a fresh parallel question from the same objective                                                                                                                                                                     |
+| `POST`  | `/api/chat/trainer-support`                                     | Trainer/founder only: Mathify Trainer Desk support reply from verified payout, leave and policy facts                                                                                                                     |
 
 ### Leave (trainer, student, founder)
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/leaves` | Upcoming sessions with eligibility, leave balance and applied requests |
+| Method | Path          | Purpose                                                                        |
+| ------ | ------------- | ------------------------------------------------------------------------------ |
+| `GET`  | `/api/leaves` | Upcoming sessions with eligibility, leave balance and applied requests         |
 | `POST` | `/api/leaves` | Apply for mutual leave on a session or date; auto-approved when 2+ days notice |
 
 The trainer balance is 8 session leaves per calendar month. A student-initiated leave is mutual but does not consume a trainer credit. Applying sets the session to `leave`, records student attendance as `leave`, pays the trainer nothing and deducts no pack session.
 
 ### Student / founder
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/student/dashboard` | Next session, streak, Mastery, recordings, safe trophy list and points |
-| `GET` | `/api/student/sessions/:sessionId` | Sanitized lesson + quiz; no notes or answer key |
-| `POST` | `/api/student/sessions/:sessionId/quiz/answers` | Save answer only; no correctness or explanation |
-| `POST` | `/api/chat/student-doubt` | Student/founder only: Study Buddy doubt reply; text is unlimited, images are capped at 10 per student per calendar day and accept PNG/JPG/WEBP/GIF up to 1 MB, Socratic hints only |
-| `GET` | `/api/chat/student-doubt/quota` | Student only: today's image allowance (`used`, `remaining`, `limit`, `date`); resets on the student's display date |
-| `POST` | `/api/student/practice/batch` | Start a 10-question self-practice batch, 15% harder than the last one |
-| `GET` | `/api/student/practice/batch/:id` | Re-read a student-owned batch; prompts, options and progress only |
-| `POST` | `/api/student/practice/batch/:id/answer` | Save one answer; returns a private correctness boolean, no key or explanation |
+| Method | Path                                            | Purpose                                                                                                                                                                            |
+| ------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/student/dashboard`                        | Next session, streak, Mastery, recordings, safe trophy list and points                                                                                                             |
+| `GET`  | `/api/student/sessions/:sessionId`              | Sanitized lesson + quiz; no notes or answer key                                                                                                                                    |
+| `POST` | `/api/student/sessions/:sessionId/quiz/answers` | Save answer only; no correctness or explanation                                                                                                                                    |
+| `POST` | `/api/chat/student-doubt`                       | Student/founder only: Study Buddy doubt reply; text is unlimited, images are capped at 10 per student per calendar day and accept PNG/JPG/WEBP/GIF up to 1 MB, Socratic hints only |
+| `GET`  | `/api/chat/student-doubt/quota`                 | Student only: today's image allowance (`used`, `remaining`, `limit`, `date`); resets on the student's display date                                                                 |
+| `POST` | `/api/student/practice/batch`                   | Start a 10-question self-practice batch, 15% harder than the last one                                                                                                              |
+| `GET`  | `/api/student/practice/batch/:id`               | Re-read a student-owned batch; prompts, options and progress only                                                                                                                  |
+| `POST` | `/api/student/practice/batch/:id/answer`        | Save one answer; returns a private correctness boolean, no key or explanation                                                                                                      |
 
 ### Parent ↔ trainer chat
 
@@ -114,26 +117,26 @@ Text is scanned by `services/parentChatDlp.js` before any write or delivery. Ema
 
 ### Shared session
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/sessions/:sessionId/state` | Role-aware live state and permissions |
-| `GET` | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads |
-| `POST` | `/api/sessions/:sessionId/chat` | Participant-only chat; sender identity from the JWT |
-| `POST` | `/api/sessions/:sessionId/rtc-token` | Session-scoped LiveKit token with the same room/observer gate; canonical adapter path is `/api/get-token` |
-| `POST` | `/api/livekit/token` | Canonical LiveKit token: reads `roomName`/`participantName` from `req.body`, verifies them against the session, and returns JWT + WebSocket URL |
-| `POST` | `/api/get-token` | Alias of `/api/livekit/token`, used by the classroom/trainer adapters |
-| `POST` | `/api/sessions/:sessionId/media-permission` | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking |
-| `POST` | `/api/sessions/:sessionId/network-check` | Verified participant reports their own speed; role comes from the JWT, never the body |
-| `POST` | `/api/sessions/:sessionId/badges` | Trainer/founder only: award a fixed-catalog badge; label and points come from policy |
-| `POST` | `/api/sessions/:sessionId/end` | Trainer-only end + recap; ready recordings are exposed later through role-scoped signed links |
+| Method | Path                                          | Purpose                                                                                                                                         |
+| ------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/sessions/:sessionId/state`              | Role-aware live state and permissions                                                                                                           |
+| `GET`  | `/api/sessions/:sessionId/events?since=<seq>` | Cursor-based shared event log with key-free payloads                                                                                            |
+| `POST` | `/api/sessions/:sessionId/chat`               | Participant-only chat; sender identity from the JWT                                                                                             |
+| `POST` | `/api/sessions/:sessionId/rtc-token`          | Session-scoped LiveKit token with the same room/observer gate; canonical adapter path is `/api/get-token`                                       |
+| `POST` | `/api/livekit/token`                          | Canonical LiveKit token: reads `roomName`/`participantName` from `req.body`, verifies them against the session, and returns JWT + WebSocket URL |
+| `POST` | `/api/get-token`                              | Alias of `/api/livekit/token`, used by the classroom/trainer adapters                                                                           |
+| `POST` | `/api/sessions/:sessionId/media-permission`   | Trainer/founder only: allow or revoke the student's local mute/camera buttons; revoke forces both tracks on before locking                      |
+| `POST` | `/api/sessions/:sessionId/network-check`      | Verified participant reports their own speed; role comes from the JWT, never the body                                                           |
+| `POST` | `/api/sessions/:sessionId/badges`             | Trainer/founder only: award a fixed-catalog badge; label and points come from policy                                                            |
+| `POST` | `/api/sessions/:sessionId/end`                | Trainer-only end + recap; ready recordings are exposed later through role-scoped signed links                                                   |
 
 ### Public connection probe and policy
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/network/probe?bytes=<n>` | Cache-busted, no-store download payload for the classroom speed test; no identity or secrets |
-| `POST` | `/api/network/probe` | No-store upload echo point; body size is clamped to the configured probe size |
-| `GET` | `/api/public/config` | Browser-safe policy: Supabase publishable config, realtime mode, connection thresholds and the badge catalog |
+| Method | Path                           | Purpose                                                                                                      |
+| ------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `GET`  | `/api/network/probe?bytes=<n>` | Cache-busted, no-store download payload for the classroom speed test; no identity or secrets                 |
+| `POST` | `/api/network/probe`           | No-store upload echo point; body size is clamped to the configured probe size                                |
+| `GET`  | `/api/public/config`           | Browser-safe policy: Supabase publishable config, realtime mode, connection thresholds and the badge catalog |
 
 Connection policy lives in `server/config/policy.json` under `networkCheck` (`15` down, `10` up, `250 ms`, `15` minute freshness). `rtc.media.control.changed`, `network.check.completed` and `badge.awarded` are allowlisted, scrubbed session events. Extra state (`mediaPermissions`, `networkChecks`, `badges`, `trophyPoints`) is stored in the service-only `mathify_records` JSONB store in live mode, so it persists without a schema migration.
 
@@ -196,38 +199,38 @@ classroom board and fires only after the applicable minimum quota completes.
 
 ### Public
 
-| Method | Path | Purpose |
-| --- | --- | --- |
+| Method | Path           | Purpose                                                                                                           |
+| ------ | -------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `POST` | `/api/contact` | Validated, rate-limited booking request; stored and forwarded to configured Slack/email channels, never `mailto:` |
 
 ### Policy / webhooks
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/policy/config` | Configurable rules; unresolved values are `null` |
-| `POST` | `/api/webhooks/recording` | Recording-ready handoff; playback links are always short-lived signed URLs |
-| `POST` | `/api/webhooks/whatsapp` | Twilio WhatsApp parent assistant; returns TwiML |
-| `GET` | `/api/admin/support-escalations` | Founder-only human-handoff review log |
-| `GET` | `/api/admin/settings` | Founder-only runtime settings draft with read-only money widgets |
-| `PATCH` | `/api/admin/settings` | Founder-only allowlisted section patch; money/network keys return `FIELD_READ_ONLY` |
-| `DELETE` | `/api/admin/settings` | Reset runtime draft to file-backed defaults |
-| `GET` | `/api/realtime/log` | Trainer/founder view of local event log |
-| `GET` | `/api/public/config` | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
+| Method   | Path                             | Purpose                                                                                 |
+| -------- | -------------------------------- | --------------------------------------------------------------------------------------- |
+| `GET`    | `/api/policy/config`             | Configurable rules; unresolved values are `null`                                        |
+| `POST`   | `/api/webhooks/recording`        | Recording-ready handoff; playback links are always short-lived signed URLs              |
+| `POST`   | `/api/webhooks/whatsapp`         | Twilio WhatsApp parent assistant; returns TwiML                                         |
+| `GET`    | `/api/admin/support-escalations` | Founder-only human-handoff review log                                                   |
+| `GET`    | `/api/admin/settings`            | Founder-only runtime settings draft with read-only money widgets                        |
+| `PATCH`  | `/api/admin/settings`            | Founder-only allowlisted section patch; money/network keys return `FIELD_READ_ONLY`     |
+| `DELETE` | `/api/admin/settings`            | Reset runtime draft to file-backed defaults                                             |
+| `GET`    | `/api/realtime/log`              | Trainer/founder view of local event log                                                 |
+| `GET`    | `/api/public/config`             | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
 
 ### LiveKit, freelm, Resend, Razorpay
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/api/livekit/token`, `/api/get-token` | LiveKit JWT + WebSocket URL; server-owned room/identity, subscribe-only observer grants; `NETWORK_BELOW_MINIMUM` until both sides pass |
-| `POST` | `/api/livekit/recording/start`, `/api/livekit/recording/stop` | Trainer-only Egress control; server derives room, object key and private S3 destination |
-| `POST` | `/api/webhooks/livekit` | Verified LiveKit JWT + raw-body `sha256`; reconciles presence and Egress status/final object key |
-| `GET` | `/api/recordings` | List ready private recordings for the caller's role scope |
-| `GET` | `/api/recordings/:sessionId/url` | Mint a short-lived SigV4 GET link (10 minutes default, 1 hour cap); no permanent URL or secret |
-| `GET` | `/api/parent/reminders` | Parent-only in-app class reminders scoped to the linked child |
-| `POST` | `/api/generate-feedback` | Structured feedback through the shared `freelm → Gemini → Groq → Cloudflare` chain; mock mode returns deterministically |
-| `POST` | `/api/ai/test-ping` | Live-only, founder-only probe; requires two real provider answers, never returns a mock result |
-| `POST` | `/api/razorpay/orders/monthly` | Create a 12-session / 540 SAR Razorpay order |
-| `POST` | `/api/razorpay/webhook` | `payment.captured` → credit `sessions_remaining` once |
+| Method | Path                                                          | Purpose                                                                                                                                |
+| ------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/api/livekit/token`, `/api/get-token`                        | LiveKit JWT + WebSocket URL; server-owned room/identity, subscribe-only observer grants; `NETWORK_BELOW_MINIMUM` until both sides pass |
+| `POST` | `/api/livekit/recording/start`, `/api/livekit/recording/stop` | Trainer-only Egress control; server derives room, object key and private S3 destination                                                |
+| `POST` | `/api/webhooks/livekit`                                       | Verified LiveKit JWT + raw-body `sha256`; reconciles presence and Egress status/final object key                                       |
+| `GET`  | `/api/recordings`                                             | List ready private recordings for the caller's role scope                                                                              |
+| `GET`  | `/api/recordings/:sessionId/url`                              | Mint a short-lived SigV4 GET link (10 minutes default, 1 hour cap); no permanent URL or secret                                         |
+| `GET`  | `/api/parent/reminders`                                       | Parent-only in-app class reminders scoped to the linked child                                                                          |
+| `POST` | `/api/generate-feedback`                                      | Structured feedback through the shared `freelm → Gemini → Groq → Cloudflare` chain; mock mode returns deterministically                |
+| `POST` | `/api/ai/test-ping`                                           | Live-only, founder-only probe; requires two real provider answers, never returns a mock result                                         |
+| `POST` | `/api/razorpay/orders/monthly`                                | Create a 12-session / 540 SAR Razorpay order                                                                                           |
+| `POST` | `/api/razorpay/webhook`                                       | `payment.captured` → credit `sessions_remaining` once                                                                                  |
 
 `services/livekitTokenService.js` lazily loads `livekit-server-sdk`, derives the room as `mathify-<sessionId>` and the identity from the JWT role/id, converts `https://` to `wss://`, and awaits `toJwt()`. A browser-supplied `roomName` may only confirm the derived room; any other value returns `403 ROOM_MISMATCH`. `ALLOW_DIRECT_ROOM_TOKENS=true` enables a dev-only literal-room path and is disabled in production/Supabase mode. Optional `LIVEKIT_AGENT_NAME` dispatch is trainer-initiated, deduplicated with `listDispatch`, and never runs in mock mode or for observers.
 
@@ -386,7 +389,18 @@ See `../MCP_DESIGN.md` and `../.mcp.json.example`. Use `DATABASE_MODE=mock node 
 
 ## Testing
 
-Sixty-five Node suites run with plain `node` + `assert` via `npm test` (from this directory or the root); there is no Jest, Vitest, Playwright or Cypress setup. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `mcpServer.test.js`, `mcpRmServer.test.js`, `mcpPlannerServer.test.js`, `lmsPlannerAccess.test.js` (including the async Supabase `listBatches` regression), `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `batchRenewalMail.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
+Sixty-five Node suites run with plain `node` + `assert` through `scripts/run-tests.js`; there is no Jest, Vitest, Playwright or Cypress setup. `npm test` wraps that ordered runner with c8 and writes `text-summary`, `lcov` and `json-summary` reports to `coverage/`. Use `DATABASE_MODE=mock npm test` for deterministic local results when `.env` points at Supabase. Current suites include `mcpServer.test.js`, `mcpRmServer.test.js`, `mcpPlannerServer.test.js`, `lmsPlannerAccess.test.js` (including the async Supabase `listBatches` regression), `livekitEgress.test.js`, `livekitWebhooks.test.js`, `reminderTimezone.test.js`, `batchRenewalMail.test.js`, `recordingAccess.test.js` and `securityHardening.test.js`.
+
+Quality commands from this directory:
+
+```powershell
+npm run lint           # ESLint 9 flat config; warnings are visible, errors fail
+npm run format:check   # Prettier 3 check on shared tooling
+npm run format:check:all # full-repo check; reports the legacy backlog
+npm run test:raw       # suite runner without coverage
+```
+
+The husky hook at `../.husky/pre-commit` invokes lint-staged with `npm --prefix server`; root `.lintstagedrc.json` applies ESLint `--fix` and Prettier `--write` only to staged files. CI runs `npm audit --audit-level=moderate`, `npm run lint` and `npm test`. Report security issues privately to security@mathify.app as described in `../SECURITY.md`. `LIVE_QA_REPORT.md` at the repository root records current live HTTP, signed webhook, reminder/timezone, role-probe and Supabase evidence. `TEST_REPORT.md` has historical full results; its live evidence table records the old provider round, not current LiveKit/Resend/AI-chain validation.
 
 ## Migrations
 

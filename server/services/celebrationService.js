@@ -16,7 +16,7 @@ const ALLOWED_SOUND_IDS = [
   'tabla_pulse',
   'sparkle',
   'applause_soft',
-  'welcome_bell'
+  'welcome_bell',
 ];
 
 let config = null;
@@ -37,57 +37,70 @@ function publicConfig() {
     version: source.version,
     enabled: source.enabled !== false,
     palette: Array.isArray(source.palette) ? source.palette.slice() : [],
-    types: Object.keys(source.celebrationLibrary || {}).filter(function (key) {
-      const item = source.celebrationLibrary[key];
-      return item && item.enabled !== false;
-    }).map(function (key) {
-      const item = source.celebrationLibrary[key];
-      return {
-        id: key,
-        label: String(item.label || key).slice(0, 60),
-        durationMs: Number(item.animation && item.animation.durationMs) || 0,
-        sound: ALLOWED_SOUND_IDS.indexOf(item.sound) >= 0 ? item.sound : null,
-        bestFor: String(item.bestFor || '').slice(0, 80)
-      };
-    }),
+    types: Object.keys(source.celebrationLibrary || {})
+      .filter(function (key) {
+        const item = source.celebrationLibrary[key];
+        return item && item.enabled !== false;
+      })
+      .map(function (key) {
+        const item = source.celebrationLibrary[key];
+        return {
+          id: key,
+          label: String(item.label || key).slice(0, 60),
+          durationMs: Number(item.animation && item.animation.durationMs) || 0,
+          sound: ALLOWED_SOUND_IDS.indexOf(item.sound) >= 0 ? item.sound : null,
+          bestFor: String(item.bestFor || '').slice(0, 80),
+        };
+      }),
     triggers: Object.keys(source.eventMapping || {}),
     preferences: {
-      allowedOverrides: source.preferences && Array.isArray(source.preferences.allowedOverrides)
-        ? source.preferences.allowedOverrides.slice() : [],
-      priority: source.preferences && Array.isArray(source.preferences.priority)
-        ? source.preferences.priority.slice() : ['student', 'trainer', 'default']
+      allowedOverrides:
+        source.preferences && Array.isArray(source.preferences.allowedOverrides)
+          ? source.preferences.allowedOverrides.slice()
+          : [],
+      priority:
+        source.preferences && Array.isArray(source.preferences.priority)
+          ? source.preferences.priority.slice()
+          : ['student', 'trainer', 'default'],
     },
     throttle: {
       maxPerSession: Number(source.throttle && source.throttle.maxPerSession) || 5,
-      minGapBetweenMs: Number(source.throttle && source.throttle.minGapBetweenMs) || 3000
+      minGapBetweenMs: Number(source.throttle && source.throttle.minGapBetweenMs) || 3000,
     },
     accessibility: {
-      respectReducedMotion: source.accessibility && source.accessibility.respectReducedMotion !== false,
+      respectReducedMotion:
+        source.accessibility && source.accessibility.respectReducedMotion !== false,
       reducedMotionFallback: 'static_badge',
       localMuteAllowed: source.accessibility && source.accessibility.localMuteAllowed !== false,
-      cameraPrivacyRespected: true
-    }
+      cameraPrivacyRespected: true,
+    },
   };
 }
 
 function trigger(name) {
   const source = readConfig();
-  if (!source.eventMapping || !Object.prototype.hasOwnProperty.call(source.eventMapping, name)) return null;
+  if (!source.eventMapping || !Object.prototype.hasOwnProperty.call(source.eventMapping, name))
+    return null;
   return source.eventMapping[name];
 }
 
 function libraryType(name) {
   const source = readConfig();
-  if (!source.celebrationLibrary || !Object.prototype.hasOwnProperty.call(source.celebrationLibrary, name)) return null;
+  if (
+    !source.celebrationLibrary ||
+    !Object.prototype.hasOwnProperty.call(source.celebrationLibrary, name)
+  )
+    return null;
   const item = source.celebrationLibrary[name];
   return item && item.enabled !== false ? item : null;
 }
 
 function allowedOverride(pref) {
   const source = readConfig();
-  const allowed = source.preferences && Array.isArray(source.preferences.allowedOverrides)
-    ? source.preferences.allowedOverrides
-    : [];
+  const allowed =
+    source.preferences && Array.isArray(source.preferences.allowedOverrides)
+      ? source.preferences.allowedOverrides
+      : [];
   return typeof pref === 'string' && allowed.indexOf(pref) >= 0 && libraryType(pref) ? pref : null;
 }
 
@@ -104,7 +117,11 @@ function selectType(eventName, studentPref, trainerPref, random) {
     if (trainer) return trainer;
   }
 
-  if (mapping.randomize === true && Array.isArray(mapping.randomizePool) && mapping.randomizePool.length) {
+  if (
+    mapping.randomize === true &&
+    Array.isArray(mapping.randomizePool) &&
+    mapping.randomizePool.length
+  ) {
     const pool = mapping.randomizePool.filter(libraryType);
     if (pool.length) {
       const pick = typeof random === 'function' ? random() : Math.random();
@@ -148,11 +165,20 @@ function record(sessionId, now) {
 }
 
 function safeName(value) {
-  return String(value || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60) || 'Student';
+  // Control characters are stripped deliberately before a name reaches the board.
+  return (
+    String(value || '')
+      .replace(/[\u0000-\u001f<>]/g, '') // eslint-disable-line no-control-regex
+      .trim()
+      .slice(0, 60) || 'Student'
+  );
 }
 
 function safeText(value) {
-  return String(value || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 120);
+  return String(value || '')
+    .replace(/[\u0000-\u001f<>]/g, '') // eslint-disable-line no-control-regex
+    .trim()
+    .slice(0, 120);
 }
 
 function clone(value) {
@@ -161,17 +187,41 @@ function clone(value) {
 
 function allowlistedAnimation(animation, palette) {
   const source = animation && typeof animation === 'object' ? animation : {};
-  const keys = ['type', 'durationMs', 'count', 'colors', 'rippleColors', 'origin', 'fallStyle',
-    'riseStyle', 'trajectory', 'opacity', 'stringVisible', 'foldTexture', 'rotation', 'paperTexture',
-    'beatSync', 'pulseScale', 'centerVisual', 'rippleCount', 'style', 'shineSweep', 'shineColor',
-    'textTemplate', 'scaleAnimation', 'sealIcon'];
+  const keys = [
+    'type',
+    'durationMs',
+    'count',
+    'colors',
+    'rippleColors',
+    'origin',
+    'fallStyle',
+    'riseStyle',
+    'trajectory',
+    'opacity',
+    'stringVisible',
+    'foldTexture',
+    'rotation',
+    'paperTexture',
+    'beatSync',
+    'pulseScale',
+    'centerVisual',
+    'rippleCount',
+    'style',
+    'shineSweep',
+    'shineColor',
+    'textTemplate',
+    'scaleAnimation',
+    'sealIcon',
+  ];
   const safe = {};
   keys.forEach(function (key) {
     if (source[key] !== undefined) safe[key] = clone(source[key]);
   });
   ['colors', 'rippleColors'].forEach(function (key) {
     if (Array.isArray(safe[key])) {
-      safe[key] = safe[key].filter(function (color) { return palette.indexOf(color) >= 0; });
+      safe[key] = safe[key].filter(function (color) {
+        return palette.indexOf(color) >= 0;
+      });
     }
   });
   if (safe.shineColor && palette.indexOf(safe.shineColor) < 0) delete safe.shineColor;
@@ -191,24 +241,30 @@ function safePayload(result) {
     studentName: safeName(result.studentName),
     sound: {
       id: ALLOWED_SOUND_IDS.indexOf(result.sound && result.sound.id) >= 0 ? result.sound.id : null,
-      volume: Math.max(0, Math.min(0.6, Number(result.sound && result.sound.volume) || 0.6))
+      volume: Math.max(0, Math.min(0.6, Number(result.sound && result.sound.volume) || 0.6)),
     },
     spotlight: {
       enabled: result.spotlight && result.spotlight.enabled === true,
       target: 'student',
-      durationMs: Math.max(250, Math.min(4000, Number(result.spotlight && result.spotlight.durationMs) || 3000)),
-      badgeText: safeText(result.spotlight && result.spotlight.badgeText)
+      durationMs: Math.max(
+        250,
+        Math.min(4000, Number(result.spotlight && result.spotlight.durationMs) || 3000)
+      ),
+      badgeText: safeText(result.spotlight && result.spotlight.badgeText),
     },
-    animation: result.animation && typeof result.animation === 'object' ? clone(result.animation) : {},
-    at: String(result.at || new Date().toISOString())
+    animation:
+      result.animation && typeof result.animation === 'object' ? clone(result.animation) : {},
+    at: String(result.at || new Date().toISOString()),
   };
 }
 
 function evaluateTrigger(eventName, context) {
   const cfg = readConfig();
   const input = context && typeof context === 'object' ? context : {};
-  if (cfg.enabled === false || !cfg.sharedCelebration || cfg.sharedCelebration.enabled === false) return null;
-  if (cfg.sharedCelebration.suppressDuringActiveQuiz !== false && input.quizActive === true) return null;
+  if (cfg.enabled === false || !cfg.sharedCelebration || cfg.sharedCelebration.enabled === false)
+    return null;
+  if (cfg.sharedCelebration.suppressDuringActiveQuiz !== false && input.quizActive === true)
+    return null;
 
   const mapping = trigger(eventName);
   if (!mapping) return null;
@@ -221,7 +277,10 @@ function evaluateTrigger(eventName, context) {
   const item = libraryType(type);
   if (!item || ALLOWED_SOUND_IDS.indexOf(item.sound) < 0) return null;
 
-  const rawBadge = String(mapping.badgeText || '').replace('{studentName}', safeName(input.studentName));
+  const rawBadge = String(mapping.badgeText || '').replace(
+    '{studentName}',
+    safeName(input.studentName)
+  );
   const result = {
     sessionId: input.sessionId,
     trigger: eventName,
@@ -233,10 +292,10 @@ function evaluateTrigger(eventName, context) {
       enabled: cfg.sharedCelebration.spotlightStudent !== false,
       target: 'student',
       durationMs: Number(mapping.spotlightDurationMs) || Number(item.animation.durationMs) || 3000,
-      badgeText: rawBadge
+      badgeText: rawBadge,
     },
     animation: allowlistedAnimation(item.animation, Array.isArray(cfg.palette) ? cfg.palette : []),
-    at: new Date(now).toISOString()
+    at: new Date(now).toISOString(),
   };
 
   record(input.sessionId, now);
@@ -254,5 +313,5 @@ module.exports = {
   selectType,
   evaluateTrigger,
   safePayload,
-  reset
+  reset,
 };

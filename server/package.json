@@ -14,7 +14,15 @@
     "reminders:once": "node jobs/reminders.js --once",
     "webhook:test": "node scripts/send-livekit-webhook.js",
     "egress:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/setup-livekit-egress-env.ps1",
-    "test": "node tests/payoutService.test.js && node tests/attendancePolicy.test.js && node tests/leaveService.test.js && node tests/masteryGating.test.js && node tests/quizGenerator.test.js && node tests/quizPromptInjection.test.js && node tests/cloudflareClient.test.js && node tests/curriculumAuthoring.test.js && node tests/curriculumContext.test.js && node tests/aiCurriculumIntegration.test.js && node tests/studentSerializer.test.js && node tests/privacyBoundary.test.js && node tests/chatAssistant.test.js && node tests/chatWorker.test.js && node tests/masteryPractice.test.js && node tests/curriculumPersistence.test.js && node tests/navContract.test.js && node tests/slotService.test.js && node tests/presenceService.test.js && node tests/apiSmoke.test.js && node tests/parentChat.test.js && node tests/scaffoldedUI.test.js && node tests/liveReadiness.test.js && node tests/livePersistence.test.js && node tests/liveOperations.test.js && node tests/rtcControls.test.js && node tests/sessionPolicy.test.js && node tests/sessionLifetime.test.js && node tests/credentialLogin.test.js && node tests/engagementControls.test.js && node tests/trainerOnboarding.test.js && node tests/announcements.test.js && node tests/concurrency.test.js && node tests/asyncAuthMiddleware.test.js && node tests/mcpServer.test.js && node tests/mcpPlannerServer.test.js && node tests/mcpRmServer.test.js && node tests/razorpayWebhook.test.js && node tests/founderAdmin.test.js && node tests/relationshipManager.test.js && node tests/rmPayAccess.test.js && node tests/rewardDeck.test.js && node tests/registration.test.js && node tests/passwordFlow.test.js && node tests/adminAudit.test.js && node tests/fullBoard.test.js && node tests/asyncLoginRehash.test.js && node tests/alternateAiProviders.test.js && node tests/livekitEgress.test.js && node tests/livekitWebhooks.test.js && node tests/reminderTimezone.test.js && node tests/recordingAccess.test.js && node tests/securityHardening.test.js && node tests/autoPlanner.test.js && node tests/demoLifecycle.test.js && node tests/batchRenewalMail.test.js && node tests/subjectExpansion.test.js && node tests/plannerAgent.test.js && node tests/studentDoubtQuota.test.js && node tests/unifiedApp.test.js && node tests/cameraConnect.test.js && node tests/mobileShell.test.js && node tests/webApp.test.js && node tests/temporaryPlannerFlow.test.js && node tests/preflightFlow.test.js"
+    "test": "c8 node scripts/run-tests.js",
+    "test:raw": "node scripts/run-tests.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --config .prettierrc.json --ignore-path .prettierignore --write .c8rc.json .prettierrc.json eslint.config.js scripts/run-tests.js",
+    "format:all": "prettier --config .prettierrc.json --ignore-path .prettierignore --write \"**/*.{js,json,md,yml,yaml,css,html}\"",
+    "format:check": "prettier --config .prettierrc.json --ignore-path .prettierignore --check .c8rc.json .prettierrc.json eslint.config.js scripts/run-tests.js",
+    "format:check:all": "prettier --config .prettierrc.json --ignore-path .prettierignore --check \"**/*.{js,json,md,yml,yaml,css,html}\"",
+    "prepare": "cd .. && husky"
   },
   "engines": {
     "node": ">=20"
@@ -28,5 +36,14 @@
     "razorpay": "^2.9.6",
     "resend": "^6.40.1",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "c8": "9.1.0",
+    "eslint": "9.39.5",
+    "globals": "15.15.0",
+    "husky": "9.1.7",
+    "lint-staged": "15.5.2",
+    "prettier": "3.10.1"
   }
 }
