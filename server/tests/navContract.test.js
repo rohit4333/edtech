@@ -548,4 +548,30 @@ ok(
   'planner agent desk is on the reviewed static allowlist'
 );
 
+/* The child desk shows its own session-credit pack on every section while the
+   money/balance surfaces stay hidden. Demo passwords never appear in a desk. */
+ok(
+  [
+    '/student/home',
+    '/student/recordings',
+    '/student/mastery',
+    '/student/reports',
+    '/student/schedule',
+  ].every(function (route) {
+    return new RegExp("'" + route + "'\\s*:\\s*\\{[\\s\\S]{0,240}?keep:\\s*\\['wallet'\\]").test(
+      routerScript
+    );
+  }),
+  'the section router keeps the student credit pack on all five desk routes'
+);
+ok(
+  /remaining\s*\+\s*' credits'/.test(read('student/app.js')) &&
+    /sessionsRemaining:\s*8,/.test(read('server/db/mock.js')),
+  'the seeded child pack renders as eight credits'
+);
+ok(
+  !/mathify-demo|DEMO PARENT LOGIN/i.test(read('parent/index.html')),
+  'the parent desk never prints shared demo credentials'
+);
+
 console.log('navContract: ' + checks.length + ' assertions passed');

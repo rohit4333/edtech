@@ -115,7 +115,7 @@
     if (!button) return;
     button.classList.toggle('is-on', Boolean(on));
     button.setAttribute('aria-pressed', String(Boolean(on)));
-    var text = $('[data-control-label]', button);
+    var text = button.querySelector('[data-control-label]');
     if (text) text.textContent = label;
     if (title) button.title = title;
   }
@@ -133,13 +133,13 @@
     setMenuState(
       '#paMicBtn',
       mediaPermission.studentMuted !== true,
-      mediaPermission.studentMuted ? 'Unmute' : 'Mute',
+      mediaPermission.studentMuted ? 'Off' : 'On',
       mediaPermission.studentMuted ? 'Request the kid to unmute' : 'Mute the kid’s microphone'
     );
     setMenuState(
       '#paCamBtn',
       mediaPermission.studentCameraOff !== true,
-      mediaPermission.studentCameraOff ? 'Turn on' : 'Off',
+      mediaPermission.studentCameraOff ? 'Off' : 'On',
       mediaPermission.studentCameraOff
         ? 'Request the kid to turn the camera on'
         : 'Turn off the kid’s camera'

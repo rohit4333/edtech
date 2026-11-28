@@ -56,6 +56,13 @@ async function main() {
     'the camera page applies persisted permissions instead of URL intent'
   );
   check(
+    /button\.querySelector\('\[data-control-label\]'\)/.test(connectJs) &&
+      !/\$\('\[data-control-label\]', button\)/.test(connectJs) &&
+      /mediaPermission\.studentMuted\s*\?\s*'Off'\s*:\s*'On'/.test(connectJs) &&
+      /mediaPermission\.studentCameraOff\s*\?\s*'Off'\s*:\s*'On'/.test(connectJs),
+    'each access-menu row labels its own control and reports the real mic/camera state'
+  );
+  check(
     !/session\.js|app\.js|livekit\.js|cursorRelay\.js/.test(connectHtml),
     'the camera-check page never loads the classroom session layer'
   );

@@ -5,8 +5,12 @@
 (function () {
   'use strict';
 
-  var $ = function (sel, root) { return (root || document).querySelector(sel); };
-  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var $ = function (sel, root) {
+    return (root || document).querySelector(sel);
+  };
+  var $$ = function (sel, root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  };
 
   var api = window.classroomSession || {};
   var toast = api.toast || function () {};
@@ -30,7 +34,8 @@
   var studentView = params.get('view') === 'student' || user.role === 'student';
   var isTrainer = (user.role === 'trainer' || user.role === 'founder') && !studentView;
 
-  var sessionId = window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
+  var sessionId =
+    window.MATHIFY_SESSION_ID || params.get('session') || params.get('sessionId') || null;
   var accessToken = window.MATHIFY_SUPABASE_ACCESS_TOKEN || null;
   var realtimeLink = null;
 
@@ -75,11 +80,15 @@
       method: settings.method || 'GET',
       headers: headers,
       credentials: 'same-origin',
-      body: settings.body === undefined ? undefined : JSON.stringify(settings.body)
+      body: settings.body === undefined ? undefined : JSON.stringify(settings.body),
     }).then(function (response) {
       return response.text().then(function (textValue) {
         var data = null;
-        try { data = textValue ? JSON.parse(textValue) : null; } catch (error) { data = null; }
+        try {
+          data = textValue ? JSON.parse(textValue) : null;
+        } catch (error) {
+          data = null;
+        }
         if (!response.ok) {
           var problem = new Error((data && data.message) || 'Request failed.');
           problem.status = response.status;
@@ -94,8 +103,12 @@
   function hideTrainerUi() {
     document.body.classList.add('view-student');
     /* Remove hidden instruction payloads and trainer controls from the DOM entirely. */
-    $$('[data-instruction]').forEach(function (el) { el.removeAttribute('data-instruction'); });
-    $$('.trainer-only').forEach(function (el) { el.remove(); });
+    $$('[data-instruction]').forEach(function (el) {
+      el.removeAttribute('data-instruction');
+    });
+    $$('.trainer-only').forEach(function (el) {
+      el.remove();
+    });
   }
 
   if (studentView || !isTrainer) hideTrainerUi();
@@ -118,10 +131,15 @@
     if (!sessionId || roleParam) return Promise.resolve(false);
     var client = classroomApi();
     if (!client || typeof client.getSessionState !== 'function') return Promise.resolve(false);
-    return client.getSessionState(sessionId).then(function (state) {
-      if (!state || !state.viewerRole) return false;
-      return applyViewerRole(state.viewerRole);
-    }).catch(function () { return false; });
+    return client
+      .getSessionState(sessionId)
+      .then(function (state) {
+        if (!state || !state.viewerRole) return false;
+        return applyViewerRole(state.viewerRole);
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   /* ------------------------------------------ trainer-only notes sidebar */
@@ -160,7 +178,10 @@
     var page = null;
 
     for (var i = 0; i < pages.length; i += 1) {
-      if (Number(pages[i].page) === pageNo) { page = pages[i]; break; }
+      if (Number(pages[i].page) === pageNo) {
+        page = pages[i];
+        break;
+      }
     }
     if (!page && pages[pageNo - 1]) page = pages[pageNo - 1];
 
@@ -239,7 +260,8 @@
         captureGuide(trainerSession);
         renderInstructions();
         return true;
-      }).catch(function (error) {
+      })
+      .catch(function (error) {
         notesLoaded = true;
         renderInstructions();
         console.warn('[mathify] Trainer Notes unavailable:', error.message);
@@ -247,24 +269,30 @@
       });
   }
 
-  trainerLayerBtn && trainerLayerBtn.addEventListener('click', function () {
-    setNotes(trainerPanel && trainerPanel.hidden);
-  });
-  trainerPanelClose && trainerPanelClose.addEventListener('click', function () { setNotes(false); });
+  trainerLayerBtn &&
+    trainerLayerBtn.addEventListener('click', function () {
+      setNotes(trainerPanel && trainerPanel.hidden);
+    });
+  trainerPanelClose &&
+    trainerPanelClose.addEventListener('click', function () {
+      setNotes(false);
+    });
 
-  guideToggle && guideToggle.addEventListener('click', function () {
-    if (!guideBody) return;
-    var open = guideBody.hidden;
-    guideBody.hidden = !open;
-    guideToggle.setAttribute('aria-expanded', String(open));
-    guideToggle.textContent = open ? 'Hide guide' : 'Show guide';
-  });
+  guideToggle &&
+    guideToggle.addEventListener('click', function () {
+      if (!guideBody) return;
+      var open = guideBody.hidden;
+      guideBody.hidden = !open;
+      guideToggle.setAttribute('aria-expanded', String(open));
+      guideToggle.textContent = open ? 'Hide guide' : 'Show guide';
+    });
 
   ['#pagePrev', '#pageNext'].forEach(function (sel) {
     var btn = $(sel);
-    btn && btn.addEventListener('click', function () {
-      setTimeout(renderInstructions, 40);
-    });
+    btn &&
+      btn.addEventListener('click', function () {
+        setTimeout(renderInstructions, 40);
+      });
   });
 
   /* ------------------------------------------ expandable, resizable sketch */
@@ -286,8 +314,12 @@
     var label = $('span', btn);
     if (label) {
       label.textContent = expanded
-        ? (zone.classList.contains('workspace') ? 'Collapse sketch' : 'Collapse')
-        : (zone.classList.contains('workspace') ? 'Expand sketch' : 'Expand');
+        ? zone.classList.contains('workspace')
+          ? 'Collapse sketch'
+          : 'Collapse'
+        : zone.classList.contains('workspace')
+          ? 'Expand sketch'
+          : 'Expand';
     }
 
     if (expanded) {
@@ -296,16 +328,21 @@
       if (handle) {
         handle.setAttribute('aria-valuemin', String(bounds.min));
         handle.setAttribute('aria-valuemax', String(bounds.max));
-        handle.setAttribute('aria-valuenow', String(Math.round(zone.getBoundingClientRect().height)));
+        handle.setAttribute(
+          'aria-valuenow',
+          String(Math.round(zone.getBoundingClientRect().height))
+        );
       }
     }
 
     window.dispatchEvent(new Event('resize'));
     if (api.fitCanvas) setTimeout(api.fitCanvas, 40);
     if (announce !== false) {
-      toast(expanded
-        ? 'Sketch space expanded · drag the corner arrows to stretch it.'
-        : 'Sketch space collapsed.');
+      toast(
+        expanded
+          ? 'Sketch space expanded · drag the corner arrows to stretch it.'
+          : 'Sketch space collapsed.'
+      );
     }
   }
 
@@ -317,7 +354,7 @@
     min = Math.max(min, isWorkspace ? 180 : 90);
 
     var page = zone.closest('.sheet-page');
-    var body = isWorkspace ? zone.closest('.p-body') : (page && page.querySelector('.p-body'));
+    var body = isWorkspace ? zone.closest('.p-body') : page && page.querySelector('.p-body');
     var max;
 
     if (body) {
@@ -383,11 +420,13 @@
         startHeight: rect.height,
         min: bounds.min,
         max: bounds.max,
-        changed: false
+        changed: false,
       };
       applyZoneHeight(zone, rect.height, bounds.min, bounds.max);
       handle.classList.add('is-resizing');
-      try { handle.setPointerCapture(event.pointerId); } catch (e) {}
+      try {
+        handle.setPointerCapture(event.pointerId);
+      } catch (e) {}
     });
 
     handle.addEventListener('pointermove', function (event) {
@@ -404,10 +443,15 @@
       var changed = drag.changed;
       drag = null;
       handle.classList.remove('is-resizing');
-      if (event) { try { handle.releasePointerCapture(event.pointerId); } catch (e) {} }
+      if (event) {
+        try {
+          handle.releasePointerCapture(event.pointerId);
+        } catch (e) {}
+      }
       window.dispatchEvent(new Event('resize'));
       if (api.fitCanvas) setTimeout(api.fitCanvas, 40);
-      if (changed) toast('Sketch space resized to ' + Math.round(zone.getBoundingClientRect().height) + 'px.');
+      if (changed)
+        toast('Sketch space resized to ' + Math.round(zone.getBoundingClientRect().height) + 'px.');
     }
     handle.addEventListener('pointerup', stopZoneResize);
     handle.addEventListener('pointercancel', stopZoneResize);
@@ -419,7 +463,12 @@
       if (!zone.classList.contains('is-expanded')) setZoneExpanded(zone, true, false);
       var bounds = zoneBounds(zone);
       var delta = (event.key === 'ArrowUp' ? 1 : -1) * (event.shiftKey ? 64 : 24);
-      var h = applyZoneHeight(zone, zone.getBoundingClientRect().height + delta, bounds.min, bounds.max);
+      var h = applyZoneHeight(
+        zone,
+        zone.getBoundingClientRect().height + delta,
+        bounds.min,
+        bounds.max
+      );
       window.dispatchEvent(new Event('resize'));
       if (api.fitCanvas) setTimeout(api.fitCanvas, 40);
       toast('Sketch space ' + (delta > 0 ? 'enlarged' : 'reduced') + ' to ' + h + 'px.');
@@ -500,7 +549,7 @@
     quiz: null,
     sectionCorrect: 0,
     sectionRequired: 3,
-    sectionComplete: true
+    sectionComplete: true,
   };
 
   /* ------------------------------- front-desk share state / camera hand-off */
@@ -553,23 +602,23 @@
   var localQuestions = [
     {
       q: 'Which ratio is equivalent to 3 : 5?',
-      options: ['6 : 10', '5 : 3', '9 : 12', '3 : 8']
+      options: ['6 : 10', '5 : 3', '9 : 12', '3 : 8'],
     },
     {
       q: 'In a 3 : 5 ribbon, the shorter piece is 12 cm. How long is the longer piece?',
-      options: ['15 cm', '20 cm', '24 cm', '30 cm']
+      options: ['15 cm', '20 cm', '24 cm', '30 cm'],
     },
     {
       q: 'Red : blue beads are 4 : 7. There are 44 beads in all. How many are blue?',
-      options: ['16', '24', '28', '32']
-    }
+      options: ['16', '24', '28', '32'],
+    },
   ];
 
   var questions = localQuestions.map(function (question, index) {
     return Object.assign({}, question, {
       id: 'q_base_' + (index + 1),
       options: question.options.slice(),
-      localPreview: true
+      localPreview: true,
     });
   });
 
@@ -582,14 +631,14 @@
       q: 'Which ratio is equivalent to 4 : 7?',
       options: ['8 : 14', '7 : 4', '12 : 14', '4 : 10'],
       recheck: true,
-      requiresCorrectAnswer: true
+      requiresCorrectAnswer: true,
     },
     {
       q: 'A 3 : 4 mix uses 9 red beads. How many blue beads are needed?',
       options: ['4', '12', '16', '21'],
       recheck: true,
-      requiresCorrectAnswer: true
-    }
+      requiresCorrectAnswer: true,
+    },
   ];
 
   var phaseLabels = {
@@ -598,7 +647,7 @@
     revealed: 'Assessment · revealed',
     reteach: 'Assessment · reteach',
     recheck: 'Assessment · recheck',
-    complete: 'Assessment · complete'
+    complete: 'Assessment · complete',
   };
 
   var quizState = {
@@ -615,7 +664,7 @@
     attemptId: null,
     revealRecorded: false,
     parallelSolved: false,
-    pollTimer: null
+    pollTimer: null,
   };
 
   /* The quiz scratch tools are a separate session permission from the full
@@ -638,9 +687,16 @@
     if (!text) return null;
     return {
       q: text,
-      image: quizImageSource(item.image || item.imageUrl ||
-        item.image_url || item.imageData || item.image_data ||
-        item.photo || item.attachment) || null
+      image:
+        quizImageSource(
+          item.image ||
+            item.imageUrl ||
+            item.image_url ||
+            item.imageData ||
+            item.image_data ||
+            item.photo ||
+            item.attachment
+        ) || null,
     };
   }
 
@@ -673,7 +729,9 @@
     try {
       handoff = JSON.parse(window.localStorage.getItem('mathify.planner.question') || 'null');
       window.localStorage.removeItem('mathify.planner.question');
-    } catch (error) { handoff = null; }
+    } catch (error) {
+      handoff = null;
+    }
     if (!handoff || !handoff.q) return;
     var payload = boardQuestionPayload({ q: handoff.q, image: handoff.image });
     var boardApi = window.MathifyFullBoard;
@@ -703,16 +761,20 @@
 
   function guideConcept(guide, id) {
     if (!guide || !Array.isArray(guide.concepts)) return null;
-    var match = guide.concepts.find(function (item) { return item && item.id === id; });
+    var match = guide.concepts.find(function (item) {
+      return item && item.id === id;
+    });
     return match || guide.concepts[0] || null;
   }
 
   /* One beat per current concept. Locked future beats are never selected. */
   function guideBeat(guide, conceptId) {
     if (!guide || !guide.story || !Array.isArray(guide.story.beats)) return null;
-    return guide.story.beats.find(function (beat) {
-      return beat && beat.conceptId === conceptId;
-    }) || null;
+    return (
+      guide.story.beats.find(function (beat) {
+        return beat && beat.conceptId === conceptId;
+      }) || null
+    );
   }
 
   function guideConceptTitle() {
@@ -726,7 +788,8 @@
     if (!Number.isFinite(required) || required <= 0) required = 3;
     var correct = Number(progress && progress.sectionCorrect);
     if (!Number.isFinite(correct) || correct < 0) correct = 0;
-    var complete = Boolean(guideState.guide) &&
+    var complete =
+      Boolean(guideState.guide) &&
       ((progress && progress.sectionComplete === true) || correct >= required);
 
     guideState.sectionRequired = required;
@@ -736,8 +799,11 @@
     var count = correct + ' / ' + required;
     var lockText = complete
       ? 'Section complete · next section unlocked.'
-      : 'Next section locked until ' + required + ' correct answers in this section (' +
-        correct + ' so far).';
+      : 'Next section locked until ' +
+        required +
+        ' correct answers in this section (' +
+        correct +
+        ' so far).';
 
     setText(guideSectionCount, count);
     setText(guideSectionLock, lockText);
@@ -768,7 +834,9 @@
   function renderGuideConcepts(guide, currentConcept, currentQuestionId, progress) {
     if (!guideConceptsList) return;
     guideConceptsList.innerHTML = '';
-    var completed = Array.isArray(progress.completedQuestionIds) ? progress.completedQuestionIds : [];
+    var completed = Array.isArray(progress.completedQuestionIds)
+      ? progress.completedQuestionIds
+      : [];
     (guide.concepts || []).forEach(function (concept) {
       var item = document.createElement('li');
       if (currentConcept && concept.id === currentConcept.id) item.className = 'is-current';
@@ -807,22 +875,29 @@
 
     var story = guide.story || {};
     var progress = guideState.progress || {};
-    var currentQuestionId = progress.currentQuestionId ||
-      (guideState.quiz && guideState.quiz.currentQuestionId) || '';
+    var currentQuestionId =
+      progress.currentQuestionId || (guideState.quiz && guideState.quiz.currentQuestionId) || '';
     var concept = guideConcept(guide, progress.currentConceptId);
     if (!concept && currentQuestionId && Array.isArray(guide.concepts)) {
-      concept = guide.concepts.find(function (item) {
-        return item && Array.isArray(item.practiceQuestions) &&
-          item.practiceQuestions.some(function (question) {
-            return question && question.id === currentQuestionId;
-          });
-      }) || null;
+      concept =
+        guide.concepts.find(function (item) {
+          return (
+            item &&
+            Array.isArray(item.practiceQuestions) &&
+            item.practiceQuestions.some(function (question) {
+              return question && question.id === currentQuestionId;
+            })
+          );
+        }) || null;
     }
     var conceptTitle = concept && typeof concept.title === 'string' ? concept.title : '';
     var beat = guideBeat(guide, concept && concept.id);
-    var storyTitle = typeof story.title === 'string' && story.title
-      ? story.title
-      : (typeof guide.label === 'string' ? guide.label : 'Dev planner guide');
+    var storyTitle =
+      typeof story.title === 'string' && story.title
+        ? story.title
+        : typeof guide.label === 'string'
+          ? guide.label
+          : 'Dev planner guide';
 
     if (showTrainer) {
       setText(guideStoryTitle, storyTitle);
@@ -832,11 +907,15 @@
       var emoji = beat && typeof beat.emoji === 'string' ? beat.emoji : '';
       var trainerNarration = beatText
         ? (emoji ? emoji + ' ' : '') + beatText
-        : (concept && typeof concept.narration === 'string' ? concept.narration : '');
+        : concept && typeof concept.narration === 'string'
+          ? concept.narration
+          : '';
       setText(guideBeatNarration, trainerNarration);
       setText(guideCurrentConcept, conceptTitle);
       setText(guideCurrentQuestion, currentQuestionId);
-      var completed = Array.isArray(progress.completedQuestionIds) ? progress.completedQuestionIds.length : 0;
+      var completed = Array.isArray(progress.completedQuestionIds)
+        ? progress.completedQuestionIds.length
+        : 0;
       setText(guideCompleted, completed + ' answered correctly');
       renderGuideConcepts(guide, concept, currentQuestionId, progress);
     }
@@ -844,9 +923,12 @@
     if (showStudent) {
       /* Only the current concept/beat is rendered. No guide index, answer key,
          hint, explanation, trainer note, misconception or future beat appears. */
-      var studentLine = beat && typeof beat.narration === 'string' && beat.narration
-        ? beat.narration
-        : (concept && typeof concept.narration === 'string' ? concept.narration : '');
+      var studentLine =
+        beat && typeof beat.narration === 'string' && beat.narration
+          ? beat.narration
+          : concept && typeof concept.narration === 'string'
+            ? concept.narration
+            : '';
       setText(studentStoryChapter, storyTitle);
       setText(studentStoryTopic, conceptTitle);
       setText(studentStoryNarration, studentLine);
@@ -871,42 +953,64 @@
 
   function refreshGuide() {
     if (!sessionId || !hasApiAccess()) return Promise.resolve(false);
-    var path = (isTrainer ? '/trainer' : '/student') +
-      '/sessions/' + encodeURIComponent(sessionId);
-    return apiRequest(path).then(function (data) {
-      return captureGuide(data && (data.session || data));
-    }).catch(function () { return false; });
+    var path = (isTrainer ? '/trainer' : '/student') + '/sessions/' + encodeURIComponent(sessionId);
+    return apiRequest(path)
+      .then(function (data) {
+        return captureGuide(data && (data.session || data));
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   function quizImageSource(value) {
     if (!value) return '';
-    var source = typeof value === 'string' ? value :
-      (value.data || value.dataUrl || value.src || value.url || '');
+    var source =
+      typeof value === 'string'
+        ? value
+        : value.data || value.dataUrl || value.src || value.url || '';
     source = String(source || '').trim();
     if (!source) return '';
-    if (source.indexOf('data:image/') === 0 ||
-        /^https?:\/\//.test(source) || source.charAt(0) === '/') return source;
-    if (value && typeof value === 'object' && value.mime &&
-        /^image\//.test(value.mime) && /^[A-Za-z0-9+/=\s]+$/.test(source)) {
+    if (
+      source.indexOf('data:image/') === 0 ||
+      /^https?:\/\//.test(source) ||
+      source.charAt(0) === '/'
+    )
+      return source;
+    if (
+      value &&
+      typeof value === 'object' &&
+      value.mime &&
+      /^image\//.test(value.mime) &&
+      /^[A-Za-z0-9+/=\s]+$/.test(source)
+    ) {
       return 'data:' + value.mime + ';base64,' + source.replace(/\s+/g, '');
     }
     return '';
   }
 
   function mapQuizQuestion(source, index) {
-    var options = Array.isArray(source.options) ? source.options.map(function (option) {
-      return typeof option === 'string' ? option : option && option.text ? option.text : '';
-    }) : [];
+    var options = Array.isArray(source.options)
+      ? source.options.map(function (option) {
+          return typeof option === 'string' ? option : option && option.text ? option.text : '';
+        })
+      : [];
     var mapped = {
       id: source.id || 'q_runtime_' + index,
       q: source.prompt || source.stem || source.q || '',
       options: options,
       requiresCorrectAnswer: source.requiresCorrectAnswer === true,
-      recheck: source.recheck === true
+      recheck: source.recheck === true,
     };
-    var image = quizImageSource(source.image || source.imageUrl ||
-      source.image_url || source.imageData || source.image_data ||
-      source.photo || source.attachment);
+    var image = quizImageSource(
+      source.image ||
+        source.imageUrl ||
+        source.image_url ||
+        source.imageData ||
+        source.image_data ||
+        source.photo ||
+        source.attachment
+    );
     if (image) mapped.image = image;
     /* Only an authenticated trainer view receives answer material. */
     if (isTrainer && Number.isInteger(source.answerIndex)) mapped.answer = source.answerIndex;
@@ -923,22 +1027,24 @@
     var client = classroomApi();
     if (!client || typeof client.request !== 'function') return Promise.resolve(false);
 
-    var path = (isTrainer ? '/trainer' : '/student') +
-      '/sessions/' + encodeURIComponent(sessionId);
-    return client.request(path).then(function (data) {
-      var session = data && (data.session || data);
-      captureGuide(session);
-      var source = session && session.quiz && session.quiz.questions;
-      if (!Array.isArray(source) || !source.length) return false;
-      questions = source.map(mapQuizQuestion);
-      baseQuestions = questions.map(function (question) {
-        return Object.assign({}, question, { options: question.options.slice() });
+    var path = (isTrainer ? '/trainer' : '/student') + '/sessions/' + encodeURIComponent(sessionId);
+    return client
+      .request(path)
+      .then(function (data) {
+        var session = data && (data.session || data);
+        captureGuide(session);
+        var source = session && session.quiz && session.quiz.questions;
+        if (!Array.isArray(source) || !source.length) return false;
+        questions = source.map(mapQuizQuestion);
+        baseQuestions = questions.map(function (question) {
+          return Object.assign({}, question, { options: question.options.slice() });
+        });
+        return true;
+      })
+      .catch(function (error) {
+        console.warn('[mathify] Quiz questions unavailable · local preview only:', error.message);
+        return false;
       });
-      return true;
-    }).catch(function (error) {
-      console.warn('[mathify] Quiz questions unavailable · local preview only:', error.message);
-      return false;
-    });
   }
 
   /* The server owns which question is current. A launch or a Next transition
@@ -965,17 +1071,23 @@
     if (!sessionId || !hasApiAccess()) return Promise.resolve(false);
     if (isTrainer) {
       return apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/launch', {
-        method: 'POST'
-      }).then(function (data) {
-        return syncQuizFromServer(data && data.session);
-      }).catch(function () { return false; });
+        method: 'POST',
+      })
+        .then(function (data) {
+          return syncQuizFromServer(data && data.session);
+        })
+        .catch(function () {
+          return false;
+        });
     }
     if (studentView) {
       return apiRequest('/student/sessions/' + encodeURIComponent(sessionId))
         .then(function (data) {
           return syncQuizFromServer(data && data.session);
         })
-        .catch(function () { return false; });
+        .catch(function () {
+          return false;
+        });
     }
     return Promise.resolve(false);
   }
@@ -995,8 +1107,8 @@
 
     if (quizPracticeBadge) quizPracticeBadge.hidden = !required;
     if (quizSkip) quizSkip.disabled = !isAnswerable() || quizState.answered || blocked;
-    if (quizActionSkip) quizActionSkip.disabled = !quizLive() || !isAnswerable() ||
-      quizState.answered || blocked;
+    if (quizActionSkip)
+      quizActionSkip.disabled = !quizLive() || !isAnswerable() || quizState.answered || blocked;
     if (quizNext) {
       quizNext.disabled = studentView || quizState.phase === 'complete' || blocked || sectionLocked;
       quizNext.title = sectionLocked
@@ -1029,7 +1141,10 @@
     var item = currentQuizItem();
     if (!item) return;
     var hint = typeof item.hint === 'string' ? item.hint.trim() : '';
-    setFeedback(hint ? 'Hint: ' + hint : 'No trainer hint has been granted for this question yet.', '');
+    setFeedback(
+      hint ? 'Hint: ' + hint : 'No trainer hint has been granted for this question yet.',
+      ''
+    );
   }
 
   function requestHint() {
@@ -1044,13 +1159,16 @@
       showQuizHint();
       return;
     }
-    client.grantHint(sessionId, item.id, 1).then(function (data) {
-      if (data && typeof data.hint === 'string') item.hint = data.hint;
-      showQuizHint();
-      toast('Hint granted to ' + studentLabel() + '.');
-    }).catch(function (error) {
-      toast('Could not grant the hint: ' + error.message);
-    });
+    client
+      .grantHint(sessionId, item.id, 1)
+      .then(function (data) {
+        if (data && typeof data.hint === 'string') item.hint = data.hint;
+        showQuizHint();
+        toast('Hint granted to ' + studentLabel() + '.');
+      })
+      .catch(function (error) {
+        toast('Could not grant the hint: ' + error.message);
+      });
   }
 
   function setTrainerActions() {
@@ -1061,9 +1179,10 @@
        push this exact stem/image for explanation without releasing the key. */
     if (quizPushBoard) quizPushBoard.disabled = !quizLive() || !currentQuizItem();
     if (quizRetest) {
-      quizRetest.disabled = studentView || !quizLive() || !currentQuizItem() ||
-        quizState.phase === 'complete';
-      quizRetest.title = 'Generate a fresh AI check for this concept and replace the failed question';
+      quizRetest.disabled =
+        studentView || !quizLive() || !currentQuizItem() || quizState.phase === 'complete';
+      quizRetest.title =
+        'Generate a fresh AI check for this concept and replace the failed question';
     }
     if (quizNewCheck) {
       quizNewCheck.disabled = !quizLive() || quizState.phase === 'complete';
@@ -1121,14 +1240,36 @@
     if (readinessBar) readinessBar.style.width = pct + '%';
     if (readinessNote) {
       if (!quizState.seen) readinessNote.textContent = 'Answer a question to see readiness.';
-      else readinessNote.textContent = 'Level 1 unlocks at 80% · Level 2 at 50% · practice checks must be solved.';
+      else
+        readinessNote.textContent =
+          'Level 1 unlocks at 80% · Level 2 at 50% · practice checks must be solved.';
     }
+  }
+
+  /* The trainer's readiness must reflect the child's saved attempts, not only
+     answers typed into the trainer preview. Read it back only after the trainer
+     reveals, so correctness is never exposed before that choice. */
+  function syncTrainerReadiness() {
+    if (!isTrainer || !sessionId || !hasApiAccess()) return;
+    apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId))
+      .then(function (data) {
+        var session = data && (data.session || data);
+        var attempts = (session && session.quiz && session.quiz.attempts) || [];
+        if (!attempts.length) return;
+        quizState.seen = attempts.length;
+        quizState.correct = attempts.filter(function (attempt) {
+          return attempt.correct;
+        }).length;
+        updateReadiness();
+      })
+      .catch(function () {});
   }
 
   /* ------------------------------------------------ quiz scratch + mirror */
   function canQuizSketch() {
-    return studentView && quizSketchPermission.studentCanSketch === true &&
-      quizLive() && isAnswerable();
+    return (
+      studentView && quizSketchPermission.studentCanSketch === true && quizLive() && isAnswerable()
+    );
   }
 
   function quizStrokeId() {
@@ -1203,16 +1344,24 @@
     if (!rect.width || !rect.height) return null;
     return [
       Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
-      Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height))
+      Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
     ];
   }
 
   function publishQuizSketch(action) {
     var item = currentQuizItem();
     var client = classroomApi();
-    if (!studentView || !sessionId || !item || !hasApiAccess() ||
-        !client || typeof client.saveQuizSketch !== 'function') return;
-    client.saveQuizSketch(sessionId, Object.assign({ questionId: item.id }, action))
+    if (
+      !studentView ||
+      !sessionId ||
+      !item ||
+      !hasApiAccess() ||
+      !client ||
+      typeof client.saveQuizSketch !== 'function'
+    )
+      return;
+    client
+      .saveQuizSketch(sessionId, Object.assign({ questionId: item.id }, action))
       .catch(function () {
         toast('Sketch sync was unavailable. Your answer is still saved.');
       });
@@ -1222,14 +1371,17 @@
     if (!stroke || typeof stroke.id !== 'string') return;
     var index = -1;
     for (var i = 0; i < list.length; i += 1) {
-      if (list[i].id === stroke.id) { index = i; break; }
+      if (list[i].id === stroke.id) {
+        index = i;
+        break;
+      }
     }
     var clean = {
       id: stroke.id,
       tool: stroke.tool === 'highlighter' ? 'highlighter' : 'pen',
       color: QUIZ_SKETCH_COLORS[stroke.color] ? stroke.color : 'ink',
       weight: 'normal',
-      points: Array.isArray(stroke.points) ? stroke.points.slice(0, 2000) : []
+      points: Array.isArray(stroke.points) ? stroke.points.slice(0, 2000) : [],
     };
     if (index >= 0) list[index] = clean;
     else list.push(clean);
@@ -1246,7 +1398,9 @@
       return;
     }
     if (payload.action === 'erase' && Array.isArray(payload.strokeIds)) {
-      var ids = payload.strokeIds.filter(function (id) { return typeof id === 'string'; });
+      var ids = payload.strokeIds.filter(function (id) {
+        return typeof id === 'string';
+      });
       quizSketchStrokes = quizSketchStrokes.filter(function (stroke) {
         return ids.indexOf(stroke.id) === -1;
       });
@@ -1270,7 +1424,7 @@
     if (incoming && incoming < current) return;
     quizSketchPermission = {
       studentCanSketch: value.studentCanSketch !== false,
-      version: incoming || current
+      version: incoming || current,
     };
     var enabled = studentView && quizSketchPermission.studentCanSketch === true;
     if (quizSketchSurface) quizSketchSurface.classList.toggle('is-sketch-disabled', !enabled);
@@ -1282,7 +1436,9 @@
     if (quizSketchState) {
       quizSketchState.textContent = enabled
         ? 'Ready'
-        : (studentView ? 'Paused by trainer' : 'Student tools');
+        : studentView
+          ? 'Paused by trainer'
+          : 'Student tools';
     }
     if (!enabled) {
       quizSketchActive = null;
@@ -1332,11 +1488,18 @@
         var dy = candidate[1] - point[1];
         return Math.sqrt(dx * dx + dy * dy) < 0.045;
       });
-      if (hit) { found = quizSketchStrokes[i].id; break; }
+      if (hit) {
+        found = quizSketchStrokes[i].id;
+        break;
+      }
     }
     if (!found) return;
-    quizSketchStrokes = quizSketchStrokes.filter(function (stroke) { return stroke.id !== found; });
-    quizMirrorStrokes = quizMirrorStrokes.filter(function (stroke) { return stroke.id !== found; });
+    quizSketchStrokes = quizSketchStrokes.filter(function (stroke) {
+      return stroke.id !== found;
+    });
+    quizMirrorStrokes = quizMirrorStrokes.filter(function (stroke) {
+      return stroke.id !== found;
+    });
     paintQuizSketchCanvases();
     publishQuizSketch({ action: 'erase', strokeIds: [found] });
   }
@@ -1344,8 +1507,7 @@
   function bindQuizSketch() {
     if (quizSketchTools) {
       quizSketchTools.addEventListener('click', function (event) {
-        var button = event.target && event.target.closest
-          ? event.target.closest('button') : null;
+        var button = event.target && event.target.closest ? event.target.closest('button') : null;
         if (!button || button.disabled || !quizSketchTools.contains(button)) return;
         if (button.hasAttribute('data-quiz-tool')) {
           setQuizSketchTool(button.getAttribute('data-quiz-tool'));
@@ -1373,10 +1535,12 @@
             tool: quizSketchTool === 'highlighter' ? 'highlighter' : 'pen',
             color: quizSketchColor,
             weight: 'normal',
-            points: [point]
-          }
+            points: [point],
+          },
         };
-        try { quizSketchCanvas.setPointerCapture(event.pointerId); } catch (error) {}
+        try {
+          quizSketchCanvas.setPointerCapture(event.pointerId);
+        } catch (error) {}
         paintQuizSketchCanvases();
       });
       quizSketchCanvas.addEventListener('pointermove', function (event) {
@@ -1396,11 +1560,13 @@
         if (!quizSketchActive || (event && event.pointerId !== quizSketchActive.pointerId)) return;
         var stroke = quizSketchActive.stroke;
         quizSketchActive = null;
-        try { quizSketchCanvas.releasePointerCapture(event.pointerId); } catch (error) {}
+        try {
+          quizSketchCanvas.releasePointerCapture(event.pointerId);
+        } catch (error) {}
         if (stroke.points.length === 1) {
           stroke.points.push([
             Math.min(1, stroke.points[0][0] + 0.002),
-            Math.min(1, stroke.points[0][1] + 0.002)
+            Math.min(1, stroke.points[0][1] + 0.002),
           ]);
         }
         upsertQuizStroke(quizSketchStrokes, stroke);
@@ -1502,11 +1668,17 @@
     window.requestAnimationFrame(paintQuizSketchCanvases);
 
     if (isRequiredQuestion(item)) {
-      setFeedback("Practice question · let's work through it together. You cannot skip this one.", '');
+      setFeedback(
+        "Practice question · let's work through it together. You cannot skip this one.",
+        ''
+      );
     } else {
-      setFeedback(item.recheck
-        ? 'New check · choose one answer, then submit.'
-        : 'Choose one answer, then submit.', '');
+      setFeedback(
+        item.recheck
+          ? 'New check · choose one answer, then submit.'
+          : 'Choose one answer, then submit.',
+        ''
+      );
     }
     setAnswerState('Waiting for ' + studentLabel() + '’s answer.');
     if (quizNext) {
@@ -1535,7 +1707,9 @@
         btn.appendChild(text);
         /* Selection is not submission. The server receives an attempt only
            after the student presses Submit. */
-        btn.addEventListener('click', function () { selectQuizOption(btn, item); });
+        btn.addEventListener('click', function () {
+          selectQuizOption(btn, item);
+        });
         quizOptions.appendChild(btn);
       });
     }
@@ -1562,8 +1736,13 @@
   }
 
   function submitQuizAnswer() {
-    if (!quizLive() || !isAnswerable() || quizState.answered ||
-        typeof quizState.chosen !== 'number') return;
+    if (
+      !quizLive() ||
+      !isAnswerable() ||
+      quizState.answered ||
+      typeof quizState.chosen !== 'number'
+    )
+      return;
     var item = currentQuizItem();
     if (!item) return;
     var chosen = quizState.chosen;
@@ -1579,11 +1758,18 @@
     lockOptions(false);
     setFeedback('Answer submitted. Your trainer will reveal feedback.', 'is-waiting');
     if (isTrainer && typeof item.answer === 'number') {
-      setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) +
-        ' · key ' + 'ABCD'.charAt(item.answer) + '.');
+      setAnswerState(
+        studentLabel() +
+          ' chose ' +
+          'ABCD'.charAt(chosen) +
+          ' · key ' +
+          'ABCD'.charAt(item.answer) +
+          '.'
+      );
     } else {
-      setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) +
-        '. Trainer feedback is pending.');
+      setAnswerState(
+        studentLabel() + ' chose ' + 'ABCD'.charAt(chosen) + '. Trainer feedback is pending.'
+      );
     }
     setQuizPhase('awaiting_reveal');
     updateReadiness();
@@ -1592,16 +1778,18 @@
     if (sessionId && hasApiAccess() && item.id) {
       apiRequest('/student/sessions/' + encodeURIComponent(sessionId) + '/quiz/answers', {
         method: 'POST',
-        body: { questionId: item.id, optionIndex: chosen }
-      }).then(function (data) {
-        if (data && data.attemptId) quizState.attemptId = data.attemptId;
-        /* Reveal can land before the answer POST finishes. Re-check as soon as
+        body: { questionId: item.id, optionIndex: chosen },
+      })
+        .then(function (data) {
+          if (data && data.attemptId) quizState.attemptId = data.attemptId;
+          /* Reveal can land before the answer POST finishes. Re-check as soon as
            the attempt id exists so a correct required check unlocks promptly. */
-        if (quizState.revealed) refreshParallelResult();
-        refreshGuide();
-      }).catch(function (error) {
-        setFeedback('Answer could not be saved: ' + error.message, 'is-wrong');
-      });
+          if (quizState.revealed) refreshParallelResult();
+          refreshGuide();
+        })
+        .catch(function (error) {
+          setFeedback('Answer could not be saved: ' + error.message, 'is-wrong');
+        });
     }
   }
 
@@ -1617,40 +1805,55 @@
     if (!isRequiredQuestion(item)) return Promise.resolve(false);
     if (!sessionId || !hasApiAccess() || !quizState.attemptId) return Promise.resolve(false);
 
-    return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
-      '/quiz/attempts/' + encodeURIComponent(quizState.attemptId)).then(function (data) {
-      if (data && data.correct === true) {
-        quizState.parallelSolved = true;
-        syncPracticeControls(item);
-        setFeedback('Parallel check solved. Your trainer can move on.', 'is-correct');
-        return true;
-      }
-      return false;
-    }).catch(function () {
-      return false;
-    });
+    return apiRequest(
+      '/student/sessions/' +
+        encodeURIComponent(sessionId) +
+        '/quiz/attempts/' +
+        encodeURIComponent(quizState.attemptId)
+    )
+      .then(function (data) {
+        if (data && data.correct === true) {
+          quizState.parallelSolved = true;
+          syncPracticeControls(item);
+          setFeedback('Parallel check solved. Your trainer can move on.', 'is-correct');
+          return true;
+        }
+        return false;
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   function refreshRevealResult(attemptId) {
     if (!sessionId || !hasApiAccess() || !attemptId) return Promise.resolve(null);
-    return apiRequest('/student/sessions/' + encodeURIComponent(sessionId) +
-      '/quiz/attempts/' + encodeURIComponent(attemptId)).then(function (data) {
-      if (!data.revealed || quizState.attemptId !== attemptId) return null;
-      if (typeof data.correct === 'boolean' && !quizState.revealRecorded) {
-        quizState.revealRecorded = true;
-        if (data.correct) quizState.correct += 1;
-        updateReadiness();
-      }
-      $$('button', quizOptions).forEach(function (option, index) {
-        if (index === quizState.chosen) option.classList.toggle('is-correct', data.correct === true);
+    return apiRequest(
+      '/student/sessions/' +
+        encodeURIComponent(sessionId) +
+        '/quiz/attempts/' +
+        encodeURIComponent(attemptId)
+    )
+      .then(function (data) {
+        if (!data.revealed || quizState.attemptId !== attemptId) return null;
+        if (typeof data.correct === 'boolean' && !quizState.revealRecorded) {
+          quizState.revealRecorded = true;
+          if (data.correct) quizState.correct += 1;
+          updateReadiness();
+        }
+        $$('button', quizOptions).forEach(function (option, index) {
+          if (index === quizState.chosen)
+            option.classList.toggle('is-correct', data.correct === true);
+        });
+        setFeedback(
+          data.correct ? 'Correct — well done.' : 'Not quite — your trainer will go over it.',
+          data.correct ? 'is-correct' : 'is-wrong'
+        );
+        setAnswerState(data.correct ? 'Correct.' : 'Review with trainer.');
+        return data;
+      })
+      .catch(function () {
+        return null;
       });
-      setFeedback(data.correct
-        ? 'Correct — well done.'
-        : 'Not quite — your trainer will go over it.',
-      data.correct ? 'is-correct' : 'is-wrong');
-      setAnswerState(data.correct ? 'Correct.' : 'Review with trainer.');
-      return data;
-    }).catch(function () { return null; });
   }
 
   function paintReveal() {
@@ -1659,7 +1862,10 @@
     quizState.revealed = true;
     lockOptions(true);
     if (typeof item.answer !== 'number') {
-      setFeedback('Answer key unavailable in local preview · connect the session API.', 'is-waiting');
+      setFeedback(
+        'Answer key unavailable in local preview · connect the session API.',
+        'is-waiting'
+      );
       setAnswerState('Reveal recorded · key withheld until the session API loads.');
       setQuizPhase('revealed');
       return;
@@ -1672,7 +1878,9 @@
       setAnswerState('Revealed · skipped.');
     } else {
       setFeedback((right ? 'Correct. ' : 'Not quite. ') + why, right ? 'is-correct' : 'is-wrong');
-      setAnswerState('Revealed · ' + studentLabel() + ' chose ' + 'ABCD'.charAt(quizState.chosen) + '.');
+      setAnswerState(
+        'Revealed · ' + studentLabel() + ' chose ' + 'ABCD'.charAt(quizState.chosen) + '.'
+      );
     }
     setQuizPhase('revealed');
     toast('Answer revealed for ' + studentLabel() + '.');
@@ -1686,24 +1894,30 @@
 
     if (!sessionId || !hasApiAccess()) {
       paintReveal();
+      syncTrainerReadiness();
       refreshGuide();
       publishQuizEvent('quiz.answer.revealed', { questionIds: [item.id] });
       return;
     }
 
     var client = api.api || window.mathifyClassroomApi;
-    var task = client && typeof client.revealQuestion === 'function'
-      ? client.revealQuestion(sessionId, item.id)
-      : apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/reveal', {
-        method: 'POST', body: { questionId: item.id }
-      });
+    var task =
+      client && typeof client.revealQuestion === 'function'
+        ? client.revealQuestion(sessionId, item.id)
+        : apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/reveal', {
+            method: 'POST',
+            body: { questionId: item.id },
+          });
 
-    task.then(function () {
-      paintReveal();
-      refreshGuide();
-    }).catch(function (error) {
-      toast('Could not sync the reveal: ' + error.message);
-    });
+    task
+      .then(function () {
+        paintReveal();
+        syncTrainerReadiness();
+        refreshGuide();
+      })
+      .catch(function (error) {
+        toast('Could not sync the reveal: ' + error.message);
+      });
   }
 
   function skipQuiz() {
@@ -1745,12 +1959,15 @@
     }
     var bankItem = bank[quizState.recheckCount % bank.length];
     quizState.recheckCount += 1;
-    installParallelQuestion(Object.assign({}, bankItem, {
-      id: 'q_recheck_' + quizState.recheckCount,
-      options: bankItem.options.slice(),
-      recheck: true,
-      requiresCorrectAnswer: true
-    }), replace === true);
+    installParallelQuestion(
+      Object.assign({}, bankItem, {
+        id: 'q_recheck_' + quizState.recheckCount,
+        options: bankItem.options.slice(),
+        recheck: true,
+        requiresCorrectAnswer: true,
+      }),
+      replace === true
+    );
   }
 
   /* Retest calls the existing AI endpoint. The server owns generation and the
@@ -1760,9 +1977,11 @@
     var settings = options || {};
     var replace = settings.replace === true;
     var failed = currentQuizItem();
-    var concept = guideConceptTitle() ||
+    var concept =
+      guideConceptTitle() ||
       (failed && (failed.concept || failed.q)) ||
-      (guideState.quiz && guideState.quiz.title) || '';
+      (guideState.quiz && guideState.quiz.title) ||
+      '';
     if (!sessionId || !hasApiAccess()) {
       addLocalRecheckQuestion(replace);
       return;
@@ -1773,29 +1992,36 @@
       body: {
         questionId: failed && failed.id ? failed.id : undefined,
         concept: concept,
-        topicId: guideState.progress && guideState.progress.currentConceptId || undefined,
+        topicId: (guideState.progress && guideState.progress.currentConceptId) || undefined,
         replace: replace,
-        difficulty: failed && failed.difficultyLevel ? failed.difficultyLevel : 'medium'
-      }
-    }).then(function (data) {
-      var session = (data && data.session) || {};
-      var quiz = session.quiz || {};
-      var generated = (quiz.questions || []).find(function (question) {
-        return question.id === ((data && data.questionId) || quiz.currentQuestionId);
+        difficulty: failed && failed.difficultyLevel ? failed.difficultyLevel : 'medium',
+      },
+    })
+      .then(function (data) {
+        var session = (data && data.session) || {};
+        var quiz = session.quiz || {};
+        var generated = (quiz.questions || []).find(function (question) {
+          return question.id === ((data && data.questionId) || quiz.currentQuestionId);
+        });
+        if (!generated) throw new Error('New check was not returned.');
+        captureGuide(session);
+        installParallelQuestion(
+          Object.assign(mapQuizQuestion(generated, questions.length), {
+            recheck: true,
+            requiresCorrectAnswer: true,
+          }),
+          replace
+        );
+        toast(
+          data && data.generationMode === 'ai'
+            ? 'Fresh AI retest added for this concept.'
+            : 'Retest added · AI generation was unavailable (labelled fallback).'
+        );
+      })
+      .catch(function (error) {
+        toast('AI check unavailable (' + error.message + '). Using local scaffold.');
+        addLocalRecheckQuestion(replace);
       });
-      if (!generated) throw new Error('New check was not returned.');
-      captureGuide(session);
-      installParallelQuestion(Object.assign(mapQuizQuestion(generated, questions.length), {
-        recheck: true,
-        requiresCorrectAnswer: true
-      }), replace);
-      toast(data && data.generationMode === 'ai'
-        ? 'Fresh AI retest added for this concept.'
-        : 'Retest added · AI generation was unavailable (labelled fallback).');
-    }).catch(function (error) {
-      toast('AI check unavailable (' + error.message + '). Using local scaffold.');
-      addLocalRecheckQuestion(replace);
-    });
   }
 
   function completeQuiz() {
@@ -1817,7 +2043,10 @@
     var info = api.subject && typeof api.subject === 'function' ? api.subject() : null;
     if (!info || info.subject === 'math' || info.subject === 'english') return true;
     if (info.subject === 'coding') {
-      if (window.classroomCoding && typeof window.classroomCoding.launchQuizChallenge === 'function') {
+      if (
+        window.classroomCoding &&
+        typeof window.classroomCoding.launchQuizChallenge === 'function'
+      ) {
         window.classroomCoding.launchQuizChallenge();
       }
       return false;
@@ -1858,12 +2087,13 @@
       board.hidden = true;
       board.setAttribute('aria-hidden', 'true');
     }
-    [document.getElementById('codingStage'), document.getElementById('englishStage')]
-      .forEach(function (panel) {
+    [document.getElementById('codingStage'), document.getElementById('englishStage')].forEach(
+      function (panel) {
         if (!panel) return;
         panel.hidden = true;
         panel.setAttribute('aria-hidden', 'true');
-      });
+      }
+    );
     quizStage.hidden = false;
 
     questions = baseQuestions.map(function (question) {
@@ -1880,9 +2110,14 @@
     startQuizClock();
     startQuestionSync();
     syncLaunchWithServer();
-    toast(studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.');
+    toast(
+      studentView ? 'Quiz launched · whiteboard hidden.' : 'Quiz launched · trainer controls ready.'
+    );
     var first = $('button', quizOptions);
-    if (first) setTimeout(function () { first.focus(); }, 30);
+    if (first)
+      setTimeout(function () {
+        first.focus();
+      }, 30);
     return true;
   }
 
@@ -1913,14 +2148,16 @@
   quizExit && quizExit.addEventListener('click', exitQuiz);
   quizReveal && quizReveal.addEventListener('click', revealQuizAnswer);
   quizPushBoard && quizPushBoard.addEventListener('click', pushQuizQuestionToBoard);
-  quizRetest && quizRetest.addEventListener('click', function () {
-    if (studentView || quizState.phase === 'complete') return;
-    addRecheckQuestion({ replace: true });
-  });
-  quizNewCheck && quizNewCheck.addEventListener('click', function () {
-    if (studentView || quizState.phase === 'complete') return;
-    addRecheckQuestion();
-  });
+  quizRetest &&
+    quizRetest.addEventListener('click', function () {
+      if (studentView || quizState.phase === 'complete') return;
+      addRecheckQuestion({ replace: true });
+    });
+  quizNewCheck &&
+    quizNewCheck.addEventListener('click', function () {
+      if (studentView || quizState.phase === 'complete') return;
+      addRecheckQuestion();
+    });
   quizSubmit && quizSubmit.addEventListener('click', submitQuizAnswer);
 
   quizHint && quizHint.addEventListener('click', requestHint);
@@ -1973,18 +2210,26 @@
     }
     apiRequest('/trainer/sessions/' + encodeURIComponent(sessionId) + '/quiz/next', {
       method: 'POST',
-      body: force === true ? { force: true } : {}
-    }).then(applyQuizAdvance).catch(function (error) {
-      if (error.status === 409) {
-        toast('Backend requires a correct parallel check before proceeding.');
-      } else {
-        toast('Could not sync the next question: ' + error.message);
-      }
-    });
+      body: force === true ? { force: true } : {},
+    })
+      .then(applyQuizAdvance)
+      .catch(function (error) {
+        if (error.status === 409) {
+          toast('Backend requires a correct parallel check before proceeding.');
+        } else {
+          toast('Could not sync the next question: ' + error.message);
+        }
+      });
   }
 
-  quizNext && quizNext.addEventListener('click', function () { advanceQuiz(false); });
-  quizForceNext && quizForceNext.addEventListener('click', function () { advanceQuiz(true); });
+  quizNext &&
+    quizNext.addEventListener('click', function () {
+      advanceQuiz(false);
+    });
+  quizForceNext &&
+    quizForceNext.addEventListener('click', function () {
+      advanceQuiz(true);
+    });
 
   function applyStudentQuizState(data) {
     captureGuide(data && data.session);
@@ -1998,7 +2243,9 @@
 
     /* mapQuizQuestion never copies answer or explanation for a student view.
        Replace the matching entry instead of appending a duplicate card. */
-    var existing = questions.findIndex(function (question) { return question.id === found.id; });
+    var existing = questions.findIndex(function (question) {
+      return question.id === found.id;
+    });
     var mapped = mapQuizQuestion(found, existing >= 0 ? existing : questions.length);
     if (existing >= 0) questions[existing] = mapped;
     else questions.push(mapped);
@@ -2018,8 +2265,9 @@
     /* A reload or a late event can land after the student already submitted.
        Restore only their own saved choice; no correctness travels with it. */
     var saved = (quiz.attempts || []).find(function (attempt) {
-      return attempt && attempt.questionId === found.id &&
-        Number.isInteger(Number(attempt.optionIndex));
+      return (
+        attempt && attempt.questionId === found.id && Number.isInteger(Number(attempt.optionIndex))
+      );
     });
     if (saved && !quizState.answered) {
       quizState.attemptId = saved.id || null;
@@ -2051,7 +2299,9 @@
         if (quizLive()) applyStudentQuizState(data);
         return true;
       })
-      .catch(function () { return false; });
+      .catch(function () {
+        return false;
+      });
   }
 
   function startQuestionSync() {
@@ -2073,10 +2323,14 @@
         var channel = new BroadcastChannel('mathify:session:' + sessionId);
         channel.postMessage(message);
         channel.close();
-      } catch (error) { /* private mode */ }
+      } catch (error) {
+        /* private mode */
+      }
     }
     if (window.localStorage) {
-      try { window.localStorage.setItem(localEventKey, JSON.stringify(message)); } catch (error) {}
+      try {
+        window.localStorage.setItem(localEventKey, JSON.stringify(message));
+      } catch (error) {}
     }
   }
 
@@ -2091,6 +2345,7 @@
     reaffirmCallMedia();
     lockOptions(true);
     setQuizPhase('revealed');
+    if (isTrainer) syncTrainerReadiness();
     if (studentView) {
       setFeedback('Trainer feedback is ready.', 'is-waiting');
       setAnswerState('Answer revealed by trainer.');
@@ -2126,16 +2381,26 @@
       /* The event carries no hint text. Fetch the granted hint from the safe state. */
       syncStudentQuestion();
       refreshGuide();
-    } else if ((event.event === 'quiz.option.selected' ||
-                event.event === 'quiz.answer.saved') && isTrainer && quizLive()) {
+    } else if (
+      (event.event === 'quiz.option.selected' || event.event === 'quiz.answer.saved') &&
+      isTrainer &&
+      quizLive()
+    ) {
       var mirror = event.payload || {};
       var item = currentQuizItem();
       var optionIndex = Number(mirror.optionIndex);
-      if (item && mirror.questionId === item.id && Number.isInteger(optionIndex) &&
-          optionIndex >= 0 && optionIndex < (item.options || []).length) {
+      if (
+        item &&
+        mirror.questionId === item.id &&
+        Number.isInteger(optionIndex) &&
+        optionIndex >= 0 &&
+        optionIndex < (item.options || []).length
+      ) {
+        quizState.chosen = optionIndex;
         paintMirrorSelection(optionIndex);
-        setAnswerState(studentLabel() + ' chose ' + 'ABCD'.charAt(optionIndex) +
-          '. Trainer feedback is pending.');
+        setAnswerState(
+          studentLabel() + ' chose ' + 'ABCD'.charAt(optionIndex) + '. Trainer feedback is pending.'
+        );
       }
     } else if (event.event === 'quiz.sketch.changed' && quizLive()) {
       applyQuizSketchEvent(event.payload || {});
@@ -2143,9 +2408,11 @@
       if (api.applySketchPermission) api.applySketchPermission(event.payload || {});
       applyQuizSketchPermission(event.payload || {});
       if (studentView) {
-        toast(event.payload && event.payload.studentCanSketch === false
-          ? 'Your trainer paused the quiz sketch tools.'
-          : 'Your trainer restored the quiz sketch tools.');
+        toast(
+          event.payload && event.payload.studentCanSketch === false
+            ? 'Your trainer paused the quiz sketch tools.'
+            : 'Your trainer restored the quiz sketch tools.'
+        );
       }
     } else if (event.event === 'board.shared') {
       var boardShared = Boolean(event.payload && event.payload.shared);
@@ -2161,27 +2428,40 @@
          read back from the server so both peers see accurate status. */
       var client = classroomApi();
       if (sessionId && client && typeof client.getSessionState === 'function') {
-        client.getSessionState(sessionId).then(function (state) {
-          if (api.applyNetworkState && state && state.network) api.applyNetworkState(state.network);
-        }).catch(function () {});
+        client
+          .getSessionState(sessionId)
+          .then(function (state) {
+            if (api.applyNetworkState && state && state.network)
+              api.applyNetworkState(state.network);
+          })
+          .catch(function () {});
       } else if (api.applyNetworkState) {
         api.applyNetworkState(event.payload || {});
       }
       if (studentView && event.payload) {
-        toast(event.payload.ok ? 'Connection check passed.' : 'Connection check failed. Please improve your internet.');
+        toast(
+          event.payload.ok
+            ? 'Connection check passed.'
+            : 'Connection check failed. Please improve your internet.'
+        );
       }
     } else if (event.event === 'founder.observer.changed') {
       /* Read the shared observer state back from the server. The event payload
          is a signal only and never carries private identity fields. */
       var observerClient = classroomApi();
       if (sessionId && observerClient && typeof observerClient.getSessionState === 'function') {
-        observerClient.getSessionState(sessionId).then(function (state) {
-          if (api.applyObserverState && state) api.applyObserverState(state);
-        }).catch(function () {});
+        observerClient
+          .getSessionState(sessionId)
+          .then(function (state) {
+            if (api.applyObserverState && state) api.applyObserverState(state);
+          })
+          .catch(function () {});
       }
-      toast(event.payload && event.payload.active
-        ? 'The founder has joined openly as an observer.'
-        : 'The founder observer has left the room.');
+      toast(
+        event.payload && event.payload.active
+          ? 'The founder has joined openly as an observer.'
+          : 'The founder observer has left the room.'
+      );
     } else if (event.event === 'badge.awarded' && studentView) {
       var badge = event.payload || {};
       toast((badge.label || 'Badge') + ' earned · ' + (badge.points || 0) + ' reward points.');
@@ -2189,13 +2469,19 @@
       if (api.applyReactionPermission) api.applyReactionPermission(event.payload || {});
     } else if (event.event === 'reaction.sent') {
       /* Reactions never share the celebration layer. */
-      if (window.classroomEngagement && typeof window.classroomEngagement.onReaction === 'function') {
+      if (
+        window.classroomEngagement &&
+        typeof window.classroomEngagement.onReaction === 'function'
+      ) {
         window.classroomEngagement.onReaction(event.payload || {});
       }
     } else if (event.event === 'shared.celebration') {
       /* Client-side guard in addition to the server's quiz-active check. */
-      if (!quizLive() && window.classroomEngagement &&
-          typeof window.classroomEngagement.onCelebration === 'function') {
+      if (
+        !quizLive() &&
+        window.classroomEngagement &&
+        typeof window.classroomEngagement.onCelebration === 'function'
+      ) {
         window.classroomEngagement.onCelebration(event.payload || {});
       }
     } else if (event.event === 'session.warning') {
@@ -2213,7 +2499,10 @@
       var word = $('#liveWord');
       var button = $('#endBtn');
       if (word) word.textContent = 'Ended';
-      if (button) { button.disabled = true; button.textContent = 'Ended'; }
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Ended';
+      }
       if (api.clearSessionWarning) api.clearSessionWarning();
       if (event.payload && event.payload.reason === 'auto_close') {
         toast('Session closed automatically at the scheduled end time.');
@@ -2226,13 +2515,19 @@
     if (window.BroadcastChannel) {
       try {
         localQuizChannel = new BroadcastChannel('mathify:session:' + sessionId);
-        localQuizChannel.onmessage = function (message) { handleSessionEvent(message.data); };
-      } catch (error) { localQuizChannel = null; }
+        localQuizChannel.onmessage = function (message) {
+          handleSessionEvent(message.data);
+        };
+      } catch (error) {
+        localQuizChannel = null;
+      }
     }
     if (window.localStorage) {
       window.addEventListener('storage', function (event) {
         if (event.key !== localEventKey || !event.newValue) return;
-        try { handleSessionEvent(JSON.parse(event.newValue)); } catch (error) {}
+        try {
+          handleSessionEvent(JSON.parse(event.newValue));
+        } catch (error) {}
       });
     }
   }
@@ -2252,7 +2547,7 @@
       onEvent: handleSessionEvent,
       onStatus: function (status) {
         if (status === 'live' && studentView) toast('Live session events connected.');
-      }
+      },
     });
   }
 
@@ -2266,21 +2561,24 @@
     if (quizDoubtBtn) quizDoubtBtn.setAttribute('aria-expanded', String(open));
   }
 
-  quizDoubtBtn && quizDoubtBtn.addEventListener('click', function () {
-    if (!isTrainer) return;
-    setDoubtMenu(doubtMenu && doubtMenu.hidden);
-  });
-  quizActionHint && quizActionHint.addEventListener('click', function () {
-    if (quizActionHint.disabled) return;
-    setDoubtMenu(false);
-    requestHint();
-  });
-  quizActionSkip && quizActionSkip.addEventListener('click', function () {
-    if (quizActionSkip.disabled) return;
-    setDoubtMenu(false);
-    skipQuiz();
-    toast('Question skipped · quiz stays live.');
-  });
+  quizDoubtBtn &&
+    quizDoubtBtn.addEventListener('click', function () {
+      if (!isTrainer) return;
+      setDoubtMenu(doubtMenu && doubtMenu.hidden);
+    });
+  quizActionHint &&
+    quizActionHint.addEventListener('click', function () {
+      if (quizActionHint.disabled) return;
+      setDoubtMenu(false);
+      requestHint();
+    });
+  quizActionSkip &&
+    quizActionSkip.addEventListener('click', function () {
+      if (quizActionSkip.disabled) return;
+      setDoubtMenu(false);
+      skipQuiz();
+      toast('Question skipped · quiz stays live.');
+    });
 
   document.addEventListener('click', function (event) {
     if (!doubtMenu || doubtMenu.hidden) return;
@@ -2335,10 +2633,12 @@
       pipDrag = {
         id: event.pointerId,
         dx: event.clientX - rect.left,
-        dy: event.clientY - rect.top
+        dy: event.clientY - rect.top,
       };
       pip.classList.add('is-dragging');
-      try { pipDragTarget.setPointerCapture(event.pointerId); } catch (e) {}
+      try {
+        pipDragTarget.setPointerCapture(event.pointerId);
+      } catch (e) {}
     });
 
     pipDragTarget.addEventListener('pointermove', function (event) {
@@ -2354,7 +2654,11 @@
       if (!pipDrag || (event && event.pointerId !== pipDrag.id)) return;
       pipDrag = null;
       pip.classList.remove('is-dragging');
-      if (event) { try { pipDragTarget.releasePointerCapture(event.pointerId); } catch (e) {} }
+      if (event) {
+        try {
+          pipDragTarget.releasePointerCapture(event.pointerId);
+        } catch (e) {}
+      }
     }
     pipDragTarget.addEventListener('pointerup', stopPipDrag);
     pipDragTarget.addEventListener('pointercancel', stopPipDrag);
@@ -2370,10 +2674,12 @@
         x: event.clientX,
         y: event.clientY,
         w: rect.width,
-        h: rect.height
+        h: rect.height,
       };
       pip.classList.add('is-resizing');
-      try { pipResize.setPointerCapture(event.pointerId); } catch (e) {}
+      try {
+        pipResize.setPointerCapture(event.pointerId);
+      } catch (e) {}
     });
 
     pipResize.addEventListener('pointermove', function (event) {
@@ -2393,21 +2699,29 @@
       pipResizeState = null;
       pip.classList.remove('is-resizing');
       clampPip();
-      if (event) { try { pipResize.releasePointerCapture(event.pointerId); } catch (e) {} }
+      if (event) {
+        try {
+          pipResize.releasePointerCapture(event.pointerId);
+        } catch (e) {}
+      }
     }
     pipResize.addEventListener('pointerup', stopPipResize);
     pipResize.addEventListener('pointercancel', stopPipResize);
   }
 
-  pipCollapse && pipCollapse.addEventListener('click', function () {
-    if (!pip) return;
-    var collapsed = pip.classList.toggle('is-collapsed');
-    pipCollapse.setAttribute('aria-expanded', String(!collapsed));
-    pipCollapse.setAttribute('aria-label', collapsed ? 'Expand video window' : 'Collapse video window');
-    pipCollapse.textContent = collapsed ? '+' : '−';
-    requestAnimationFrame(clampPip);
-    toast(collapsed ? 'Video window collapsed.' : 'Video window expanded.');
-  });
+  pipCollapse &&
+    pipCollapse.addEventListener('click', function () {
+      if (!pip) return;
+      var collapsed = pip.classList.toggle('is-collapsed');
+      pipCollapse.setAttribute('aria-expanded', String(!collapsed));
+      pipCollapse.setAttribute(
+        'aria-label',
+        collapsed ? 'Expand video window' : 'Collapse video window'
+      );
+      pipCollapse.textContent = collapsed ? '+' : '−';
+      requestAnimationFrame(clampPip);
+      toast(collapsed ? 'Video window collapsed.' : 'Video window expanded.');
+    });
 
   window.addEventListener('resize', clampPip);
   requestAnimationFrame(clampPip);
@@ -2419,19 +2733,30 @@
     if (!sessionId || !client || typeof client.getSessionState !== 'function') {
       return Promise.resolve(false);
     }
-    return client.getSessionState(sessionId).then(function (state) {
-      if (!state) return false;
-      applyQuizSketchPermission(state.sketchPermissions);
-      var live = state.liveQuizSelection;
-      var item = currentQuizItem();
-      var index = Number(live && live.optionIndex);
-      if (live && item && live.questionId === item.id && Number.isInteger(index) &&
-          index >= 0 && index < (item.options || []).length) {
-        if (studentView) paintSelectedOption(index, false);
-        else paintMirrorSelection(index);
-      }
-      return true;
-    }).catch(function () { return false; });
+    return client
+      .getSessionState(sessionId)
+      .then(function (state) {
+        if (!state) return false;
+        applyQuizSketchPermission(state.sketchPermissions);
+        var live = state.liveQuizSelection;
+        var item = currentQuizItem();
+        var index = Number(live && live.optionIndex);
+        if (
+          live &&
+          item &&
+          live.questionId === item.id &&
+          Number.isInteger(index) &&
+          index >= 0 &&
+          index < (item.options || []).length
+        ) {
+          if (studentView) paintSelectedOption(index, false);
+          else paintMirrorSelection(index);
+        }
+        return true;
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   /* ------------------------------------------------------------------ init */
@@ -2440,13 +2765,18 @@
     bindQuizSketch();
     return true;
   });
-  var quizReady = roleReady.then(function () {
-    if (isTrainer) loadTrainerSession();
-    return loadQuizQuestions();
-  }).then(function () {
-    if (document.body.classList.contains('quiz-live')) renderQuiz();
-    return restoreQuizMirrorState();
-  }).then(function () { return true; });
+  var quizReady = roleReady
+    .then(function () {
+      if (isTrainer) loadTrainerSession();
+      return loadQuizQuestions();
+    })
+    .then(function () {
+      if (document.body.classList.contains('quiz-live')) renderQuiz();
+      return restoreQuizMirrorState();
+    })
+    .then(function () {
+      return true;
+    });
   updateReadiness();
   paintQuizClock();
 
@@ -2454,7 +2784,9 @@
 
   var quizQA = params.get('quiz');
   if (quizQA === '1') {
-    quizReady.then(function () { setTimeout(launchQuiz, 120); });
+    quizReady.then(function () {
+      setTimeout(launchQuiz, 120);
+    });
   } else if (quizQA) {
     quizReady.then(function () {
       setTimeout(function () {
@@ -2477,7 +2809,10 @@
     var liveWord = $('#liveWord');
     var endBtn = $('#endBtn');
     if (liveWord) liveWord.textContent = 'Ended';
-    if (endBtn) { endBtn.disabled = true; endBtn.textContent = 'Ended'; }
+    if (endBtn) {
+      endBtn.disabled = true;
+      endBtn.textContent = 'Ended';
+    }
   }
 
   /* --------------------------------------------- automated presence beacon */
@@ -2498,18 +2833,25 @@
       method: 'POST',
       keepalive: true,
       body: {
-        active: !leaving && document.visibilityState === 'visible' && Date.now() - lastInteraction < 60000,
+        active:
+          !leaving &&
+          document.visibilityState === 'visible' &&
+          Date.now() - lastInteraction < 60000,
         learningEvents: learningEvents,
-        leaving: Boolean(leaving)
-      }
-    }).catch(function () { return null; });
+        leaving: Boolean(leaving),
+      },
+    }).catch(function () {
+      return null;
+    });
   }
 
   consumePlannerQuestion();
 
   if (sessionId && (isTrainer || studentView)) {
     sendPresence(false);
-    presenceInterval = window.setInterval(function () { sendPresence(false); }, 20000);
+    presenceInterval = window.setInterval(function () {
+      sendPresence(false);
+    }, 20000);
     /* A whiteboard → camera hand-off is still the same meeting. Skip the
        leaving beacon on that navigation so the server keeps the clock and
        recording alive until End session is clicked. A bfcache restore clears
@@ -2528,7 +2870,9 @@
 
   /* Expose quiz controls for QA and future real-time wiring. */
   api.openQuiz = launchQuiz;
-  api.isTrainer = function () { return isTrainer; };
+  api.isTrainer = function () {
+    return isTrainer;
+  };
   api.sendPresence = sendPresence;
   api.backToCamera = backToCamera;
   api.cameraUrl = cameraUrl;
@@ -2550,7 +2894,9 @@
      Retest (replace) and New check, and neither freezes the quiz. */
   api.reteachQuiz = addRecheckQuestion;
   api.addRecheckQuestion = addRecheckQuestion;
-  api.retestQuiz = function () { return addRecheckQuestion({ replace: true }); };
+  api.retestQuiz = function () {
+    return addRecheckQuestion({ replace: true });
+  };
   api.refreshGuide = refreshGuide;
   api.guideState = guideState;
   api.completeQuiz = completeQuiz;

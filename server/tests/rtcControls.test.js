@@ -792,6 +792,13 @@ async function main() {
       'trainer sees a correctness-free paired question mirror'
     );
     check(
+      /function syncTrainerReadiness\(\)/.test(sessionLayer) &&
+        /paintReveal\(\);\s*syncTrainerReadiness\(\)/.test(sessionLayer) &&
+        /if\s*\(isTrainer\)\s*syncTrainerReadiness\(\)/.test(sessionLayer) &&
+        /quizState\.chosen\s*=\s*optionIndex/.test(sessionLayer),
+      'trainer reveal uses the child mirror and saved attempts for readiness'
+    );
+    check(
       /sketch\.permission\.changed/.test(sessionLayer) &&
         /quizSketchTools\.classList\.toggle\('is-disabled'/.test(sessionLayer) &&
         /\.quiz-sketch-tools\.is-disabled button/.test(sessionCss) &&

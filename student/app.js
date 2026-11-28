@@ -171,10 +171,11 @@
   }
 
   if (fab) fab.addEventListener('click', togglePanel);
-  if (closeBtn) closeBtn.addEventListener('click', function () {
-    closePanel();
-    fab.focus();
-  });
+  if (closeBtn)
+    closeBtn.addEventListener('click', function () {
+      closePanel();
+      fab.focus();
+    });
 
   document.querySelectorAll('[data-open-ai]').forEach(function (btn) {
     btn.addEventListener('click', openPanel);
@@ -195,15 +196,22 @@
     if (!quotaNode || !quota || typeof quota.remaining !== 'number') return;
     remainingImages = quota.remaining;
     quotaNode.hidden = false;
-    quotaNode.textContent = quota.remaining === 0
-      ? 'Photo questions finished for today. Text questions are still unlimited - come back tomorrow!'
-      : quota.remaining + ' of ' + quota.limit + ' photo questions left today - text questions are unlimited.';
+    quotaNode.textContent =
+      quota.remaining === 0
+        ? 'Photo questions finished for today. Text questions are still unlimited - come back tomorrow!'
+        : quota.remaining +
+          ' of ' +
+          quota.limit +
+          ' photo questions left today - text questions are unlimited.';
   }
 
   function refreshQuota() {
     var api = window.mathifyStudentApi;
     if (!api || typeof api.getStudyBuddyQuota !== 'function') return;
-    api.getStudyBuddyQuota().then(showQuota).catch(function () {});
+    api
+      .getStudyBuddyQuota()
+      .then(showQuota)
+      .catch(function () {});
   }
 
   function addMessage(text, who) {
@@ -227,7 +235,7 @@
     if (!api || typeof api.askStudyBuddy !== 'function') {
       return Promise.resolve({
         reply: 'Study Buddy is unavailable right now. Please retry in a moment.',
-        source: 'offline'
+        source: 'offline',
       });
     }
     return api.askStudyBuddy(text, image);
@@ -239,7 +247,10 @@
       imageInput.value = '';
       if (!file) return;
       if (remainingImages === 0) {
-        addMessage("That's 10 photo questions for today. Come back tomorrow - you can still ask me anything in text!", 'bot');
+        addMessage(
+          "That's 10 photo questions for today. Come back tomorrow - you can still ask me anything in text!",
+          'bot'
+        );
         return;
       }
       if (ALLOWED_IMAGE_TYPES.indexOf(file.type) === -1) {
@@ -281,24 +292,27 @@
       setPendingImage(null);
       var pending = addMessage('Thinking…', 'bot');
 
-      askBuddy(text, image).then(function (data) {
-        if (!pending) return;
-        pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
-        if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
-        if (data && data.quota) showQuota(data.quota);
-      }).catch(function (error) {
-        if (!pending) return;
-        var code = error && (error.code || (error.data && error.data.error));
-        if (code === 'IMAGE_QUOTA_EXCEEDED' || (error && error.status === 400)) {
-          pending.textContent = (error && error.message) ||
-            "That's 10 photo questions for today. Come back tomorrow!";
-          pending.dataset.source = 'quota';
-          if (code === 'IMAGE_QUOTA_EXCEEDED') remainingImages = 0;
-          return;
-        }
-        pending.textContent = 'Study Buddy could not be reached. Please retry in a moment.';
-        pending.dataset.source = 'offline';
-      });
+      askBuddy(text, image)
+        .then(function (data) {
+          if (!pending) return;
+          pending.textContent = (data && data.reply) || 'No reply was returned. Please retry.';
+          if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
+          if (data && data.quota) showQuota(data.quota);
+        })
+        .catch(function (error) {
+          if (!pending) return;
+          var code = error && (error.code || (error.data && error.data.error));
+          if (code === 'IMAGE_QUOTA_EXCEEDED' || (error && error.status === 400)) {
+            pending.textContent =
+              (error && error.message) ||
+              "That's 10 photo questions for today. Come back tomorrow!";
+            pending.dataset.source = 'quota';
+            if (code === 'IMAGE_QUOTA_EXCEEDED') remainingImages = 0;
+            return;
+          }
+          pending.textContent = 'Study Buddy could not be reached. Please retry in a moment.';
+          pending.dataset.source = 'offline';
+        });
     });
   }
 
@@ -362,7 +376,7 @@
     window.mathifyLeaveCalendar.mount({
       mount: '#leaveCalendar',
       role: 'student',
-      request: api.request
+      request: api.request,
     });
   }
 
@@ -376,7 +390,10 @@
   function showNotice(text, persistent) {
     noticeEl.textContent = text;
     noticeEl.hidden = false;
-    if (!persistent) window.setTimeout(function () { noticeEl.hidden = true; }, 4200);
+    if (!persistent)
+      window.setTimeout(function () {
+        noticeEl.hidden = true;
+      }, 4200);
   }
 
   function activeSessionId() {
@@ -386,33 +403,46 @@
   function openClassroom() {
     /* The role and view are explicit: a copied student link must never open a
        trainer-shaped room when the same browser also holds a trainer token. */
-    window.location.href = '../classroom/preflight.html?sessionId=' +
-      encodeURIComponent(activeSessionId()) + '&role=student&view=student&state=' +
+    window.location.href =
+      '../classroom/preflight.html?sessionId=' +
+      encodeURIComponent(activeSessionId()) +
+      '&role=student&view=student&state=' +
       encodeURIComponent(state === 'ended' ? 'ended' : 'live');
   }
 
   function watchRecording() {
     if (!api || typeof api.request !== 'function') return;
-    api.request('/recordings/' + encodeURIComponent(activeSessionId()) + '/url')
+    api
+      .request('/recordings/' + encodeURIComponent(activeSessionId()) + '/url')
       .then(function (data) {
         if (data && data.url) window.location.href = data.url;
         else showNotice('That recording is not ready yet.');
       })
-      .catch(function () { showNotice('A private link could not be created. Please retry.'); });
+      .catch(function () {
+        showNotice('A private link could not be created. Please retry.');
+      });
   }
 
   function checkDevices() {
     var devices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
     if (!devices) {
-      showNotice('Device check is unavailable in this browser. The classroom will request camera and mic access when you join.');
+      showNotice(
+        'Device check is unavailable in this browser. The classroom will request camera and mic access when you join.'
+      );
       return;
     }
-    devices({ video: true, audio: true }).then(function (stream) {
-      stream.getTracks().forEach(function (track) { track.stop(); });
-      showNotice('Camera and microphone are ready.');
-    }).catch(function () {
-      showNotice('Camera or microphone access was blocked. Allow access in your browser before joining.');
-    });
+    devices({ video: true, audio: true })
+      .then(function (stream) {
+        stream.getTracks().forEach(function (track) {
+          track.stop();
+        });
+        showNotice('Camera and microphone are ready.');
+      })
+      .catch(function () {
+        showNotice(
+          'Camera or microphone access was blocked. Allow access in your browser before joining.'
+        );
+      });
   }
 
   var sessionActions = {
@@ -424,8 +454,9 @@
     },
     schedule: function () {
       var target = document.getElementById('schedule');
-      if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+      if (target && target.scrollIntoView)
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
   };
 
   document.querySelectorAll('[data-session-action]').forEach(function (button) {
@@ -449,7 +480,7 @@
     batchNumber: 0,
     answered: 0,
     topic: null,
-    topicComplete: false
+    topicComplete: false,
   };
   var PRACTICE_TOPIC_LIMIT = 80;
 
@@ -490,7 +521,8 @@
     ['topicTotal', 'topicLimit', 'topicRemaining'].forEach(function (key) {
       if (source[key] !== undefined && source[key] !== null) practiceState.batch[key] = source[key];
     });
-    if (source.topicComplete !== undefined) practiceState.batch.topicComplete = source.topicComplete;
+    if (source.topicComplete !== undefined)
+      practiceState.batch.topicComplete = source.topicComplete;
   }
 
   function isTopicCompleteError(error) {
@@ -501,8 +533,13 @@
 
   function fallbackRestMessage() {
     var topic = practiceState.topic;
-    return 'Beautifully done! You have practised ' + PRACTICE_TOPIC_LIMIT +
-      ' questions' + (topic ? ' in ' + topic : '') + '. Take a rest — you have earned it 🌟';
+    return (
+      'Beautifully done! You have practised ' +
+      PRACTICE_TOPIC_LIMIT +
+      ' questions' +
+      (topic ? ' in ' + topic : '') +
+      '. Take a rest — you have earned it 🌟'
+    );
   }
 
   function showPracticeRest(message) {
@@ -524,8 +561,15 @@
   function updatePracticeCounter() {
     if (!practiceCounter) return;
     var size = practiceState.batch ? practiceState.batch.questions.length : 10;
-    practiceCounter.textContent = 'Batch ' + batchLabel(practiceState.batchNumber) +
-      ' · ' + practiceState.answered + ' / ' + size + ' answered · ' + difficultyText(practiceState.batch);
+    practiceCounter.textContent =
+      'Batch ' +
+      batchLabel(practiceState.batchNumber) +
+      ' · ' +
+      practiceState.answered +
+      ' / ' +
+      size +
+      ' answered · ' +
+      difficultyText(practiceState.batch);
   }
 
   function renderPracticeBatch(batch) {
@@ -539,7 +583,8 @@
       top.className = 'q-top';
       var label = document.createElement('span');
       label.className = 'mono';
-      label.textContent = 'Q ' + batchLabel(question.position) + ' · ' + (question.difficulty || 'Practice');
+      label.textContent =
+        'Q ' + batchLabel(question.position) + ' · ' + (question.difficulty || 'Practice');
       var tag = document.createElement('span');
       tag.className = 'mono';
       tag.textContent = 'Self practice';
@@ -582,47 +627,60 @@
 
   function answerPracticeQuestion(questionId, optionIndex, button, card) {
     var api = window.mathifyStudentApi;
-    if (!practiceState.batch || !api || typeof api.answerPractice !== 'function' || practiceState.topicComplete) {
+    if (
+      !practiceState.batch ||
+      !api ||
+      typeof api.answerPractice !== 'function' ||
+      practiceState.topicComplete
+    ) {
       setPracticeStatus('Practice is offline');
       return;
     }
     var buttons = card.querySelectorAll('.practice-options button');
-    buttons.forEach(function (item) { item.disabled = true; });
+    buttons.forEach(function (item) {
+      item.disabled = true;
+    });
     setPracticeStatus('Checking…');
 
-    api.answerPractice(practiceState.batch.id, questionId, optionIndex).then(function (data) {
-      var result = (data && data.result) || {};
-      var feedback = card.querySelector('.practice-feedback');
-      button.dataset.result = result.correct === true ? 'correct' : 'wrong';
-      if (feedback) {
-        feedback.hidden = false;
-        feedback.textContent = result.correct === true
-          ? 'Correct — nice thinking ✓'
-          : 'Not quite — try the next one';
-      }
-      practiceState.answered = Math.max(
-        practiceState.answered,
-        Number(result.answeredCount) || practiceState.answered + 1
-      );
-      mergePracticeTopic(result);
-      updatePracticeCounter();
+    api
+      .answerPractice(practiceState.batch.id, questionId, optionIndex)
+      .then(function (data) {
+        var result = (data && data.result) || {};
+        var feedback = card.querySelector('.practice-feedback');
+        button.dataset.result = result.correct === true ? 'correct' : 'wrong';
+        if (feedback) {
+          feedback.hidden = false;
+          feedback.textContent =
+            result.correct === true ? 'Correct — nice thinking ✓' : 'Not quite — try the next one';
+        }
+        practiceState.answered = Math.max(
+          practiceState.answered,
+          Number(result.answeredCount) || practiceState.answered + 1
+        );
+        mergePracticeTopic(result);
+        updatePracticeCounter();
 
-      /* The server gates completion on all ten answers being saved, not just
+        /* The server gates completion on all ten answers being saved, not just
          on the offered count. Trust that flag so the final batch stays usable. */
-      if (result.topicComplete === true) {
-        showPracticeRest(result.restMessage);
-        return;
-      }
-      setPracticeStatus(statusText(result.complete ? 'Batch complete' : 'Answered', practiceState.batch));
-      if (result.complete && practiceMore) practiceMore.hidden = false;
-    }).catch(function (error) {
-      buttons.forEach(function (item) { item.disabled = false; });
-      if (isTopicCompleteError(error)) {
-        showPracticeRest(error && error.message);
-        return;
-      }
-      setPracticeStatus('Could not save that answer');
-    });
+        if (result.topicComplete === true) {
+          showPracticeRest(result.restMessage);
+          return;
+        }
+        setPracticeStatus(
+          statusText(result.complete ? 'Batch complete' : 'Answered', practiceState.batch)
+        );
+        if (result.complete && practiceMore) practiceMore.hidden = false;
+      })
+      .catch(function (error) {
+        buttons.forEach(function (item) {
+          item.disabled = false;
+        });
+        if (isTopicCompleteError(error)) {
+          showPracticeRest(error && error.message);
+          return;
+        }
+        setPracticeStatus('Could not save that answer');
+      });
   }
 
   function loadPracticeBatch() {
@@ -633,29 +691,32 @@
       return;
     }
     setPracticeStatus('Fetching 10…');
-    api.fetchPracticeBatch(null, practiceState.batch ? practiceState.batch.id : null).then(function (data) {
-      var batch = data && data.batch;
-      if (!batch || !Array.isArray(batch.questions) || batch.questions.length !== 10) {
-        setPracticeStatus('Questions are unavailable');
-        return;
-      }
-      practiceState.batch = batch;
-      practiceState.batchNumber += 1;
-      practiceState.answered = 0;
-      practiceState.topic = batch.topic || batch.topicName || practiceState.topic;
-      renderPracticeBatch(batch);
-      updatePracticeCounter();
-      if (practiceSlot) practiceSlot.hidden = false;
-      if (batch.topicComplete === true) {
-        showPracticeRest(batch.restMessage);
-      }
-    }).catch(function (error) {
-      if (isTopicCompleteError(error)) {
-        showPracticeRest(error && error.message);
-        return;
-      }
-      setPracticeStatus('Could not fetch questions — retry');
-    });
+    api
+      .fetchPracticeBatch(null, practiceState.batch ? practiceState.batch.id : null)
+      .then(function (data) {
+        var batch = data && data.batch;
+        if (!batch || !Array.isArray(batch.questions) || batch.questions.length !== 10) {
+          setPracticeStatus('Questions are unavailable');
+          return;
+        }
+        practiceState.batch = batch;
+        practiceState.batchNumber += 1;
+        practiceState.answered = 0;
+        practiceState.topic = batch.topic || batch.topicName || practiceState.topic;
+        renderPracticeBatch(batch);
+        updatePracticeCounter();
+        if (practiceSlot) practiceSlot.hidden = false;
+        if (batch.topicComplete === true) {
+          showPracticeRest(batch.restMessage);
+        }
+      })
+      .catch(function (error) {
+        if (isTopicCompleteError(error)) {
+          showPracticeRest(error && error.message);
+          return;
+        }
+        setPracticeStatus('Could not fetch questions — retry');
+      });
   }
 
   function openPractice() {
@@ -683,14 +744,17 @@
   var chapterHost = document.getElementById('recChapters');
   function openChapter(seconds) {
     if (!recordingSessionId || !api || typeof api.request !== 'function') return;
-    api.request('/recordings/' + encodeURIComponent(recordingSessionId) + '/url')
+    api
+      .request('/recordings/' + encodeURIComponent(recordingSessionId) + '/url')
       .then(function (data) {
         var url = data && data.url;
         if (!url) return;
-        window.location.href = url + (url.indexOf('?') === -1 ? '?' : '&') +
-          't=' + Math.max(0, Number(seconds) || 0);
+        window.location.href =
+          url + (url.indexOf('?') === -1 ? '?' : '&') + 't=' + Math.max(0, Number(seconds) || 0);
       })
-      .catch(function () { /* access is refused without session membership */ });
+      .catch(function () {
+        /* access is refused without session membership */
+      });
   }
   document.querySelectorAll('[data-chapter-seconds]').forEach(function (button) {
     button.addEventListener('click', function () {
@@ -704,17 +768,19 @@
   function renderWallet(dashboard) {
     if (!walletSessions) return;
     var remaining = dashboard && dashboard.student && dashboard.student.sessionsRemaining;
-    walletSessions.textContent = (remaining === null || remaining === undefined)
-      ? 'Pack not loaded'
-      : remaining + ' sessions left';
+    walletSessions.textContent =
+      remaining === null || remaining === undefined ? 'Pack not loaded' : remaining + ' credits';
   }
 
   function renderTrophies(dashboard) {
     if (!trophyList) return;
     var badges = (dashboard && dashboard.badges) || [];
-    var points = dashboard && dashboard.trophyPoints !== undefined
-      ? dashboard.trophyPoints
-      : badges.reduce(function (total, item) { return total + (Number(item.points) || 0); }, 0);
+    var points =
+      dashboard && dashboard.trophyPoints !== undefined
+        ? dashboard.trophyPoints
+        : badges.reduce(function (total, item) {
+            return total + (Number(item.points) || 0);
+          }, 0);
     if (trophyPoints) trophyPoints.textContent = points + ' pts';
     trophyList.innerHTML = '';
     if (!badges.length) {
@@ -760,45 +826,61 @@
   /* Subject is server-owned. An optional session-state call only enriches the
      panel; its failure must never block the desk or claim a linked class. */
   function hydrateSubject(dashboard) {
-    if (!window.MathifySubjects || typeof window.MathifySubjects.mountStudent !== 'function') return;
+    if (!window.MathifySubjects || typeof window.MathifySubjects.mountStudent !== 'function')
+      return;
     window.MathifySubjects.mountStudent(dashboard);
     var next = dashboard && dashboard.nextSession;
     var sessionId = next && (next.id || next.sessionId);
     if (!sessionId || !api || typeof api.getSessionState !== 'function') return;
     try {
-      api.getSessionState(sessionId).then(function (state) {
-        window.MathifySubjects.mountStudent(dashboard, state);
-        applyLiveAttendance(state && state.studentAttendance);
-      }).catch(function () { /* optional state is not linked yet */ });
-    } catch (error) { /* keep the server-owned dashboard fallback */ }
+      api
+        .getSessionState(sessionId)
+        .then(function (state) {
+          window.MathifySubjects.mountStudent(dashboard, state);
+          applyLiveAttendance(state && state.studentAttendance);
+        })
+        .catch(function () {
+          /* optional state is not linked yet */
+        });
+    } catch (error) {
+      /* keep the server-owned dashboard fallback */
+    }
   }
 
   if (api && typeof api.request === 'function') {
-    api.request('/student/dashboard').then(function (data) {
-      renderWallet(data && data.dashboard);
-      renderTrophies(data && data.dashboard);
-      hydrateSubject(data && data.dashboard);
-      var profileName = document.getElementById('profileName');
-      var student = data && data.dashboard && data.dashboard.student;
-      if (profileName && student && student.name) profileName.textContent = student.name;
-      var recordings = data && data.dashboard && data.dashboard.recordings;
-      if (!Array.isArray(recordings) || !recordings.length) return;
-      var recording = recordings[0];
-      recordingSessionId = recording.available && recording.id ? recording.id : null;
-      if (!recordingSessionId || !Array.isArray(recording.chapters) || !recording.chapters.length) return;
-      chapterHost.innerHTML = '';
-      recording.chapters.forEach(function (chapter) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'rec-link';
-        button.setAttribute('data-chapter-seconds', String(chapter.seconds || 0));
-        var minutes = Math.floor((chapter.seconds || 0) / 60);
-        var remainder = String((chapter.seconds || 0) % 60).padStart(2, '0');
-        button.textContent = chapter.label + ' · ' + minutes + ':' + remainder;
-        button.addEventListener('click', function () { openChapter(chapter.seconds); });
-        chapterHost.appendChild(button);
+    api
+      .request('/student/dashboard')
+      .then(function (data) {
+        renderWallet(data && data.dashboard);
+        renderTrophies(data && data.dashboard);
+        hydrateSubject(data && data.dashboard);
+        var profileName = document.getElementById('profileName');
+        var student = data && data.dashboard && data.dashboard.student;
+        if (profileName && student && student.name) profileName.textContent = student.name;
+        var recordings = data && data.dashboard && data.dashboard.recordings;
+        if (!Array.isArray(recordings) || !recordings.length) return;
+        var recording = recordings[0];
+        recordingSessionId = recording.available && recording.id ? recording.id : null;
+        if (!recordingSessionId || !Array.isArray(recording.chapters) || !recording.chapters.length)
+          return;
+        chapterHost.innerHTML = '';
+        recording.chapters.forEach(function (chapter) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'rec-link';
+          button.setAttribute('data-chapter-seconds', String(chapter.seconds || 0));
+          var minutes = Math.floor((chapter.seconds || 0) / 60);
+          var remainder = String((chapter.seconds || 0) % 60).padStart(2, '0');
+          button.textContent = chapter.label + ' · ' + minutes + ':' + remainder;
+          button.addEventListener('click', function () {
+            openChapter(chapter.seconds);
+          });
+          chapterHost.appendChild(button);
+        });
+      })
+      .catch(function () {
+        /* offline preview keeps the static chapters */
       });
-    }).catch(function () { /* offline preview keeps the static chapters */ });
   }
 
   /* ---------- search, notifications, profile ---------- */
@@ -806,7 +888,9 @@
   var searchHits = [];
   if (searchInput) {
     searchInput.addEventListener('input', function () {
-      searchHits.forEach(function (node) { node.classList.remove('study-search-hit'); });
+      searchHits.forEach(function (node) {
+        node.classList.remove('study-search-hit');
+      });
       searchHits = [];
       var term = searchInput.value.trim().toLowerCase();
       if (term.length < 2) return;
@@ -827,7 +911,9 @@
 
   var mobileSearchBtn = document.getElementById('mobileSearchBtn');
   if (mobileSearchBtn && searchInput) {
-    mobileSearchBtn.addEventListener('click', function () { searchInput.focus(); });
+    mobileSearchBtn.addEventListener('click', function () {
+      searchInput.focus();
+    });
   }
 
   function bindPopover(buttonId, panelId) {
@@ -854,13 +940,20 @@
   bindPopover('notificationsBtn', 'notificationsPanel');
   bindPopover('profileBtn', 'profilePanel');
   var logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn && window.mathifyStudentApi && typeof window.mathifyStudentApi.logout === 'function') {
+  if (
+    logoutBtn &&
+    window.mathifyStudentApi &&
+    typeof window.mathifyStudentApi.logout === 'function'
+  ) {
     logoutBtn.addEventListener('click', window.mathifyStudentApi.logout);
   }
 
   if (api) {
     api.ensureAuth().catch(function () {
-      showNotice('Offline preview · live student data is unavailable. Retry when the API is reachable.', true);
+      showNotice(
+        'Offline preview · live student data is unavailable. Retry when the API is reachable.',
+        true
+      );
     });
   }
 

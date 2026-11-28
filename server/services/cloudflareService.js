@@ -20,7 +20,7 @@ const BLOCK_TYPES = ['heading', 'text', 'image', 'sketch_space', 'analogy', 'sto
 const TIER_SPECS = [
   { key: 'level_1', timeLimit: 45, bloom: 'Understand' },
   { key: 'level_2', timeLimit: 75, bloom: 'Apply' },
-  { key: 'level_3', timeLimit: 120, bloom: 'Analyze' }
+  { key: 'level_3', timeLimit: 120, bloom: 'Analyze' },
 ];
 
 let missingProviderWarned = false;
@@ -103,68 +103,76 @@ The student failed a question about: [failedQuestionConcept]. Generate exactly O
 
 /* ---------- Zod schemas ---------- */
 
-const plannerBlockSchema = z.object({
-  id: z.string().min(1),
-  type: z.enum(BLOCK_TYPES),
-  content: z.object({
-    text: z.string().default(''),
-    image_prompt: z.string().default(''),
-    alt: z.string().default(''),
-    caption: z.string().default('')
-  }),
-  sketch: z.object({
-    minHeight: z.number().int().min(120),
-    expandable: z.literal(true),
-    prompt_for_trainer: z.string().min(1)
-  }).optional(),
-  trainerInstructions: z.string().min(1),
-  misconception_watch: z.array(z.string().min(1)).min(1)
-}).superRefine(function (block, context) {
-  if (block.type === 'sketch_space' && !block.sketch) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['sketch'],
-      message: 'sketch_space blocks require a sketch object.'
-    });
-  }
-  if (block.type === 'analogy' && !block.content.image_prompt && !block.content.caption) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['content', 'image_prompt'],
-      message: 'Analogy blocks need an image prompt or caption.'
-    });
-  }
-});
-
-const plannerSchema = z.object({
-  topic_id: z.string().min(1),
-  curriculum_map: z.object({
-    board: z.string().min(1),
-    grade: z.number().int(),
-    chapter: z.string().default(''),
-    learning_objectives: z.array(z.string().min(1)).min(1)
-  }),
-  planner: z.object({
-    version: z.number().int().min(1),
-    estimated_minutes: z.number().int().min(15),
-    blocks: z.array(plannerBlockSchema).min(1)
+const plannerBlockSchema = z
+  .object({
+    id: z.string().min(1),
+    type: z.enum(BLOCK_TYPES),
+    content: z.object({
+      text: z.string().default(''),
+      image_prompt: z.string().default(''),
+      alt: z.string().default(''),
+      caption: z.string().default(''),
+    }),
+    sketch: z
+      .object({
+        minHeight: z.number().int().min(120),
+        expandable: z.literal(true),
+        prompt_for_trainer: z.string().min(1),
+      })
+      .optional(),
+    trainerInstructions: z.string().min(1),
+    misconception_watch: z.array(z.string().min(1)).min(1),
   })
-}).superRefine(function (payload, context) {
-  const types = payload.planner.blocks.map(function (block) { return block.type; });
-  ['analogy', 'story', 'sketch_space'].forEach(function (required) {
-    if (types.indexOf(required) === -1) {
+  .superRefine(function (block, context) {
+    if (block.type === 'sketch_space' && !block.sketch) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['planner', 'blocks'],
-        message: 'Planner must include at least one ' + required + ' block.'
+        path: ['sketch'],
+        message: 'sketch_space blocks require a sketch object.',
+      });
+    }
+    if (block.type === 'analogy' && !block.content.image_prompt && !block.content.caption) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['content', 'image_prompt'],
+        message: 'Analogy blocks need an image prompt or caption.',
       });
     }
   });
-});
+
+const plannerSchema = z
+  .object({
+    topic_id: z.string().min(1),
+    curriculum_map: z.object({
+      board: z.string().min(1),
+      grade: z.number().int(),
+      chapter: z.string().default(''),
+      learning_objectives: z.array(z.string().min(1)).min(1),
+    }),
+    planner: z.object({
+      version: z.number().int().min(1),
+      estimated_minutes: z.number().int().min(15),
+      blocks: z.array(plannerBlockSchema).min(1),
+    }),
+  })
+  .superRefine(function (payload, context) {
+    const types = payload.planner.blocks.map(function (block) {
+      return block.type;
+    });
+    ['analogy', 'story', 'sketch_space'].forEach(function (required) {
+      if (types.indexOf(required) === -1) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['planner', 'blocks'],
+          message: 'Planner must include at least one ' + required + ' block.',
+        });
+      }
+    });
+  });
 
 const quizOptionSchema = z.object({
   id: z.string().min(1),
-  text: z.string().min(1)
+  text: z.string().min(1),
 });
 
 const quizItemBaseSchema = z.object({
@@ -178,30 +186,32 @@ const quizItemBaseSchema = z.object({
   time_limit_sec: z.number().int(),
   distractor_rationale: z.record(z.string().min(1)),
   requires_sketch: z.boolean(),
-  bloom: z.string().min(1)
+  bloom: z.string().min(1),
 });
 
 function refineQuizItem(item, context) {
-  const ids = item.options.map(function (option) { return option.id; });
+  const ids = item.options.map(function (option) {
+    return option.id;
+  });
   if (new Set(ids).size !== ids.length) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['options'],
-      message: 'Quiz option ids must be unique.'
+      message: 'Quiz option ids must be unique.',
     });
   }
   if (ids.indexOf(item.correctOptionId) === -1) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['correctOptionId'],
-      message: 'correctOptionId must match one of the options.'
+      message: 'correctOptionId must match one of the options.',
     });
   }
   if (item.hints[0] === item.hints[1]) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['hints'],
-      message: 'Hints must be ordered gentle then direct.'
+      message: 'Hints must be ordered gentle then direct.',
     });
   }
   ids.forEach(function (id) {
@@ -209,55 +219,61 @@ function refineQuizItem(item, context) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['distractor_rationale', id],
-        message: 'Each distractor needs a misconception rationale.'
+        message: 'Each distractor needs a misconception rationale.',
       });
     }
   });
 }
 
 function tierItemSchema(limit) {
-  return quizItemBaseSchema.extend({
-    time_limit_sec: z.literal(limit)
-  }).superRefine(refineQuizItem);
+  return quizItemBaseSchema
+    .extend({
+      time_limit_sec: z.literal(limit),
+    })
+    .superRefine(refineQuizItem);
 }
 
 const quizSchema = z.object({
   quiz: z.object({
     level_1: z.array(tierItemSchema(45)).min(1),
     level_2: z.array(tierItemSchema(75)).min(1),
-    level_3: z.array(tierItemSchema(120)).min(1)
+    level_3: z.array(tierItemSchema(120)).min(1),
   }),
   advance_criteria: z.object({
     gate_pct: z.number().min(70).max(80),
-    repeat_if_below: z.literal(true)
+    repeat_if_below: z.literal(true),
   }),
-  parent_summary: z.string().min(1)
+  parent_summary: z.string().min(1),
 });
 
-const parallelQuestionSchema = z.object({
-  id: z.string().min(1),
-  stem: z.string().min(1),
-  options: z.array(quizOptionSchema).length(4),
-  correctOptionId: z.string().min(1),
-  explanation: z.string().min(1),
-  hint: z.string().min(1)
-}).superRefine(function (item, context) {
-  const ids = item.options.map(function (option) { return option.id; });
-  if (new Set(ids).size !== ids.length) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['options'],
-      message: 'Parallel question option ids must be unique.'
+const parallelQuestionSchema = z
+  .object({
+    id: z.string().min(1),
+    stem: z.string().min(1),
+    options: z.array(quizOptionSchema).length(4),
+    correctOptionId: z.string().min(1),
+    explanation: z.string().min(1),
+    hint: z.string().min(1),
+  })
+  .superRefine(function (item, context) {
+    const ids = item.options.map(function (option) {
+      return option.id;
     });
-  }
-  if (ids.indexOf(item.correctOptionId) === -1) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['correctOptionId'],
-      message: 'correctOptionId must match one of the four options.'
-    });
-  }
-});
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['options'],
+        message: 'Parallel question option ids must be unique.',
+      });
+    }
+    if (ids.indexOf(item.correctOptionId) === -1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['correctOptionId'],
+        message: 'correctOptionId must match one of the four options.',
+      });
+    }
+  });
 
 /* ---------- Helpers ---------- */
 
@@ -270,6 +286,63 @@ function failure(message, code, status) {
 
 function invalid(message) {
   return failure(message, 'CLOUDFLARE_INVALID_JSON', 502);
+}
+
+/* Only reject a remotely generated item when its ratio arithmetic can be
+   checked with confidence. Ambiguous stems are left to the trainer review. */
+function firstNumber(value) {
+  const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function ratioPair(value) {
+  const match = String(value || '').match(/(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)/);
+  return match ? [Number(match[1]), Number(match[2])] : null;
+}
+
+function ratioPairsMatch(left, right) {
+  if (!left || !right) return false;
+  const scale = Math.max(Math.abs(left[0] * right[1]), 0.000001);
+  return Math.abs(left[0] * right[1] - left[1] * right[0]) < scale * 0.0001;
+}
+
+function equivalentRatioHasSingleAnswer(stem, options, answerText) {
+  const text = String(stem || '');
+  if (!/(equivalent|same ratio|same mix|same comparison)/i.test(text)) return true;
+  const fromStem = ratioPair(text);
+  const described =
+    !fromStem && text.match(/ratio of\s+(\d+(?:\.\d+)?)[^.?]*?to\s+(\d+(?:\.\d+)?)/i);
+  const base = fromStem || (described ? [Number(described[1]), Number(described[2])] : null);
+  if (!base || base[0] <= 0 || base[1] <= 0) return true;
+  const pairs = options.map(function (option) {
+    return ratioPair(option.text);
+  });
+  if (
+    pairs.some(function (pair) {
+      return !pair;
+    })
+  )
+    return true;
+  const matches = pairs.filter(function (pair) {
+    return ratioPairsMatch(base, pair);
+  });
+  if (matches.length !== 1) return false;
+  return ratioPairsMatch(base, ratioPair(answerText));
+}
+
+function ratioAnswerMatchesStem(stem, answerText) {
+  const text = String(stem || '');
+  if (!/(shorter|short)/i.test(text) || !/(longer|long)/i.test(text)) return true;
+  const ratio = text.match(/(\d+(?:\.\d+)?)\s*[:：]\s*(\d+(?:\.\d+)?)/);
+  if (!ratio || Number(ratio[1]) <= 0) return true;
+  const shortValue =
+    text.match(/(?:shorter|short)\s*(?:piece\s*)?(?:is|=|of|measures?|has)?\s*(\d+(?:\.\d+)?)/i) ||
+    text.match(/(?:uses|with)\s+(\d+(?:\.\d+)?)\s+(?:cm|red)/i);
+  if (!shortValue) return true;
+  const expected = (Number(shortValue[1]) * Number(ratio[2])) / Number(ratio[1]);
+  const actual = firstNumber(answerText);
+  if (!Number.isFinite(expected) || actual === null) return true;
+  return Math.abs(actual - expected) < Math.max(0.01, Math.abs(expected) * 0.001);
 }
 
 function zodMessage(error) {
@@ -319,7 +392,8 @@ function calculateNextDifficultyLabel(currentLevel, score) {
   const value = number(score, 0);
   const safeScore = clamp(Math.round(value), 0, 100);
 
-  if (safeScore >= 80) return DIFFICULTY_LEVELS[Math.min(currentIndex + 1, DIFFICULTY_LEVELS.length - 1)];
+  if (safeScore >= 80)
+    return DIFFICULTY_LEVELS[Math.min(currentIndex + 1, DIFFICULTY_LEVELS.length - 1)];
   if (safeScore < 40) return DIFFICULTY_LEVELS[Math.max(currentIndex - 1, 0)];
   return DIFFICULTY_LEVELS[currentIndex];
 }
@@ -403,9 +477,7 @@ function normalizeContext(context) {
   const previous = Array.isArray(input.previously_asked_questions)
     ? input.previously_asked_questions
     : [];
-  const objectives = Array.isArray(input.learning_objectives)
-    ? input.learning_objectives
-    : [];
+  const objectives = Array.isArray(input.learning_objectives) ? input.learning_objectives : [];
 
   /* Curriculum context comes from the student profile, with explicit context
      fields taking precedence. Only academic fields reach the prompt. */
@@ -424,7 +496,7 @@ function normalizeContext(context) {
     student: studentProfile,
     grade: input.grade === null || input.grade === undefined ? '' : input.grade,
     topic: text(input.topic, 'general mathematics'),
-    student_age: input.student_age === undefined ? (input.age || '') : input.student_age,
+    student_age: input.student_age === undefined ? input.age || '' : input.student_age,
     language: text(input.language, 'English'),
     mode: text(input.mode, 'mathify_planner'),
     school_chapter_context: text(
@@ -436,7 +508,7 @@ function normalizeContext(context) {
     previously_asked_questions: previous,
     learning_objectives: objectives,
     estimated_minutes: clamp(number(input.estimated_minutes, 45), 15, 120),
-    allowFallback: input.allowFallback
+    allowFallback: input.allowFallback,
   };
 }
 
@@ -449,7 +521,7 @@ function warnMissingProvider() {
 async function requestJSON(systemPrompt, userPrompt, allowFallback) {
   const generatedText = await cloudflareAiService.generateAIResponse(systemPrompt, userPrompt, {
     allowFallback: allowFallback,
-    jsonOnly: true
+    jsonOnly: true,
   });
   const parsed = safeParseJSON(generatedText);
   if (parsed) return parsed;
@@ -479,7 +551,7 @@ function validatePlannerOutput(parsed, context) {
       board: output.curriculum_map.board,
       grade: output.curriculum_map.grade,
       chapter: output.curriculum_map.chapter,
-      learning_objectives: output.curriculum_map.learning_objectives.slice()
+      learning_objectives: output.curriculum_map.learning_objectives.slice(),
     },
     planner: {
       version: output.planner.version,
@@ -492,15 +564,15 @@ function validatePlannerOutput(parsed, context) {
             text: block.content.text,
             image_prompt: block.content.image_prompt,
             alt: block.content.alt,
-            caption: block.content.caption
+            caption: block.content.caption,
           },
           trainerInstructions: block.trainerInstructions,
-          misconception_watch: block.misconception_watch.slice()
+          misconception_watch: block.misconception_watch.slice(),
         };
         if (block.type === 'sketch_space' && block.sketch) safe.sketch = block.sketch;
         return safe;
-      })
-    }
+      }),
+    },
   };
 }
 
@@ -514,11 +586,13 @@ function validateQuizOutput(parsed, context) {
   const output = result.data;
   const seenIds = [];
   const seenStems = [];
-  const previousStems = (context && context.previously_asked_questions
-    ? context.previously_asked_questions
-    : []).map(function (item) {
-    return normalizeStem(isObject(item) ? (item.stem || item.question || item.text) : item);
-  }).filter(Boolean);
+  const previousStems = (
+    context && context.previously_asked_questions ? context.previously_asked_questions : []
+  )
+    .map(function (item) {
+      return normalizeStem(isObject(item) ? item.stem || item.question || item.text : item);
+    })
+    .filter(Boolean);
   let hasSketchItem = false;
 
   const quiz = {};
@@ -545,9 +619,11 @@ function validateQuizOutput(parsed, context) {
 
       const answerKey = correctOption.text;
       const hints = item.hints.slice();
-      if (hints.some(function (hint) {
-        return hint.toLowerCase().indexOf(answerKey.toLowerCase()) !== -1;
-      })) {
+      if (
+        hints.some(function (hint) {
+          return hint.toLowerCase().indexOf(answerKey.toLowerCase()) !== -1;
+        })
+      ) {
         throw invalid('Quiz item ' + item.id + ' hint must not restate the answer.');
       }
 
@@ -572,7 +648,7 @@ function validateQuizOutput(parsed, context) {
         time_limit_sec: spec.timeLimit,
         distractor_rationale: distractorRationale,
         requires_sketch: item.requires_sketch,
-        bloom: item.bloom
+        bloom: item.bloom,
       };
     });
   });
@@ -582,7 +658,9 @@ function validateQuizOutput(parsed, context) {
   }
 
   const parentSummary = text(output.parent_summary, '');
-  const sentences = parentSummary.split(/[.!?]+(?:\s|$)/).filter(function (part) { return part.trim(); });
+  const sentences = parentSummary.split(/[.!?]+(?:\s|$)/).filter(function (part) {
+    return part.trim();
+  });
   if (sentences.length !== 2) {
     throw invalid('parent_summary must be exactly 2 plain-language sentences.');
   }
@@ -591,9 +669,9 @@ function validateQuizOutput(parsed, context) {
     quiz: quiz,
     advance_criteria: {
       gate_pct: output.advance_criteria.gate_pct,
-      repeat_if_below: true
+      repeat_if_below: true,
     },
-    parent_summary: parentSummary
+    parent_summary: parentSummary,
   };
 }
 
@@ -608,7 +686,7 @@ function validateParallelQuestionOutput(parsed, context) {
   const stemKey = normalizeStem(item.stem);
   const usedPrompts = (context && context.usedPrompts ? context.usedPrompts : [])
     .map(function (value) {
-      return normalizeStem(isObject(value) ? (value.stem || value.prompt || value.text) : value);
+      return normalizeStem(isObject(value) ? value.stem || value.prompt || value.text : value);
     })
     .filter(Boolean);
   if (usedPrompts.indexOf(stemKey) !== -1) {
@@ -619,6 +697,16 @@ function validateParallelQuestionOutput(parsed, context) {
     return option.id === item.correctOptionId;
   });
   if (!correctOption) throw invalid('Parallel question correctOptionId is not one of its options.');
+  if (
+    !ratioAnswerMatchesStem(item.stem, correctOption.text) ||
+    !equivalentRatioHasSingleAnswer(item.stem, item.options, correctOption.text)
+  ) {
+    throw failure(
+      'Parallel question answer does not match its ratio stem.',
+      'CLOUDFLARE_ANSWER_MISMATCH',
+      502
+    );
+  }
 
   return {
     id: item.id,
@@ -629,7 +717,7 @@ function validateParallelQuestionOutput(parsed, context) {
     correctOptionId: item.correctOptionId,
     answerKey: correctOption.text,
     explanation: item.explanation,
-    hint: item.hint
+    hint: item.hint,
   };
 }
 
@@ -644,16 +732,16 @@ function fallbackBlock(id, type, contentText, instructions, misconceptions, opti
       text: contentText,
       image_prompt: settings.imagePrompt || '',
       alt: settings.alt || '',
-      caption: settings.caption || ''
+      caption: settings.caption || '',
     },
     trainerInstructions: instructions,
-    misconception_watch: misconceptions
+    misconception_watch: misconceptions,
   };
   if (type === 'sketch_space') {
     block.sketch = {
       minHeight: settings.minHeight || 220,
       expandable: true,
-      prompt_for_trainer: settings.promptForTrainer || 'Draw the working here, one step at a time.'
+      prompt_for_trainer: settings.promptForTrainer || 'Draw the working here, one step at a time.',
     };
   }
   return block;
@@ -661,68 +749,114 @@ function fallbackBlock(id, type, contentText, instructions, misconceptions, opti
 
 function buildPlannerFallback(context) {
   const topic = context.topic;
-  const chapter = context.mode === 'school_curriculum'
-    ? (context.school_chapter_context || topic)
-    : topic;
+  const chapter =
+    context.mode === 'school_curriculum' ? context.school_chapter_context || topic : topic;
   const objectives = context.learning_objectives.length
     ? context.learning_objectives
     : [
-      'Recall the key idea in ' + topic + '.',
-      'Work through a guided example without rushing.',
-      'Explain the method in the student’s own words.'
-    ];
+        'Recall the key idea in ' + topic + '.',
+        'Work through a guided example without rushing.',
+        'Explain the method in the student’s own words.',
+      ];
 
   const blocks = [
-    fallbackBlock('b1', 'heading', 'Hook: ' + topic,
-      'Open with a calm question about where ' + topic + ' appears in everyday life. Pause before giving any method.',
-      ['Jumping straight into rules before the student has a picture.']),
-    fallbackBlock('b2', 'sketch_space', '',
+    fallbackBlock(
+      'b1',
+      'heading',
+      'Hook: ' + topic,
+      'Open with a calm question about where ' +
+        topic +
+        ' appears in everyday life. Pause before giving any method.',
+      ['Jumping straight into rules before the student has a picture.']
+    ),
+    fallbackBlock(
+      'b2',
+      'sketch_space',
+      '',
       'Draw the hook as a simple picture. Let the student add one mark before you continue.',
       ['Drawing too much at once and losing the student.'],
-      { promptForTrainer: 'Sketch the everyday situation, then label the unknown.' }),
-    fallbackBlock('b3', 'analogy', '',
-      'Compare ' + topic + ' to sharing physical objects, likearam tokens on a table. Keep the comparison concrete.',
+      { promptForTrainer: 'Sketch the everyday situation, then label the unknown.' }
+    ),
+    fallbackBlock(
+      'b3',
+      'analogy',
+      '',
+      'Compare ' +
+        topic +
+        ' to sharing physical objects, likearam tokens on a table. Keep the comparison concrete.',
       ['Treating the analogy as the answer instead of a bridge.'],
-      { imagePrompt: 'A simple row of Indian-context objects being shared or grouped', caption: 'Same total, different grouping.' }),
-    fallbackBlock('b4', 'story',
-      'A shopkeeper has a tray of ' + topic + ' cards. One child counts them quickly, then stops. The shopkeeper asks, “Can you show me why that count is fair?” The child slows down, groups the cards, and the pattern becomes visible. Nothing about the child is slow; the picture was missing. Now the two of you can build the rule together.',
+      {
+        imagePrompt: 'A simple row of Indian-context objects being shared or grouped',
+        caption: 'Same total, different grouping.',
+      }
+    ),
+    fallbackBlock(
+      'b4',
+      'story',
+      'A shopkeeper has a tray of ' +
+        topic +
+        ' cards. One child counts them quickly, then stops. The shopkeeper asks, “Can you show me why that count is fair?” The child slows down, groups the cards, and the pattern becomes visible. Nothing about the child is slow; the picture was missing. Now the two of you can build the rule together.',
       'Read the story slowly. Stop at the question and let the student predict what the groups might look like.',
-      ['Turning the story into a comparison between children.']),
-    fallbackBlock('b5', 'text', 'Concept: ' + topic + ' is a way of describing a relationship, not a rule to memorise.',
+      ['Turning the story into a comparison between children.']
+    ),
+    fallbackBlock(
+      'b5',
+      'text',
+      'Concept: ' + topic + ' is a way of describing a relationship, not a rule to memorise.',
       'Say the idea in one sentence, then ask the student to say it back in their own words.',
       ['Using words the student cannot yet picture.'],
-      {}),
-    fallbackBlock('b6', 'sketch_space', '',
+      {}
+    ),
+    fallbackBlock(
+      'b6',
+      'sketch_space',
+      '',
       'Draw one worked example slowly. Keep the first line visible while you write the second.',
       ['Erasing earlier steps before the student has connected them.'],
-      { promptForTrainer: 'Write the example line by line; leave room for the student to copy the pattern.' }),
-    fallbackBlock('b7', 'text', 'Guided practice: try one small example together, then hand the pencil to the student.',
+      {
+        promptForTrainer:
+          'Write the example line by line; leave room for the student to copy the pattern.',
+      }
+    ),
+    fallbackBlock(
+      'b7',
+      'text',
+      'Guided practice: try one small example together, then hand the pencil to the student.',
       'Give the first move only if asked. Wait at least five seconds before prompting.',
       ['Taking over the pencil too early.'],
-      {}),
-    fallbackBlock('b8', 'text', 'Check: explain the method back, then answer one short question independently.',
+      {}
+    ),
+    fallbackBlock(
+      'b8',
+      'text',
+      'Check: explain the method back, then answer one short question independently.',
       'Use the check to decide whether to reteach or move on. Do not announce a score out loud.',
       ['Treating one wrong answer as inability rather than a gap to reteach.'],
-      {})
+      {}
+    ),
   ];
 
-  return validatePlannerOutput({
-    topic_id: text(topic, 'general-mathematics')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'general-mathematics',
-    curriculum_map: {
-      board: context.board,
-      grade: Math.round(number(context.grade, 0)),
-      chapter: chapter,
-      learning_objectives: objectives
+  return validatePlannerOutput(
+    {
+      topic_id:
+        text(topic, 'general-mathematics')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || 'general-mathematics',
+      curriculum_map: {
+        board: context.board,
+        grade: Math.round(number(context.grade, 0)),
+        chapter: chapter,
+        learning_objectives: objectives,
+      },
+      planner: {
+        version: 1,
+        estimated_minutes: Math.round(context.estimated_minutes),
+        blocks: blocks,
+      },
     },
-    planner: {
-      version: 1,
-      estimated_minutes: Math.round(context.estimated_minutes),
-      blocks: blocks
-    }
-  }, context);
+    context
+  );
 }
 
 function optionLetter(index) {
@@ -731,9 +865,11 @@ function optionLetter(index) {
 
 function buildQuizFallback(context) {
   const topic = context.topic;
-  const usedPrompts = (context.previously_asked_questions || []).map(function (item) {
-    return isObject(item) ? (item.stem || item.question || item.text) : item;
-  }).filter(Boolean);
+  const usedPrompts = (context.previously_asked_questions || [])
+    .map(function (item) {
+      return isObject(item) ? item.stem || item.question || item.text : item;
+    })
+    .filter(Boolean);
   const quiz = {};
   let itemNumber = 0;
 
@@ -741,7 +877,7 @@ function buildQuizFallback(context) {
     const question = generator.buildFallbackQuiz(topic, context.mastery_pct, {
       count: 1,
       level: tierIndex + 1,
-      usedPrompts: usedPrompts
+      usedPrompts: usedPrompts,
     })[0];
     usedPrompts.push(question.prompt);
 
@@ -755,34 +891,41 @@ function buildQuizFallback(context) {
       distractorRationale[option.id] = [
         'Used the wrong operation for the given condition.',
         'Treated the numbers as unrelated instead of as one relationship.',
-        'Missed the condition in the question.'
+        'Missed the condition in the question.',
       ][(index + tierIndex) % 3];
     });
 
     itemNumber += 1;
-    quiz[spec.key] = [{
-      id: 'q_fallback_' + Date.now() + '_' + itemNumber,
-      stem: question.prompt,
-      options: options,
-      correctOptionId: correctOptionId,
-      answerKey: question.correctAnswer,
-      explanation: 'Work from the condition in the question, then check the result against the original numbers.',
-      hints: [
-        question.hint,
-        'Group the known values first, then decide which operation connects them.'
-      ],
-      time_limit_sec: spec.timeLimit,
-      distractor_rationale: distractorRationale,
-      requires_sketch: tierIndex === 1,
-      bloom: spec.bloom
-    }];
+    quiz[spec.key] = [
+      {
+        id: 'q_fallback_' + Date.now() + '_' + itemNumber,
+        stem: question.prompt,
+        options: options,
+        correctOptionId: correctOptionId,
+        answerKey: question.correctAnswer,
+        explanation:
+          'Work from the condition in the question, then check the result against the original numbers.',
+        hints: [
+          question.hint,
+          'Group the known values first, then decide which operation connects them.',
+        ],
+        time_limit_sec: spec.timeLimit,
+        distractor_rationale: distractorRationale,
+        requires_sketch: tierIndex === 1,
+        bloom: spec.bloom,
+      },
+    ];
   });
 
-  return validateQuizOutput({
-    quiz: quiz,
-    advance_criteria: { gate_pct: 75, repeat_if_below: true },
-    parent_summary: 'This checkpoint checks the topic one small step at a time. We will revisit the same topic until the idea is secure.'
-  }, context);
+  return validateQuizOutput(
+    {
+      quiz: quiz,
+      advance_criteria: { gate_pct: 75, repeat_if_below: true },
+      parent_summary:
+        'This checkpoint checks the topic one small step at a time. We will revisit the same topic until the idea is secure.',
+    },
+    context
+  );
 }
 
 /* ---------- Public API ---------- */
@@ -798,7 +941,7 @@ async function generatePlannerAndCurriculum(context) {
     lang: settings.language,
     mode: settings.mode,
     context: settings.school_chapter_context,
-    curriculum_injection: settings.curriculum_injection
+    curriculum_injection: settings.curriculum_injection,
   });
 
   const parsed = await requestJSON(
@@ -813,8 +956,11 @@ async function generatePlannerAndCurriculum(context) {
 async function generateQuizTiers(context, plannerOutput) {
   const settings = normalizeContext(context);
   if (!isObject(plannerOutput)) {
-    throw failure('generateQuizTiers requires plannerOutput from generatePlannerAndCurriculum.',
-      'INVALID_PLANNER_OUTPUT', 400);
+    throw failure(
+      'generateQuizTiers requires plannerOutput from generatePlannerAndCurriculum.',
+      'INVALID_PLANNER_OUTPUT',
+      400
+    );
   }
 
   const safeCurriculum = serializers.stripTrainerOnlyFields(plannerOutput);
@@ -826,12 +972,14 @@ async function generateQuizTiers(context, plannerOutput) {
     current_level: settings.current_level,
     previously_asked_questions: settings.previously_asked_questions,
     curriculum_context: safeCurriculum,
-    curriculum_injection: settings.curriculum_injection
+    curriculum_injection: settings.curriculum_injection,
   });
 
   const parsed = await requestJSON(
     rendered,
-    'Create the three quiz tiers for ' + settings.topic + ' from this curriculum context. Follow the JSON schema exactly.',
+    'Create the three quiz tiers for ' +
+      settings.topic +
+      ' from this curriculum context. Follow the JSON schema exactly.',
     settings.allowFallback
   );
   return validateQuizOutput(parsed || buildQuizFallback(settings), settings);
@@ -846,19 +994,24 @@ const DIFFICULTY_SCORES = {
   level2: 65,
   l3: 90,
   hard: 90,
-  level3: 90
+  level3: 90,
 };
 
 function scoreForDifficulty(difficulty) {
-  const key = String(difficulty || '').trim().toLowerCase().replace(/\s+/g, '');
+  const key = String(difficulty || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
   return DIFFICULTY_SCORES[key] || DIFFICULTY_SCORES.level2;
 }
 
 function buildParallelFallback(concept, difficulty, settings) {
   const question = generator.buildFallbackQuiz(concept, scoreForDifficulty(difficulty), {
     count: 1,
-    level: generator.difficultyNumber(difficulty) || generator.difficultyForMastery(scoreForDifficulty(difficulty)),
-    usedPrompts: settings.usedPrompts || []
+    level:
+      generator.difficultyNumber(difficulty) ||
+      generator.difficultyForMastery(scoreForDifficulty(difficulty)),
+    usedPrompts: settings.usedPrompts || [],
   })[0];
   const options = question.options.map(function (optionText, index) {
     return { id: optionLetter(index), text: optionText };
@@ -872,7 +1025,7 @@ function buildParallelFallback(concept, difficulty, settings) {
     correctOptionId: correctOptionId,
     answerKey: question.correctAnswer,
     explanation: 'Use the same relationship as the worked example, with the new numbers.',
-    hint: question.hint
+    hint: question.hint,
   };
 }
 
@@ -892,26 +1045,44 @@ async function generateParallelQuestion(failedQuestionConcept, difficulty, optio
      matches the student's board, notation and illustration context. */
   const studentProfile = isObject(settings.student) ? Object.assign({}, settings.student) : {};
   if (!studentProfile.board && settings.board) studentProfile.board = settings.board;
-  const injection = text(settings.curriculum_injection,
-    curriculumContext.getCurriculumContext(studentProfile).promptInjection);
-  const rendered = SYSTEM_PROMPT_PARALLEL
-    .replace('{{curriculum_injection}}', injection)
-    .replace('[failedQuestionConcept]', concept);
-  const parsed = await requestJSON(
+  const injection = text(
+    settings.curriculum_injection,
+    curriculumContext.getCurriculumContext(studentProfile).promptInjection
+  );
+  const rendered = SYSTEM_PROMPT_PARALLEL.replace('{{curriculum_injection}}', injection).replace(
+    '[failedQuestionConcept]',
+    concept
+  );
+  let parsed = await requestJSON(
     rendered,
-    'Difficulty: ' + generator.difficultyLabel(difficulty) +
+    'Difficulty: ' +
+      generator.difficultyLabel(difficulty) +
       '. Test the same concept with a fresh context. Do not repeat an earlier stem.',
     settings.allowFallback
   );
-  const output = validateParallelQuestionOutput(
-    parsed || buildParallelFallback(concept, difficulty, settings),
-    { usedPrompts: settings.usedPrompts || [] }
-  );
+  let usedFallback = !parsed;
+  let output;
+  try {
+    output = validateParallelQuestionOutput(
+      parsed || buildParallelFallback(concept, difficulty, settings),
+      { usedPrompts: settings.usedPrompts || [] }
+    );
+  } catch (error) {
+    /* A remote item with arithmetic that contradicts its own stem must not
+       reach the child or block the section. The deterministic fallback is the
+       reviewed source of truth for this curriculum. */
+    if (!parsed || error.code !== 'CLOUDFLARE_ANSWER_MISMATCH') throw error;
+    parsed = null;
+    usedFallback = true;
+    output = validateParallelQuestionOutput(buildParallelFallback(concept, difficulty, settings), {
+      usedPrompts: settings.usedPrompts || [],
+    });
+  }
 
   return Object.assign({}, output, {
     concept: concept,
     difficulty: generator.difficultyLabel(difficulty),
-    source: parsed ? 'ai' : 'fallback'
+    source: usedFallback ? 'fallback' : 'ai',
   });
 }
 
@@ -941,5 +1112,5 @@ module.exports = Object.assign({}, generator, {
   validateQuizOutput: validateQuizOutput,
   validateParallelQuestionOutput: validateParallelQuestionOutput,
   generateQuizDraft: generateQuizDraft,
-  difficultyLabel: generator.difficultyLabel
+  difficultyLabel: generator.difficultyLabel,
 });

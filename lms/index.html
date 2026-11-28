@@ -1,397 +1,710 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mathify — Curriculum LMS</title>
-<meta name="description" content="Mathify LMS: courses, modules and typed teaching assets in one curriculum library.">
-<link rel="stylesheet" href="../assets/poppins.css">
-<link rel="stylesheet" href="../shared/tokens.css">
-<link rel="stylesheet" href="shell.css">
-<link rel="stylesheet" href="library.css">
-<link rel="stylesheet" href="detail.css">
-<link rel="stylesheet" href="responsive.css">
-<link rel="stylesheet" href="planner.css">
-<link rel="stylesheet" href="subjectPlanner.css">
-<link rel="stylesheet" href="assignedPlanner.css">
-<style>
-  .ic,.icon-btn svg,.context svg,.search svg,.filter-search svg,.tabs svg,
-  .course-card svg,.detail svg,.sheet svg,.search-overlay svg,.asset-btn svg,
-  .toast svg,.pill-chip svg{
-    fill:none;stroke:currentColor;stroke-width:1.6;
-    stroke-linecap:round;stroke-linejoin:round;
-  }
-  .topbar .right{position:relative}
-  .lms-popover{
-    position:absolute;top:52px;right:0;z-index:120;width:250px;padding:14px;
-    border:1px solid var(--line);border-radius:var(--r-sm);background:var(--paper);
-    font-size:12px;line-height:1.5;box-shadow:0 12px 28px rgba(14,20,32,.1)
-  }
-  .lms-popover p{margin:8px 0 0;color:var(--muted)}
-  .preview-banner{
-    margin:0 0 18px;padding:10px 12px;border:1px solid var(--line);
-    border-left:3px solid var(--coral);border-radius:var(--r-sm);
-    background:var(--paper);color:var(--muted);font-size:12px;line-height:1.5
-  }
-  .preview-banner b{color:var(--ink);font-weight:600}
-  .lms-popover a{display:inline-block;margin-top:10px;border-bottom:1px solid var(--coral)}
-  .wp-agent-tools{
-    margin-top:18px;padding:14px 16px;border:1px solid var(--line);
-    border-radius:var(--r-sm);background:var(--paper)
-  }
-  .wp-lock-banner{
-    padding:12px 14px;border:2px solid var(--coral-deep);border-left:6px solid var(--coral-deep);
-    border-radius:var(--r-xs);background:#FFF0E9
-  }
-  .wp-lock-banner strong{display:block;font-size:13px;color:var(--coral-deep)}
-  .wp-lock-banner p{margin:5px 0 0;font-size:11px;line-height:1.55;color:var(--ink)}
-  .wp-own-banner{
-    margin:0 0 10px;padding:9px 11px;border-left:3px solid var(--teal, #12968c);
-    background:var(--cream);font-size:11px;color:var(--muted)
-  }
-  .wp-agent-actions{display:flex;flex-wrap:wrap;gap:8px}
-  .wp-agent-actions button[disabled]{opacity:.5;cursor:not-allowed}
-  .wp-alternate-form{
-    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;
-    margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)
-  }
-  .wp-alternate-label{display:block;font:500 9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-  .wp-alternate-note{
-    display:block;width:100%;margin-top:6px;padding:8px 10px;resize:vertical;
-    border:1px solid var(--line);border-radius:var(--r-xs);background:var(--paper);
-    font:400 11px/1.5 var(--sans);color:var(--ink)
-  }
-  .wp-alternate-form .btn{white-space:nowrap}
-  @media (max-width:720px){.wp-alternate-form{grid-template-columns:1fr}}
-  [hidden]{display:none !important}
-</style>
-</head>
-<body data-view="library">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mathify — Curriculum LMS</title>
+    <meta
+      name="description"
+      content="Mathify LMS: courses, modules and typed teaching assets in one curriculum library."
+    />
+    <link rel="stylesheet" href="../assets/poppins.css" />
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <link rel="stylesheet" href="shell.css" />
+    <link rel="stylesheet" href="library.css" />
+    <link rel="stylesheet" href="detail.css" />
+    <link rel="stylesheet" href="responsive.css" />
+    <link rel="stylesheet" href="planner.css" />
+    <link rel="stylesheet" href="subjectPlanner.css" />
+    <link rel="stylesheet" href="assignedPlanner.css" />
+    <style>
+      .ic,
+      .icon-btn svg,
+      .context svg,
+      .search svg,
+      .filter-search svg,
+      .tabs svg,
+      .course-card svg,
+      .detail svg,
+      .sheet svg,
+      .search-overlay svg,
+      .asset-btn svg,
+      .toast svg,
+      .pill-chip svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .topbar .right {
+        position: relative;
+      }
+      .lms-popover {
+        position: absolute;
+        top: 52px;
+        right: 0;
+        z-index: 120;
+        width: 250px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        background: var(--paper);
+        font-size: 12px;
+        line-height: 1.5;
+        box-shadow: 0 12px 28px rgba(14, 20, 32, 0.1);
+      }
+      .lms-popover p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+      .preview-banner {
+        margin: 0 0 18px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--coral);
+        border-radius: var(--r-sm);
+        background: var(--paper);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .preview-banner b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .contract-strip {
+        margin: 0 0 18px;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--teal, #12968c);
+        border-radius: var(--r-sm);
+        background: var(--paper);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .contract-strip .mono {
+        margin-right: 8px;
+        color: var(--muted);
+      }
+      .contract-strip p {
+        display: inline;
+        margin: 0;
+        color: var(--ink);
+      }
+      .lms-popover a {
+        display: inline-block;
+        margin-top: 10px;
+        border-bottom: 1px solid var(--coral);
+      }
+      .wp-agent-tools {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        background: var(--paper);
+      }
+      .wp-lock-banner {
+        padding: 12px 14px;
+        border: 2px solid var(--coral-deep);
+        border-left: 6px solid var(--coral-deep);
+        border-radius: var(--r-xs);
+        background: #fff0e9;
+      }
+      .wp-lock-banner strong {
+        display: block;
+        font-size: 13px;
+        color: var(--coral-deep);
+      }
+      .wp-lock-banner p {
+        margin: 5px 0 0;
+        font-size: 11px;
+        line-height: 1.55;
+        color: var(--ink);
+      }
+      .wp-own-banner {
+        margin: 0 0 10px;
+        padding: 9px 11px;
+        border-left: 3px solid var(--teal, #12968c);
+        background: var(--cream);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .wp-agent-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .wp-agent-actions button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .wp-alternate-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--line);
+      }
+      .wp-alternate-label {
+        display: block;
+        font: 500 9px var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .wp-alternate-note {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 8px 10px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: var(--r-xs);
+        background: var(--paper);
+        font: 400 11px/1.5 var(--sans);
+        color: var(--ink);
+      }
+      .wp-alternate-form .btn {
+        white-space: nowrap;
+      }
+      @media (max-width: 720px) {
+        .wp-alternate-form {
+          grid-template-columns: 1fr;
+        }
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body data-view="library">
+    <a class="skip" href="#main">Skip to content</a>
 
-<a class="skip" href="#main">Skip to content</a>
+    <!-- ===================== icon sprite ===================== -->
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+    >
+      <symbol id="i-library" viewBox="0 0 24 24">
+        <rect x="3.5" y="4" width="17" height="16" rx="2" />
+        <path d="M7.5 4v16M11 8.5h6M11 12h6M11 15.5h4" />
+      </symbol>
+      <symbol id="i-course" viewBox="0 0 24 24">
+        <path
+          d="M4.5 5.5h6.2c1.3 0 2.3 1 2.3 2.3V20c0-1.3-1-2.3-2.3-2.3H4.5zM19.5 5.5h-6.2A2.3 2.3 0 0 0 11 7.8V20c0-1.3 1-2.3 2.3-2.3h6.2z"
+        />
+      </symbol>
+      <symbol id="i-module" viewBox="0 0 24 24">
+        <rect x="3.5" y="5" width="17" height="14" rx="2" />
+        <path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 13.5h7M8.5 16.5h4" />
+      </symbol>
+      <symbol id="i-asset" viewBox="0 0 24 24">
+        <path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z" />
+        <path d="M14 3.5V8h4M8.5 12h7M8.5 15.5h7" />
+      </symbol>
+      <symbol id="i-review" viewBox="0 0 24 24">
+        <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4.5V9h-4.5" />
+        <path d="M12 8v4.5l3 1.5" />
+      </symbol>
+      <symbol id="i-insight" viewBox="0 0 24 24">
+        <path d="M4 19.5h16M6.5 16v-4M11 16V7.5M15.5 16v-6M20 16v-9" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="6.5" />
+        <path d="m16 16 4.5 4.5" />
+      </symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24">
+        <path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z" />
+        <path d="M10 18.5a2.2 2.2 0 0 0 4 0" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="i-note" viewBox="0 0 24 24">
+        <rect x="4.5" y="3.5" width="15" height="17" rx="2" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </symbol>
+      <symbol id="i-worksheet" viewBox="0 0 24 24">
+        <rect x="5" y="3.5" width="14" height="17" rx="2" />
+        <path d="M8.5 3.5v17M11.5 9h4.5M11.5 13h4.5" />
+      </symbol>
+      <symbol id="i-flash" viewBox="0 0 24 24">
+        <rect x="3.5" y="6" width="17" height="12" rx="2" />
+        <path d="M7 10h4v4H7zM14 10h3M14 13h3" />
+      </symbol>
+      <symbol id="i-quiz" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M9.7 9.4a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1.1.9-1.1 1.6v.4M12 17h.01" />
+      </symbol>
+      <symbol id="i-recording" viewBox="0 0 24 24">
+        <rect x="3.5" y="5" width="17" height="14" rx="2" />
+        <path d="M10.2 9.2v5.6l4.4-2.8z" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7" /></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1.3" />
+        <circle cx="12" cy="12" r="1.3" />
+        <circle cx="19" cy="12" r="1.3" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="12" height="12" rx="2" />
+        <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+      </symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24">
+        <path d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9z" />
+      </symbol>
+    </svg>
 
-<!-- ===================== icon sprite ===================== -->
-<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
-  <symbol id="i-library" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7.5 4v16M11 8.5h6M11 12h6M11 15.5h4"/></symbol>
-  <symbol id="i-course" viewBox="0 0 24 24"><path d="M4.5 5.5h6.2c1.3 0 2.3 1 2.3 2.3V20c0-1.3-1-2.3-2.3-2.3H4.5zM19.5 5.5h-6.2A2.3 2.3 0 0 0 11 7.8V20c0-1.3 1-2.3 2.3-2.3h6.2z"/></symbol>
-  <symbol id="i-module" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 13.5h7M8.5 16.5h4"/></symbol>
-  <symbol id="i-asset" viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M14 3.5V8h4M8.5 12h7M8.5 15.5h7"/></symbol>
-  <symbol id="i-review" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4.5V9h-4.5"/><path d="M12 8v4.5l3 1.5"/></symbol>
-  <symbol id="i-insight" viewBox="0 0 24 24"><path d="M4 19.5h16M6.5 16v-4M11 16V7.5M15.5 16v-6M20 16v-9"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
-  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z"/><path d="M10 18.5a2.2 2.2 0 0 0 4 0"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
-  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
-  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M9.4 7H17v7.6"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
-  <symbol id="i-note" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
-  <symbol id="i-worksheet" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 3.5v17M11.5 9h4.5M11.5 13h4.5"/></symbol>
-  <symbol id="i-flash" viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M7 10h4v4H7zM14 10h3M14 13h3"/></symbol>
-  <symbol id="i-quiz" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.4a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1.1.9-1.1 1.6v.4M12 17h.01"/></symbol>
-  <symbol id="i-recording" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M10.2 9.2v5.6l4.4-2.8z"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
-  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
-  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
-  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9z"/></symbol>
-</svg>
+    <div class="shell">
+      <!-- ===================== left rail ===================== -->
+      <aside class="rail" aria-label="Curriculum navigation">
+        <a class="brand" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
+        <span class="rail-sub">Curriculum · LMS</span>
 
-<div class="shell">
+        <nav class="nav" aria-label="Library sections">
+          <a href="#main" class="active" data-nav aria-current="page"
+            ><svg class="ic" aria-hidden="true"><use href="#i-library" /></svg
+            ><span>Library</span></a
+          >
+          <a href="#coursesTitle" data-nav
+            ><svg class="ic" aria-hidden="true"><use href="#i-course" /></svg
+            ><span>Courses</span></a
+          >
+          <a href="#detailTitle" data-nav
+            ><svg class="ic" aria-hidden="true"><use href="#i-module" /></svg
+            ><span>Modules</span></a
+          >
+          <a href="#assetFilters" data-nav
+            ><svg class="ic" aria-hidden="true"><use href="#i-asset" /></svg><span>Assets</span></a
+          >
+          <a href="#coursesTitle" data-nav data-filter-jump="review"
+            ><svg class="ic" aria-hidden="true"><use href="#i-review" /></svg><span>Review</span
+            ><span class="nav-count">4</span></a
+          >
+          <a href="#libraryHealth" data-nav
+            ><svg class="ic" aria-hidden="true"><use href="#i-insight" /></svg
+            ><span>Insights</span></a
+          >
+        </nav>
 
-  <!-- ===================== left rail ===================== -->
-  <aside class="rail" aria-label="Curriculum navigation">
-    <a class="brand" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
-    <span class="rail-sub">Curriculum · LMS</span>
+        <div class="rail-foot">
+          <div class="health-card" id="libraryHealth">
+            <span class="mono">Library health</span>
+            <div class="health-big"><b class="num">238</b><span>assets</span></div>
+            <p>Across 6 courses and 44 modules. 12 assets need a second look.</p>
+            <div class="health-bar"><i style="width: 78%"></i></div>
+            <span class="health-cap mono">78% publish-ready</span>
+          </div>
+          <div class="user">
+            <span class="avatar" aria-hidden="true">AR</span>
+            <span class="user-txt"><b>Ananya Rao</b><span>Course author · Mathematics</span></span>
+          </div>
+          <div class="rail-note"><span>v1.0</span><span>2026</span></div>
+        </div>
+      </aside>
 
-    <nav class="nav" aria-label="Library sections">
-      <a href="#main" class="active" data-nav aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-library"/></svg><span>Library</span></a>
-      <a href="#coursesTitle" data-nav><svg class="ic" aria-hidden="true"><use href="#i-course"/></svg><span>Courses</span></a>
-      <a href="#detailTitle" data-nav><svg class="ic" aria-hidden="true"><use href="#i-module"/></svg><span>Modules</span></a>
-      <a href="#assetFilters" data-nav><svg class="ic" aria-hidden="true"><use href="#i-asset"/></svg><span>Assets</span></a>
-      <a href="#coursesTitle" data-nav data-filter-jump="review"><svg class="ic" aria-hidden="true"><use href="#i-review"/></svg><span>Review</span><span class="nav-count">4</span></a>
-      <a href="#libraryHealth" data-nav><svg class="ic" aria-hidden="true"><use href="#i-insight"/></svg><span>Insights</span></a>
+      <!-- ===================== workspace ===================== -->
+      <div class="workspace">
+        <header class="topbar">
+          <a class="brand-m" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
+
+          <button class="context" id="courseContext" aria-haspopup="dialog">
+            <span class="context-mark" aria-hidden="true">R</span>
+            <span class="context-txt">
+              <span class="k mono">Selected course</span>
+              <span class="v" id="contextLabel">Ratios &amp; Proportion</span>
+            </span>
+            <svg class="chev" aria-hidden="true"><use href="#i-chev-down" /></svg>
+          </button>
+
+          <div class="right">
+            <button class="search" id="searchOpen" aria-haspopup="dialog">
+              <svg aria-hidden="true"><use href="#i-search" /></svg>
+              <span class="search-ph">Search courses, modules, assets</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <button
+              class="icon-btn mobile-search"
+              id="mobileSearch"
+              aria-label="Search courses and modules"
+            >
+              <svg aria-hidden="true"><use href="#i-search" /></svg>
+            </button>
+            <button
+              class="icon-btn"
+              id="lmsNotificationsBtn"
+              aria-label="Notifications, 2 unread"
+              aria-expanded="false"
+            >
+              <svg aria-hidden="true"><use href="#i-bell" /></svg
+              ><span class="badge" aria-hidden="true"></span>
+            </button>
+            <button
+              class="avatar avatar-btn"
+              id="lmsProfileBtn"
+              aria-label="AR — open profile"
+              aria-expanded="false"
+            >
+              AR
+            </button>
+            <div class="lms-popover" id="lmsNotificationsPanel" hidden>
+              <span class="mono">Notifications</span>
+              <p>1 course is waiting for review.</p>
+              <p>1 curriculum comment is unread.</p>
+            </div>
+            <div class="lms-popover" id="lmsProfilePanel" hidden>
+              <span class="mono">Ananya Rao</span>
+              <p>Course author · Mathematics</p>
+              <a href="../privacy.html">Privacy &amp; data</a>
+            </div>
+          </div>
+        </header>
+
+        <main class="page" id="main">
+          <p class="preview-banner" role="status">
+            <b>Curriculum preview.</b> The course library is partial: course, module, review and
+            planner designer are usable; pack import and publish controls are not yet enabled.
+          </p>
+
+          <section class="contract-strip" aria-label="Curriculum invariants">
+            <span class="mono">CURRICULUM CONTRACT</span>
+            <p>§§0–14 · §14 last · Quiz 80/10/+15%/80 · Levels 1/2/3.</p>
+          </section>
+
+          <div class="lms-denied" id="lmsDenied" role="alert" hidden>
+            <h2>LMS access is founder, trainer and planner agent only.</h2>
+            <p>
+              Relationship managers cannot open courses, modules or planners. No LMS request was
+              made for this account.
+            </p>
+          </div>
+
+          <div class="page-head">
+            <div>
+              <p class="eyebrow">Curriculum · Wednesday 25 November 2026</p>
+              <h1>Build once. Teach everywhere<em>.</em></h1>
+              <p class="sub">
+                <span id="headCourses">6 courses</span
+                ><span class="dot-sep" aria-hidden="true"></span>
+                <span id="headModules">44 modules</span
+                ><span class="dot-sep" aria-hidden="true"></span>
+                <span id="headAssets">238 typed assets</span
+                ><span class="dot-sep" aria-hidden="true"></span>
+                <span id="headReview">4 need review</span>
+              </p>
+            </div>
+            <div class="head-actions">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="importPackBtn"
+                disabled
+                title="Import packs are not enabled in this workspace."
+              >
+                Import pack
+              </button>
+              <button class="btn btn-ghost btn-sm" id="plannerBtn">Planner designer</button>
+              <button class="btn btn-coral btn-sm" id="newCourseBtn" data-sheet="newCourse">
+                New course
+              </button>
+            </div>
+          </div>
+
+          <section class="library-toolbar" aria-label="Course filters">
+            <div class="filters" id="filters" role="tablist" aria-label="Filter courses by status">
+              <button class="active" role="tab" aria-selected="true" data-filter="all">
+                All <span class="num">06</span>
+              </button>
+              <button role="tab" aria-selected="false" data-filter="progress">
+                In progress <span class="num">03</span>
+              </button>
+              <button role="tab" aria-selected="false" data-filter="review">
+                In review <span class="num">01</span>
+              </button>
+              <button role="tab" aria-selected="false" data-filter="published">
+                Published <span class="num">02</span>
+              </button>
+              <button role="tab" aria-selected="false" data-filter="draft">
+                Draft <span class="num">01</span>
+              </button>
+            </div>
+            <label class="filter-search">
+              <svg aria-hidden="true"><use href="#i-search" /></svg>
+              <input
+                type="search"
+                id="librarySearch"
+                placeholder="Find a course or module"
+                aria-label="Find a course or module"
+              />
+            </label>
+            <div class="view-switch" aria-label="Card density">
+              <button class="active" aria-label="Grid view" aria-pressed="true" data-density="grid">
+                <svg aria-hidden="true"><use href="#i-grid" /></svg>
+              </button>
+              <button aria-label="List view" aria-pressed="false" data-density="list">
+                <svg aria-hidden="true"><use href="#i-list" /></svg>
+              </button>
+            </div>
+          </section>
+
+          <div class="library-layout">
+            <section class="courses-block" aria-labelledby="coursesTitle">
+              <div class="block-head">
+                <span class="mono" id="coursesTitle">Course library</span>
+                <span class="count" id="courseCount">06</span>
+                <button
+                  class="block-link"
+                  id="sortBtn"
+                  data-toast="Courses are sorted by last edit."
+                >
+                  Last edited <svg aria-hidden="true"><use href="#i-chev-down" /></svg>
+                </button>
+              </div>
+
+              <div class="course-grid" id="courseGrid" aria-live="polite"></div>
+
+              <div class="empty-state" id="emptyState" hidden>
+                <span class="empty-mark" aria-hidden="true"
+                  ><svg><use href="#i-search" /></svg
+                ></span>
+                <h2>No courses match that filter.</h2>
+                <p>Try another status or clear the search to see the full library.</p>
+                <button class="btn btn-ghost btn-sm" id="clearFilters">Clear filters</button>
+              </div>
+
+              <div class="loading-state" id="loadingState" hidden aria-label="Loading courses">
+                <span class="skel skel-card"></span><span class="skel skel-card"></span>
+                <span class="skel skel-card"></span><span class="skel skel-card"></span>
+              </div>
+            </section>
+
+            <aside class="detail" id="detail" aria-labelledby="detailTitle">
+              <div id="detailContent"></div>
+            </aside>
+          </div>
+
+          <footer class="foot">
+            <a href="../pricing.html">Pricing</a>
+            <a href="../terms.html">Terms</a>
+            <a href="../privacy.html">Privacy</a>
+            <a href="../refund.html">Refund</a>
+            <a href="../contact.html">Contact</a>
+            <span class="foot-c">Curriculum library · trainer workspace</span>
+            <span>© 2026 Mathify</span>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <!-- ===================== mobile tabs ===================== -->
+    <nav class="tabs" aria-label="Primary">
+      <button class="active" data-tab data-tab-target="main" aria-current="page">
+        <svg aria-hidden="true"><use href="#i-library" /></svg><span>Library</span>
+      </button>
+      <button data-tab data-tab-target="coursesTitle">
+        <svg aria-hidden="true"><use href="#i-course" /></svg><span>Courses</span>
+      </button>
+      <button data-tab data-tab-target="detailTitle">
+        <svg aria-hidden="true"><use href="#i-module" /></svg><span>Modules</span>
+      </button>
+      <button data-tab data-tab-target="assetFilters">
+        <svg aria-hidden="true"><use href="#i-asset" /></svg><span>Assets</span>
+      </button>
+      <button data-tab data-tab-target="coursesTitle" data-filter-jump="review">
+        <svg aria-hidden="true"><use href="#i-review" /></svg><span>Review</span>
+      </button>
     </nav>
 
-    <div class="rail-foot">
-      <div class="health-card" id="libraryHealth">
-        <span class="mono">Library health</span>
-        <div class="health-big"><b class="num">238</b><span>assets</span></div>
-        <p>Across 6 courses and 44 modules. 12 assets need a second look.</p>
-        <div class="health-bar"><i style="width:78%"></i></div>
-        <span class="health-cap mono">78% publish-ready</span>
-      </div>
-      <div class="user">
-        <span class="avatar" aria-hidden="true">AR</span>
-        <span class="user-txt"><b>Ananya Rao</b><span>Course author · Mathematics</span></span>
-      </div>
-      <div class="rail-note"><span>v1.0</span><span>2026</span></div>
-    </div>
-  </aside>
-
-  <!-- ===================== workspace ===================== -->
-  <div class="workspace">
-
-    <header class="topbar">
-      <a class="brand-m" href="../apps.html" aria-label="Mathify home">Mathify<i>.</i></a>
-
-      <button class="context" id="courseContext" aria-haspopup="dialog">
-        <span class="context-mark" aria-hidden="true">R</span>
-        <span class="context-txt">
-          <span class="k mono">Selected course</span>
-          <span class="v" id="contextLabel">Ratios &amp; Proportion</span>
-        </span>
-        <svg class="chev" aria-hidden="true"><use href="#i-chev-down"/></svg>
-      </button>
-
-      <div class="right">
-        <button class="search" id="searchOpen" aria-haspopup="dialog">
-          <svg aria-hidden="true"><use href="#i-search"/></svg>
-          <span class="search-ph">Search courses, modules, assets</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <button class="icon-btn mobile-search" id="mobileSearch" aria-label="Search courses and modules">
-          <svg aria-hidden="true"><use href="#i-search"/></svg>
-        </button>
-        <button class="icon-btn" id="lmsNotificationsBtn" aria-label="Notifications, 2 unread" aria-expanded="false">
-          <svg aria-hidden="true"><use href="#i-bell"/></svg><span class="badge" aria-hidden="true"></span>
-        </button>
-        <button class="avatar avatar-btn" id="lmsProfileBtn" aria-label="AR — open profile" aria-expanded="false">AR</button>
-        <div class="lms-popover" id="lmsNotificationsPanel" hidden>
-          <span class="mono">Notifications</span>
-          <p>1 course is waiting for review.</p>
-          <p>1 curriculum comment is unread.</p>
-        </div>
-        <div class="lms-popover" id="lmsProfilePanel" hidden>
-          <span class="mono">Ananya Rao</span>
-          <p>Course author · Mathematics</p>
-          <a href="../privacy.html">Privacy &amp; data</a>
-        </div>
-      </div>
-    </header>
-
-    <main class="page" id="main">
-      <p class="preview-banner" role="status"><b>Curriculum preview.</b> The course library is partial: course, module, review and planner designer are usable; pack import and publish controls are not yet enabled.</p>
-
-      <div class="lms-denied" id="lmsDenied" role="alert" hidden>
-        <h2>LMS access is founder, trainer and planner agent only.</h2>
-        <p>Relationship managers cannot open courses, modules or planners. No LMS request was made for this account.</p>
-      </div>
-
-      <div class="page-head">
-        <div>
-          <p class="eyebrow">Curriculum · Wednesday 25 November 2026</p>
-          <h1>Build once. Teach everywhere<em>.</em></h1>
-          <p class="sub">
-            <span id="headCourses">6 courses</span><span class="dot-sep" aria-hidden="true"></span>
-            <span id="headModules">44 modules</span><span class="dot-sep" aria-hidden="true"></span>
-            <span id="headAssets">238 typed assets</span><span class="dot-sep" aria-hidden="true"></span>
-            <span id="headReview">4 need review</span>
-          </p>
-        </div>
-        <div class="head-actions">
-          <button class="btn btn-ghost btn-sm" id="importPackBtn" disabled title="Import packs are not enabled in this workspace.">Import pack</button>
-          <button class="btn btn-ghost btn-sm" id="plannerBtn">Planner designer</button>
-          <button class="btn btn-coral btn-sm" id="newCourseBtn" data-sheet="newCourse">New course</button>
-        </div>
-      </div>
-
-      <section class="library-toolbar" aria-label="Course filters">
-        <div class="filters" id="filters" role="tablist" aria-label="Filter courses by status">
-          <button class="active" role="tab" aria-selected="true" data-filter="all">All <span class="num">06</span></button>
-          <button role="tab" aria-selected="false" data-filter="progress">In progress <span class="num">03</span></button>
-          <button role="tab" aria-selected="false" data-filter="review">In review <span class="num">01</span></button>
-          <button role="tab" aria-selected="false" data-filter="published">Published <span class="num">02</span></button>
-          <button role="tab" aria-selected="false" data-filter="draft">Draft <span class="num">01</span></button>
-        </div>
-        <label class="filter-search">
-          <svg aria-hidden="true"><use href="#i-search"/></svg>
-          <input type="search" id="librarySearch" placeholder="Find a course or module" aria-label="Find a course or module">
-        </label>
-        <div class="view-switch" aria-label="Card density">
-          <button class="active" aria-label="Grid view" aria-pressed="true" data-density="grid"><svg aria-hidden="true"><use href="#i-grid"/></svg></button>
-          <button aria-label="List view" aria-pressed="false" data-density="list"><svg aria-hidden="true"><use href="#i-list"/></svg></button>
-        </div>
-      </section>
-
-      <div class="library-layout">
-
-        <section class="courses-block" aria-labelledby="coursesTitle">
-          <div class="block-head">
-            <span class="mono" id="coursesTitle">Course library</span>
-            <span class="count" id="courseCount">06</span>
-            <button class="block-link" id="sortBtn" data-toast="Courses are sorted by last edit.">Last edited <svg aria-hidden="true"><use href="#i-chev-down"/></svg></button>
-          </div>
-
-          <div class="course-grid" id="courseGrid" aria-live="polite"></div>
-
-          <div class="empty-state" id="emptyState" hidden>
-            <span class="empty-mark" aria-hidden="true"><svg><use href="#i-search"/></svg></span>
-            <h2>No courses match that filter.</h2>
-            <p>Try another status or clear the search to see the full library.</p>
-            <button class="btn btn-ghost btn-sm" id="clearFilters">Clear filters</button>
-          </div>
-
-          <div class="loading-state" id="loadingState" hidden aria-label="Loading courses">
-            <span class="skel skel-card"></span><span class="skel skel-card"></span>
-            <span class="skel skel-card"></span><span class="skel skel-card"></span>
-          </div>
+    <!-- ===================== sheets ===================== -->
+    <div class="sheet-layer" id="sheetLayer" hidden>
+      <div class="scrim" data-close-sheet></div>
+      <div class="sheet-center">
+        <section
+          class="sheet sheet-course"
+          id="sheet-course"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sheetCourseTitle"
+          hidden
+        >
+          <div id="sheetDetailContent"></div>
         </section>
 
-        <aside class="detail" id="detail" aria-labelledby="detailTitle">
-          <div id="detailContent"></div>
-        </aside>
-      </div>
+        <section
+          class="sheet sheet-new"
+          id="sheet-new"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="newCourseTitle"
+          hidden
+        >
+          <header class="sheet-head">
+            <div>
+              <span class="mono">New course</span>
+              <h2 id="newCourseTitle">Start with a clean outline.</h2>
+            </div>
+            <button class="sheet-x" type="button" data-close-sheet aria-label="Close">
+              <svg aria-hidden="true"><use href="#i-x" /></svg>
+            </button>
+          </header>
+          <form id="newCourseForm">
+            <div class="sheet-body">
+              <label class="field">
+                <span class="mono">Course name</span>
+                <input id="newName" type="text" placeholder="e.g. Ratio word problems" required />
+              </label>
+              <div class="field-row">
+                <label class="field">
+                  <span class="mono">Level</span>
+                  <select id="newLevel">
+                    <option>Class 5</option>
+                    <option>Class 6</option>
+                    <option selected>Class 6–7</option>
+                    <option>Class 8</option>
+                    <option>Class 9</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="mono">Topic</span>
+                  <select id="newTopic">
+                    <option value="Mathematics" selected>Mathematics</option>
+                    <option value="Geometry">Geometry</option>
+                    <option value="Mastery">Mastery</option>
+                    <option value="Coding">Coding</option>
+                    <option value="English Communication">English Communication</option>
+                  </select>
+                </label>
+              </div>
+              <p class="field-note">
+                A new course opens with one empty module. You can add board notes, worksheets,
+                flashcards, quizzes and recordings inside it.
+              </p>
+            </div>
+            <footer class="sheet-foot">
+              <button class="btn btn-ghost btn-sm" type="button" data-close-sheet>Cancel</button>
+              <button class="btn btn-coral btn-sm" type="submit">Create course</button>
+            </footer>
+          </form>
+        </section>
 
-      <footer class="foot">
-        <a href="../pricing.html">Pricing</a>
-        <a href="../terms.html">Terms</a>
-        <a href="../privacy.html">Privacy</a>
-        <a href="../refund.html">Refund</a>
-        <a href="../contact.html">Contact</a>
-        <span class="foot-c">Curriculum library · trainer workspace</span>
-        <span>© 2026 Mathify</span>
-      </footer>
-    </main>
-  </div>
-</div>
-
-<!-- ===================== mobile tabs ===================== -->
-<nav class="tabs" aria-label="Primary">
-  <button class="active" data-tab data-tab-target="main" aria-current="page"><svg aria-hidden="true"><use href="#i-library"/></svg><span>Library</span></button>
-  <button data-tab data-tab-target="coursesTitle"><svg aria-hidden="true"><use href="#i-course"/></svg><span>Courses</span></button>
-  <button data-tab data-tab-target="detailTitle"><svg aria-hidden="true"><use href="#i-module"/></svg><span>Modules</span></button>
-  <button data-tab data-tab-target="assetFilters"><svg aria-hidden="true"><use href="#i-asset"/></svg><span>Assets</span></button>
-  <button data-tab data-tab-target="coursesTitle" data-filter-jump="review"><svg aria-hidden="true"><use href="#i-review"/></svg><span>Review</span></button>
-</nav>
-
-<!-- ===================== sheets ===================== -->
-<div class="sheet-layer" id="sheetLayer" hidden>
-  <div class="scrim" data-close-sheet></div>
-  <div class="sheet-center">
-    <section class="sheet sheet-course" id="sheet-course" role="dialog" aria-modal="true" aria-labelledby="sheetCourseTitle" hidden>
-      <div id="sheetDetailContent"></div>
-    </section>
-
-    <section class="sheet sheet-new" id="sheet-new" role="dialog" aria-modal="true" aria-labelledby="newCourseTitle" hidden>
-      <header class="sheet-head">
-        <div>
-          <span class="mono">New course</span>
-          <h2 id="newCourseTitle">Start with a clean outline.</h2>
-        </div>
-        <button class="sheet-x" type="button" data-close-sheet aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
-      </header>
-      <form id="newCourseForm">
-        <div class="sheet-body">
-          <label class="field">
-            <span class="mono">Course name</span>
-            <input id="newName" type="text" placeholder="e.g. Ratio word problems" required>
-          </label>
-          <div class="field-row">
-            <label class="field">
-              <span class="mono">Level</span>
-              <select id="newLevel">
-                <option>Class 5</option><option>Class 6</option><option selected>Class 6–7</option>
-                <option>Class 8</option><option>Class 9</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="mono">Topic</span>
-              <select id="newTopic">
-                <option value="Mathematics" selected>Mathematics</option>
-                <option value="Geometry">Geometry</option>
-                <option value="Mastery">Mastery</option>
-                <option value="Coding">Coding</option>
-                <option value="English Communication">English Communication</option>
-              </select>
-            </label>
+        <section
+          class="sheet sheet-planner"
+          id="sheet-planner"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="plannerSheetTitle"
+          hidden
+        >
+          <header class="sheet-head">
+            <div>
+              <span class="mono">Planner designer · v1 preview</span>
+              <h2 id="plannerSheetTitle">Draft a lesson without leaking trainer notes.</h2>
+            </div>
+            <button class="sheet-x" type="button" data-close-sheet aria-label="Close">
+              <svg aria-hidden="true"><use href="#i-x" /></svg>
+            </button>
+          </header>
+          <p
+            class="assigned-status"
+            id="assignedPlannerStatus"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div id="assignedPlannerMount"></div>
+          <div class="wp-panel" aria-labelledby="autoPlannerTitle">
+            <div class="wp-panel-head">
+              <div>
+                <span class="mono">Auto planner · registered board and grade</span>
+                <h3 id="autoPlannerTitle">A ready week for the child.</h3>
+                <p>
+                  Choices come from the academic catalogue. Founders edit and regenerate; planner
+                  agents design and file alternate ideas for founder review.
+                </p>
+              </div>
+            </div>
+            <div class="wp-controls">
+              <label class="field">
+                <span>Subject</span>
+                <select id="autoSubject" name="subject" required>
+                  <option value="math" selected>Mathematics</option>
+                  <option value="coding">Coding</option>
+                  <option value="english">English Communication</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Curriculum</span>
+                <select id="autoCurriculum" name="curriculum" required>
+                  <option value="">Select a curriculum</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Grade</span>
+                <select id="autoGrade" name="grade" required>
+                  <option value="">Choose a curriculum first</option>
+                </select>
+              </label>
+              <button class="btn btn-coral btn-sm" type="button" id="autoPlannerLoad">
+                Load planner
+              </button>
+            </div>
+            <p class="wp-status" id="autoPlannerStatus" role="status" aria-live="polite"></p>
+            <div id="autoPlannerView" aria-live="polite"></div>
           </div>
-          <p class="field-note">A new course opens with one empty module. You can add board notes, worksheets, flashcards, quizzes and recordings inside it.</p>
-        </div>
-        <footer class="sheet-foot">
-          <button class="btn btn-ghost btn-sm" type="button" data-close-sheet>Cancel</button>
-          <button class="btn btn-coral btn-sm" type="submit">Create course</button>
-        </footer>
-      </form>
-    </section>
-
-    <section class="sheet sheet-planner" id="sheet-planner" role="dialog" aria-modal="true" aria-labelledby="plannerSheetTitle" hidden>
-      <header class="sheet-head">
-        <div>
-          <span class="mono">Planner designer · v1 preview</span>
-          <h2 id="plannerSheetTitle">Draft a lesson without leaking trainer notes.</h2>
-        </div>
-        <button class="sheet-x" type="button" data-close-sheet aria-label="Close"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
-      </header>
-      <p class="assigned-status" id="assignedPlannerStatus" role="status" aria-live="polite"></p>
-      <div id="assignedPlannerMount"></div>
-      <div class="wp-panel" aria-labelledby="autoPlannerTitle">
-        <div class="wp-panel-head">
-          <div>
-            <span class="mono">Auto planner · registered board and grade</span>
-            <h3 id="autoPlannerTitle">A ready week for the child.</h3>
-            <p>Choices come from the academic catalogue. Founders edit and regenerate; planner agents design and file alternate ideas for founder review.</p>
-          </div>
-        </div>
-        <div class="wp-controls">
-          <label class="field">
-            <span>Subject</span>
-            <select id="autoSubject" name="subject" required>
-              <option value="math" selected>Mathematics</option>
-              <option value="coding">Coding</option>
-              <option value="english">English Communication</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Curriculum</span>
-            <select id="autoCurriculum" name="curriculum" required>
-              <option value="">Select a curriculum</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Grade</span>
-            <select id="autoGrade" name="grade" required>
-              <option value="">Choose a curriculum first</option>
-            </select>
-          </label>
-          <button class="btn btn-coral btn-sm" type="button" id="autoPlannerLoad">Load planner</button>
-        </div>
-        <p class="wp-status" id="autoPlannerStatus" role="status" aria-live="polite"></p>
-        <div id="autoPlannerView" aria-live="polite"></div>
+          <div id="plannerSheetContent"></div>
+        </section>
       </div>
-      <div id="plannerSheetContent"></div>
-    </section>
-  </div>
-</div>
-
-<!-- ===================== search overlay ===================== -->
-<div class="search-overlay" id="searchOverlay" hidden>
-  <div class="search-card" role="dialog" aria-modal="true" aria-label="Search curriculum">
-    <label class="search-field">
-      <svg aria-hidden="true"><use href="#i-search"/></svg>
-      <input id="searchInput" type="search" placeholder="Search courses, modules and assets" autocomplete="off" aria-label="Search curriculum">
-      <button type="button" class="esc" id="searchClose" aria-label="Close search"><span class="esc-txt">Esc</span><svg class="esc-x" aria-hidden="true"><use href="#i-x"/></svg></button>
-    </label>
-    <div class="search-results" id="searchResults" aria-live="polite"></div>
-    <div class="search-quick">
-      <span class="mono">Try</span>
-      <button data-quick="ratio">ratio</button>
-      <button data-quick="flashcards">flashcards</button>
-      <button data-quick="algebra">algebra</button>
     </div>
-  </div>
-</div>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <!-- ===================== search overlay ===================== -->
+    <div class="search-overlay" id="searchOverlay" hidden>
+      <div class="search-card" role="dialog" aria-modal="true" aria-label="Search curriculum">
+        <label class="search-field">
+          <svg aria-hidden="true"><use href="#i-search" /></svg>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Search courses, modules and assets"
+            autocomplete="off"
+            aria-label="Search curriculum"
+          />
+          <button type="button" class="esc" id="searchClose" aria-label="Close search">
+            <span class="esc-txt">Esc</span
+            ><svg class="esc-x" aria-hidden="true"><use href="#i-x" /></svg>
+          </button>
+        </label>
+        <div class="search-results" id="searchResults" aria-live="polite"></div>
+        <div class="search-quick">
+          <span class="mono">Try</span>
+          <button data-quick="ratio">ratio</button>
+          <button data-quick="flashcards">flashcards</button>
+          <button data-quick="algebra">algebra</button>
+        </div>
+      </div>
+    </div>
 
-<script src="access.js"></script>
-<script src="../shared/curriculumOptions.js"></script>
-<script src="api.js"></script>
-<script src="subjectPlanner.js"></script>
-<script src="assignedPlanner.js"></script>
-<script src="autoPlanner.js"></script>
-<script src="app.js"></script>
-<script src="planner.js"></script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="access.js"></script>
+    <script src="../shared/curriculumOptions.js"></script>
+    <script src="api.js"></script>
+    <script src="subjectPlanner.js"></script>
+    <script src="assignedPlanner.js"></script>
+    <script src="autoPlanner.js"></script>
+    <script src="app.js"></script>
+    <script src="planner.js"></script>
+  </body>
 </html>

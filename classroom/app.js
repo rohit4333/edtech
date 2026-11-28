@@ -580,6 +580,12 @@
       .then(function (events) {
         events.forEach(function (event) {
           chatCursor = Math.max(chatCursor, Number(event.seq) || 0);
+          if (event.event === 'board.shared') {
+            /* The server is the only share authority. The full-board control
+               writes through it, so mirror the result onto the front desk. */
+            setBoardShare(Boolean(event.payload && event.payload.shared));
+            return;
+          }
           if (event.event !== 'chat.sent') return;
           var payload = event.payload || {};
           appendChat(payload, classroomApi.role === payload.from);

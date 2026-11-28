@@ -12,32 +12,88 @@
     '/trainer/students': { desk: 'Trainer console', label: 'Students', view: 'students' },
     '/trainer/insights': { desk: 'Trainer console', label: 'Insights', view: 'insights' },
 
-    '/student/home': { desk: 'Student desk', label: 'Home', id: 'overview' },
-    '/student/recordings': { desk: 'Student desk', label: 'Recordings', id: 'recordings' },
-    '/student/mastery': { desk: 'Student desk', label: 'Mastery', id: 'mastery-practice' },
-    '/student/reports': { desk: 'Student desk', label: 'Reports', id: 'trophies' },
-    '/student/schedule': { desk: 'Student desk', label: 'Schedule', id: 'schedule' },
+    '/student/home': { desk: 'Student desk', label: 'Home', id: 'overview', keep: ['wallet'] },
+    '/student/recordings': {
+      desk: 'Student desk',
+      label: 'Recordings',
+      id: 'recordings',
+      keep: ['wallet'],
+    },
+    '/student/mastery': {
+      desk: 'Student desk',
+      label: 'Mastery',
+      id: 'mastery-practice',
+      keep: ['wallet'],
+    },
+    '/student/reports': {
+      desk: 'Student desk',
+      label: 'Reports',
+      id: 'trophies',
+      keep: ['wallet'],
+    },
+    '/student/schedule': {
+      desk: 'Student desk',
+      label: 'Schedule',
+      id: 'schedule',
+      keep: ['wallet'],
+    },
 
     '/founder/overview': { desk: 'Founder settings', label: 'Overview', id: 'overview' },
     '/founder/policy': { desk: 'Founder settings', label: 'Class policy', id: 'policy' },
     '/founder/mastery': { desk: 'Founder settings', label: 'Mastery', id: 'mastery' },
-    '/founder/trainer-policy': { desk: 'Founder settings', label: 'Trainer policy', id: 'trainer-policy' },
+    '/founder/trainer-policy': {
+      desk: 'Founder settings',
+      label: 'Trainer policy',
+      id: 'trainer-policy',
+    },
     '/founder/money': { desk: 'Founder settings', label: 'Money', id: 'money-readonly' },
-    '/founder/announcements': { desk: 'Founder settings', label: 'Announcements', id: 'announcements' },
-    '/founder/trainer-admin': { desk: 'Founder administration', label: 'Trainer administration', id: 'trainer-admin' },
-    '/founder/student-admin': { desk: 'Founder administration', label: 'Student administration', id: 'student-admin' },
-    '/founder/audit': { desk: 'Founder administration', label: 'Manager activity', id: 'audit-log' },
+    '/founder/announcements': {
+      desk: 'Founder settings',
+      label: 'Announcements',
+      id: 'announcements',
+    },
+    '/founder/trainer-admin': {
+      desk: 'Founder administration',
+      label: 'Trainer administration',
+      id: 'trainer-admin',
+    },
+    '/founder/student-admin': {
+      desk: 'Founder administration',
+      label: 'Student administration',
+      id: 'student-admin',
+    },
+    '/founder/audit': {
+      desk: 'Founder administration',
+      label: 'Manager activity',
+      id: 'audit-log',
+    },
 
     /* The separate founder admin app keeps the same sections under its own
        gated entry path so it never shares a bundle with the unified desk. */
     '/founder-admin/overview': { desk: 'Founder admin', label: 'Overview', id: 'overview' },
     '/founder-admin/policy': { desk: 'Founder admin', label: 'Class policy', id: 'policy' },
     '/founder-admin/mastery': { desk: 'Founder admin', label: 'Mastery', id: 'mastery' },
-    '/founder-admin/trainer-policy': { desk: 'Founder admin', label: 'Trainer policy', id: 'trainer-policy' },
+    '/founder-admin/trainer-policy': {
+      desk: 'Founder admin',
+      label: 'Trainer policy',
+      id: 'trainer-policy',
+    },
     '/founder-admin/money': { desk: 'Founder admin', label: 'Money', id: 'money-readonly' },
-    '/founder-admin/announcements': { desk: 'Founder admin', label: 'Announcements', id: 'announcements' },
-    '/founder-admin/trainer-admin': { desk: 'Founder admin', label: 'Trainer administration', id: 'trainer-admin' },
-    '/founder-admin/student-admin': { desk: 'Founder admin', label: 'Student administration', id: 'student-admin' },
+    '/founder-admin/announcements': {
+      desk: 'Founder admin',
+      label: 'Announcements',
+      id: 'announcements',
+    },
+    '/founder-admin/trainer-admin': {
+      desk: 'Founder admin',
+      label: 'Trainer administration',
+      id: 'trainer-admin',
+    },
+    '/founder-admin/student-admin': {
+      desk: 'Founder admin',
+      label: 'Student administration',
+      id: 'student-admin',
+    },
     '/founder-admin/audit': { desk: 'Founder admin', label: 'Manager activity', id: 'audit-log' },
 
     '/rm/dashboard': { desk: 'Relationship manager', label: 'Dashboard', id: 'dashboard' },
@@ -50,7 +106,7 @@
     '/parent/child': { desk: 'Parent inbox', label: 'My child', id: 'child' },
     '/parent/sessions': { desk: 'Parent inbox', label: '1-on-1 sessions', id: 'sessions' },
     '/parent/guidance': { desk: 'Parent inbox', label: 'Chat rules', id: 'guidance' },
-    '/parent/policies': { desk: 'Parent inbox', label: 'Policies', id: 'policies' }
+    '/parent/policies': { desk: 'Parent inbox', label: 'Policies', id: 'policies' },
   };
 
   function setVisible(node, visible) {
@@ -107,6 +163,13 @@
       setVisible(top, true);
     }
 
+    /* The child's session-credit pack stays visible on every desk page; the
+       money/balance surfaces remain hidden by role. */
+    (route.keep || []).forEach(function (id) {
+      var kept = document.getElementById(id);
+      if (kept && kept.parentNode === main) setVisible(kept, true);
+    });
+
     if (window.scrollTo) window.scrollTo(0, 0);
   }
 
@@ -114,4 +177,4 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
   else apply();
-}());
+})();

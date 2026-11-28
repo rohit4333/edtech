@@ -449,13 +449,22 @@ async function main() {
         tokens.indexOf("fill='%230E1420' stroke='%23FFFFFF'") !== -1 &&
         tokens.indexOf("width='18' height='18'") !== -1 &&
         tokens.indexOf('3 1, default') !== -1 &&
-        room.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
+        /cursor:\s*var\(--ink-arrow,\s*default\)/.test(room) &&
         room.indexOf('cursor:none') === -1 &&
         fullBoardCss.indexOf('cursor:var(--ink-arrow,default)') !== -1 &&
         fullBoardCss.indexOf(
           '.full-board.tool-select .full-board-canvas-wrap canvas{cursor:var(--ink-arrow,default)}'
         ) !== -1,
       'every board surface uses a compact dark arrow pointer with a light outline; non-sketching tools keep it'
+    );
+    ok(
+      /body\.board-open\s+\.trainer-front-card\s+\.control-row\.board-share-primary\s*\{[^}]*display:\s*none/.test(
+        sessionCss
+      ) &&
+        classroomApp.indexOf("if (event.event === 'board.shared')") !== -1 &&
+        classroomApp.indexOf('setBoardShare(Boolean(event.payload && event.payload.shared))') !==
+          -1,
+      'the full board hides the duplicate share row and the server event keeps both share states aligned'
     );
     ok(
       classroom.indexOf('shared/cursorRelay.js') !== -1 &&
@@ -527,7 +536,9 @@ async function main() {
         /class="trainer-only"\s+data-board-tool="laser"/.test(classroom) &&
         /class="trainer-only"\s+id="fullBoardZoomIn"/.test(classroom) &&
         /class="trainer-only"\s+id="fullBoardZoomOut"/.test(classroom) &&
-        sessionJs.indexOf("$$('.trainer-only').forEach(function (el) { el.remove(); });") !== -1 &&
+        /\$\$\('\.trainer-only'\)\.forEach\(function \(el\) \{\s*el\.remove\(\);\s*\}\);/.test(
+          sessionJs
+        ) &&
         fullBoardCss.indexOf('body.board-open.view-student .full-board-tools') !== -1,
       'laser pen and zoom controls stay on the trainer dashboard, never on the child board'
     );
@@ -547,8 +558,9 @@ async function main() {
         tokens.indexOf('object-fit:contain;') !== -1 &&
         /class="quiz-question-image aspect-safe"\s+id="quizQuestionImage"/.test(classroom) &&
         /class="quiz-question-image aspect-safe"\s+id="quizMirrorImage"/.test(classroom) &&
-        /\.quiz-question-image\{[^}]*\}/.test(sessionCss) &&
-        (sessionCss.match(/\.quiz-question-image\{[^}]*\}/) || [''])[0].indexOf('height:') === -1,
+        /\.quiz-question-image\s*\{[^}]*\}/.test(sessionCss) &&
+        (sessionCss.match(/\.quiz-question-image\s*\{[^}]*\}/) || [''])[0].indexOf('height:') ===
+          -1,
       'one fixed natural-ratio rule covers quiz, board and uploaded images on every screen'
     );
     ok(
@@ -875,8 +887,8 @@ async function main() {
     );
     ok(
       classroom.indexOf('id="netMeter"') !== -1 &&
-        room.indexOf('.net-meter[data-level="poor"]') !== -1 &&
-        room.indexOf('.net-meter[data-level="excellent"]') !== -1 &&
+        /\.net-meter\[data-level=['"]poor['"]\]/.test(room) &&
+        /\.net-meter\[data-level=['"]excellent['"]\]/.test(room) &&
         classroomApp.indexOf('function renderNetworkMeter') !== -1,
       'an always-on colour-graded connection meter replaces the speed-test link'
     );
