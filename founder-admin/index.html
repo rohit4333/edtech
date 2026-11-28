@@ -1,374 +1,947 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mathify — Founder settings</title>
-<meta name="description" content="Founder workspace for policy, mastery and trainer policy drafts. Money fields stay read-only.">
-<link rel="stylesheet" href="../assets/poppins.css">
-<link rel="stylesheet" href="../shared/tokens.css">
-<link rel="stylesheet" href="founder.css">
-<link rel="stylesheet" href="announcements.css">
-</head>
-<body>
-<!-- Separate founder admin application: assets are served only behind the server founder gate. -->
-<a class="skip" href="#main">Skip to content</a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mathify — Founder settings</title>
+    <meta
+      name="description"
+      content="Founder workspace for policy, mastery and trainer policy drafts. Money fields stay read-only."
+    />
+    <link rel="stylesheet" href="../assets/poppins.css" />
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <link rel="stylesheet" href="founder.css" />
+    <link rel="stylesheet" href="announcements.css" />
+  </head>
+  <body>
+    <!-- Separate founder admin application: assets are served only behind the server founder gate. -->
+    <a class="skip" href="#main">Skip to content</a>
 
-<header class="topbar">
-  <a class="brand" href="../index.html" aria-label="Mathify home">Mathify<i>.</i></a>
-  <span class="crumb mono">Founder · workspace settings</span>
-  <div class="top-actions">
-    <a class="top-link" href="../apps.html">All surfaces ↗</a>
-    <button class="avatar avatar-btn" id="profileBtn" aria-label="RV — open profile" aria-expanded="false">RV</button>
-    <div class="top-popover" id="profilePanel" hidden>
-      <span class="mono" id="profileName">Founder</span>
-      <p>Workspace settings · owner</p>
-      <a href="../privacy.html">Privacy &amp; data</a>
-      <button type="button" id="logoutBtn">Log out</button>
-    </div>
-  </div>
-</header>
-
-<div class="shell">
-  <aside class="rail" aria-label="Settings sections">
-    <p class="rail-title mono">Settings</p>
-    <nav class="nav" aria-label="Founder settings">
-      <a class="active" href="/founder-admin/overview" data-nav aria-current="page">Overview</a>
-      <a href="/founder-admin/policy" data-nav>Class policy</a>
-      <a href="/founder-admin/mastery" data-nav>Mastery</a>
-      <a href="/founder-admin/trainer-policy" data-nav>Trainer policy</a>
-      <a href="/founder-admin/money" data-nav>Money <span aria-hidden="true">🔒</span></a>
-      <a href="/founder-admin/announcements" data-nav>Announcements</a>
-      <a href="/founder-admin/trainer-admin" data-nav>Trainer administration</a>
-      <a href="/founder-admin/student-admin" data-nav>Student administration</a>
-      <a href="/founder-admin/audit" data-nav>Manager activity</a>
-    </nav>
-    <div class="rail-note">
-      <span class="mono">Founder rule</span>
-      <p>Never get emotional about money transactions.</p>
-    </div>
-    <a class="rail-back" href="../apps.html">Back to surfaces</a>
-  </aside>
-
-  <main class="page" id="main">
-    <section class="intro" id="overview" aria-labelledby="pageTitle">
-      <p class="eyebrow">Founder controls · runtime draft</p>
-      <h1 id="pageTitle">Set the rules once. Teach one learner at a time<em>.</em></h1>
-      <p class="lede">Edit policy, mastery and trainer planning rules. Drafts are validated before they are saved; money and payout widgets are intentionally read-only.</p>
-      <p class="status" id="settingsStatus" role="status" aria-live="polite">Loading settings…</p>
-    </section>
-
-    <section class="setting-card" id="policy" aria-labelledby="policyTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">01 · Policy</span>
-          <h2 id="policyTitle">Class policy</h2>
-          <p id="policyNote">Lesson pacing and scoring bands.</p>
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+      <span class="crumb mono">Founder · workspace settings</span>
+      <div class="top-actions">
+        <a class="top-link" href="../apps.html">All surfaces ↗</a>
+        <button
+          class="avatar avatar-btn"
+          id="profileBtn"
+          aria-label="RV — open profile"
+          aria-expanded="false"
+        >
+          RV
+        </button>
+        <div class="top-popover" id="profilePanel" hidden>
+          <span class="mono" id="profileName">Founder</span>
+          <p>Workspace settings · owner</p>
+          <a href="../privacy.html">Privacy &amp; data</a>
+          <button type="button" id="logoutBtn">Log out</button>
         </div>
-        <span class="tag">Editable draft</span>
       </div>
-      <div class="field-grid" id="policyFields"></div>
-    </section>
+    </header>
 
-    <section class="setting-card" id="mastery" aria-labelledby="masteryTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">02 · Mastery</span>
-          <h2 id="masteryTitle">Mastery gates</h2>
-          <p id="masteryNote">Progression rules stay on one topic until the gate is cleared.</p>
+    <div class="shell">
+      <aside class="rail" aria-label="Settings sections">
+        <p class="rail-title mono">Settings</p>
+        <nav class="nav" aria-label="Founder settings">
+          <a class="active" href="/founder-admin/overview" data-nav aria-current="page">Overview</a>
+          <a href="/founder-admin/policy" data-nav>Class policy</a>
+          <a href="/founder-admin/mastery" data-nav>Mastery</a>
+          <a href="/founder-admin/trainer-policy" data-nav>Trainer policy</a>
+          <a href="/founder-admin/money" data-nav>Money <span aria-hidden="true">🔒</span></a>
+          <a href="/founder-admin/announcements" data-nav>Announcements</a>
+          <a href="/founder-admin/trainer-admin" data-nav>Trainer administration</a>
+          <a href="/founder-admin/student-admin" data-nav>Student administration</a>
+          <a href="/founder-admin/audit" data-nav>Manager activity</a>
+        </nav>
+        <div class="rail-note">
+          <span class="mono">Founder rule</span>
+          <p>Never get emotional about money transactions.</p>
         </div>
-        <span class="tag">Editable draft</span>
-      </div>
-      <div class="field-grid" id="masteryFields"></div>
-    </section>
+        <a class="rail-back" href="../apps.html">Back to surfaces</a>
+      </aside>
 
-    <section class="setting-card" id="trainer-policy" aria-labelledby="trainerTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">03 · Trainer policy</span>
-          <h2 id="trainerTitle">Trainer planning rules</h2>
-          <p id="trainerNote">Presence windows and slot capacity. Pay percentages stay locked.</p>
-        </div>
-        <span class="tag">Editable draft</span>
-      </div>
-      <div class="field-grid" id="trainerPolicyFields"></div>
-    </section>
+      <main class="page" id="main">
+        <section class="intro" id="overview" aria-labelledby="pageTitle">
+          <p class="eyebrow">Founder controls · runtime draft</p>
+          <h1 id="pageTitle">Set the rules once. Teach one learner at a time<em>.</em></h1>
+          <p class="lede">
+            Edit policy, mastery and trainer planning rules. Drafts are validated before they are
+            saved; money and payout widgets are intentionally read-only.
+          </p>
+          <p class="status" id="settingsStatus" role="status" aria-live="polite">
+            Loading settings…
+          </p>
+        </section>
 
-    <section class="setting-card locked" id="money-readonly" aria-labelledby="moneyTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">04 · Money · read-only</span>
-          <h2 id="moneyTitle">Payouts and packs</h2>
-          <p>Shown for context only. These values are never editable from a founder screen.</p>
-        </div>
-        <span class="tag locked-tag">Locked</span>
-      </div>
-      <div class="money-grid" id="moneyFields"></div>
-      <p class="money-rule">Never get emotional about money transactions.</p>
-    </section>
-
-    <div class="save-bar">
-      <button class="btn btn-ghost" type="button" id="resetSettingsBtn">Reset draft</button>
-      <button class="btn btn-coral" type="button" id="saveSettingsBtn">Save draft</button>
-    </div>
-
-    <section class="setting-card" id="announcements" aria-labelledby="announcementTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">05 · Announcements</span>
-          <h2 id="announcementTitle">Send a notice</h2>
-          <p>Choose trainers, students, both, or one named person. Contact details and links are blocked.</p>
-        </div>
-        <span class="tag">Founder only</span>
-      </div>
-      <form class="announcement-form" id="announcementForm" novalidate>
-        <label for="announcementAudience">Audience
-          <select id="announcementAudience" name="audience">
-            <option value="trainers">Trainers only</option>
-            <option value="students">Students only</option>
-            <option value="both">Both</option>
-            <option value="individual">Individual person</option>
-          </select>
-        </label>
-        <label id="announcementRecipientWrap" for="announcementRecipient" hidden>Person
-          <select id="announcementRecipient" name="recipientId"></select>
-        </label>
-        <label for="announcementTitleInput">Title
-          <input id="announcementTitleInput" name="title" maxlength="120" required placeholder="Short headline">
-        </label>
-        <label for="announcementMessage">Message
-          <textarea id="announcementMessage" name="message" maxlength="2000" required placeholder="What recipients need to know"></textarea>
-        </label>
-        <div class="announcement-actions">
-          <button class="btn btn-coral" type="submit" id="announcementSend">Send announcement</button>
-          <p class="announcement-status" id="announcementStatus" role="status" aria-live="polite"></p>
-        </div>
-      </form>
-      <div class="announcement-history" id="announcementHistory">
-        <h3>Sent announcements</h3>
-      </div>
-    </section>
-
-    <section class="setting-card admin-section" id="demo-admin" aria-labelledby="demoAdminTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">05 · Demo desk</span>
-          <h2 id="demoAdminTitle">Demo requests and shared family credentials</h2>
-          <p>Every booked demo carries an ID. Issue the one child+parent password, email it to the parent, then allot a batch so the trainer can open the demo.</p>
-        </div>
-        <span class="tag">Founder + manager</span>
-      </div>
-      <p class="status" id="demoAdminStatus" role="status" aria-live="polite">Loading demo requests…</p>
-      <div class="admin-panel">
-        <table aria-label="Booked demos">
-          <thead><tr><th>Demo ID</th><th>Child</th><th>Board / grade</th><th>Trainer</th><th>Credentials</th></tr></thead>
-          <tbody id="demoAdminRows"><tr><td colspan="5">No demo requests yet.</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="setting-card admin-section" id="trainer-admin" aria-labelledby="trainerAdminTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">06 · Trainer administration</span>
-          <h2 id="trainerAdminTitle">Grant access, assign batches and manage trainers</h2>
-          <p>A trainer sees no student, session, batch or payout detail until you validate the submitted KYC and grant access. Choose a name to inspect every operational record attached to that account.</p>
-        </div>
-        <span class="tag">Founder only</span>
-      </div>
-      <p class="status" id="trainerAdminStatus" role="status" aria-live="polite">Loading trainer accounts…</p>
-
-      <div class="admin-grid">
-        <form class="admin-panel" id="addTrainerForm" novalidate>
-          <h3>Add a trainer</h3>
-          <label>Name<input id="newTrainerName" name="name" required maxlength="80" placeholder="Ananya Rao"></label>
-          <label>Email<input id="newTrainerEmail" name="email" type="email" required placeholder="trainer@mathify.app"></label>
-          <label>First password <small>optional</small><input id="newTrainerPassword" name="password" type="text" minlength="8" placeholder="Leave blank to generate firstname@mathify123"></label>
-          <button class="btn btn-coral" type="submit">Create trainer</button>
-        </form>
-
-        <div class="admin-panel">
-          <h3>Choose a trainer</h3>
-          <label>Trainer<select id="trainerAdminSelect"><option value="">Loading…</option></select></label>
-          <div class="admin-summary" id="trainerAdminSummary" aria-live="polite">No trainer selected.</div>
-          <div class="admin-action-row">
-            <button class="btn btn-coral" type="button" id="grantTrainerAccessBtn">Validate &amp; grant access</button>
-            <button class="btn btn-ghost" type="button" id="revokeTrainerAccessBtn">Revoke access</button>
+        <section class="setting-card" id="policy" aria-labelledby="policyTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">01 · Policy</span>
+              <h2 id="policyTitle">Class policy</h2>
+              <p id="policyNote">Lesson pacing and scoring bands.</p>
+            </div>
+            <span class="tag">Editable draft</span>
           </div>
-          <p class="admin-hint">Grant returns the first password once. It uses firstname@mathify123 and must be copied with the email before you hand it over.</p>
-        </div>
-      </div>
+          <div class="field-grid" id="policyFields"></div>
+        </section>
 
-      <div class="handover" id="trainerHandover" hidden>
-        <h3>One-time handover</h3>
-        <p>Copy these together. The password is not shown again.</p>
-        <div class="handover-row">
-          <code id="trainerHandoverEmail"></code>
-          <button class="btn btn-ghost btn-sm" type="button" id="copyTrainerEmail">Copy email</button>
-        </div>
-        <div class="handover-row">
-          <code id="trainerHandoverPassword"></code>
-          <button class="btn btn-ghost btn-sm" type="button" id="copyTrainerPassword">Copy password</button>
-        </div>
-      </div>
-
-      <div class="admin-grid">
-        <form class="admin-panel" id="trainerRateForm" novalidate>
-          <h3>Base rate</h3>
-          <label>₹ per completed session<input id="trainerBaseRate" name="rate" type="number" min="1" step="0.01" required></label>
-          <button class="btn btn-coral" type="submit">Set individual rate</button>
-          <p class="admin-hint">Current policy band ₹300–₹400. The exact rate follows the contract, offer letter or onboarding note.</p>
-        </form>
-        <form class="admin-panel" id="trainerPasswordForm" novalidate>
-          <h3>Grant a new password</h3>
-          <label>Chosen password <small>optional</small><input id="trainerNewPassword" name="password" type="text" minlength="8" placeholder="Leave blank to generate firstname@mathify123"></label>
-          <button class="btn btn-coral" type="submit">Grant working password</button>
-          <p class="admin-hint">Use this only when the trainer cannot change or regenerate a password. They can change it later from My profile.</p>
-        </form>
-      </div>
-
-      <div class="admin-grid">
-        <form class="admin-panel" id="trainerPenaltyForm" novalidate>
-          <h3>Adhere a penalty</h3>
-          <label>Amount (₹)<input id="trainerPenaltyAmount" name="amount" type="number" min="1" step="0.01" required></label>
-          <label>Reason<input id="trainerPenaltyReason" name="reason" maxlength="500" required placeholder="Short audit reason"></label>
-          <button class="btn btn-coral" type="submit">Record penalty</button>
-        </form>
-        <form class="admin-panel" id="batchAssignForm" novalidate>
-          <h3>Assign an enrolled batch</h3>
-          <label>Batch<select id="adminBatchSelect"><option value="">Loading batches…</option></select></label>
-          <label>First session<input id="adminBatchStart" name="startsAt" type="datetime-local" required></label>
-          <label>Title<input id="adminBatchTitle" name="title" maxlength="120" placeholder="Batch · 1-on-1 maths"></label>
-          <button class="btn btn-coral" type="submit">Assign batch to trainer</button>
-          <p class="admin-hint">Only a founder-approved trainer can receive a batch. The trainer then sees the student name and batch ID only.</p>
-        </form>
-      </div>
-
-      <div class="admin-grid">
-        <div class="admin-panel">
-          <h3>Penalty history</h3>
-          <div id="trainerPenaltyList"><p class="admin-hint">No trainer selected.</p></div>
-        </div>
-        <div class="admin-panel">
-          <h3>Assigned batches</h3>
-          <div id="trainerBatchList"><p class="admin-hint">No trainer selected.</p></div>
-        </div>
-      </div>
-
-      <div class="admin-panel">
-        <h3>Trainer detail and sessions</h3>
-        <div id="trainerDetailData" aria-live="polite">Choose a trainer to load all operational records.</div>
-      </div>
-
-      <div class="admin-panel">
-        <h3>Class overview · by student enrollment</h3>
-        <table class="admin-table">
-          <thead><tr><th>Batch</th><th>Student</th><th>Trainer</th><th>Status</th></tr></thead>
-          <tbody id="trainerClassOverview"><tr><td colspan="4">Loading enrollment batches…</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="setting-card admin-section" id="student-admin" aria-labelledby="studentAdminTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">07 · Student administration</span>
-          <h2 id="studentAdminTitle">Manage student access and data</h2>
-          <p>Founder-only view of every student account, enrollment batch, practice batch and session. The parent desk uses the same family credential.</p>
-        </div>
-        <span class="tag">Founder only</span>
-      </div>
-      <p class="status" id="studentAdminStatus" role="status" aria-live="polite">Loading student accounts…</p>
-
-      <div class="admin-grid">
-        <form class="admin-panel" id="addStudentForm" novalidate>
-          <h3>Add a student</h3>
-          <label>Name<input id="newStudentName" name="name" required maxlength="80" placeholder="Ishaan Verma"></label>
-          <label>Email<input id="newStudentEmail" name="email" type="email" required placeholder="student@mathify.app"></label>
-          <label>Grade<input id="newStudentGrade" name="grade" maxlength="40" placeholder="7"></label>
-          <label>Password <small>optional</small><input id="newStudentPassword" name="password" type="text" minlength="8" placeholder="Leave blank to generate"></label>
-          <button class="btn btn-coral" type="submit">Create student</button>
-        </form>
-
-        <div class="admin-panel">
-          <h3>Choose a student</h3>
-          <label>Student<select id="studentAdminSelect"><option value="">Loading…</option></select></label>
-          <div class="admin-summary" id="studentAdminSummary" aria-live="polite">No student selected.</div>
-          <div class="admin-action-row">
-            <button class="btn btn-coral" type="button" id="grantStudentAccessBtn">Grant access</button>
-            <button class="btn btn-ghost" type="button" id="revokeStudentAccessBtn">Revoke access</button>
+        <section class="setting-card" id="mastery" aria-labelledby="masteryTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">02 · Mastery</span>
+              <h2 id="masteryTitle">Mastery gates</h2>
+              <p id="masteryNote">Progression rules stay on one topic until the gate is cleared.</p>
+            </div>
+            <span class="tag">Editable draft</span>
           </div>
+          <div class="field-grid" id="masteryFields"></div>
+        </section>
+
+        <section class="setting-card" id="trainer-policy" aria-labelledby="trainerTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">03 · Trainer policy</span>
+              <h2 id="trainerTitle">Trainer planning rules</h2>
+              <p id="trainerNote">
+                Presence windows and slot capacity. Pay percentages stay locked.
+              </p>
+            </div>
+            <span class="tag">Editable draft</span>
+          </div>
+          <div class="field-grid" id="trainerPolicyFields"></div>
+        </section>
+
+        <section class="setting-card locked" id="money-readonly" aria-labelledby="moneyTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">04 · Money · read-only</span>
+              <h2 id="moneyTitle">Payouts and packs</h2>
+              <p>Shown for context only. These values are never editable from a founder screen.</p>
+            </div>
+            <span class="tag locked-tag">Locked</span>
+          </div>
+          <div class="money-grid" id="moneyFields"></div>
+          <p class="money-rule">Never get emotional about money transactions.</p>
+        </section>
+
+        <div class="save-bar">
+          <button class="btn btn-ghost" type="button" id="resetSettingsBtn">Reset draft</button>
+          <button class="btn btn-coral" type="button" id="saveSettingsBtn">Save draft</button>
         </div>
-      </div>
 
-      <div class="handover" id="studentHandover" hidden>
-        <h3>One-time handover</h3>
-        <div class="handover-row">
-          <code id="studentHandoverEmail"></code>
-          <button class="btn btn-ghost btn-sm" type="button" id="copyStudentEmail">Copy email</button>
-        </div>
-        <div class="handover-row">
-          <code id="studentHandoverPassword"></code>
-          <button class="btn btn-ghost btn-sm" type="button" id="copyStudentPassword">Copy password</button>
-        </div>
-      </div>
+        <section class="setting-card" id="announcements" aria-labelledby="announcementTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">05 · Announcements</span>
+              <h2 id="announcementTitle">Send a notice</h2>
+              <p>
+                Choose trainers, students, both, or one named person. Contact details and links are
+                blocked.
+              </p>
+            </div>
+            <span class="tag">Founder only</span>
+          </div>
+          <form class="announcement-form" id="announcementForm" novalidate>
+            <label for="announcementAudience"
+              >Audience
+              <select id="announcementAudience" name="audience">
+                <option value="trainers">Trainers only</option>
+                <option value="students">Students only</option>
+                <option value="both">Both</option>
+                <option value="individual">Individual person</option>
+              </select>
+            </label>
+            <label id="announcementRecipientWrap" for="announcementRecipient" hidden
+              >Person
+              <select id="announcementRecipient" name="recipientId"></select>
+            </label>
+            <label for="announcementTitleInput"
+              >Title
+              <input
+                id="announcementTitleInput"
+                name="title"
+                maxlength="120"
+                required
+                placeholder="Short headline"
+              />
+            </label>
+            <label for="announcementMessage"
+              >Message
+              <textarea
+                id="announcementMessage"
+                name="message"
+                maxlength="2000"
+                required
+                placeholder="What recipients need to know"
+              ></textarea>
+            </label>
+            <div class="announcement-actions">
+              <button class="btn btn-coral" type="submit" id="announcementSend">
+                Send announcement
+              </button>
+              <p
+                class="announcement-status"
+                id="announcementStatus"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </div>
+          </form>
+          <div class="announcement-history" id="announcementHistory">
+            <h3>Sent announcements</h3>
+          </div>
+        </section>
 
-      <div class="admin-grid">
-        <form class="admin-panel" id="studentPasswordForm" novalidate>
-          <h3>Grant a new password</h3>
-          <label>Chosen password <small>optional</small><input id="studentNewPassword" name="password" type="text" minlength="8" placeholder="Leave blank to generate"></label>
-          <button class="btn btn-coral" type="submit">Grant working password</button>
-          <p class="admin-hint">Students can change a known password from My profile or regenerate it with their email. This is the last resort.</p>
-        </form>
-        <div class="admin-panel">
-          <h3>Student detail and sessions</h3>
-          <div id="studentDetailData" aria-live="polite">Choose a student to load all operational records.</div>
-        </div>
-      </div>
+        <section
+          class="setting-card admin-section"
+          id="demo-admin"
+          aria-labelledby="demoAdminTitle"
+        >
+          <div class="card-head">
+            <div>
+              <span class="mono">05 · Demo desk</span>
+              <h2 id="demoAdminTitle">Demo requests and shared family credentials</h2>
+              <p>
+                Every booked demo carries an ID. Issue the one child+parent password, email it to
+                the parent, then allot a batch so the trainer can open the demo.
+              </p>
+            </div>
+            <span class="tag">Founder + manager</span>
+          </div>
+          <p class="status" id="demoAdminStatus" role="status" aria-live="polite">
+            Loading demo requests…
+          </p>
+          <div class="admin-panel">
+            <table aria-label="Booked demos">
+              <thead>
+                <tr>
+                  <th>Demo ID</th>
+                  <th>Child</th>
+                  <th>Board / grade</th>
+                  <th>Trainer</th>
+                  <th>Credentials</th>
+                </tr>
+              </thead>
+              <tbody id="demoAdminRows">
+                <tr>
+                  <td colspan="5">No demo requests yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-      <div class="admin-panel">
-        <h3>Class overview · by student enrollment</h3>
-        <table class="admin-table">
-          <thead><tr><th>Batch</th><th>Student</th><th>Trainer</th><th>Status</th></tr></thead>
-          <tbody id="studentClassOverview"><tr><td colspan="4">Loading enrollment batches…</td></tr></tbody>
-        </table>
-      </div>
-    </section>
+        <section
+          class="setting-card admin-section"
+          id="trainer-admin"
+          aria-labelledby="trainerAdminTitle"
+        >
+          <div class="card-head">
+            <div>
+              <span class="mono">06 · Trainer administration</span>
+              <h2 id="trainerAdminTitle">Grant access, assign batches and manage trainers</h2>
+              <p>
+                A trainer sees no student, session, batch or payout detail until you validate the
+                submitted KYC and grant access. Choose a name to inspect every operational record
+                attached to that account.
+              </p>
+            </div>
+            <span class="tag">Founder only</span>
+          </div>
+          <p class="status" id="trainerAdminStatus" role="status" aria-live="polite">
+            Loading trainer accounts…
+          </p>
 
-    <section class="setting-card admin-section" id="audit-log" aria-labelledby="auditLogTitle">
-      <div class="card-head">
-        <div>
-          <span class="mono">08 · Manager activity</span>
-          <h2 id="auditLogTitle">Manager activity audit</h2>
-          <p>Every founder and relationship-manager action is appended with its actor and target. Passwords, hashes, salts and tokens are never recorded.</p>
-        </div>
-        <span class="tag">Founder only</span>
-      </div>
-      <p class="status" id="auditLogStatus" role="status" aria-live="polite">Loading manager activity…</p>
-      <div class="admin-panel">
-        <table class="admin-table" id="auditLogTable">
-          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
-          <tbody id="auditLogRows"><tr><td colspan="5">Loading manager activity…</td></tr></tbody>
-        </table>
-        <p class="admin-hint">Append-only audit log file: <code>server/logs/admin-actions.jsonl</code>. It is service-side only and is not served as a browser asset.</p>
-      </div>
-    </section>
+          <div class="admin-grid">
+            <form class="admin-panel" id="addTrainerForm" novalidate>
+              <h3>Add a trainer</h3>
+              <label
+                >Name<input
+                  id="newTrainerName"
+                  name="name"
+                  required
+                  maxlength="80"
+                  placeholder="Ananya Rao"
+              /></label>
+              <label
+                >Email<input
+                  id="newTrainerEmail"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="trainer@mathify.app"
+              /></label>
+              <label
+                >First password <small>optional</small
+                ><input
+                  id="newTrainerPassword"
+                  name="password"
+                  type="text"
+                  minlength="8"
+                  placeholder="Leave blank to generate firstname@mathify123"
+              /></label>
+              <button class="btn btn-coral" type="submit">Create trainer</button>
+            </form>
 
-    <footer class="foot">
-      <a href="../pricing.html">Pricing</a>
-      <a href="../terms.html">Terms</a>
-      <a href="../privacy.html">Privacy</a>
-      <a href="../refund.html">Refund</a>
-      <a href="../contact.html">Contact</a>
-      <span class="foot-c">Founder workspace · runtime settings draft</span>
-      <span>© 2026 Mathify</span>
-    </footer>
-  </main>
-</div>
+            <div class="admin-panel">
+              <h3>Choose a trainer</h3>
+              <label
+                >Trainer<select id="trainerAdminSelect">
+                  <option value="">Loading…</option>
+                </select></label
+              >
+              <div class="admin-summary" id="trainerAdminSummary" aria-live="polite">
+                No trainer selected.
+              </div>
+              <div class="admin-action-row">
+                <button class="btn btn-coral" type="button" id="grantTrainerAccessBtn">
+                  Validate &amp; grant access
+                </button>
+                <button class="btn btn-ghost" type="button" id="revokeTrainerAccessBtn">
+                  Revoke access
+                </button>
+              </div>
+              <p class="admin-hint">
+                Grant returns the first password once. It uses firstname@mathify123 and must be
+                copied with the email before you hand it over.
+              </p>
+            </div>
+          </div>
 
-<script src="app.js"></script>
-<script src="announcements.js"></script>
-<script src="adminDesk.js"></script>
-<script src="../shared/sectionRouter.js"></script>
-</body>
+          <div class="handover" id="trainerHandover" hidden>
+            <h3>One-time handover</h3>
+            <p>Copy these together. The password is not shown again.</p>
+            <div class="handover-row">
+              <code id="trainerHandoverEmail"></code>
+              <button class="btn btn-ghost btn-sm" type="button" id="copyTrainerEmail">
+                Copy email
+              </button>
+            </div>
+            <div class="handover-row">
+              <code id="trainerHandoverPassword"></code>
+              <button class="btn btn-ghost btn-sm" type="button" id="copyTrainerPassword">
+                Copy password
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <form class="admin-panel" id="trainerRateForm" novalidate>
+              <h3>Base rate</h3>
+              <label
+                >₹ per completed session<input
+                  id="trainerBaseRate"
+                  name="rate"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+              /></label>
+              <button class="btn btn-coral" type="submit">Set individual rate</button>
+              <p class="admin-hint">
+                Current policy band ₹300–₹400. The exact rate follows the contract, offer letter or
+                onboarding note.
+              </p>
+            </form>
+            <form class="admin-panel" id="trainerPasswordForm" novalidate>
+              <h3>Grant a new password</h3>
+              <label
+                >Chosen password <small>optional</small
+                ><input
+                  id="trainerNewPassword"
+                  name="password"
+                  type="text"
+                  minlength="8"
+                  placeholder="Leave blank to generate firstname@mathify123"
+              /></label>
+              <button class="btn btn-coral" type="submit">Grant working password</button>
+              <p class="admin-hint">
+                Use this only when the trainer cannot change or regenerate a password. They can
+                change it later from My profile.
+              </p>
+            </form>
+          </div>
+
+          <div class="admin-grid">
+            <form class="admin-panel" id="trainerPenaltyForm" novalidate>
+              <h3>Adhere a penalty</h3>
+              <label
+                >Amount (₹)<input
+                  id="trainerPenaltyAmount"
+                  name="amount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+              /></label>
+              <label
+                >Reason<input
+                  id="trainerPenaltyReason"
+                  name="reason"
+                  maxlength="500"
+                  required
+                  placeholder="Short audit reason"
+              /></label>
+              <button class="btn btn-coral" type="submit">Record penalty</button>
+            </form>
+            <form class="admin-panel" id="batchAssignForm" novalidate>
+              <h3>Assign an enrolled batch</h3>
+              <label
+                >Batch<select id="adminBatchSelect">
+                  <option value="">Loading batches…</option>
+                </select></label
+              >
+              <label
+                >First session<input
+                  id="adminBatchStart"
+                  name="startsAt"
+                  type="datetime-local"
+                  required
+              /></label>
+              <label
+                >Title<input
+                  id="adminBatchTitle"
+                  name="title"
+                  maxlength="120"
+                  placeholder="Batch · 1-on-1 maths"
+              /></label>
+              <button class="btn btn-coral" type="submit">Assign batch to trainer</button>
+              <p class="admin-hint">
+                Only a founder-approved trainer can receive a batch. The trainer then sees the
+                student name and batch ID only.
+              </p>
+            </form>
+          </div>
+
+          <div class="admin-grid">
+            <form class="admin-panel" id="rmPayRateForm" novalidate>
+              <h3>Manager pay rate · founder only</h3>
+              <label
+                >Relationship manager<select id="rmPaySelect" required>
+                  <option value="">Loading…</option>
+                </select></label
+              >
+              <label
+                >₹ monthly pay rate<input
+                  id="rmPayAmount"
+                  name="amount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+              /></label>
+              <button class="btn btn-coral" type="submit">Set founder pay rate</button>
+              <p class="admin-hint">
+                The manager only reads this rate. Founder decision only; the protected ₹2,000
+                trainer gratitude credit is never changed here.
+              </p>
+            </form>
+            <form class="admin-panel" id="rmPenaltyForm" novalidate>
+              <h3>Record a one-off manager penalty</h3>
+              <label
+                >Amount (₹)<input
+                  id="rmPenaltyAmount"
+                  name="amount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+              /></label>
+              <label
+                >Reason<input
+                  id="rmPenaltyReason"
+                  name="reason"
+                  minlength="3"
+                  maxlength="500"
+                  required
+                  placeholder="Required dated audit reason shown to the manager"
+              /></label>
+              <button class="btn btn-coral" type="submit">Record manager penalty</button>
+              <p class="admin-hint">
+                The manager sees the date, amount and this reason in their read-only ledger and
+                cannot dismiss or alter it.
+              </p>
+            </form>
+          </div>
+
+          <p class="status" id="rmPayStatus" role="status" aria-live="polite">
+            Loading manager pay records…
+          </p>
+          <div class="admin-grid">
+            <div class="admin-panel">
+              <h3>Manager pay ledger (read only)</h3>
+              <div id="rmPayLedger">
+                <p class="admin-hint">Choose a manager to load the ledger.</p>
+              </div>
+            </div>
+            <div class="admin-panel">
+              <h3>Manager penalty history</h3>
+              <div id="rmPenaltyHistory">
+                <p class="admin-hint">Choose a manager to load recorded decisions.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <div class="admin-panel">
+              <h3>Penalty history</h3>
+              <div id="trainerPenaltyList"><p class="admin-hint">No trainer selected.</p></div>
+            </div>
+            <div class="admin-panel">
+              <h3>Assigned batches</h3>
+              <div id="trainerBatchList"><p class="admin-hint">No trainer selected.</p></div>
+            </div>
+          </div>
+
+          <div class="admin-panel">
+            <h3>Trainer detail and sessions</h3>
+            <div id="trainerDetailData" aria-live="polite">
+              Choose a trainer to load all operational records.
+            </div>
+          </div>
+
+          <div class="admin-panel">
+            <h3>Class overview · by student enrollment</h3>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Student</th>
+                  <th>Trainer</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="trainerClassOverview">
+                <tr>
+                  <td colspan="4">Loading enrollment batches…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          class="setting-card admin-section"
+          id="student-admin"
+          aria-labelledby="studentAdminTitle"
+        >
+          <div class="card-head">
+            <div>
+              <span class="mono">07 · Student administration</span>
+              <h2 id="studentAdminTitle">Manage student access and data</h2>
+              <p>
+                Founder-only view of every student account, enrollment batch, practice batch and
+                session. The parent desk uses the same family credential.
+              </p>
+            </div>
+            <span class="tag">Founder only</span>
+          </div>
+          <p class="status" id="studentAdminStatus" role="status" aria-live="polite">
+            Loading student accounts…
+          </p>
+
+          <div class="admin-grid">
+            <form class="admin-panel" id="addStudentForm" novalidate>
+              <h3>Add a student</h3>
+              <label
+                >Name<input
+                  id="newStudentName"
+                  name="name"
+                  required
+                  maxlength="80"
+                  placeholder="Ishaan Verma"
+              /></label>
+              <label
+                >Email<input
+                  id="newStudentEmail"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="student@mathify.app"
+              /></label>
+              <label
+                >Grade<input id="newStudentGrade" name="grade" maxlength="40" placeholder="7"
+              /></label>
+              <label
+                >Password <small>optional</small
+                ><input
+                  id="newStudentPassword"
+                  name="password"
+                  type="text"
+                  minlength="8"
+                  placeholder="Leave blank to generate"
+              /></label>
+              <button class="btn btn-coral" type="submit">Create student</button>
+            </form>
+
+            <div class="admin-panel">
+              <h3>Choose a student</h3>
+              <label
+                >Student<select id="studentAdminSelect">
+                  <option value="">Loading…</option>
+                </select></label
+              >
+              <div class="admin-summary" id="studentAdminSummary" aria-live="polite">
+                No student selected.
+              </div>
+              <div class="admin-action-row">
+                <button class="btn btn-coral" type="button" id="grantStudentAccessBtn">
+                  Grant access
+                </button>
+                <button class="btn btn-ghost" type="button" id="revokeStudentAccessBtn">
+                  Revoke access
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="handover" id="studentHandover" hidden>
+            <h3>One-time handover</h3>
+            <div class="handover-row">
+              <code id="studentHandoverEmail"></code>
+              <button class="btn btn-ghost btn-sm" type="button" id="copyStudentEmail">
+                Copy email
+              </button>
+            </div>
+            <div class="handover-row">
+              <code id="studentHandoverPassword"></code>
+              <button class="btn btn-ghost btn-sm" type="button" id="copyStudentPassword">
+                Copy password
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-grid">
+            <form class="admin-panel" id="studentPasswordForm" novalidate>
+              <h3>Grant a new password</h3>
+              <label
+                >Chosen password <small>optional</small
+                ><input
+                  id="studentNewPassword"
+                  name="password"
+                  type="text"
+                  minlength="8"
+                  placeholder="Leave blank to generate"
+              /></label>
+              <button class="btn btn-coral" type="submit">Grant working password</button>
+              <p class="admin-hint">
+                Students can change a known password from My profile or regenerate it with their
+                email. This is the last resort.
+              </p>
+            </form>
+            <div class="admin-panel">
+              <h3>Student detail and sessions</h3>
+              <div id="studentDetailData" aria-live="polite">
+                Choose a student to load all operational records.
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-panel">
+            <h3>Class overview · by student enrollment</h3>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Student</th>
+                  <th>Trainer</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="studentClassOverview">
+                <tr>
+                  <td colspan="4">Loading enrollment batches…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="setting-card admin-section" id="audit-log" aria-labelledby="auditLogTitle">
+          <div class="card-head">
+            <div>
+              <span class="mono">08 · Manager activity</span>
+              <h2 id="auditLogTitle">Manager activity audit</h2>
+              <p>
+                Every founder and relationship-manager action is appended with its actor and target.
+                Passwords, hashes, salts and tokens are never recorded.
+              </p>
+            </div>
+            <span class="tag">Founder only</span>
+          </div>
+          <p class="status" id="auditLogStatus" role="status" aria-live="polite">
+            Loading manager activity…
+          </p>
+          <div class="admin-panel">
+            <table class="admin-table" id="auditLogTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="auditLogRows">
+                <tr>
+                  <td colspan="5">Loading manager activity…</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="admin-hint">
+              Append-only audit log file: <code>server/logs/admin-actions.jsonl</code>. It is
+              service-side only and is not served as a browser asset.
+            </p>
+          </div>
+        </section>
+
+        <footer class="foot">
+          <a href="../pricing.html">Pricing</a>
+          <a href="../terms.html">Terms</a>
+          <a href="../privacy.html">Privacy</a>
+          <a href="../refund.html">Refund</a>
+          <a href="../contact.html">Contact</a>
+          <span class="foot-c">Founder workspace · runtime settings draft</span>
+          <span>© 2026 Mathify</span>
+        </footer>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="announcements.js"></script>
+    <script src="adminDesk.js"></script>
+    <script src="../shared/sectionRouter.js"></script>
+    <script>
+      /* Founder-only manager pay controls. The manager ledger is read-only; every
+   rate or one-off penalty decision crosses a founder-gated API route. Kept
+   inline because this gated document's app.js/adminDesk.js are served from the
+   founder bundle and are outside this workspace. */
+      (function () {
+        'use strict';
+        var BASE = window.MATHIFY_API_BASE || '/api';
+        var TOKEN_KEY = 'mathify.classroom.token.founder';
+
+        function byId(id) {
+          return document.getElementById(id);
+        }
+        function token() {
+          try {
+            return window.localStorage.getItem(TOKEN_KEY);
+          } catch (error) {
+            return null;
+          }
+        }
+        function say(id, message, tone) {
+          var node = byId(id);
+          if (!node) return;
+          node.textContent = message || '';
+          if (tone) node.setAttribute('data-tone', tone);
+          else node.removeAttribute('data-tone');
+        }
+        function inr(value) {
+          return '₹' + Number(value || 0).toLocaleString('en-IN');
+        }
+        function node(tag, className, text) {
+          var item = document.createElement(tag);
+          if (className) item.className = className;
+          if (text !== undefined && text !== null) item.textContent = String(text);
+          return item;
+        }
+        function request(path, body, method) {
+          var headers = { Accept: 'application/json' };
+          var value = token();
+          if (value) headers.Authorization = 'Bearer ' + value;
+          if (body !== undefined) headers['Content-Type'] = 'application/json';
+          return fetch(BASE + path, {
+            method: method || (body === undefined ? 'GET' : 'POST'),
+            headers: headers,
+            body: body === undefined ? undefined : JSON.stringify(body),
+          }).then(function (response) {
+            return response
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (data) {
+                if (!response.ok) {
+                  var error = new Error(
+                    (data && data.message) || 'Founder action could not be completed.'
+                  );
+                  error.code = data && data.error;
+                  throw error;
+                }
+                return data;
+              });
+          });
+        }
+        function renderPayment(payment) {
+          var select = byId('rmPaySelect');
+          var id = select && select.value;
+          var amount = byId('rmPayAmount');
+          if (amount && payment && payment.rate) amount.value = String(payment.rate.amount || '');
+
+          var ledger = byId('rmPayLedger');
+          if (ledger) {
+            ledger.innerHTML = '';
+            var entries = (payment && payment.entries) || [];
+            if (!entries.length)
+              ledger.appendChild(node('p', 'admin-hint', 'No payment entries yet.'));
+            entries.forEach(function (entry) {
+              var row = node('div', 'admin-summary');
+              var penalty = entry.kind === 'founder_penalty';
+              row.appendChild(
+                node(
+                  'strong',
+                  null,
+                  entry.date +
+                    ' · ' +
+                    (penalty ? '−' + inr(entry.amount) : inr(entry.amount)) +
+                    ' · ' +
+                    entry.status
+                )
+              );
+              row.appendChild(
+                node(
+                  'span',
+                  null,
+                  (entry.sessions === undefined ? '—' : entry.sessions + ' session(s)') +
+                    ' · running total ' +
+                    inr(entry.runningTotal) +
+                    (penalty && entry.reason ? ' · reason: ' + entry.reason : '')
+                )
+              );
+              ledger.appendChild(row);
+            });
+          }
+
+          var history = byId('rmPenaltyHistory');
+          if (history) {
+            history.innerHTML = '';
+            var penalties = (payment && payment.penalties) || [];
+            if (!penalties.length)
+              history.appendChild(node('p', 'admin-hint', 'No founder decisions recorded.'));
+            penalties.forEach(function (penalty) {
+              history.appendChild(
+                node(
+                  'p',
+                  'admin-hint',
+                  penalty.date +
+                    ' · ' +
+                    inr(penalty.amount) +
+                    ' · ' +
+                    penalty.status +
+                    ' · ' +
+                    penalty.reason
+                )
+              );
+            });
+          }
+          say(
+            'rmPayStatus',
+            (payment && payment.person && payment.person.name ? payment.person.name + ' · ' : '') +
+              'founder-owned pay record loaded.',
+            'success'
+          );
+        }
+        function loadPayment(id) {
+          if (!id) return Promise.resolve();
+          return request('/admin/rm-payment/' + encodeURIComponent(id))
+            .then(function (payment) {
+              renderPayment(payment);
+              return payment;
+            })
+            .catch(function (error) {
+              say('rmPayStatus', error.message || 'Manager pay could not be loaded.', 'error');
+            });
+        }
+        function managers() {
+          return request('/admin/people/relationship_manager')
+            .then(function (data) {
+              var select = byId('rmPaySelect');
+              if (!select) return [];
+              select.innerHTML = '';
+              var empty = node('option', null, 'Choose a manager…');
+              empty.value = '';
+              select.appendChild(empty);
+              var rows = (data && data.people) || [];
+              rows.forEach(function (person) {
+                var option = node('option', null, person.name + ' · ' + person.status);
+                option.value = person.id;
+                select.appendChild(option);
+              });
+              return rows;
+            })
+            .catch(function (error) {
+              say('rmPayStatus', error.message || 'Manager accounts could not be loaded.', 'error');
+              return [];
+            });
+        }
+        function bindFounderPay() {
+          var select = byId('rmPaySelect');
+          if (select)
+            select.addEventListener('change', function () {
+              loadPayment(select.value);
+            });
+
+          var rateForm = byId('rmPayRateForm');
+          if (rateForm)
+            rateForm.addEventListener('submit', function (event) {
+              event.preventDefault();
+              var id = select && select.value;
+              var field = byId('rmPayAmount');
+              if (!id || !field || !field.value) return;
+              request(
+                '/admin/people/' + encodeURIComponent(id) + '/monthly-salary',
+                { amount: Number(field.value) },
+                'PATCH'
+              )
+                .then(function () {
+                  return loadPayment(id);
+                })
+                .catch(function (error) {
+                  say('rmPayStatus', error.message || 'Rate could not be set.', 'error');
+                });
+            });
+
+          var penaltyForm = byId('rmPenaltyForm');
+          if (penaltyForm)
+            penaltyForm.addEventListener('submit', function (event) {
+              event.preventDefault();
+              var id = select && select.value;
+              var amount = byId('rmPenaltyAmount');
+              var reason = byId('rmPenaltyReason');
+              if (!id || !amount || !reason || !amount.value || !reason.value.trim()) {
+                say('rmPayStatus', 'Amount and a reason are both required.', 'error');
+                return;
+              }
+              request(
+                '/admin/people/' + encodeURIComponent(id) + '/penalties',
+                {
+                  amount: Number(amount.value),
+                  reason: reason.value.trim(),
+                },
+                'POST'
+              )
+                .then(function () {
+                  amount.value = '';
+                  reason.value = '';
+                  return loadPayment(id);
+                })
+                .catch(function (error) {
+                  say('rmPayStatus', error.message || 'Penalty could not be recorded.', 'error');
+                });
+            });
+
+          managers().then(function (rows) {
+            if (rows.length && select) {
+              select.value = rows[0].id;
+              return loadPayment(rows[0].id);
+            }
+          });
+        }
+        bindFounderPay();
+      })();
+    </script>
+  </body>
 </html>

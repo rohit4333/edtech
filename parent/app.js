@@ -17,14 +17,46 @@
   var LIMIT = 2000;
   var POLL_MS = 30000;
   var UNAVAILABLE = 'Messages are unavailable right now';
-  var BLOCKED = 'That message could not be sent. Please keep chat on Mathify and leave out phone numbers, social handles, links and personal contact details.';
+  var BLOCKED =
+    'That message could not be sent. Please keep chat on Mathify and leave out phone numbers, social handles, links and personal contact details.';
 
   var IDS = [
-    'trainerHeading', 'threadSub', 'childName', 'peerName', 'peerMeta', 'topThread',
-    'profileBtn', 'profilePanel', 'profileName', 'logoutBtn',
-    'unreadBadge', 'threadStatus', 'messageList', 'emptyState', 'composer',
-    'composerInput', 'charCount', 'sendBtn', 'noticeRow', 'notice', 'retryBtn', 'demoLogin',
-    'classReminder', 'classReminderTag', 'classReminderText', 'classReminderLink'
+    'trainerHeading',
+    'threadSub',
+    'childName',
+    'peerName',
+    'peerMeta',
+    'topThread',
+    'profileBtn',
+    'profilePanel',
+    'profileName',
+    'logoutBtn',
+    'unreadBadge',
+    'threadStatus',
+    'messageList',
+    'emptyState',
+    'composer',
+    'composerInput',
+    'charCount',
+    'sendBtn',
+    'noticeRow',
+    'notice',
+    'retryBtn',
+    'demoLogin',
+    'classReminder',
+    'classReminderTag',
+    'classReminderText',
+    'classReminderLink',
+    'balanceCard',
+    'balanceCount',
+    'balanceAlert',
+    'packForm',
+    'packPresets',
+    'packCount',
+    'packQuote',
+    'packSubmit',
+    'packReceipt',
+    'packError',
   ];
   var el = {};
   var memoryToken = null;
@@ -33,31 +65,40 @@
     messages: [],
     loading: false,
     sending: false,
-    unavailable: false
+    unavailable: false,
+    wallet: null,
+    quoteSeq: 0,
+    packing: false,
   };
 
-  function $(id) { return document.getElementById(id); }
+  function $(id) {
+    return document.getElementById(id);
+  }
 
   function cacheDom() {
-    IDS.forEach(function (id) { el[id] = $(id); });
+    IDS.forEach(function (id) {
+      el[id] = $(id);
+    });
   }
 
   /* ------------------------------------------------------------- api client */
   function rawRequest(path, options, token) {
     if (typeof fetch !== 'function') return Promise.reject(new Error('Fetch unavailable'));
     var opts = options || {};
-    var headers = { 'Accept': 'application/json' };
+    var headers = { Accept: 'application/json' };
     if (token) headers.Authorization = 'Bearer ' + token;
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
     return fetch(BASE + path, {
       method: opts.method || 'GET',
       headers: headers,
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body)
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     }).then(function (response) {
       return response.text().then(function (text) {
         var data = null;
-        try { data = text ? JSON.parse(text) : null; } catch (e) {}
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (e) {}
         if (!response.ok) {
           var error = new Error((data && (data.message || data.error)) || 'API request failed.');
           error.status = response.status;
@@ -72,17 +113,27 @@
 
   function readToken() {
     if (memoryToken) return memoryToken;
-    try { return window.localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+    try {
+      return window.localStorage.getItem(TOKEN_KEY);
+    } catch (e) {
+      return null;
+    }
   }
 
   function writeToken(value) {
     memoryToken = value;
-    try { window.localStorage.setItem(TOKEN_KEY, value); } catch (e) {}
+    try {
+      window.localStorage.setItem(TOKEN_KEY, value);
+    } catch (e) {}
   }
 
   function clearTokens() {
     memoryToken = null;
-    try { window.localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    try {
+      window.localStorage.removeItem(TOKEN_KEY);
+    } catch (e) {
+      /* private mode */
+    }
     if (window.MathifySession) window.MathifySession.clear(ROLE);
   }
 
@@ -92,10 +143,14 @@
   }
 
   function login(email, password) {
-    return rawRequest('/auth/login', {
-      method: 'POST',
-      body: { email: email, password: password }
-    }, null).then(function (data) {
+    return rawRequest(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: { email: email, password: password },
+      },
+      null
+    ).then(function (data) {
       if (!data || !data.token) throw new Error('Demo sign-in unavailable.');
       writeToken(data.token);
       if (data.refreshToken && window.MathifySession) {
@@ -142,7 +197,10 @@
     if (!error) return false;
     var payload = error.payload || {};
     var code = error.code || payload.error || payload.code;
-    return code === 'CONTENT_BLOCKED' || (error.status === 422 && typeof code === 'string' && /block/i.test(code));
+    return (
+      code === 'CONTENT_BLOCKED' ||
+      (error.status === 422 && typeof code === 'string' && /block/i.test(code))
+    );
   }
 
   function noThread() {
@@ -152,7 +210,9 @@
   }
 
   /* -------------------------------------------------------------- normalize */
-  function asArray(value) { return Array.isArray(value) ? value : []; }
+  function asArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
 
   function normalizeThread(data) {
     var source = data || {};
@@ -168,7 +228,8 @@
     var student = candidate.student || {};
     var trainer = candidate.trainer || {};
     var parent = candidate.parent || {};
-    var id = candidate.threadId || candidate.studentId || candidate.id || candidate.thread_id || null;
+    var id =
+      candidate.threadId || candidate.studentId || candidate.id || candidate.thread_id || null;
     if (!id) return null;
     var unread = candidate.unreadCount;
     if (unread === undefined) unread = source.unreadCount;
@@ -178,8 +239,9 @@
       id: String(id),
       studentName: studentName,
       trainerName: candidate.trainerName || trainer.name || 'Ananya Rao',
-      parentName: candidate.parentName || parent.name || ('Parent of ' + String(studentName).split(' ')[0]),
-      unreadCount: Number(unread) || 0
+      parentName:
+        candidate.parentName || parent.name || 'Parent of ' + String(studentName).split(' ')[0],
+      unreadCount: Number(unread) || 0,
     };
   }
 
@@ -197,23 +259,37 @@
     var list = asArray(source.messages || (source.data && source.data.messages));
     if (!list.length && Array.isArray(source)) list = source;
 
-    return list.filter(function (item) { return item && typeof item === 'object'; }).map(function (item) {
-      var body = item.body;
-      if (body === undefined || body === null) body = item.text;
-      if (body === undefined || body === null) body = item.content;
-      if (body === undefined || body === null) body = item.message;
-      var role = normalizeRole(item.senderRole || item.role || item.sender || item.from || item.author);
-      var explicitMine = (typeof item.isMine === 'boolean') ? item.isMine
-        : (typeof item.mine === 'boolean') ? item.mine : null;
-      return {
-        id: item.id || item.messageId || item.message_id || null,
-        role: role,
-        mine: explicitMine === null ? role === 'parent' : explicitMine,
-        label: item.senderLabel || item.senderName || item.label || item.name || null,
-        body: body === undefined || body === null ? '' : String(body),
-        createdAt: item.createdAt || item.created_at || item.timestamp || item.time || item.at || null
-      };
-    }).filter(function (item) { return item.body.trim() !== ''; });
+    return list
+      .filter(function (item) {
+        return item && typeof item === 'object';
+      })
+      .map(function (item) {
+        var body = item.body;
+        if (body === undefined || body === null) body = item.text;
+        if (body === undefined || body === null) body = item.content;
+        if (body === undefined || body === null) body = item.message;
+        var role = normalizeRole(
+          item.senderRole || item.role || item.sender || item.from || item.author
+        );
+        var explicitMine =
+          typeof item.isMine === 'boolean'
+            ? item.isMine
+            : typeof item.mine === 'boolean'
+              ? item.mine
+              : null;
+        return {
+          id: item.id || item.messageId || item.message_id || null,
+          role: role,
+          mine: explicitMine === null ? role === 'parent' : explicitMine,
+          label: item.senderLabel || item.senderName || item.label || item.name || null,
+          body: body === undefined || body === null ? '' : String(body),
+          createdAt:
+            item.createdAt || item.created_at || item.timestamp || item.time || item.at || null,
+        };
+      })
+      .filter(function (item) {
+        return item.body.trim() !== '';
+      });
   }
 
   function formatTime(value) {
@@ -226,9 +302,11 @@
         month: 'short',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: window.MATHIFY_TZ || undefined
+        timeZone: window.MATHIFY_TZ || undefined,
       }).format(date);
-    } catch (e) { return '—'; }
+    } catch (e) {
+      return '—';
+    }
   }
 
   function threadId() {
@@ -253,7 +331,10 @@
 
   function hideNotice() {
     if (el.noticeRow) el.noticeRow.hidden = true;
-    if (el.notice) { el.notice.textContent = ''; el.notice.className = 'inline-notice'; }
+    if (el.notice) {
+      el.notice.textContent = '';
+      el.notice.className = 'inline-notice';
+    }
     if (el.retryBtn) el.retryBtn.hidden = true;
   }
 
@@ -279,9 +360,12 @@
     if (el.peerName) el.peerName.textContent = thread.trainerName;
     if (el.peerMeta) el.peerMeta.textContent = thread.studentName + ' · 1-on-1 trainer';
     if (el.childName) el.childName.textContent = thread.studentName;
-    if (el.topThread) el.topThread.textContent = thread.studentName + ' \u2194 ' + thread.trainerName;
+    if (el.topThread)
+      el.topThread.textContent = thread.studentName + ' \u2194 ' + thread.trainerName;
     if (el.profileName) el.profileName.textContent = thread.parentName || 'Parent';
-    if (el.threadSub) el.threadSub.textContent = thread.studentName + ' \u00b7 ' + thread.trainerName + ' \u00b7 1-on-1 maths';
+    if (el.threadSub)
+      el.threadSub.textContent =
+        thread.studentName + ' \u00b7 ' + thread.trainerName + ' \u00b7 1-on-1 maths';
   }
 
   function renderBadge() {
@@ -314,7 +398,9 @@
 
     var label = document.createElement('span');
     label.className = 'msg-label';
-    label.textContent = message.label || (message.mine ? 'You · parent' : (state.thread ? state.thread.trainerName : 'Trainer'));
+    label.textContent =
+      message.label ||
+      (message.mine ? 'You · parent' : state.thread ? state.thread.trainerName : 'Trainer');
 
     var time = document.createElement('time');
     time.className = 'msg-time';
@@ -387,7 +473,9 @@
         state.thread.unreadCount = remaining === undefined ? 0 : Number(remaining) || 0;
         renderBadge();
       })
-      .catch(function () { /* mark-read is best effort */ });
+      .catch(function () {
+        /* mark-read is best effort */
+      });
   }
 
   function load() {
@@ -410,7 +498,9 @@
         }
         renderUnavailable();
       })
-      .then(function () { state.loading = false; });
+      .then(function () {
+        state.loading = false;
+      });
   }
 
   function send(event) {
@@ -428,7 +518,10 @@
     state.sending = true;
     el.sendBtn.disabled = true;
 
-    api('/parent-chat/thread/' + encodeURIComponent(id) + '/messages', { method: 'POST', body: { body: text } })
+    api('/parent-chat/thread/' + encodeURIComponent(id) + '/messages', {
+      method: 'POST',
+      body: { body: text },
+    })
       .then(function (data) {
         el.composerInput.value = '';
         updateCount();
@@ -436,7 +529,9 @@
         var created = data && data.message;
         if (created && typeof created === 'object') {
           state.messages.push(normalizeMessages([created])[0]);
-          state.messages = state.messages.filter(function (item) { return item && item.body.trim() !== ''; });
+          state.messages = state.messages.filter(function (item) {
+            return item && item.body.trim() !== '';
+          });
           render();
         } else {
           return load();
@@ -457,7 +552,13 @@
   }
 
   function poll() {
-    if (document.visibilityState !== 'visible' || state.loading || state.sending || state.unavailable) return;
+    if (
+      document.visibilityState !== 'visible' ||
+      state.loading ||
+      state.sending ||
+      state.unavailable
+    )
+      return;
     var id = threadId();
     if (!id) return;
     api('/parent-chat/thread/' + encodeURIComponent(id))
@@ -473,12 +574,15 @@
         }
         if (state.thread && state.thread.unreadCount > 0) markRead();
       })
-      .catch(function () { /* background refresh is best effort */ });
+      .catch(function () {
+        /* background refresh is best effort */
+      });
   }
 
   function demoLogin() {
-    window.location.assign(LOGIN_PAGE + '&next=' +
-      encodeURIComponent(window.location.pathname + window.location.search));
+    window.location.assign(
+      LOGIN_PAGE + '&next=' + encodeURIComponent(window.location.pathname + window.location.search)
+    );
   }
 
   function bindProfile() {
@@ -490,7 +594,11 @@
       el.profileBtn.setAttribute('aria-expanded', String(open));
     });
     document.addEventListener('click', function (event) {
-      if (!el.profilePanel.hidden && !el.profilePanel.contains(event.target) && event.target !== el.profileBtn) {
+      if (
+        !el.profilePanel.hidden &&
+        !el.profilePanel.contains(event.target) &&
+        event.target !== el.profileBtn
+      ) {
         el.profilePanel.hidden = true;
         el.profileBtn.setAttribute('aria-expanded', 'false');
       }
@@ -500,7 +608,11 @@
 
   function bind() {
     if (el.composer) el.composer.addEventListener('submit', send);
-    if (el.retryBtn) el.retryBtn.addEventListener('click', function () { hideNotice(); load(); });
+    if (el.retryBtn)
+      el.retryBtn.addEventListener('click', function () {
+        hideNotice();
+        load();
+      });
     if (el.demoLogin) el.demoLogin.addEventListener('click', demoLogin);
     bindProfile();
     if (el.composerInput) {
@@ -509,11 +621,167 @@
         if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
         event.preventDefault();
         if (el.composer && el.composer.requestSubmit) el.composer.requestSubmit();
-        else if (el.composer) el.composer.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        else if (el.composer)
+          el.composer.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       });
     }
     if (typeof window.setInterval === 'function') window.setInterval(poll, POLL_MS);
   }
+
+  /* -------------------------------------------------- balance & pack desk */
+  function formatSAR(value) {
+    var amount = Number(value) || 0;
+    return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  }
+
+  function renderBalance() {
+    var wallet = state.wallet;
+    if (!wallet || !el.balanceCount) return;
+    var left = Math.max(0, Number(wallet.sessionsRemaining) || 0);
+    el.balanceCount.textContent = String(left);
+    if (el.balanceCard) el.balanceCard.classList.toggle('is-low', left <= 2);
+    if (el.balanceAlert) {
+      el.balanceAlert.hidden = left > 2;
+      el.balanceAlert.textContent =
+        left <= 2
+          ? 'Only ' + left + (left === 1 ? ' session' : ' sessions') + ' left · renewal needed'
+          : '';
+    }
+  }
+
+  function renderQuote(quote) {
+    if (!el.packQuote || !quote) return;
+    var text =
+      quote.count +
+      ' sessions · SAR ' +
+      formatSAR(quote.totalSAR) +
+      (quote.discountApplied ? ' · ' + quote.discountPercent + '% off' : ' · no discount');
+    el.packQuote.textContent = text;
+  }
+
+  function showPackError(message) {
+    if (!el.packError) return;
+    el.packError.textContent = message || '';
+    el.packError.hidden = !message;
+  }
+
+  function selectedCount() {
+    var value = el.packCount ? Number(el.packCount.value) : NaN;
+    return Number.isInteger(value) ? value : NaN;
+  }
+
+  function updatePresetSelection() {
+    if (!el.packPresets) return;
+    var count = selectedCount();
+    Array.prototype.forEach.call(
+      el.packPresets.querySelectorAll('[data-count]'),
+      function (button) {
+        var active = Number(button.getAttribute('data-count')) === count;
+        button.classList.toggle('is-selected', active);
+        button.setAttribute('aria-pressed', String(active));
+      }
+    );
+  }
+
+  function requestQuote() {
+    var count = selectedCount();
+    var seq = ++state.quoteSeq;
+    if (!Number.isInteger(count) || count < 4 || count > 100) {
+      if (el.packQuote) el.packQuote.textContent = 'Choose between 4 and 100 sessions.';
+      return Promise.resolve();
+    }
+    return api('/parent/pack/quote?count=' + encodeURIComponent(String(count)))
+      .then(function (data) {
+        if (seq === state.quoteSeq) renderQuote(data && data.quote);
+      })
+      .catch(function () {
+        if (seq === state.quoteSeq && el.packQuote) {
+          el.packQuote.textContent = 'A live quote could not be prepared right now.';
+        }
+      });
+  }
+
+  function loadWallet() {
+    if (!el.balanceCount) return Promise.resolve();
+    return api('/parent/wallet')
+      .then(function (data) {
+        state.wallet = data || null;
+        renderBalance();
+        updatePresetSelection();
+        return requestQuote();
+      })
+      .catch(function () {
+        if (el.packQuote)
+          el.packQuote.textContent = 'Your class balance could not be loaded right now.';
+      });
+  }
+
+  function checkoutPack(event) {
+    event.preventDefault();
+    if (state.packing || !el.packCount) return;
+    var count = Number(el.packCount.value);
+    if (!Number.isInteger(count) || count < 4 || count > 100) {
+      showPackError('Choose a whole number of sessions between 4 and 100.');
+      return;
+    }
+    showPackError('');
+    state.packing = true;
+    if (el.packSubmit) el.packSubmit.disabled = true;
+
+    /* Only the count is sent. Price, currency and discount are server-owned. */
+    return api('/parent/pack/checkout', { method: 'POST', body: { count: count } })
+      .then(function (data) {
+        if (state.wallet) state.wallet.sessionsRemaining = data.balance;
+        renderBalance();
+        if (el.packReceipt) {
+          el.packReceipt.textContent =
+            data.receipt ||
+            count + ' sessions credited · SAR ' + formatSAR(data.quote && data.quote.totalSAR);
+          el.packReceipt.hidden = false;
+        }
+        showPackError('');
+        if (
+          window.mathifyNotificationInbox &&
+          typeof window.mathifyNotificationInbox.refresh === 'function'
+        ) {
+          window.mathifyNotificationInbox.refresh();
+        }
+      })
+      .catch(function (error) {
+        showPackError((error && error.message) || 'Sessions could not be added right now.');
+      })
+      .then(function () {
+        state.packing = false;
+        if (el.packSubmit) el.packSubmit.disabled = false;
+      });
+  }
+
+  function bindPack() {
+    if (el.packPresets) {
+      el.packPresets.addEventListener('click', function (event) {
+        var button =
+          event.target && event.target.closest ? event.target.closest('[data-count]') : null;
+        if (!button || !el.packCount) return;
+        el.packCount.value = button.getAttribute('data-count');
+        if (el.packReceipt) el.packReceipt.hidden = true;
+        showPackError('');
+        updatePresetSelection();
+        requestQuote();
+      });
+    }
+    if (el.packCount) {
+      el.packCount.addEventListener('input', function () {
+        if (el.packReceipt) el.packReceipt.hidden = true;
+        showPackError('');
+        updatePresetSelection();
+        requestQuote();
+      });
+    }
+    if (el.packForm) el.packForm.addEventListener('submit', checkoutPack);
+  }
+
+  /* The shared notification bell needs the verified parent client for refresh. */
+  window.mathifyParentApi = { request: api, token: readToken };
 
   /* -------------------------------------------------- in-app class reminders */
   var REMINDER_POLL_MS = 60000;
@@ -522,29 +790,36 @@
     if (!value) return null;
     try {
       var parsed = new URL(value, window.location.href);
-      if (parsed.origin !== window.location.origin ||
-          parsed.pathname.indexOf('/classroom/') !== 0) return null;
+      if (parsed.origin !== window.location.origin || parsed.pathname.indexOf('/classroom/') !== 0)
+        return null;
       return parsed.href;
-    } catch (error) { return null; }
+    } catch (error) {
+      return null;
+    }
   }
 
   function renderReminders(data) {
     if (!el.classReminder) return;
     var list = data && Array.isArray(data.reminders) ? data.reminders : [];
-    var next = list.find(function (item) { return item && item.joinUrl && safeJoinUrl(item.joinUrl); });
+    var next = list.find(function (item) {
+      return item && item.joinUrl && safeJoinUrl(item.joinUrl);
+    });
     if (!next) {
       el.classReminder.hidden = true;
       if (el.classReminderLink) el.classReminderLink.removeAttribute('href');
       return;
     }
     if (el.classReminderTag) {
-      el.classReminderTag.textContent = next.phase === 'starting'
-        ? 'Class starting now'
-        : next.phase === 'open' ? 'Classroom is open' : 'Class starting soon';
+      el.classReminderTag.textContent =
+        next.phase === 'starting'
+          ? 'Class starting now'
+          : next.phase === 'open'
+            ? 'Classroom is open'
+            : 'Class starting soon';
     }
     if (el.classReminderText) {
-      el.classReminderText.textContent = next.message +
-        (next.localStart ? ' Starts: ' + next.localStart + '.' : '');
+      el.classReminderText.textContent =
+        next.message + (next.localStart ? ' Starts: ' + next.localStart + '.' : '');
     }
     if (el.classReminderLink) {
       el.classReminderLink.href = safeJoinUrl(next.joinUrl);
@@ -558,7 +833,9 @@
     if (!token || !el.classReminder) return Promise.resolve(null);
     return rawRequest('/parent/reminders', { method: 'GET' }, token)
       .then(renderReminders)
-      .catch(function () { el.classReminder.hidden = true; });
+      .catch(function () {
+        el.classReminder.hidden = true;
+      });
   }
 
   function init() {
@@ -567,7 +844,9 @@
     updateCount();
     renderBadge();
     bind();
+    bindPack();
     load();
+    loadWallet();
     loadReminders();
     window.setInterval(loadReminders, REMINDER_POLL_MS);
     document.addEventListener('visibilitychange', function () {

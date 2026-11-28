@@ -1,9 +1,92 @@
 /* Relationship-manager desk additions. The founder shell and trainer
    onboarding styles are shared; this file only labels the approval boundary. */
 
-.locked-note{
-  margin-top:14px;padding:13px;border:1px solid var(--coral);
-  border-radius:var(--r-sm);background:var(--cream);
-  font-size:12px;line-height:1.6;color:var(--coral-deep)
+.locked-note {
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid var(--coral);
+  border-radius: var(--r-sm);
+  background: var(--cream);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--coral-deep);
 }
-.locked-note strong{display:block;margin-bottom:4px;color:var(--ink)}
+.locked-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+/* The payment page is reachable from the rail without changing the exact
+   legacy nav target list asserted by the navigation contract. */
+.rail-payment-link {
+  display: block;
+  margin: 12px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rail-payment-link:hover,
+.rail-payment-link.active {
+  border-color: var(--coral);
+  color: var(--coral-deep);
+}
+
+/* Founder-owned pay ledger. Nothing in this block is an editable control. */
+.rm-pay-rate {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.rm-pay-rate > div {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+}
+.rm-pay-rate .mono {
+  margin: 0;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rm-pay-rate-value {
+  margin: 8px 0 4px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.rm-pay-rate-meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rm-pay-table td:last-child,
+.rm-pay-table th:last-child {
+  text-align: right;
+}
+.rm-pay-penalty {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+}
+.rm-pay-penalty:last-child {
+  border-bottom: 0;
+}
+.rm-pay-penalty b {
+  color: var(--coral-deep);
+  font-weight: 600;
+}
+.rm-pay-penalty span {
+  color: var(--muted);
+}

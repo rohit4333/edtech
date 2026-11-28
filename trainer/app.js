@@ -5,10 +5,16 @@
 (function () {
   'use strict';
 
-  var $ = function (sel, root) { return (root || document).querySelector(sel); };
-  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var $ = function (sel, root) {
+    return (root || document).querySelector(sel);
+  };
+  var $$ = function (sel, root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(sel));
+  };
 
-  function TZ() { return window.MATHIFY_TZ || 'Asia/Kolkata'; }
+  function TZ() {
+    return window.MATHIFY_TZ || 'Asia/Kolkata';
+  }
   var activeSessionId = window.MATHIFY_SESSION_ID || null;
   var ACTIVE_LINK_MINUTES = 50;
   var activeLinkMinutes = ACTIVE_LINK_MINUTES;
@@ -30,7 +36,7 @@
   var payGateDeck = $('#payGateDeck');
   var payGateBars = {
     child: payGateDeck && $('[data-meter="child"] i', payGateDeck),
-    trainer: payGateDeck && $('[data-meter="trainer"] i', payGateDeck)
+    trainer: payGateDeck && $('[data-meter="trainer"] i', payGateDeck),
   };
 
   function parts(value) {
@@ -41,10 +47,12 @@
       timeZone: TZ(),
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     });
     var map = {};
-    fmt.formatToParts(d).forEach(function (part) { map[part.type] = part.value; });
+    fmt.formatToParts(d).forEach(function (part) {
+      map[part.type] = part.value;
+    });
     if (!map.hour || !map.minute) return null;
     return { hour: Number(map.hour) % 24, minute: Number(map.minute) };
   }
@@ -52,7 +60,14 @@
   function fmtTime(value) {
     var p = parts(value);
     if (!p) return '—';
-    return ((p.hour % 12) || 12) + ':' + (p.minute < 10 ? '0' : '') + p.minute + ' ' + (p.hour >= 12 ? 'PM' : 'AM');
+    return (
+      (p.hour % 12 || 12) +
+      ':' +
+      (p.minute < 10 ? '0' : '') +
+      p.minute +
+      ' ' +
+      (p.hour >= 12 ? 'PM' : 'AM')
+    );
   }
 
   function fmtClock(value) {
@@ -112,7 +127,8 @@
 
   if (batchBtn && batchMenu) {
     batchBtn.addEventListener('click', function () {
-      if (batchMenu.hidden) openMenu(); else closeMenu();
+      if (batchMenu.hidden) openMenu();
+      else closeMenu();
     });
 
     $$('button', batchMenu).forEach(function (option) {
@@ -122,7 +138,9 @@
         });
         var value = option.getAttribute('data-value') || option.textContent.trim();
         if (batchLabel) batchLabel.textContent = value;
-        $$('[data-batch-label]').forEach(function (el) { el.textContent = value; });
+        $$('[data-batch-label]').forEach(function (el) {
+          el.textContent = value;
+        });
         var swatch = batchBtn.querySelector('.swatch');
         if (swatch) swatch.textContent = value.charAt(0);
         closeMenu();
@@ -181,7 +199,7 @@
     '': { next: 'p', value: 'present', label: 'Not marked' },
     p: { next: 'a', value: 'present', label: 'Present' },
     a: { next: 'l', value: 'absent', label: 'Absent' },
-    l: { next: 'p', value: 'late', label: 'Late' }
+    l: { next: 'p', value: 'late', label: 'Late' },
   };
 
   var saveNote = $('#saveNote');
@@ -203,9 +221,14 @@
   }
 
   function initials(name) {
-    return String(name || '?').split(/\s+/).slice(0, 2).map(function (part) {
-      return part.charAt(0);
-    }).join('').toUpperCase();
+    return String(name || '?')
+      .split(/\s+/)
+      .slice(0, 2)
+      .map(function (part) {
+        return part.charAt(0);
+      })
+      .join('')
+      .toUpperCase();
   }
 
   function dayLabel(value) {
@@ -219,7 +242,11 @@
     if (!value) return '';
     var d = new Date(value);
     if (isNaN(d.getTime())) return '';
-    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: TZ() }).format(d);
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: TZ(),
+    }).format(d);
   }
 
   function rateFor(cells, columns) {
@@ -273,7 +300,8 @@
   var registerBody = $('#registerBody');
   if (registerBody) {
     registerBody.addEventListener('click', function (event) {
-      var cell = event.target && event.target.closest ? event.target.closest('.cell.editable') : null;
+      var cell =
+        event.target && event.target.closest ? event.target.closest('.cell.editable') : null;
       if (!cell || !registerBody.contains(cell)) return;
       var current = cell.getAttribute('data-status') || '';
       var next = STATUS[current].next;
@@ -395,8 +423,14 @@
     setText('#registerRange', 'Last ' + plural(columns.length, 'session'));
     var caption = $('#registerCaption');
     if (caption && firstStudent) {
-      caption.textContent = '1:1 attendance for ' + firstStudent + ' over the last ' + columns.length +
-        ' session' + (columns.length === 1 ? '' : 's') + '. Today’s column is editable.';
+      caption.textContent =
+        '1:1 attendance for ' +
+        firstStudent +
+        ' over the last ' +
+        columns.length +
+        ' session' +
+        (columns.length === 1 ? '' : 's') +
+        '. Today’s column is editable.';
     }
     setText(saveBtn, 'Save register');
     paintTally();
@@ -417,30 +451,37 @@
 
       saveBtn.disabled = true;
       setText(saveBtn, 'Saving…');
-      Promise.all(sessions.map(function (sessionId) {
-        var records = Object.keys(dirtyRecords[sessionId]).map(function (studentId) {
-          return { studentId: studentId, status: dirtyRecords[sessionId][studentId] };
+      Promise.all(
+        sessions.map(function (sessionId) {
+          var records = Object.keys(dirtyRecords[sessionId]).map(function (studentId) {
+            return { studentId: studentId, status: dirtyRecords[sessionId][studentId] };
+          });
+          return api.saveAttendance(sessionId, records);
+        })
+      )
+        .then(function (results) {
+          var last = results[results.length - 1];
+          if (last && last.register) renderRegister(last.register);
+          dirtyRecords = {};
+          setText(saveBtn, 'Save register');
+          if (saveText) saveText.textContent = 'Saved ' + fmtTime(new Date());
+          if (saveNote) {
+            saveNote.hidden = false;
+            clearTimeout(noteTimer);
+            noteTimer = setTimeout(function () {
+              saveNote.hidden = true;
+            }, 5000);
+          }
+          toast('Attendance saved.');
+        })
+        .catch(function (error) {
+          setText(saveBtn, 'Save changes');
+          toast('Could not save attendance.');
+          if (window.console && console.warn) console.warn('Attendance save failed.', error);
+        })
+        .then(function () {
+          saveBtn.disabled = false;
         });
-        return api.saveAttendance(sessionId, records);
-      })).then(function (results) {
-        var last = results[results.length - 1];
-        if (last && last.register) renderRegister(last.register);
-        dirtyRecords = {};
-        setText(saveBtn, 'Save register');
-        if (saveText) saveText.textContent = 'Saved ' + fmtTime(new Date());
-        if (saveNote) {
-          saveNote.hidden = false;
-          clearTimeout(noteTimer);
-          noteTimer = setTimeout(function () { saveNote.hidden = true; }, 5000);
-        }
-        toast('Attendance saved.');
-      }).catch(function (error) {
-        setText(saveBtn, 'Save changes');
-        toast('Could not save attendance.');
-        if (window.console && console.warn) console.warn('Attendance save failed.', error);
-      }).then(function () {
-        saveBtn.disabled = false;
-      });
     });
   }
 
@@ -455,7 +496,7 @@
   }
 
   function viewForLink(link) {
-    var href = link && link.getAttribute('href') || '';
+    var href = (link && link.getAttribute('href')) || '';
     if (href.charAt(0) !== '#') return null;
     var target = document.getElementById(href.slice(1));
     if (!target) return null;
@@ -479,7 +520,9 @@
   }
 
   $$('.nav a[data-nav]').forEach(function (link) {
-    link.addEventListener('click', function () { activateView(link, false); });
+    link.addEventListener('click', function () {
+      activateView(link, false);
+    });
   });
 
   window.addEventListener('hashchange', function () {
@@ -488,9 +531,12 @@
     });
     activateView(link || $$('.nav a[data-nav]')[0], false);
   });
-  activateView($$('.nav a[data-nav]').find(function (item) {
-    return item.getAttribute('href') === window.location.hash;
-  }) || $$('.nav a[data-nav]')[0], false);
+  activateView(
+    $$('.nav a[data-nav]').find(function (item) {
+      return item.getAttribute('href') === window.location.hash;
+    }) || $$('.nav a[data-nav]')[0],
+    false
+  );
 
   $$('.tabs button[data-tab]').forEach(function (button) {
     button.addEventListener('click', function () {
@@ -517,7 +563,11 @@
     if (message) toast(message);
     if (!el) return;
     el.animate(
-      [{ transform: 'translateY(0)' }, { transform: 'translateY(-1px)' }, { transform: 'translateY(0)' }],
+      [
+        { transform: 'translateY(0)' },
+        { transform: 'translateY(-1px)' },
+        { transform: 'translateY(0)' },
+      ],
       { duration: 220, easing: 'ease-out' }
     );
   }
@@ -528,13 +578,14 @@
     /* Start class opens the readiness gate first. Camera, microphone and
        connection are checked there; Join starts the class clock and moves to
        the camera page, which then opens the whiteboard. */
-    window.location.href = '../classroom/preflight.html?sessionId=' +
-      encodeURIComponent(id) + '&role=trainer';
+    window.location.href =
+      '../classroom/preflight.html?sessionId=' + encodeURIComponent(id) + '&role=trainer';
   }
 
-  $('#startClass') && $('#startClass').addEventListener('click', function (event) {
-    openConnectPage(event.currentTarget, 'Opening the 1-on-1 classroom…');
-  });
+  $('#startClass') &&
+    $('#startClass').addEventListener('click', function (event) {
+      openConnectPage(event.currentTarget, 'Opening the 1-on-1 classroom…');
+    });
 
   $$('[data-toast]').forEach(function (el) {
     el.addEventListener('click', function () {
@@ -560,7 +611,9 @@
     panel.hidden = false;
     fab.setAttribute('aria-expanded', 'true');
     if (!skipFocus) {
-      setTimeout(function () { if (input && !panel.hidden) input.focus(); }, 20);
+      setTimeout(function () {
+        if (input && !panel.hidden) input.focus();
+      }, 20);
     }
   }
 
@@ -572,7 +625,11 @@
     input.value = String(text || '').trim();
     input.focus();
     if (typeof input.setSelectionRange === 'function') {
-      try { input.setSelectionRange(input.value.length, input.value.length); } catch (error) { /* unsupported input */ }
+      try {
+        input.setSelectionRange(input.value.length, input.value.length);
+      } catch (error) {
+        /* unsupported input */
+      }
     }
   }
 
@@ -584,12 +641,14 @@
 
   if (fab && panel) {
     fab.addEventListener('click', function () {
-      if (panel.hidden) openPanel(); else closePanel();
+      if (panel.hidden) openPanel();
+      else closePanel();
     });
-    closeBtn && closeBtn.addEventListener('click', function () {
-      closePanel();
-      fab.focus();
-    });
+    closeBtn &&
+      closeBtn.addEventListener('click', function () {
+        closePanel();
+        fab.focus();
+      });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !panel.hidden) {
         closePanel();
@@ -608,11 +667,13 @@
     }
   }
 
-  var COPILOT_OPEN = '<p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>' +
+  var COPILOT_OPEN =
+    '<p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>' +
     '<div class="ai-chips"><button type="button">Differentiate today&rsquo;s set</button>' +
     '<button type="button">Draft a parent note</button>' +
     '<button type="button">Summarise last session</button></div>';
-  var SUPPORT_OPEN = '<p class="msg bot">Mathify Trainer Desk here. Ask me about payout, leave or attendance policy.</p>' +
+  var SUPPORT_OPEN =
+    '<p class="msg bot">Mathify Trainer Desk here. Ask me about payout, leave or attendance policy.</p>' +
     '<div class="ai-chips"><button type="button">What is the session payout?</button>' +
     '<button type="button">48-hour cancellation rule</button>' +
     '<button type="button">How do leaves work?</button>' +
@@ -623,9 +684,19 @@
     aiMode = mode === 'support' ? 'support' : 'copilot';
     var support = aiMode === 'support';
     if (aiTitle) aiTitle.textContent = support ? 'Mathify Trainer Desk' : 'Mathify copilot';
-    if (aiStatus) aiStatus.textContent = support ? 'Payout · leave · attendance' : 'Plans · grading · parent notes';
-    if (input) input.placeholder = support ? 'Ask about payout, leave or attendance…' : 'Ask about a plan, student or score…';
-    if (fab) fab.setAttribute('aria-label', support ? 'Open Mathify Trainer Desk' : 'Open Mathify copilot');
+    if (aiStatus)
+      aiStatus.textContent = support
+        ? 'Payout · leave · attendance'
+        : 'Plans · grading · parent notes';
+    if (input)
+      input.placeholder = support
+        ? 'Ask about payout, leave or attendance…'
+        : 'Ask about a plan, student or score…';
+    if (fab)
+      fab.setAttribute(
+        'aria-label',
+        support ? 'Open Mathify Trainer Desk' : 'Open Mathify copilot'
+      );
     modeButtons.forEach(function (button) {
       var active = button.getAttribute('data-chat-mode') === aiMode;
       button.classList.toggle('active', active);
@@ -654,7 +725,7 @@
       if (!api || typeof api.askSupport !== 'function') {
         return Promise.resolve({
           reply: 'The Trainer Desk is unavailable right now. Please retry in a moment.',
-          source: 'offline'
+          source: 'offline',
         });
       }
       return api.askSupport(text);
@@ -662,7 +733,7 @@
     if (!api || typeof api.askCopilot !== 'function') {
       return Promise.resolve({
         reply: 'The copilot service is unavailable right now. Please retry in a moment.',
-        source: 'offline'
+        source: 'offline',
       });
     }
     return api.askCopilot(text, window.MATHIFY_SESSION_ID || null);
@@ -688,42 +759,56 @@
     }
 
     function soft(job) {
-      return Promise.resolve().then(job).catch(function () { return null; });
+      return Promise.resolve()
+        .then(job)
+        .catch(function () {
+          return null;
+        });
     }
 
     supportRecordsPromise = Promise.all([
       soft(function () {
         return typeof api.getPayout === 'function'
           ? api.getPayout()
-          : api.request('/trainer/payouts').then(function (data) { return data && data.payout; });
+          : api.request('/trainer/payouts').then(function (data) {
+              return data && data.payout;
+            });
       }),
       soft(function () {
         return typeof api.getDashboard === 'function'
           ? api.getDashboard()
-          : api.request('/trainer/dashboard').then(function (data) { return data && data.dashboard; });
+          : api.request('/trainer/dashboard').then(function (data) {
+              return data && data.dashboard;
+            });
       }),
       soft(function () {
         return typeof api.getAttendance === 'function'
           ? api.getAttendance()
-          : api.request('/trainer/attendance').then(function (data) { return data && data.register; });
+          : api.request('/trainer/attendance').then(function (data) {
+              return data && data.register;
+            });
       }),
       soft(function () {
-        return api.request('/leaves').then(function (data) { return data && data.leave ? data.leave : data; });
+        return api.request('/leaves').then(function (data) {
+          return data && data.leave ? data.leave : data;
+        });
+      }),
+    ])
+      .then(function (results) {
+        supportRecords = {
+          payout: results[0] || null,
+          dashboard: results[1] || null,
+          attendance: results[2] || null,
+          leave: results[3] || null,
+          available: Boolean(results[0] || results[1] || results[2] || results[3]),
+        };
+        return supportRecords;
       })
-    ]).then(function (results) {
-      supportRecords = {
-        payout: results[0] || null,
-        dashboard: results[1] || null,
-        attendance: results[2] || null,
-        leave: results[3] || null,
-        available: Boolean(results[0] || results[1] || results[2] || results[3])
-      };
-      return supportRecords;
-    }).then(function (records) {
-      supportRecordsAt = Date.now();
-      supportRecordsPromise = null;
-      return records;
-    });
+      .then(function (records) {
+        supportRecordsAt = Date.now();
+        supportRecordsPromise = null;
+        return records;
+      });
     return supportRecordsPromise;
   }
 
@@ -755,14 +840,14 @@
         if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
       });
     });
-    return counts.present + counts.late + counts.absent
-      ? counts
-      : null;
+    return counts.present + counts.late + counts.absent ? counts : null;
   }
 
   function supportRecordLines(records) {
     if (!records || !records.available) {
-      return ['Your records could not be loaded right now. Please retry; no figures have been guessed.'];
+      return [
+        'Your records could not be loaded right now. Please retry; no figures have been guessed.',
+      ];
     }
 
     var lines = [];
@@ -773,23 +858,38 @@
     }
     var amount = payout && payout.amount && finiteNumber(payout.amount.value);
     if (amount !== null) {
-      lines.push('Your recorded payout for ' + periodLabel(payout.period) + ' is ' + inr(amount) + '.');
+      lines.push(
+        'Your recorded payout for ' + periodLabel(payout.period) + ' is ' + inr(amount) + '.'
+      );
     }
     var breakdown = payout && payout.amount && payout.amount.breakdown;
     var gratitude = breakdown && finiteNumber(breakdown.founderGratitude);
     if (gratitude !== null && gratitude > 0) {
-      lines.push('Your protected founder credit for ' + periodLabel(payout.period) + ' is ' + inr(gratitude) + '.');
+      lines.push(
+        'Your protected founder credit for ' +
+          periodLabel(payout.period) +
+          ' is ' +
+          inr(gratitude) +
+          '.'
+      );
     }
 
     var balance = records.leave && records.leave.balance;
     var remaining = balance && finiteNumber(balance.remaining);
     var total = balance && finiteNumber(balance.total);
     if (remaining !== null) {
-      lines.push('Your remaining leave is ' + remaining + (total !== null ? ' of ' + total : '') +
-        ' session' + (remaining === 1 ? '' : 's') + ' this month.');
+      lines.push(
+        'Your remaining leave is ' +
+          remaining +
+          (total !== null ? ' of ' + total : '') +
+          ' session' +
+          (remaining === 1 ? '' : 's') +
+          ' this month.'
+      );
     }
 
-    var attendance = records.dashboard && records.dashboard.metrics && records.dashboard.metrics.attendance;
+    var attendance =
+      records.dashboard && records.dashboard.metrics && records.dashboard.metrics.attendance;
     var attendanceValue = attendance && finiteNumber(attendance.value);
     var attendanceAvailable = false;
     if (attendanceValue !== null) {
@@ -798,8 +898,15 @@
     } else {
       var marks = registerMarks(records.attendance);
       if (marks) {
-        lines.push('Your attendance register records ' + marks.present + ' present, ' +
-          marks.late + ' late and ' + marks.absent + ' absent marks in the visible window.');
+        lines.push(
+          'Your attendance register records ' +
+            marks.present +
+            ' present, ' +
+            marks.late +
+            ' late and ' +
+            marks.absent +
+            ' absent marks in the visible window.'
+        );
         attendanceAvailable = true;
       }
     }
@@ -809,19 +916,31 @@
     if (!balance) missing.push('leave');
     if (!attendanceAvailable) missing.push('attendance');
     if (missing.length) {
-      lines.push('Your ' + missing.join(', ') + ' record' + (missing.length === 1 ? '' : 's') +
-        ' could not be loaded right now; no figures have been guessed.');
+      lines.push(
+        'Your ' +
+          missing.join(', ') +
+          ' record' +
+          (missing.length === 1 ? '' : 's') +
+          ' could not be loaded right now; no figures have been guessed.'
+      );
     }
     if (!lines.length) {
-      lines.push('Your records could not be loaded right now. Please retry; no figures have been guessed.');
+      lines.push(
+        'Your records could not be loaded right now. Please retry; no figures have been guessed.'
+      );
     }
     return lines;
   }
 
   function augmentSupportReply(policyReply, records) {
-    var policy = (policyReply && String(policyReply).trim()) || 'No policy reply was returned. Please retry.';
-    return 'From your records\n' + supportRecordLines(records).join('\n') +
-      '\n\nGeneral Mathify policy\n' + policy;
+    var policy =
+      (policyReply && String(policyReply).trim()) || 'No policy reply was returned. Please retry.';
+    return (
+      'From your records\n' +
+      supportRecordLines(records).join('\n') +
+      '\n\nGeneral Mathify policy\n' +
+      policy
+    );
   }
 
   function send(text) {
@@ -839,24 +958,27 @@
       body.scrollTop = body.scrollHeight;
     }
 
-    ask(value).then(function (data) {
-      var reply = (data && data.reply) || 'No reply was returned. Please retry.';
-      if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
-      if (modeAtSend !== 'support') {
-        pending.textContent = reply;
-        if (body) body.scrollTop = body.scrollHeight;
-        return null;
-      }
-      return loadSupportRecords().then(function (records) {
-        pending.textContent = augmentSupportReply(reply, records);
-        if (body) body.scrollTop = body.scrollHeight;
+    ask(value)
+      .then(function (data) {
+        var reply = (data && data.reply) || 'No reply was returned. Please retry.';
+        if (data && data.source && data.source !== 'ai') pending.dataset.source = data.source;
+        if (modeAtSend !== 'support') {
+          pending.textContent = reply;
+          if (body) body.scrollTop = body.scrollHeight;
+          return null;
+        }
+        return loadSupportRecords().then(function (records) {
+          pending.textContent = augmentSupportReply(reply, records);
+          if (body) body.scrollTop = body.scrollHeight;
+        });
+      })
+      .catch(function () {
+        pending.textContent =
+          modeAtSend === 'support'
+            ? 'The Trainer Desk could not be reached. Please retry in a moment.'
+            : 'The copilot could not be reached. Please retry in a moment.';
+        pending.dataset.source = 'offline';
       });
-    }).catch(function () {
-      pending.textContent = modeAtSend === 'support'
-        ? 'The Trainer Desk could not be reached. Please retry in a moment.'
-        : 'The copilot could not be reached. Please retry in a moment.';
-      pending.dataset.source = 'offline';
-    });
   }
 
   if (form) {
@@ -904,12 +1026,14 @@
   }
 
   if (overlay) {
-    searchOpen && searchOpen.addEventListener('click', function () {
-      openSearch(searchOpen);
-    });
-    mobileSearch && mobileSearch.addEventListener('click', function () {
-      openSearch(mobileSearch);
-    });
+    searchOpen &&
+      searchOpen.addEventListener('click', function () {
+        openSearch(searchOpen);
+      });
+    mobileSearch &&
+      mobileSearch.addEventListener('click', function () {
+        openSearch(mobileSearch);
+      });
     searchClose && searchClose.addEventListener('click', closeSearch);
 
     overlay.addEventListener('click', function (event) {
@@ -934,7 +1058,9 @@
     });
 
     function runSearch(query) {
-      var term = String(query || '').trim().toLowerCase();
+      var term = String(query || '')
+        .trim()
+        .toLowerCase();
       if (!term) return;
       var matches = 0;
       $$('#registerBody tr, #timeline li, #attentionQueue .queue-row').forEach(function (row) {
@@ -943,8 +1069,11 @@
         if (found) matches += 1;
       });
       closeSearch();
-      toast(matches ? matches + ' matching student/session row(s) for “' + query + '”.' :
-        'No student or session matches “' + query + '”.');
+      toast(
+        matches
+          ? matches + ' matching student/session row(s) for “' + query + '”.'
+          : 'No student or session matches “' + query + '”.'
+      );
     }
 
     $$('.search-tags button').forEach(function (tag) {
@@ -955,11 +1084,12 @@
       });
     });
 
-    searchMobile && searchMobile.addEventListener('keydown', function (event) {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      runSearch(searchMobile.value);
-    });
+    searchMobile &&
+      searchMobile.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        runSearch(searchMobile.value);
+      });
   }
 
   /* ------------------------------------------------------------ shortcuts */
@@ -981,7 +1111,9 @@
       chip.textContent = item.label;
       wrap.appendChild(chip);
     });
-    var open = (session.planner || []).filter(function (item) { return !item.done; }).length;
+    var open = (session.planner || []).filter(function (item) {
+      return !item.done;
+    }).length;
     var ready = document.createElement('span');
     ready.className = 'plan-ready';
     ready.textContent = open ? plural(open, 'step') + ' open' : 'Plan ready';
@@ -994,11 +1126,12 @@
     list.innerHTML = '';
 
     (sessions || []).forEach(function (session) {
-      var state = session.status === 'ended'
-        ? { cls: 'done', state: 's-done', label: 'Done' }
-        : session.status === 'live'
-          ? { cls: 'is-next', state: 's-next', label: 'Next' }
-          : { cls: 'later', state: 's-later', label: 'Later' };
+      var state =
+        session.status === 'ended'
+          ? { cls: 'done', state: 's-done', label: 'Done' }
+          : session.status === 'live'
+            ? { cls: 'is-next', state: 's-next', label: 'Next' }
+            : { cls: 'later', state: 's-later', label: 'Later' };
 
       var li = document.createElement('li');
       li.className = 'slot ' + state.cls;
@@ -1012,9 +1145,7 @@
       var title = document.createElement('b');
       title.textContent = session.title || session.code || 'Session';
       var meta = document.createElement('span');
-      meta.textContent = session.student
-        ? '1:1 · ' + session.student.name
-        : session.code || '';
+      meta.textContent = session.student ? '1:1 · ' + session.student.name : session.code || '';
       body.appendChild(title);
       body.appendChild(meta);
 
@@ -1033,7 +1164,7 @@
     planning: 'Planning',
     attendance: 'Attendance',
     quiz: 'Quiz',
-    recording: 'Recording'
+    recording: 'Recording',
   };
 
   var ATTENTION_ACTION = {
@@ -1042,7 +1173,7 @@
     launch_quiz: 'Launch',
     reveal_answers: 'Reveal',
     review_drafts: 'Review',
-    open_recap: 'Recap'
+    open_recap: 'Recap',
   };
 
   function renderAttention(items) {
@@ -1084,8 +1215,11 @@
       body.appendChild(meta);
 
       var status = document.createElement('span');
-      status.className = 'status ' + (item.status === 'later' ? 's-later' : item.status === 'info' ? 's-next' : 's-today');
-      status.textContent = item.status === 'later' ? 'Later' : item.status === 'info' ? 'Info' : 'Today';
+      status.className =
+        'status ' +
+        (item.status === 'later' ? 's-later' : item.status === 'info' ? 's-next' : 's-today');
+      status.textContent =
+        item.status === 'later' ? 'Later' : item.status === 'info' ? 'Info' : 'Today';
 
       var button = document.createElement('button');
       button.className = 'btn btn-ghost btn-sm';
@@ -1117,20 +1251,51 @@
 
   function escapeXml(value) {
     var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-    return String(value).replace(/[&<>"']/g, function (character) { return map[character]; });
+    return String(value).replace(/[&<>"']/g, function (character) {
+      return map[character];
+    });
+  }
+
+  /* Founder decisions are one-off records, not automated fine rules. The
+     trainer sees every dated amount together with its required reason. */
+  function renderFounderPenalties(payout) {
+    var mount = $('#payoutPenaltyNote');
+    var list = $('#payoutPenaltyList');
+    if (!mount || !list) return;
+    var notice = (payout && payout.founderPenalties) || (payout && payout.penaltyNotice) || {};
+    var rows = (notice.entries || []).slice();
+    list.innerHTML = '';
+    mount.hidden = !rows.length;
+    rows.forEach(function (row) {
+      var item = document.createElement('li');
+      item.textContent =
+        (row.date || '—') +
+        ' · ' +
+        inr(row.amount) +
+        ' · ' +
+        (row.reason || 'No reason supplied') +
+        ' · recorded by ' +
+        (row.decidedByRole || 'founder');
+      list.appendChild(item);
+    });
   }
 
   function renderPayoutTrend(payout) {
+    renderFounderPenalties(payout);
     var mount = $('#payoutChart');
     if (!mount) return;
 
     var knownRules = payout && payout.knownRules;
-    var detail = knownRules && knownRules.mutualLeave && knownRules.fine
-      ? knownRules.mutualLeave + ' ' + knownRules.fine
-      : 'A 48-hour notice is required from either side; later trainer cancellation costs one session pay.';
-    setText('#payoutPolicyNote', detail +
-      ' Pay is ₹300–₹400 per completed 1-on-1 session; your exact rate is the one in your contract or offer letter, or the rate stated during onboarding. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.' +
-      ' Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.');
+    var detail =
+      knownRules && knownRules.mutualLeave && knownRules.fine
+        ? knownRules.mutualLeave + ' ' + knownRules.fine
+        : 'A 48-hour notice is required from either side; later trainer cancellation costs one session pay.';
+    setText(
+      '#payoutPolicyNote',
+      detail +
+        ' Pay is ₹300–₹400 per completed 1-on-1 session; your exact rate is the one in your contract or offer letter, or the rate stated during onboarding. Perfect attendance and clean conduct earn bonuses; severe complaints go to founder@mathify.app.' +
+        ' Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.'
+    );
 
     var series = payout && payout.dailySeries;
     var points = series && Array.isArray(series.points) ? series.points : [];
@@ -1142,8 +1307,14 @@
       var year = Number(String(payout.period).slice(0, 4));
       var month = Number(String(payout.period).slice(5, 7));
       if (year && month) {
-        setText('#payoutTrendPeriod', new Date(Date.UTC(year, month - 1, 1))
-          .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }));
+        setText(
+          '#payoutTrendPeriod',
+          new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-GB', {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })
+        );
       }
     }
 
@@ -1171,7 +1342,7 @@
     maxValue = maxValue * 1.12;
 
     function y(value) {
-      return baseline - (Number(value) || 0) / maxValue * plotHeight;
+      return baseline - ((Number(value) || 0) / maxValue) * plotHeight;
     }
 
     var count = points.length;
@@ -1181,13 +1352,38 @@
 
     [0.25, 0.5, 0.75, 1].forEach(function (fraction) {
       var gridY = baseline - fraction * plotHeight;
-      chunks.push('<line class="tc-grid" x1="' + left + '" y1="' + gridY.toFixed(1) +
-        '" x2="' + right + '" y2="' + gridY.toFixed(1) + '"/>');
-      chunks.push('<text class="tc-axis" x="' + (left - 8) + '" y="' + (gridY + 3).toFixed(1) +
-        '" text-anchor="end">' + compactInr(maxValue * fraction) + '</text>');
+      chunks.push(
+        '<line class="tc-grid" x1="' +
+          left +
+          '" y1="' +
+          gridY.toFixed(1) +
+          '" x2="' +
+          right +
+          '" y2="' +
+          gridY.toFixed(1) +
+          '"/>'
+      );
+      chunks.push(
+        '<text class="tc-axis" x="' +
+          (left - 8) +
+          '" y="' +
+          (gridY + 3).toFixed(1) +
+          '" text-anchor="end">' +
+          compactInr(maxValue * fraction) +
+          '</text>'
+      );
     });
-    chunks.push('<line class="tc-base" x1="' + left + '" y1="' + baseline +
-      '" x2="' + right + '" y2="' + baseline + '"/>');
+    chunks.push(
+      '<line class="tc-base" x1="' +
+        left +
+        '" y1="' +
+        baseline +
+        '" x2="' +
+        right +
+        '" y2="' +
+        baseline +
+        '"/>'
+    );
 
     var linePoints = [];
     var labelEvery = Math.max(1, Math.ceil(count / 8));
@@ -1198,23 +1394,47 @@
       var cumulative = Number(point.cumulative) || 0;
       var dailyHeight = daily > 0 ? Math.max(2, baseline - y(daily)) : 0;
       var cumulativeHeight = cumulative > 0 ? Math.max(2, baseline - y(cumulative)) : 0;
-      var title = escapeXml((point.label || '') + ' · daily ' + inr(daily) +
-        ' · accumulated ' + inr(cumulative));
+      var title = escapeXml(
+        (point.label || '') + ' · daily ' + inr(daily) + ' · accumulated ' + inr(cumulative)
+      );
 
       chunks.push('<g><title>' + title + '</title>');
-      chunks.push('<rect class="tc-bar-cumulative" x="' + (center + 1).toFixed(1) +
-        '" y="' + (baseline - cumulativeHeight).toFixed(1) + '" width="' + barWidth.toFixed(1) +
-        '" height="' + cumulativeHeight.toFixed(1) + '" rx="2"/>');
-      chunks.push('<rect class="tc-bar-daily" x="' + (center - barWidth - 1).toFixed(1) +
-        '" y="' + (baseline - dailyHeight).toFixed(1) + '" width="' + barWidth.toFixed(1) +
-        '" height="' + dailyHeight.toFixed(1) + '" rx="2"/>');
+      chunks.push(
+        '<rect class="tc-bar-cumulative" x="' +
+          (center + 1).toFixed(1) +
+          '" y="' +
+          (baseline - cumulativeHeight).toFixed(1) +
+          '" width="' +
+          barWidth.toFixed(1) +
+          '" height="' +
+          cumulativeHeight.toFixed(1) +
+          '" rx="2"/>'
+      );
+      chunks.push(
+        '<rect class="tc-bar-daily" x="' +
+          (center - barWidth - 1).toFixed(1) +
+          '" y="' +
+          (baseline - dailyHeight).toFixed(1) +
+          '" width="' +
+          barWidth.toFixed(1) +
+          '" height="' +
+          dailyHeight.toFixed(1) +
+          '" rx="2"/>'
+      );
       chunks.push('</g>');
 
       linePoints.push(center.toFixed(1) + ',' + y(cumulative).toFixed(1));
 
       if (index % labelEvery === 0 || index === count - 1) {
-        chunks.push('<text class="tc-axis" x="' + center.toFixed(1) + '" y="' + (baseline + 16) +
-          '" text-anchor="middle">' + escapeXml(point.label || '') + '</text>');
+        chunks.push(
+          '<text class="tc-axis" x="' +
+            center.toFixed(1) +
+            '" y="' +
+            (baseline + 16) +
+            '" text-anchor="middle">' +
+            escapeXml(point.label || '') +
+            '</text>'
+        );
       }
     });
 
@@ -1223,21 +1443,52 @@
     var dotEvery = Math.max(1, Math.ceil(count / 6));
     points.forEach(function (point, index) {
       if (index !== 0 && index !== count - 1 && index % dotEvery !== 0) return;
-      chunks.push('<circle class="tc-dot" cx="' + (left + group * (index + 0.5)).toFixed(1) +
-        '" cy="' + y(point.cumulative).toFixed(1) + '" r="2.6"/>');
+      chunks.push(
+        '<circle class="tc-dot" cx="' +
+          (left + group * (index + 0.5)).toFixed(1) +
+          '" cy="' +
+          y(point.cumulative).toFixed(1) +
+          '" r="2.6"/>'
+      );
     });
 
     var latest = points[count - 1];
     var lastX = left + group * (count - 0.5);
     var lastY = y(latest.cumulative);
-    chunks.push('<circle class="tc-dot-latest" cx="' + lastX.toFixed(1) + '" cy="' + lastY.toFixed(1) + '" r="4"/>');
-    chunks.push('<text class="tc-latest-label" x="' + (lastX - 8).toFixed(1) + '" y="' + (lastY - 10).toFixed(1) +
-      '" text-anchor="end">' + inr(latest.cumulative) + '</text>');
+    chunks.push(
+      '<circle class="tc-dot-latest" cx="' +
+        lastX.toFixed(1) +
+        '" cy="' +
+        lastY.toFixed(1) +
+        '" r="4"/>'
+    );
+    chunks.push(
+      '<text class="tc-latest-label" x="' +
+        (lastX - 8).toFixed(1) +
+        '" y="' +
+        (lastY - 10).toFixed(1) +
+        '" text-anchor="end">' +
+        inr(latest.cumulative) +
+        '</text>'
+    );
 
-    mount.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + height +
-      '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' + chunks.join('') + '</svg>';
-    mount.setAttribute('aria-label', 'Daily and accumulated payout for ' + (payout.period || 'this period') +
-      '. Latest accumulated ' + inr(latest.cumulative) + (series.isIllustrative ? ', illustrative preview' : '') + '.');
+    mount.innerHTML =
+      '<svg viewBox="0 0 ' +
+      width +
+      ' ' +
+      height +
+      '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+      chunks.join('') +
+      '</svg>';
+    mount.setAttribute(
+      'aria-label',
+      'Daily and accumulated payout for ' +
+        (payout.period || 'this period') +
+        '. Latest accumulated ' +
+        inr(latest.cumulative) +
+        (series.isIllustrative ? ', illustrative preview' : '') +
+        '.'
+    );
 
     setText('#payoutTrendTotal', (series.isIllustrative ? '≈ ' : '') + inr(latest.cumulative));
     if (foot) foot.classList.toggle('is-live', !series.isIllustrative);
@@ -1273,7 +1524,10 @@
 
     if (!payout || !payout.amount || payout.amount.value === null) {
       setText('#metricPayout', '—');
-      setText('#capPayout', (payout ? plural(payout.sessionCount, 'session') + ' · ' : '') + 'rules not configured');
+      setText(
+        '#capPayout',
+        (payout ? plural(payout.sessionCount, 'session') + ' · ' : '') + 'rules not configured'
+      );
     } else {
       setText('#metricPayout', '₹' + Number(payout.amount.value).toLocaleString('en-IN'));
       setText('#capPayout', payout.period + ' · statement ' + payout.statementDate);
@@ -1307,7 +1561,8 @@
       if (batch.demoId) {
         var demo = document.createElement('a');
         demo.className = 'batch-demo';
-        demo.href = batch.demoLink || ('/trainer/students?demoId=' + encodeURIComponent(batch.demoId));
+        demo.href =
+          batch.demoLink || '/trainer/students?demoId=' + encodeURIComponent(batch.demoId);
         demo.textContent = 'Demo ' + batch.demoId;
         item.appendChild(demo);
       }
@@ -1320,8 +1575,9 @@
   function isTrainerDesk() {
     var role = window.MATHIFY_USER && window.MATHIFY_USER.role;
     var params = new URLSearchParams(window.location.search);
-    return role !== 'student' && params.get('role') !== 'student' &&
-      params.get('view') !== 'student';
+    return (
+      role !== 'student' && params.get('role') !== 'student' && params.get('view') !== 'student'
+    );
   }
 
   function showPayGateDeck() {
@@ -1354,8 +1610,8 @@
     setText(prefix + 'Value', value);
     var bar = payGateBars && payGateBars[which.toLowerCase()];
     if (!bar) return;
-    var ratio = requiredSeconds > 0
-      ? Math.max(0, Math.min(1, (Number(counted) || 0) / requiredSeconds)) : 0;
+    var ratio =
+      requiredSeconds > 0 ? Math.max(0, Math.min(1, (Number(counted) || 0) / requiredSeconds)) : 0;
     bar.style.width = (ratio * 100).toFixed(1) + '%';
   }
 
@@ -1381,8 +1637,9 @@
     var childRequiredSeconds = Number(gate.childRequiredSeconds) || childRequired * 60;
     var trainerRequired = childJoined
       ? requiredMinutes(gate, 'trainer', 50)
-      : (Number(gate.trainerOnlyMinutes) > 0
-        ? Math.round(Number(gate.trainerOnlyMinutes)) : 15);
+      : Number(gate.trainerOnlyMinutes) > 0
+        ? Math.round(Number(gate.trainerOnlyMinutes))
+        : 15;
     var trainerRequiredSeconds = Number(gate.trainerRequiredSeconds) || trainerRequired * 60;
     var childCounted = Number(gate.childCountedSeconds) || 0;
     var trainerCounted = Number(gate.trainerCountedSeconds) || 0;
@@ -1406,15 +1663,21 @@
         note = 'Pay unlocked · 50–55 min pays only while the child stays.';
       } else {
         stateText = childPresent
-          ? 'Child joined · minimum pending' : 'Child left · minimum pending';
+          ? 'Child joined · minimum pending'
+          : 'Child left · minimum pending';
         note = 'Pay needs child ' + childRequired + ' min + trainer ' + trainerRequired + ' min.';
       }
     }
 
     setText('#payGateState', stateText);
     setText('#payGateNote', note);
-    setPayMeter('Child', 'Child', childValue, childJoined ? childCounted : 0,
-      childJoined ? childRequiredSeconds : 0);
+    setPayMeter(
+      'Child',
+      'Child',
+      childValue,
+      childJoined ? childCounted : 0,
+      childJoined ? childRequiredSeconds : 0
+    );
     setPayMeter('Trainer', 'Trainer', trainerValue, trainerCounted, trainerRequiredSeconds);
     payGateDeck.classList.toggle('is-met', childJoined && childMet && trainerMet);
   }
@@ -1422,9 +1685,10 @@
   function deskWarningCopy(details, seconds) {
     var info = details || {};
     var minutes = Math.ceil(Math.max(0, seconds) / 60) || 5;
-    var label = info.minimumQuotaReached === true
-      ? 'Minimum time complete · ' + minutes + ' min left'
-      : 'Class ends in ' + minutes + ' minutes';
+    var label =
+      info.minimumQuotaReached === true
+        ? 'Minimum time complete · ' + minutes + ' min left'
+        : 'Class ends in ' + minutes + ' minutes';
     if (info.childPresent === true || info.childJoined === true) {
       label += ' · class ends in 5 minutes';
     }
@@ -1458,8 +1722,10 @@
 
   function paintDeskWarning() {
     if (!warningEl || warningEl.hidden || warningAnchorAt === null) return;
-    var remaining = Math.max(0,
-      (warningRemainingSeconds || 0) - Math.floor((Date.now() - warningAnchorAt) / 1000));
+    var remaining = Math.max(
+      0,
+      (warningRemainingSeconds || 0) - Math.floor((Date.now() - warningAnchorAt) / 1000)
+    );
     if (warningCountEl) warningCountEl.textContent = clock(remaining);
     if (remaining === 0) clearDeskWarning();
   }
@@ -1471,8 +1737,7 @@
       toast('Five minutes left. Wrap up the class now.');
     } else if (event.event === 'participant.joined' || event.event === 'participant.left') {
       if (window.MathifySessionAlerts) {
-        window.MathifySessionAlerts.ping(
-          event.event === 'participant.joined' ? 'join' : 'leave');
+        window.MathifySessionAlerts.ping(event.event === 'participant.joined' ? 'join' : 'leave');
       }
     } else if (event.event === 'session.ended' || event.event === 'session.auto_closed') {
       clearDeskWarning();
@@ -1494,37 +1759,50 @@
     if (timing.minimumQuotaReached !== true || warningStateShown) return;
     var cueSeconds = timing.minimumQuota && Number(timing.minimumQuota.cueSeconds);
     if (!Number.isFinite(cueSeconds)) cueSeconds = 5 * 60;
-    showDeskWarning({
-      minimumQuotaReached: true,
-      childPresent: timing.childPresent === true,
-      childJoined: timing.childPresent === true,
-      classType: timing.classType,
-      countdownSeconds: cueSeconds,
-      minimumQuota: timing.minimumQuota
-    }, false);
+    showDeskWarning(
+      {
+        minimumQuotaReached: true,
+        childPresent: timing.childPresent === true,
+        childJoined: timing.childPresent === true,
+        classType: timing.classType,
+        countdownSeconds: cueSeconds,
+        minimumQuota: timing.minimumQuota,
+      },
+      false
+    );
   }
 
   function pollSessionEvents() {
     var sessionId = activeSessionId;
     if (!sessionId) return;
     if (api && api.getSessionEvents) {
-      api.getSessionEvents(sessionId, sessionEventCursor).then(function (events) {
-        if (sessionId !== activeSessionId) return;
-        var maxSeq = sessionEventCursor;
-        events.forEach(function (event) {
-          var seq = Number(event.seq) || 0;
-          if (seq > maxSeq) maxSeq = seq;
-          if (sessionEventCursorReady) handleDeskEvent(event);
+      api
+        .getSessionEvents(sessionId, sessionEventCursor)
+        .then(function (events) {
+          if (sessionId !== activeSessionId) return;
+          var maxSeq = sessionEventCursor;
+          events.forEach(function (event) {
+            var seq = Number(event.seq) || 0;
+            if (seq > maxSeq) maxSeq = seq;
+            if (sessionEventCursorReady) handleDeskEvent(event);
+          });
+          sessionEventCursor = maxSeq;
+          sessionEventCursorReady = true;
+        })
+        .catch(function () {
+          /* transient polling failure; next tick retries */
         });
-        sessionEventCursor = maxSeq;
-        sessionEventCursorReady = true;
-      }).catch(function () { /* transient polling failure; next tick retries */ });
     }
     if (api && api.getSessionState) {
-      api.getSessionState(sessionId).then(function (state) {
-        if (sessionId !== activeSessionId) return;
-        applySessionState(state || {});
-      }).catch(function () { /* dashboard remains usable without session state */ });
+      api
+        .getSessionState(sessionId)
+        .then(function (state) {
+          if (sessionId !== activeSessionId) return;
+          applySessionState(state || {});
+        })
+        .catch(function () {
+          /* dashboard remains usable without session state */
+        });
     }
   }
 
@@ -1533,7 +1811,11 @@
     if (sessionEventPollingId === sessionId && sessionEventTimer) return;
     activeSessionId = sessionId;
     window.MATHIFY_SESSION_ID = sessionId;
-    try { window.localStorage.setItem('mathify.trainer.sessionId', sessionId); } catch (error) { /* private mode */ }
+    try {
+      window.localStorage.setItem('mathify.trainer.sessionId', sessionId);
+    } catch (error) {
+      /* private mode */
+    }
     sessionEventPollingId = sessionId;
     sessionEventCursor = 0;
     sessionEventCursorReady = false;
@@ -1551,18 +1833,24 @@
     activeSessionId = session.id;
     window.MATHIFY_SESSION_ID = session.id;
     activeSessionStartedAt = session.startsAt || session.scheduledAt || null;
-    activeLinkMinutes = Number(session.durationMinutes) > 0
-      ? Number(session.durationMinutes) : 50;
+    activeLinkMinutes = Number(session.durationMinutes) > 0 ? Number(session.durationMinutes) : 50;
     startSessionEventPolling(session.id);
     setText('#nextTime', fmtTime(session.startsAt) + ' · live 1:1');
     setText('#nextTopic', session.title);
     if (window.MathifySubjects && typeof window.MathifySubjects.setNextMeta === 'function') {
       window.MathifySubjects.setNextMeta(session, dashboardSnapshot && dashboardSnapshot.trainer);
     } else {
-      var minutes = Number(session.durationMinutes) > 0
-        ? Number(session.durationMinutes) : 50;
-      setText('#nextMeta', '1:1 · ' + (session.student ? session.student.name : 'Student') +
-        ' · ' + (session.code || 'Session') + ' · link active for ' + minutes + ' min');
+      var minutes = Number(session.durationMinutes) > 0 ? Number(session.durationMinutes) : 50;
+      setText(
+        '#nextMeta',
+        '1:1 · ' +
+          (session.student ? session.student.name : 'Student') +
+          ' · ' +
+          (session.code || 'Session') +
+          ' · link active for ' +
+          minutes +
+          ' min'
+      );
     }
     renderPlan(session);
     setText('#countdownLabel', session.status === 'live' ? 'session' : 'starts in');
@@ -1572,14 +1860,20 @@
   function nextScheduledSession(excludeId) {
     if (!dashboardSnapshot || !Array.isArray(dashboardSnapshot.today)) return null;
     var cutoff = Date.now() - ACTIVE_LINK_MINUTES * 60000;
-    return dashboardSnapshot.today.filter(function (session) {
-      return session.id !== excludeId &&
-        !rolledSessionIds[session.id] &&
-        (session.status === 'scheduled' || session.status === 'live') &&
-        new Date(session.startsAt || session.scheduledAt || 0).getTime() >= cutoff;
-    }).sort(function (left, right) {
-      return new Date(left.startsAt || 0) - new Date(right.startsAt || 0);
-    })[0] || null;
+    return (
+      dashboardSnapshot.today
+        .filter(function (session) {
+          return (
+            session.id !== excludeId &&
+            !rolledSessionIds[session.id] &&
+            (session.status === 'scheduled' || session.status === 'live') &&
+            new Date(session.startsAt || session.scheduledAt || 0).getTime() >= cutoff
+          );
+        })
+        .sort(function (left, right) {
+          return new Date(left.startsAt || 0) - new Date(right.startsAt || 0);
+        })[0] || null
+    );
   }
 
   /* Dashboard link promotion follows the booked class length. Demos and
@@ -1605,14 +1899,23 @@
     var total = dashboard.summary.sessionsToday || 0;
     var taken = dashboard.summary.sessionsTaken || 0;
     var remaining = dashboard.summary.sessionsRemaining || 0;
-    setText('#greetingName', (dashboard.trainer && dashboard.trainer.name || 'Ananya').split(' ')[0]);
+    setText(
+      '#greetingName',
+      ((dashboard.trainer && dashboard.trainer.name) || 'Ananya').split(' ')[0]
+    );
     setText('#profileName', (dashboard.trainer && dashboard.trainer.name) || 'Trainer');
-    setText('#subSessions', plural(total, 'session') + ' today · ' + taken + ' taken · ' + remaining + ' left');
+    setText(
+      '#subSessions',
+      plural(total, 'session') + ' today · ' + taken + ' taken · ' + remaining + ' left'
+    );
     setText('#subStudents', plural(dashboard.summary.studentsNext, 'student') + ' next');
     var attentionWord = dashboard.summary.needsAttention === 1 ? 'item needs' : 'items need';
     setText('#subAttention', dashboard.summary.needsAttention + ' ' + attentionWord + ' attention');
     setText('#attentionCount', String(dashboard.summary.needsAttention).padStart(2, '0'));
-    setText('#dayCount', plural(total, 'session') + ' · ' + taken + ' taken · ' + remaining + ' left');
+    setText(
+      '#dayCount',
+      plural(total, 'session') + ' · ' + taken + ' taken · ' + remaining + ' left'
+    );
 
     var next = dashboard.nextSession;
     if (next && !rolledSessionIds[next.id]) applyActiveSession(next);
@@ -1644,7 +1947,11 @@
       profileBtn.setAttribute('aria-expanded', String(open));
     });
     document.addEventListener('click', function (event) {
-      if (!profilePanel.hidden && !profilePanel.contains(event.target) && event.target !== profileBtn) {
+      if (
+        !profilePanel.hidden &&
+        !profilePanel.contains(event.target) &&
+        event.target !== profileBtn
+      ) {
         profilePanel.hidden = true;
         profileBtn.setAttribute('aria-expanded', 'false');
       }
@@ -1653,14 +1960,14 @@
     if (logoutBtn && api && typeof api.logout === 'function') {
       logoutBtn.addEventListener('click', api.logout);
     }
-  }());
+  })();
 
   if (api) {
     if (window.mathifyLeaveCalendar) {
       window.mathifyLeaveCalendar.mount({
         mount: '#leaveCalendar',
         role: 'trainer',
-        request: api.request
+        request: api.request,
       });
     }
     if (window.mathifyTrainerSchedule) {
@@ -1669,23 +1976,36 @@
 
     Promise.all([
       api.getDashboard(),
-      api.getScore().catch(function () { return null; }),
-      api.getPayout().catch(function () { return null; }),
-      api.getAttention().catch(function () { return null; }),
-      api.getAttendance().catch(function () { return null; }),
-      api.getBatches().catch(function () { return []; })
-    ]).then(function (results) {
-      renderDashboard(results[0], results[1], results[2], results[3], results[4]);
-      renderBatches(results[5]);
-    }).catch(function (error) {
-      document.body.setAttribute('data-api', 'fallback');
-      var banner = document.createElement('div');
-      banner.className = 'api-banner';
-      banner.setAttribute('role', 'status');
-      banner.textContent = 'Offline preview · live trainer data is unavailable. Retry when the API is reachable.';
-      document.body.appendChild(banner);
-      if (window.console && console.warn) console.warn('Mathify API unavailable; trainer console is showing sample data.', error);
-    });
+      api.getScore().catch(function () {
+        return null;
+      }),
+      api.getPayout().catch(function () {
+        return null;
+      }),
+      api.getAttention().catch(function () {
+        return null;
+      }),
+      api.getAttendance().catch(function () {
+        return null;
+      }),
+      api.getBatches().catch(function () {
+        return [];
+      }),
+    ])
+      .then(function (results) {
+        renderDashboard(results[0], results[1], results[2], results[3], results[4]);
+        renderBatches(results[5]);
+      })
+      .catch(function (error) {
+        document.body.setAttribute('data-api', 'fallback');
+        var banner = document.createElement('div');
+        banner.className = 'api-banner';
+        banner.setAttribute('role', 'status');
+        banner.textContent =
+          'Offline preview · live trainer data is unavailable. Retry when the API is reachable.';
+        document.body.appendChild(banner);
+        if (window.console && console.warn)
+          console.warn('Mathify API unavailable; trainer console is showing sample data.', error);
+      });
   }
-
 })();

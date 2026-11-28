@@ -20,6 +20,7 @@ const sessionVersion = require('./sessionVersionService');
 const trainerOnboarding = require('./trainerOnboardingService');
 const notifications = require('./notificationService');
 const payoutService = require('./payoutService');
+const rmPay = require('./rmPayService');
 const slotService = require('./slotService');
 const config = require('../config');
 const appPolicy = require('../config/policy.json');
@@ -35,15 +36,44 @@ const KYC_STATUSES = ['submitted', 'corrected', 'approved'];
 /* Full account detail minus credentials. The founder may see all operational
    data, but never a password hash, salt or login token. */
 const DETAIL_FIELDS = [
-  'id', 'name', 'email', 'role', 'status', 'createdAt',
-  'title', 'grade', 'batch', 'mastery', 'streak', 'sessionsRemaining',
-  'badges', 'trophyPoints', 'payPerSession', 'monthlySalary', 'maxHoursPerDay',
-  'maxSessionsPerDay', 'childId', 'loginAliases', 'accessGrantedAt',
-  'accessGrantedBy', 'accessGrantedByRole', 'accessRevokedAt',
-  'accessRevokedBy', 'accessRevokedByRole', 'accessUpdatedAt',
-  'rateLockedAt', 'rateSetBy', 'rateSetByRole',
-  'passwordIssuedAt', 'passwordIssuedBy', 'passwordIssuedByRole',
-  'passwordTemporaryIssued', 'passwordGenerated'
+  'id',
+  'name',
+  'email',
+  'role',
+  'status',
+  'createdAt',
+  'title',
+  'grade',
+  'batch',
+  'mastery',
+  'streak',
+  'sessionsRemaining',
+  'badges',
+  'trophyPoints',
+  'payPerSession',
+  'monthlySalary',
+  'maxHoursPerDay',
+  'maxSessionsPerDay',
+  'childId',
+  'loginAliases',
+  'accessGrantedAt',
+  'accessGrantedBy',
+  'accessGrantedByRole',
+  'accessRevokedAt',
+  'accessRevokedBy',
+  'accessRevokedByRole',
+  'accessUpdatedAt',
+  'rateLockedAt',
+  'rateSetBy',
+  'rateSetByRole',
+  'salaryUpdatedAt',
+  'salaryUpdatedBy',
+  'salarySetByRole',
+  'passwordIssuedAt',
+  'passwordIssuedBy',
+  'passwordIssuedByRole',
+  'passwordTemporaryIssued',
+  'passwordGenerated',
 ];
 
 function problem(code, message, status) {
@@ -85,20 +115,25 @@ function payoutPeriods(sessions) {
   return Object.keys(periods).sort().reverse();
 }
 
-async function trainerPayouts(user, sessions, allSessions, attendance, trainers) {
+async function trainerPayouts(user, sessions, allSessions, attendance, trainers, penalties) {
   const periods = payoutPeriods(sessions);
   const payouts = [];
   for (const period of periods) {
     const slotPay = await Promise.resolve(
       slotService.unutilisedPayForPeriod(user, sessions, period)
     );
-    payouts.push(payoutService.buildPayout(user, sessions, period, appPolicy, {
-      trainers: trainers,
-      allSessions: allSessions,
-      attendance: attendance,
-      slotPay: slotPay,
-      provenance: config.databaseMode
-    }));
+    payouts.push(
+      payoutService.buildPayout(user, sessions, period, appPolicy, {
+        trainers: trainers,
+        allSessions: allSessions,
+        attendance: attendance,
+        slotPay: slotPay,
+        /* Pass the decisions already loaded for this detail view so the payout
+         statement carries the same dated reason the founder sees. */
+        founderPenalties: penalties,
+        provenance: config.databaseMode,
+      })
+    );
   }
   return payouts;
 }
@@ -109,24 +144,33 @@ async function notifyCredential(user) {
   if (!user) return { sent: false, reason: 'no_account' };
   const linked = await sessionVersion.linkedAccountIds(user.id);
   const aliases = Array.isArray(user.loginAliases) ? user.loginAliases : [];
-  const recipient = String(user.email || aliases[0] ||
-    (linked.request && linked.request.email) || '').toLowerCase();
+  const recipient = String(
+    user.email || aliases[0] || (linked.request && linked.request.email) || ''
+  ).toLowerCase();
   if (!recipient) return { sent: false, reason: 'no_recipient' };
   return notifications.sendPasswordChangedEmail({
     email: recipient,
     name: user.name,
-    role: user.role
+    role: user.role,
   });
 }
 
 function requireRole(role, actorRole) {
   if (ADMIN_ROLES.indexOf(role) === -1) {
-    throw problem('INVALID_ROLE', 'Only trainer, relationship-manager and student accounts can be administered here.', 422);
+    throw problem(
+      'INVALID_ROLE',
+      'Only trainer, relationship-manager and student accounts can be administered here.',
+      422
+    );
   }
   /* A relationship manager may help people but may not create another manager:
      every manager is authorised by the founder himself. */
   if (actorRole === 'relationship_manager' && role === 'relationship_manager') {
-    throw problem('RM_SELF_PROVISION_DENIED', 'Only the founder may create a relationship manager.', 403);
+    throw problem(
+      'RM_SELF_PROVISION_DENIED',
+      'Only the founder may create a relationship manager.',
+      403
+    );
   }
   return role;
 }
@@ -148,69 +192,106 @@ async function requirePerson(id, role) {
 async function list(role) {
   requireRole(role);
   const users = await Promise.resolve(db.listUsers());
-  return users.filter(function (user) { return user.role === role; })
+  return users
+    .filter(function (user) {
+      return user.role === role;
+    })
     .map(personView);
 }
 
 /* Choosing a person by name loads every operational record attached to that
    account. Sensitive credential fields stay excluded by personView. */
-async function detail(role, id, actorRole) {
+async function detail(role, id, actorRole, actorId) {
   requireRole(role, actorRole);
   const user = await requirePerson(id, role);
+  /* A manager may open any trainer/student desk for support, but only their
+     own pay ledger. The founder keeps the full owner view. */
+  if (
+    role === 'relationship_manager' &&
+    actorRole === 'relationship_manager' &&
+    String(actorId) !== String(user.id)
+  ) {
+    throw problem('RM_PAY_OWN_ONLY', 'A manager can only read their own pay ledger.', 403);
+  }
   const sessions = await Promise.resolve(db.listSessionsForUser(user));
   const sessionIds = {};
-  sessions.forEach(function (session) { sessionIds[session.id] = true; });
+  sessions.forEach(function (session) {
+    sessionIds[session.id] = true;
+  });
 
-  const [attendance, batches, documents, penalties, onboarding, allSessions, trainers] = await Promise.all([
-    Promise.resolve(db.listAttendance()),
-    Promise.resolve(db.listBatches()),
-    Promise.resolve(db.listTrainerDocuments()),
-    STAFF_ROLES.indexOf(role) !== -1
-      ? Promise.resolve(db.listFounderPenalties(user.id))
-      : Promise.resolve([]),
-    STAFF_ROLES.indexOf(role) !== -1
-      ? trainerOnboarding.viewFor(user.id, 'founder', { reveal: true })
-      : Promise.resolve(null),
-    role === 'trainer'
-      ? Promise.resolve(db.listSessionsForUser({ role: 'founder' }))
-      : Promise.resolve([]),
-    role === 'trainer'
-      ? Promise.resolve(db.listUsers())
-      : Promise.resolve([])
-  ]);
+  const [attendance, batches, documents, penalties, onboarding, allSessions, trainers] =
+    await Promise.all([
+      Promise.resolve(db.listAttendance()),
+      Promise.resolve(db.listBatches()),
+      Promise.resolve(db.listTrainerDocuments()),
+      STAFF_ROLES.indexOf(role) !== -1
+        ? Promise.resolve(db.listFounderPenalties(user.id))
+        : Promise.resolve([]),
+      STAFF_ROLES.indexOf(role) !== -1
+        ? trainerOnboarding.viewFor(user.id, 'founder', { reveal: true })
+        : Promise.resolve(null),
+      role === 'trainer'
+        ? Promise.resolve(db.listSessionsForUser({ role: 'founder' }))
+        : Promise.resolve([]),
+      role === 'trainer' ? Promise.resolve(db.listUsers()) : Promise.resolve([]),
+    ]);
 
   const view = {
     person: personView(user),
     sessions: sessions,
-    attendance: attendance.filter(function (row) { return sessionIds[row.sessionId]; })
+    attendance: attendance.filter(function (row) {
+      return sessionIds[row.sessionId];
+    }),
   };
 
   if (STAFF_ROLES.indexOf(role) !== -1) {
     /* Relationship managers support delivery but never teach a batch. */
-    view.batches = role === 'trainer'
-      ? batches.filter(function (batch) { return batch.trainerId === user.id; })
-      : [];
-    view.documents = documents.filter(function (doc) { return doc.trainerId === user.id; })
+    view.batches =
+      role === 'trainer'
+        ? batches.filter(function (batch) {
+            return batch.trainerId === user.id;
+          })
+        : [];
+    view.documents = documents
+      .filter(function (doc) {
+        return doc.trainerId === user.id;
+      })
       .map(function (doc) {
         return {
           id: doc.id,
           kind: doc.kind || doc.documentType || 'document',
           mimeType: doc.mimeType,
-          createdAt: doc.createdAt
+          createdAt: doc.createdAt,
         };
       });
     view.onboarding = onboarding;
     view.penalties = penalties;
+    if (role === 'relationship_manager') {
+      /* The manager's own pay is founder-owned and strictly read-only. The
+         ledger includes any one-off founder decision with its full reason. */
+      view.pay = await rmPay.ledgerFor(user, { penalties: penalties });
+    }
     if (role === 'trainer') {
       /* Founder and RM both receive every statement field: base/stretch,
          attendance, MVT, slot pay, fines, gratitude, timing, caps and notes. */
-      view.payouts = await trainerPayouts(user, sessions, allSessions, attendance, trainers);
+      view.payouts = await trainerPayouts(
+        user,
+        sessions,
+        allSessions,
+        attendance,
+        trainers,
+        penalties
+      );
     }
   } else {
-    const enrolled = batches.find(function (batch) { return batch.studentId === user.id; });
+    const enrolled = batches.find(function (batch) {
+      return batch.studentId === user.id;
+    });
     view.batch = enrolled || db.findBatchForStudent(user.id) || null;
     const practice = await Promise.resolve(db.listPracticeBatches());
-    view.practiceBatches = practice.filter(function (batch) { return batch.studentId === user.id; });
+    view.practiceBatches = practice.filter(function (batch) {
+      return batch.studentId === user.id;
+    });
   }
   return view;
 }
@@ -224,7 +305,11 @@ function newId(prefix) {
    used. The founder sees it once, copies it with the email address, and the
    server stores only its salted hash. */
 function generatedPassword(name) {
-  const slug = text(name).toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '') || 'trainer';
+  const slug =
+    text(name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$/g, '') || 'trainer';
   return slug.split('.')[0] + '@mathify123';
 }
 
@@ -232,8 +317,11 @@ async function assertStaffKyc(user) {
   const onboarding = await Promise.resolve(db.findTrainerOnboarding(user.id));
   if (!onboarding || KYC_STATUSES.indexOf(onboarding.status) === -1) {
     const label = user.role === 'relationship_manager' ? 'Relationship manager' : 'Trainer';
-    throw problem('KYC_NOT_SUBMITTED',
-      label + ' must submit all KYC details before access can be granted.', 422);
+    throw problem(
+      'KYC_NOT_SUBMITTED',
+      label + ' must submit all KYC details before access can be granted.',
+      422
+    );
   }
   return onboarding;
 }
@@ -256,50 +344,61 @@ async function create(role, input, actorRole) {
   const users = await Promise.resolve(db.listUsers());
   const taken = users.some(function (user) {
     if (text(user.email).toLowerCase() === email) return true;
-    return (Array.isArray(user.loginAliases) ? user.loginAliases : [])
-      .some(function (alias) { return text(alias).toLowerCase() === email; });
+    return (Array.isArray(user.loginAliases) ? user.loginAliases : []).some(function (alias) {
+      return text(alias).toLowerCase() === email;
+    });
   });
   if (taken) throw problem('EMAIL_IN_USE', 'That email is already in use.', 409);
 
-  const supplied = body.password === undefined || body.password === null || body.password === ''
-    ? null
-    : String(body.password);
+  const supplied =
+    body.password === undefined || body.password === null || body.password === ''
+      ? null
+      : String(body.password);
   if (supplied !== null && (supplied.length < 8 || supplied.length > 200)) {
     throw problem('INVALID_PASSWORD', 'Password must be between 8 and 200 characters.', 422);
   }
-  const temporaryPassword = supplied ||
+  const temporaryPassword =
+    supplied ||
     (STAFF_ROLES.indexOf(role) !== -1
       ? generatedPassword(name)
       : crypto.randomBytes(9).toString('base64url'));
   const secured = password.hashPassword(temporaryPassword);
   const isStaff = STAFF_ROLES.indexOf(role) !== -1;
   const salary = Number(body.monthlySalary);
-  const record = Object.assign({
-    id: newId('usr'),
-    name: name,
-    email: email,
-    role: role,
-    /* New staff wait for KYC review and an explicit founder/manager grant. */
-    status: isStaff ? 'pending' : 'active',
-    createdAt: new Date().toISOString(),
-    passwordSalt: secured.salt,
-    passwordHash: secured.hash
-  }, role === 'trainer'
-    ? { title: 'Mathify trainer', payPerSession: 350, maxHoursPerDay: 6, maxSessionsPerDay: 6 }
-    : role === 'relationship_manager'
-      ? {
-        title: 'Relationship manager',
-        monthlySalary: Number.isFinite(salary) && salary > 0
-          ? Math.round(salary * 100) / 100
-          : 35000
-      }
-      : { grade: text(body.grade) || null, sessionsRemaining: 0, streak: 0, badges: [], trophyPoints: 0 });
+  const record = Object.assign(
+    {
+      id: newId('usr'),
+      name: name,
+      email: email,
+      role: role,
+      /* New staff wait for KYC review and an explicit founder/manager grant. */
+      status: isStaff ? 'pending' : 'active',
+      createdAt: new Date().toISOString(),
+      passwordSalt: secured.salt,
+      passwordHash: secured.hash,
+    },
+    role === 'trainer'
+      ? { title: 'Mathify trainer', payPerSession: 350, maxHoursPerDay: 6, maxSessionsPerDay: 6 }
+      : role === 'relationship_manager'
+        ? {
+            title: 'Relationship manager',
+            monthlySalary:
+              Number.isFinite(salary) && salary > 0 ? Math.round(salary * 100) / 100 : 35000,
+          }
+        : {
+            grade: text(body.grade) || null,
+            sessionsRemaining: 0,
+            streak: 0,
+            badges: [],
+            trophyPoints: 0,
+          }
+  );
 
   await Promise.resolve(db.insertUser(record));
   return {
     person: personView(record),
     temporaryPassword: supplied ? null : temporaryPassword,
-    passwordSource: supplied ? 'founder' : 'generated'
+    passwordSource: supplied ? 'founder' : 'generated',
   };
 }
 
@@ -309,35 +408,44 @@ async function setAccess(id, status, actorId, actorRole) {
     throw problem('INVALID_ACCESS', 'Access must be active or suspended.', 422);
   }
   if (requested === 'suspended') {
-    requireOwner(actorRole, 'RM_REVOKE_DENIED',
-      'A relationship manager can grant access but cannot revoke it.');
+    requireOwner(
+      actorRole,
+      'RM_REVOKE_DENIED',
+      'A relationship manager can grant access but cannot revoke it.'
+    );
   }
   const user = await requirePerson(id);
   if (user.role === 'founder') {
-    throw problem('FOUNDER_ACCESS_LOCKED', 'Founder access cannot be changed from this screen.', 403);
+    throw problem(
+      'FOUNDER_ACCESS_LOCKED',
+      'Founder access cannot be changed from this screen.',
+      403
+    );
   }
   if (STAFF_ROLES.indexOf(user.role) !== -1 && requested === 'active') {
     await assertStaffKyc(user);
   }
   const now = new Date().toISOString();
-  const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
-    current.status = requested;
-    current.accessUpdatedAt = now;
-    if (requested === 'active' && STAFF_ROLES.indexOf(user.role) !== -1) {
-      current.accessGrantedAt = now;
-      current.accessGrantedBy = String(actorId || actorRole || 'founder');
-      current.accessGrantedByRole = actorRole === 'relationship_manager'
-        ? 'relationship_manager' : 'founder';
-      current.accessRevokedAt = null;
-    } else if (requested === 'suspended') {
-      current.accessGrantedAt = null;
-      current.accessRevokedAt = now;
-      current.accessRevokedBy = String(actorId || 'founder');
-      current.accessRevokedByRole = actorRole === 'relationship_manager'
-        ? 'relationship_manager' : 'founder';
-    }
-    return current;
-  }));
+  const updated = await Promise.resolve(
+    db.updateUser(user.id, function (current) {
+      current.status = requested;
+      current.accessUpdatedAt = now;
+      if (requested === 'active' && STAFF_ROLES.indexOf(user.role) !== -1) {
+        current.accessGrantedAt = now;
+        current.accessGrantedBy = String(actorId || actorRole || 'founder');
+        current.accessGrantedByRole =
+          actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder';
+        current.accessRevokedAt = null;
+      } else if (requested === 'suspended') {
+        current.accessGrantedAt = null;
+        current.accessRevokedAt = now;
+        current.accessRevokedBy = String(actorId || 'founder');
+        current.accessRevokedByRole =
+          actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder';
+      }
+      return current;
+    })
+  );
   return personView(updated || Object.assign({}, user, { status: requested }));
 }
 
@@ -354,19 +462,21 @@ async function grantAccess(id, actorId, actorRole) {
   const passwordValue = generatedPassword(user.name);
   const secured = password.hashPassword(passwordValue);
   const now = new Date().toISOString();
-  const updated = await Promise.resolve(sessionVersion.bump(user.id, {
-    status: 'active',
-    passwordSalt: secured.salt,
-    passwordHash: secured.hash,
-    passwordChangedAt: now,
-    passwordResetByFounderAt: now,
-    accessGrantedAt: now,
-    accessGrantedBy: String(actorId || actorRole || 'founder'),
-    accessGrantedByRole: actorRole === 'relationship_manager'
-      ? 'relationship_manager' : 'founder',
-    accessRevokedAt: null,
-    accessUpdatedAt: now
-  }));
+  const updated = await Promise.resolve(
+    sessionVersion.bump(user.id, {
+      status: 'active',
+      passwordSalt: secured.salt,
+      passwordHash: secured.hash,
+      passwordChangedAt: now,
+      passwordResetByFounderAt: now,
+      accessGrantedAt: now,
+      accessGrantedBy: String(actorId || actorRole || 'founder'),
+      accessGrantedByRole:
+        actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder',
+      accessRevokedAt: null,
+      accessUpdatedAt: now,
+    })
+  );
   const notification = await notifyCredential(user);
   return {
     person: personView((updated && updated.user) || user),
@@ -374,7 +484,7 @@ async function grantAccess(id, actorId, actorRole) {
     password: passwordValue,
     passwordSource: 'generated',
     notification: notification,
-    note: 'Copy this password with the email address and hand it over. It is shown only once. A confirmation is emailed to the account.'
+    note: 'Copy this password with the email address and hand it over. It is shown only once. A confirmation is emailed to the account.',
   };
 }
 
@@ -388,32 +498,50 @@ async function setPassword(id, input, actorId, actorRole) {
   const body = input || {};
   const user = await requirePerson(id);
   if (user.role === 'founder') {
-    throw problem('FOUNDER_PASSWORD_LOCKED', 'Use your own profile to change the founder password.', 403);
+    throw problem(
+      'FOUNDER_PASSWORD_LOCKED',
+      'Use your own profile to change the founder password.',
+      403
+    );
   }
-  const supplied = body.password === undefined || body.password === null || body.password === ''
-    ? null
-    : String(body.password);
+  const supplied =
+    body.password === undefined || body.password === null || body.password === ''
+      ? null
+      : String(body.password);
   const isManager = actorRole === 'relationship_manager';
 
   if (isManager) {
     if (user.role !== 'trainer') {
-      throw problem('RM_PASSWORD_TARGET_DENIED',
-        'A manager may issue a temporary password only to a trainer.', 403);
+      throw problem(
+        'RM_PASSWORD_TARGET_DENIED',
+        'A manager may issue a temporary password only to a trainer.',
+        403
+      );
     }
     if (supplied !== null) {
-      throw problem('RM_PASSWORD_CHOICE_DENIED',
-        'A manager cannot choose a password; only the generated temporary password may be issued.', 403);
+      throw problem(
+        'RM_PASSWORD_CHOICE_DENIED',
+        'A manager cannot choose a password; only the generated temporary password may be issued.',
+        403
+      );
     }
     const onboarding = await Promise.resolve(db.findTrainerOnboarding(user.id));
     if (!user.accessGrantedAt || !onboarding || KYC_STATUSES.indexOf(onboarding.status) === -1) {
-      throw problem('KYC_OR_GRANT_REQUIRED',
-        'The trainer must complete KYC and receive an access grant before a manager can issue a temporary password.', 422);
+      throw problem(
+        'KYC_OR_GRANT_REQUIRED',
+        'The trainer must complete KYC and receive an access grant before a manager can issue a temporary password.',
+        422
+      );
     }
-  } else if (supplied !== null && (supplied.length < 8 || supplied.length > 200 || !supplied.trim())) {
+  } else if (
+    supplied !== null &&
+    (supplied.length < 8 || supplied.length > 200 || !supplied.trim())
+  ) {
     throw problem('INVALID_PASSWORD', 'Password must be between 8 and 200 characters.', 422);
   }
 
-  const newPassword = supplied ||
+  const newPassword =
+    supplied ||
     (STAFF_ROLES.indexOf(user.role) !== -1
       ? generatedPassword(user.name)
       : crypto.randomBytes(9).toString('base64url'));
@@ -421,26 +549,28 @@ async function setPassword(id, input, actorId, actorRole) {
   const now = new Date().toISOString();
   const actor = String(actorId || actorRole || 'founder');
   const issuedByRole = isManager ? 'relationship_manager' : 'founder';
-  const updated = await Promise.resolve(sessionVersion.bump(user.id, {
-    passwordSalt: secured.salt,
-    passwordHash: secured.hash,
-    passwordChangedAt: now,
-    /* Historical field retained so older founder-desk readers keep working;
+  const updated = await Promise.resolve(
+    sessionVersion.bump(user.id, {
+      passwordSalt: secured.salt,
+      passwordHash: secured.hash,
+      passwordChangedAt: now,
+      /* Historical field retained so older founder-desk readers keep working;
        the issued-by fields below make the manager exception explicit. */
-    passwordResetByFounderAt: now,
-    passwordIssuedAt: now,
-    passwordIssuedBy: actor,
-    passwordIssuedByRole: issuedByRole,
-    passwordTemporaryIssued: !supplied,
-    passwordGenerated: !supplied
-  }));
+      passwordResetByFounderAt: now,
+      passwordIssuedAt: now,
+      passwordIssuedBy: actor,
+      passwordIssuedByRole: issuedByRole,
+      passwordTemporaryIssued: !supplied,
+      passwordGenerated: !supplied,
+    })
+  );
   const notification = await notifyCredential(user);
   return {
     person: personView((updated && updated.user) || user),
     email: user.email,
     temporaryPassword: supplied ? null : newPassword,
     passwordSource: supplied ? 'founder' : 'generated',
-    notification: notification
+    notification: notification,
   };
 }
 
@@ -456,18 +586,21 @@ async function setBaseRate(id, rate, actorId, actorRole) {
   const user = await requirePerson(id, 'trainer');
   const now = new Date().toISOString();
   const isManager = actorRole === 'relationship_manager';
-  const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
-    current.payPerSession = rounded;
-    current.rateUpdatedAt = now;
-    current.rateSetBy = String(actorId || actorRole || 'founder');
-    current.rateSetByRole = isManager ? 'relationship_manager' : 'founder';
-    if (!isManager && !current.rateLockedAt) current.rateLockedAt = now;
-    return current;
-  }));
+  const updated = await Promise.resolve(
+    db.updateUser(user.id, function (current) {
+      current.payPerSession = rounded;
+      current.rateUpdatedAt = now;
+      current.rateSetBy = String(actorId || actorRole || 'founder');
+      current.rateSetByRole = isManager ? 'relationship_manager' : 'founder';
+      if (!isManager && !current.rateLockedAt) current.rateLockedAt = now;
+      return current;
+    })
+  );
   const view = personView(updated || Object.assign({}, user, { payPerSession: rounded }));
-  view.bandWarning = rounded < 300 || rounded > 400
-    ? 'Rate is outside the current ₹300–₹400 policy band; confirm it matches the trainer contract.'
-    : null;
+  view.bandWarning =
+    rounded < 300 || rounded > 400
+      ? 'Rate is outside the current ₹300–₹400 policy band; confirm it matches the trainer contract.'
+      : null;
   return view;
 }
 
@@ -481,26 +614,47 @@ async function setMonthlySalary(id, amount, actorRole) {
   }
   const user = await requirePerson(id, 'relationship_manager');
   const rounded = Math.round(value * 100) / 100;
-  const updated = await Promise.resolve(db.updateUser(user.id, function (current) {
-    current.monthlySalary = rounded;
-    current.salaryUpdatedAt = new Date().toISOString();
-    return current;
-  }));
+  const updated = await Promise.resolve(
+    db.updateUser(user.id, function (current) {
+      current.monthlySalary = rounded;
+      current.salaryUpdatedAt = new Date().toISOString();
+      current.salaryUpdatedBy = String(actorRole || 'founder');
+      current.salarySetByRole = 'founder';
+      return current;
+    })
+  );
   return personView(updated || Object.assign({}, user, { monthlySalary: rounded }));
 }
 
-async function listPenalties(trainerId) {
-  await requirePerson(trainerId, 'trainer');
-  return Promise.resolve(db.listFounderPenalties(String(trainerId)));
+async function listPenalties(personId) {
+  const user = await requirePerson(personId);
+  if (STAFF_ROLES.indexOf(user.role) === -1) {
+    throw problem('INVALID_ROLE', 'Penalties are only recorded for staff accounts.', 422);
+  }
+  return Promise.resolve(db.listFounderPenalties(user.id));
 }
 
-/* "Adhere a penalty" means attach it to a named trainer with an auditable
-   reason and amount. Nothing is deducted here; the payroll service consumes
-   the recorded decision. */
-async function addPenalty(trainerId, input, actorId, actorRole) {
-  requireOwner(actorRole, 'RM_PENALTY_DENIED',
-    'Only the founder may record a penalty or fine.');
-  const user = await requirePerson(trainerId, 'trainer');
+/* Read-only projection of the manager's own pay. A manager can never open
+   another manager's ledger; the founder may open any named account. */
+async function rmPayment(id, actorId, actorRole) {
+  const user = await requirePerson(id, 'relationship_manager');
+  if (actorRole === 'relationship_manager' && String(actorId) !== String(user.id)) {
+    throw problem('RM_PAY_OWN_ONLY', 'A manager can only read their own payment ledger.', 403);
+  }
+  const penalties = await Promise.resolve(db.listFounderPenalties(user.id));
+  return rmPay.ledgerFor(user, { penalties: penalties });
+}
+
+/* "Adhere a penalty" means attach it to a named staff member with an auditable
+   reason and amount. Trainers see the reason in their pay statement; managers
+   see their own one-off founder decision in the read-only payment ledger.
+   Nothing is deducted here; the payroll view consumes the recorded decision. */
+async function addPenalty(personId, input, actorId, actorRole) {
+  requireOwner(actorRole, 'RM_PENALTY_DENIED', 'Only the founder may record a penalty or fine.');
+  const user = await requirePerson(personId);
+  if (STAFF_ROLES.indexOf(user.role) === -1) {
+    throw problem('INVALID_ROLE', 'Penalties are only recorded for staff accounts.', 422);
+  }
   const body = input || {};
   const amount = Number(body.amount);
   const reason = text(body.reason);
@@ -512,6 +666,11 @@ async function addPenalty(trainerId, input, actorId, actorRole) {
   }
   const record = {
     id: newId('pen'),
+    /* The shared decision store keys rows by `trainerId` for historical
+       reasons; `targetRole` keeps a manager decision distinct from a trainer
+       one without changing the storage contract. */
+    targetRole: user.role,
+    targetId: user.id,
     trainerId: user.id,
     trainerName: user.name,
     amount: Math.round(amount * 100) / 100,
@@ -522,7 +681,7 @@ async function addPenalty(trainerId, input, actorId, actorRole) {
     decidedByRole: actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder',
     createdAt: new Date().toISOString(),
     revokedAt: null,
-    revokedBy: null
+    revokedBy: null,
   };
   await Promise.resolve(db.saveFounderPenalty(record));
   return record;
@@ -531,8 +690,7 @@ async function addPenalty(trainerId, input, actorId, actorRole) {
 /* Revocation is an append-only status change: the original decision stays in
    the audit trail with who removed it and when. */
 async function revokePenalty(penaltyId, actorId, actorRole) {
-  requireOwner(actorRole, 'RM_PENALTY_DENIED',
-    'Only the founder may revoke a penalty or fine.');
+  requireOwner(actorRole, 'RM_PENALTY_DENIED', 'Only the founder may revoke a penalty or fine.');
   const current = await Promise.resolve(db.findFounderPenalty(String(penaltyId || '')));
   if (!current) throw problem('PENALTY_NOT_FOUND', 'That penalty does not exist.', 404);
   if (current.status === 'revoked') return current;
@@ -540,7 +698,7 @@ async function revokePenalty(penaltyId, actorId, actorRole) {
     status: 'revoked',
     revokedAt: new Date().toISOString(),
     revokedBy: String(actorId || actorRole || 'founder'),
-    revokedByRole: actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder'
+    revokedByRole: actorRole === 'relationship_manager' ? 'relationship_manager' : 'founder',
   });
   await Promise.resolve(db.saveFounderPenalty(updated));
   return updated;
@@ -558,6 +716,7 @@ module.exports = {
   setBaseRate: setBaseRate,
   setMonthlySalary: setMonthlySalary,
   listPenalties: listPenalties,
+  rmPayment: rmPayment,
   addPenalty: addPenalty,
-  revokePenalty: revokePenalty
+  revokePenalty: revokePenalty,
 };

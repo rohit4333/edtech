@@ -97,12 +97,14 @@
     '/founder-admin/audit': { desk: 'Founder admin', label: 'Manager activity', id: 'audit-log' },
 
     '/rm/dashboard': { desk: 'Relationship manager', label: 'Dashboard', id: 'dashboard' },
+    '/rm/payment': { desk: 'Relationship manager', label: 'Payment', id: 'rm-payment' },
     '/rm/trainers': { desk: 'Relationship manager', label: 'Trainers', id: 'rm-trainers' },
     '/rm/students': { desk: 'Relationship manager', label: 'Students', id: 'rm-students' },
     '/rm/penalties': { desk: 'Relationship manager', label: 'Penalties', id: 'rm-penalties' },
     '/rm/classes': { desk: 'Relationship manager', label: 'Classes', id: 'rm-classes' },
 
     '/parent/inbox': { desk: 'Parent inbox', label: 'Inbox', id: 'inbox' },
+    '/parent/balance': { desk: 'Parent inbox', label: 'Balance & pack', id: 'balance' },
     '/parent/child': { desk: 'Parent inbox', label: 'My child', id: 'child' },
     '/parent/sessions': { desk: 'Parent inbox', label: '1-on-1 sessions', id: 'sessions' },
     '/parent/guidance': { desk: 'Parent inbox', label: 'Chat rules', id: 'guidance' },

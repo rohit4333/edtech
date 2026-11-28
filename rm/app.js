@@ -10,21 +10,29 @@
   var TOKEN_KEYS = ['mathify.classroom.token.relationship_manager', 'mathify.rm.token'];
   var LOGIN_PAGE = '/login.html?role=rm';
 
-  function byId(id) { return document.getElementById(id); }
+  function byId(id) {
+    return document.getElementById(id);
+  }
 
   function token() {
     for (var i = 0; i < TOKEN_KEYS.length; i += 1) {
       try {
         var value = window.localStorage.getItem(TOKEN_KEYS[i]);
         if (value) return value;
-      } catch (error) { /* private mode */ }
+      } catch (error) {
+        /* private mode */
+      }
     }
     return null;
   }
 
   function logout() {
     TOKEN_KEYS.forEach(function (key) {
-      try { window.localStorage.removeItem(key); } catch (error) { /* private mode */ }
+      try {
+        window.localStorage.removeItem(key);
+      } catch (error) {
+        /* private mode */
+      }
     });
     window.location.replace(LOGIN_PAGE);
   }
@@ -43,22 +51,29 @@
     return fetch(BASE + path, {
       method: method || (body === undefined ? 'GET' : 'POST'),
       headers: headers,
-      body: body === undefined ? undefined : JSON.stringify(body)
+      body: body === undefined ? undefined : JSON.stringify(body),
     }).then(function (response) {
-      return response.json().catch(function () { return {}; }).then(function (data) {
-        if (response.status === 401 || response.status === 403) {
-          if (response.status === 401) requireLogin();
-          var problem = new Error((data && data.message) || 'This action is not available to your account.');
-          problem.code = data && data.error;
-          throw problem;
-        }
-        if (!response.ok) {
-          var failure = new Error((data && data.message) || 'Request failed.');
-          failure.code = data && data.error;
-          throw failure;
-        }
-        return data;
-      });
+      return response
+        .json()
+        .catch(function () {
+          return {};
+        })
+        .then(function (data) {
+          if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) requireLogin();
+            var problem = new Error(
+              (data && data.message) || 'This action is not available to your account.'
+            );
+            problem.code = data && data.error;
+            throw problem;
+          }
+          if (!response.ok) {
+            var failure = new Error((data && data.message) || 'Request failed.');
+            failure.code = data && data.error;
+            throw failure;
+          }
+          return data;
+        });
     });
   }
 
@@ -98,7 +113,11 @@
     pairs.forEach(function (pair) {
       var row = node('div');
       row.appendChild(node('b', null, pair[0] + ': '));
-      row.appendChild(document.createTextNode(pair[1] === null || pair[1] === undefined || pair[1] === '' ? '—' : String(pair[1])));
+      row.appendChild(
+        document.createTextNode(
+          pair[1] === null || pair[1] === undefined || pair[1] === '' ? '—' : String(pair[1])
+        )
+      );
       list.appendChild(row);
     });
     target.appendChild(list);
@@ -107,6 +126,10 @@
   function money(value, currency) {
     if (value === null || value === undefined || value === '') return '—';
     return '₹' + value + (currency ? ' ' + currency : '');
+  }
+
+  function inr(value) {
+    return '₹' + Number(value || 0).toLocaleString('en-IN');
   }
 
   function capsLabel(caps) {
@@ -122,7 +145,8 @@
       parts.push('max ' + caps.maxSessionsPerDay + ' sessions/day');
     }
     if (caps.cappedSessionCount !== undefined) parts.push(caps.cappedSessionCount + ' capped');
-    if (caps.violations && caps.violations.length) parts.push(caps.violations.length + ' review flags');
+    if (caps.violations && caps.violations.length)
+      parts.push(caps.violations.length + ' review flags');
     return parts.length ? parts.join(' · ') : '—';
   }
 
@@ -131,9 +155,11 @@
   function renderPayDetail(target, payouts) {
     if (!target) return;
     target.innerHTML = '';
-    var statements = Array.isArray(payouts) ? payouts.slice().sort(function (left, right) {
-      return String(right.period || '').localeCompare(String(left.period || ''));
-    }) : [];
+    var statements = Array.isArray(payouts)
+      ? payouts.slice().sort(function (left, right) {
+          return String(right.period || '').localeCompare(String(left.period || ''));
+        })
+      : [];
     if (!statements.length) {
       target.appendChild(node('p', 'admin-hint', 'No pay statements are available yet.'));
       return;
@@ -160,7 +186,7 @@
         ['Completed sessions', payout.completedSessionCount],
         ['Effective sessions', payout.effectiveSessionCount],
         ['Rate per session', payout.ratePerSession ? money(payout.ratePerSession, currency) : '—'],
-        ['Calculation source', amount.source || payout.provenance || '—']
+        ['Calculation source', amount.source || payout.provenance || '—'],
       ]);
 
       var bonuses = payout.bonuses || {};
@@ -171,27 +197,55 @@
       var noShows = payout.noShows || {};
       var policy = payout.policy || {};
       renderFacts(block, [
-        ['Bonus detail', bonuses.eligible
-          ? 'perfect attendance · month ' + bonuses.consecutiveMonth + ' · ' +
-            bonuses.presentCount + '/' + bonuses.expectedCount + ' present'
-          : 'not eligible · ' + bonuses.presentCount + '/' + bonuses.expectedCount + ' present'],
+        [
+          'Bonus detail',
+          bonuses.eligible
+            ? 'perfect attendance · month ' +
+              bonuses.consecutiveMonth +
+              ' · ' +
+              bonuses.presentCount +
+              '/' +
+              bonuses.expectedCount +
+              ' present'
+            : 'not eligible · ' + bonuses.presentCount + '/' + bonuses.expectedCount + ' present',
+        ],
         ['MVT rank', mvt.rank === null || mvt.rank === undefined ? '—' : mvt.rank],
         ['Slot rule', slot.rule],
-        ['Leaves', leaves.count + ' mutual · pay ' + money(leaves.payout, currency) +
-          ' · fine ' + money(leaves.fine, currency) + ' · pack penalty ' +
-          (leaves.packPenalty ? 'yes' : 'no')],
-        ['Late trainer cancellations', late.count + ' · ' + money(late.finePerSession, currency) + ' each'],
+        [
+          'Leaves',
+          leaves.count +
+            ' mutual · pay ' +
+            money(leaves.payout, currency) +
+            ' · fine ' +
+            money(leaves.fine, currency) +
+            ' · pack penalty ' +
+            (leaves.packPenalty ? 'yes' : 'no'),
+        ],
+        [
+          'Late trainer cancellations',
+          late.count + ' · ' + money(late.finePerSession, currency) + ' each',
+        ],
         ['No-shows', noShows.count + ' · ' + money(noShows.payoutPerSession, currency) + ' each'],
-        ['Policy caps', (policy.maxHoursPerDay || '—') + ' h/day · ' +
-          (policy.maxSessionsPerDay || '—') + ' sessions/day · ' +
-          (policy.leaveNoticeHours || '—') + ' h leave notice'],
-        ['Applied caps', capsLabel(caps)]
+        [
+          'Policy caps',
+          (policy.maxHoursPerDay || '—') +
+            ' h/day · ' +
+            (policy.maxSessionsPerDay || '—') +
+            ' sessions/day · ' +
+            (policy.leaveNoticeHours || '—') +
+            ' h leave notice',
+        ],
+        ['Applied caps', capsLabel(caps)],
       ]);
 
       var fineRows = ((payout.fines || {}).entries || []).map(function (entry) {
-        return ['Fine · ' + (entry.sessionId || entry.basis || 'entry'),
-          money(entry.amount, currency) + ' · ' + (entry.basis || '—') +
-          (entry.lateMinutes ? ' · ' + entry.lateMinutes + ' min late' : '')];
+        return [
+          'Fine · ' + (entry.sessionId || entry.basis || 'entry'),
+          money(entry.amount, currency) +
+            ' · ' +
+            (entry.basis || '—') +
+            (entry.lateMinutes ? ' · ' + entry.lateMinutes + ' min late' : ''),
+        ];
       });
       if (fineRows.length) {
         block.appendChild(node('h5', null, 'Fine entries'));
@@ -199,12 +253,25 @@
       }
 
       var timingRows = (timing.sessions || []).map(function (row) {
-        return ['Session · ' + row.sessionId,
-          'factor ' + row.factor + ' · base ' + money(row.baseAmount, currency) +
-          ' · stretch ' + money(row.stretchPay, currency) + ' · fine ' + money(row.fine, currency) +
-          ' · late ' + (row.lateMinutes === null || row.lateMinutes === undefined ? '—' : row.lateMinutes + ' min') +
-          ' · child ' + (row.studentJoined ? (row.studentPayGateMet ? 'met' : 'below gate') : 'none') +
-          ' · code ' + (row.completionCode || '—')];
+        return [
+          'Session · ' + row.sessionId,
+          'factor ' +
+            row.factor +
+            ' · base ' +
+            money(row.baseAmount, currency) +
+            ' · stretch ' +
+            money(row.stretchPay, currency) +
+            ' · fine ' +
+            money(row.fine, currency) +
+            ' · late ' +
+            (row.lateMinutes === null || row.lateMinutes === undefined
+              ? '—'
+              : row.lateMinutes + ' min') +
+            ' · child ' +
+            (row.studentJoined ? (row.studentPayGateMet ? 'met' : 'below gate') : 'none') +
+            ' · code ' +
+            (row.completionCode || '—'),
+        ];
       });
       if (timingRows.length) {
         block.appendChild(node('h5', null, 'Session timing'));
@@ -212,8 +279,14 @@
       }
 
       var dailyRows = (payout.dailySeries || []).map(function (day) {
-        return [day.label, money(day.cumulative, currency) + ' cumulative · ' +
-          (day.sessions === null || day.sessions === undefined ? '—' : day.sessions + ' session(s)')];
+        return [
+          day.label,
+          money(day.cumulative, currency) +
+            ' cumulative · ' +
+            (day.sessions === null || day.sessions === undefined
+              ? '—'
+              : day.sessions + ' session(s)'),
+        ];
       });
       if (dailyRows.length) {
         block.appendChild(node('h5', null, 'Daily trend'));
@@ -221,12 +294,27 @@
       }
 
       renderFacts(block, [
-        ['Clock start offset', timing.clockStartOffsetMinutes === undefined ? '—' : timing.clockStartOffsetMinutes + ' min'],
-        ['Required teaching', timing.requiredTeachingMinutes === undefined ? '—' : timing.requiredTeachingMinutes + ' min'],
-        ['Completion window', timing.completionWindowMinutes === undefined ? '—' : timing.completionWindowMinutes + ' min'],
+        [
+          'Clock start offset',
+          timing.clockStartOffsetMinutes === undefined
+            ? '—'
+            : timing.clockStartOffsetMinutes + ' min',
+        ],
+        [
+          'Required teaching',
+          timing.requiredTeachingMinutes === undefined
+            ? '—'
+            : timing.requiredTeachingMinutes + ' min',
+        ],
+        [
+          'Completion window',
+          timing.completionWindowMinutes === undefined
+            ? '—'
+            : timing.completionWindowMinutes + ' min',
+        ],
         ['Rule source', (payout.knownRules && payout.knownRules.source) || '—'],
         ['Cap note', caps.note],
-        ['Statement note', amount.note]
+        ['Statement note', amount.note],
       ]);
       target.appendChild(block);
     });
@@ -234,9 +322,12 @@
 
   function disableForm(form, disabled) {
     if (!form) return;
-    Array.prototype.forEach.call(form.querySelectorAll('input, button, select, textarea'), function (field) {
-      field.disabled = disabled;
-    });
+    Array.prototype.forEach.call(
+      form.querySelectorAll('input, button, select, textarea'),
+      function (field) {
+        field.disabled = disabled;
+      }
+    );
   }
 
   /* A trainer whose desk was opened by the founder needs no grant or batch
@@ -266,44 +357,180 @@
     if (passwordField) passwordField.textContent = password || '';
   }
 
-  var state = { trainers: [], students: [], batches: [], penalties: [], trainer: null, student: null };
+  var state = {
+    trainers: [],
+    students: [],
+    batches: [],
+    penalties: [],
+    trainer: null,
+    student: null,
+  };
 
   function loadDashboard() {
-    return request('/rm/dashboard').then(function (data) {
-      var view = data.dashboard || {};
-      var profile = byId('profileName');
-      if (profile) profile.textContent = view.name || 'Relationship manager';
-      var stats = byId('rmStats');
-      if (stats) {
-        stats.innerHTML = '';
-        if (view.locked) {
-          var note = node('div', 'locked-note');
-          note.appendChild(node('strong', null, 'Founder approval pending'));
-          note.appendChild(document.createTextNode(
-            (data.access && data.access.reason) || 'Your KYC is under review. The founder will grant the desk after validation.'
-          ));
-          stats.appendChild(note);
-          say(byId('rmDashboardStatus'), 'Account created. Complete KYC above and wait for founder approval.', 'error');
-        } else {
-          Object.keys(view.counts || {}).forEach(function (key) {
-            var card = node('div', 'stat');
-            card.appendChild(node('b', null, view.counts[key]));
-            card.appendChild(node('span', null,
-              key === 'trainersNeedingAction' ? 'trainers awaiting manager action' : key));
-            stats.appendChild(card);
-          });
-          if (view.monthlySalary) {
-            var salary = node('div', 'stat');
-            salary.appendChild(node('b', null, '₹' + Number(view.monthlySalary).toLocaleString('en-IN')));
-            salary.appendChild(node('span', null, 'monthly salary'));
-            stats.appendChild(salary);
+    return request('/rm/dashboard')
+      .then(function (data) {
+        var view = data.dashboard || {};
+        var profile = byId('profileName');
+        if (profile) profile.textContent = view.name || 'Relationship manager';
+        var stats = byId('rmStats');
+        if (stats) {
+          stats.innerHTML = '';
+          if (view.locked) {
+            var note = node('div', 'locked-note');
+            note.appendChild(node('strong', null, 'Founder approval pending'));
+            note.appendChild(
+              document.createTextNode(
+                (data.access && data.access.reason) ||
+                  'Your KYC is under review. The founder will grant the desk after validation.'
+              )
+            );
+            stats.appendChild(note);
+            say(
+              byId('rmDashboardStatus'),
+              'Account created. Complete KYC above and wait for founder approval.',
+              'error'
+            );
+          } else {
+            Object.keys(view.counts || {}).forEach(function (key) {
+              var card = node('div', 'stat');
+              card.appendChild(node('b', null, view.counts[key]));
+              card.appendChild(
+                node(
+                  'span',
+                  null,
+                  key === 'trainersNeedingAction' ? 'trainers awaiting manager action' : key
+                )
+              );
+              stats.appendChild(card);
+            });
+            if (view.monthlySalary) {
+              var salary = node('div', 'stat');
+              salary.appendChild(
+                node('b', null, '₹' + Number(view.monthlySalary).toLocaleString('en-IN'))
+              );
+              salary.appendChild(node('span', null, 'monthly salary'));
+              stats.appendChild(salary);
+            }
+            say(
+              byId('rmDashboardStatus'),
+              'Desk active · founder-authorised support access',
+              'success'
+            );
           }
-          say(byId('rmDashboardStatus'), 'Desk active · founder-authorised support access', 'success');
         }
+      })
+      .catch(function (error) {
+        say(byId('rmDashboardStatus'), error.message || 'Desk could not be loaded.', 'error');
+      });
+  }
+
+  /* The manager's own pay is a founder-owned, read-only projection. It arrives
+     from the dedicated ledger route; this client renders no rate, amount or
+     penalty editing control. A founder decision always carries its reason. */
+  function renderOwnPayment(payment) {
+    var rate = payment && payment.rate ? payment.rate : {};
+    say(byId('rmPayRate'), inr(rate.amount));
+    say(
+      byId('rmPayRateMeta'),
+      (rate.label || 'Founder-set pay rate') +
+        ' · ' +
+        (rate.setByRole || 'founder') +
+        ' · read only'
+    );
+    say(byId('rmPayRunningTotal'), inr(payment && payment.runningTotal));
+    say(
+      byId('rmPayPeriod'),
+      payment && payment.period ? payment.period + ' · INR' : 'Current period'
+    );
+    say(
+      byId('rmPayNote'),
+      payment && payment.note
+        ? payment.note
+        : 'All amounts are in INR (₹). The founder alone decides pay, rate and any one-off penalty.'
+    );
+
+    var ledger = byId('rmPayLedger');
+    if (ledger) {
+      ledger.innerHTML = '';
+      var entries = (payment && payment.entries) || [];
+      if (!entries.length) {
+        var empty = node('tr');
+        var cell = node('td', null, 'No payment entries yet.');
+        cell.colSpan = 5;
+        empty.appendChild(cell);
+        ledger.appendChild(empty);
       }
-    }).catch(function (error) {
-      say(byId('rmDashboardStatus'), error.message || 'Desk could not be loaded.', 'error');
-    });
+      entries.forEach(function (entry) {
+        var row = node('tr');
+        var penalty = entry.kind === 'founder_penalty';
+        var amount = penalty ? '−' + inr(entry.amount) : inr(entry.amount);
+        [
+          entry.date,
+          entry.sessions === undefined ? '—' : entry.sessions,
+          amount,
+          entry.status || (penalty ? 'founder penalty' : 'recorded'),
+          inr(entry.runningTotal),
+        ].forEach(function (value) {
+          row.appendChild(node('td', null, value));
+        });
+        ledger.appendChild(row);
+      });
+    }
+
+    var penalties = byId('rmPayPenalties');
+    if (penalties) {
+      penalties.innerHTML = '';
+      var rows = (payment && payment.penalties) || [];
+      if (!rows.length) {
+        penalties.appendChild(
+          node('p', 'admin-hint', 'No founder penalties recorded for this period.')
+        );
+      }
+      rows.forEach(function (penalty) {
+        var row = node('div', 'rm-pay-penalty');
+        row.appendChild(
+          node(
+            'b',
+            null,
+            penalty.date +
+              ' · ' +
+              inr(penalty.amount) +
+              ' · ' +
+              (penalty.reason || 'No reason supplied')
+          )
+        );
+        row.appendChild(
+          node(
+            'span',
+            null,
+            'Status: ' + penalty.status + ' · recorded by ' + (penalty.decidedByRole || 'founder')
+          )
+        );
+        penalties.appendChild(row);
+      });
+    }
+  }
+
+  function loadOwnPayment() {
+    return request('/auth/me')
+      .then(function (data) {
+        var user = (data && data.user) || {};
+        if (user.role !== 'relationship_manager') {
+          throw new Error('Own payment is available to the relationship manager only.');
+        }
+        return request('/admin/rm-payment/' + encodeURIComponent(user.id));
+      })
+      .then(function (data) {
+        renderOwnPayment(data);
+        say(
+          byId('rmPayStatus'),
+          'Read-only ledger · founder-set rate and decisions only.',
+          'success'
+        );
+      })
+      .catch(function (error) {
+        say(byId('rmPayStatus'), error.message || 'Payment ledger could not be loaded.', 'error');
+      });
   }
 
   function loadPeople() {
@@ -311,38 +538,77 @@
       request('/admin/people/trainer'),
       request('/admin/people/student'),
       request('/admin/batches'),
-      request('/admin/trainer-onboarding?reveal=false')
-    ]).then(function (results) {
-      state.trainers = (results[0] && results[0].people) || [];
-      state.students = (results[1] && results[1].people) || [];
-      state.batches = (results[2] && results[2].batches) || [];
-      fillSelect(byId('rmTrainerSelect'), state.trainers, 'Choose a trainer…',
-        function (row) { return row.name + ' · ' + row.status; },
-        function (row) { return row.id; });
-      fillSelect(byId('rmStudentSelect'), state.students, 'Choose a student…',
-        function (row) { return row.name + ' · ' + row.status; },
-        function (row) { return row.id; });
-      fillSelect(byId('rmBatchSelect'), state.batches, 'Choose a batch…',
-        function (row) { return row.title || row.id; },
-        function (row) { return row.id; });
-      say(byId('rmTrainerStatus'), state.trainers.length + ' trainer accounts available.');
-      say(byId('rmStudentStatus'), state.students.length + ' student accounts available.');
-      return loadAllPenalties();
-    }).then(function () {
-      return loadClassOverview();
-    }).catch(function (error) {
-      say(byId('rmTrainerStatus'), error.message || 'Trainer records could not be loaded.', 'error');
-    });
+      request('/admin/trainer-onboarding?reveal=false'),
+    ])
+      .then(function (results) {
+        state.trainers = (results[0] && results[0].people) || [];
+        state.students = (results[1] && results[1].people) || [];
+        state.batches = (results[2] && results[2].batches) || [];
+        fillSelect(
+          byId('rmTrainerSelect'),
+          state.trainers,
+          'Choose a trainer…',
+          function (row) {
+            return row.name + ' · ' + row.status;
+          },
+          function (row) {
+            return row.id;
+          }
+        );
+        fillSelect(
+          byId('rmStudentSelect'),
+          state.students,
+          'Choose a student…',
+          function (row) {
+            return row.name + ' · ' + row.status;
+          },
+          function (row) {
+            return row.id;
+          }
+        );
+        fillSelect(
+          byId('rmBatchSelect'),
+          state.batches,
+          'Choose a batch…',
+          function (row) {
+            return row.title || row.id;
+          },
+          function (row) {
+            return row.id;
+          }
+        );
+        say(byId('rmTrainerStatus'), state.trainers.length + ' trainer accounts available.');
+        say(byId('rmStudentStatus'), state.students.length + ' student accounts available.');
+        return loadAllPenalties();
+      })
+      .then(function () {
+        return loadClassOverview();
+      })
+      .catch(function (error) {
+        say(
+          byId('rmTrainerStatus'),
+          error.message || 'Trainer records could not be loaded.',
+          'error'
+        );
+      });
   }
 
   function loadAllPenalties() {
     var target = byId('rmPenaltyList');
-    return Promise.all(state.trainers.map(function (trainer) {
-      return request('/admin/people/' + encodeURIComponent(trainer.id) + '/penalties')
-        .then(function (data) { return (data && data.penalties) || []; })
-        .catch(function () { return []; });
-    })).then(function (groups) {
-      state.penalties = groups.reduce(function (all, group) { return all.concat(group); }, []);
+    return Promise.all(
+      state.trainers.map(function (trainer) {
+        return request('/admin/people/' + encodeURIComponent(trainer.id) + '/penalties')
+          .then(function (data) {
+            return (data && data.penalties) || [];
+          })
+          .catch(function () {
+            return [];
+          });
+      })
+    ).then(function (groups) {
+      state.penalties = groups.reduce(function (all, group) {
+        return all.concat(group);
+      }, []);
       if (!target) return;
       target.innerHTML = '';
       if (!state.penalties.length) {
@@ -351,8 +617,14 @@
       }
       state.penalties.forEach(function (penalty) {
         var row = node('div', 'penalty-row');
-        var label = penalty.trainerName + ' · ₹' + penalty.amount + ' · ' + penalty.reason +
-          ' · ' + penalty.status;
+        var label =
+          penalty.trainerName +
+          ' · ₹' +
+          penalty.amount +
+          ' · ' +
+          penalty.reason +
+          ' · ' +
+          penalty.status;
         row.appendChild(node('span', null, label));
         target.appendChild(row);
       });
@@ -375,70 +647,102 @@
       }
       batches.forEach(function (batch) {
         var row = node('tr');
-        [batch.title || batch.id, batch.studentName || batch.studentId || '—',
-          batch.trainerName || batch.trainerId || 'Unassigned', batch.status || 'planned'
-        ].forEach(function (value) { row.appendChild(node('td', null, value)); });
+        [
+          batch.title || batch.id,
+          batch.studentName || batch.studentId || '—',
+          batch.trainerName || batch.trainerId || 'Unassigned',
+          batch.status || 'planned',
+        ].forEach(function (value) {
+          row.appendChild(node('td', null, value));
+        });
         target.appendChild(row);
       });
     });
   }
 
   function loadTrainerDetail(id) {
-    return request('/admin/people/trainer/' + encodeURIComponent(id)).then(function (data) {
-      state.trainer = data;
-      var person = data.person || {};
-      renderFacts(byId('rmTrainerDetail'), [
-        ['Name', person.name], ['Email', person.email], ['Status', person.status],
-        ['Session rate (demo + regular)', person.payPerSession ? '₹' + person.payPerSession + ' / session' : 'Not set'],
-        ['Access granted', person.accessGrantedAt], ['Sessions', (data.sessions || []).length],
-        ['Batches', (data.batches || []).length],
-        ['KYC', data.onboarding ? data.onboarding.status : 'Not submitted']
-      ]);
-      renderPayDetail(byId('rmPayDetail'), data.payouts);
-      var summary = byId('rmTrainerSummary');
-      if (summary) summary.textContent = person.name + ' · ' + person.status;
-      var rate = byId('rmBaseRate');
-      if (rate && person.payPerSession) rate.value = String(person.payPerSession);
-      var handled = founderManaged(person);
-      /* The shared rate is the only pay control left enabled for the manager,
+    return request('/admin/people/trainer/' + encodeURIComponent(id))
+      .then(function (data) {
+        state.trainer = data;
+        var person = data.person || {};
+        renderFacts(byId('rmTrainerDetail'), [
+          ['Name', person.name],
+          ['Email', person.email],
+          ['Status', person.status],
+          [
+            'Session rate (demo + regular)',
+            person.payPerSession ? '₹' + person.payPerSession + ' / session' : 'Not set',
+          ],
+          ['Access granted', person.accessGrantedAt],
+          ['Sessions', (data.sessions || []).length],
+          ['Batches', (data.batches || []).length],
+          ['KYC', data.onboarding ? data.onboarding.status : 'Not submitted'],
+        ]);
+        renderPayDetail(byId('rmPayDetail'), data.payouts);
+        var summary = byId('rmTrainerSummary');
+        if (summary) summary.textContent = person.name + ' · ' + person.status;
+        var rate = byId('rmBaseRate');
+        if (rate && person.payPerSession) rate.value = String(person.payPerSession);
+        var handled = founderManaged(person);
+        /* The shared rate is the only pay control left enabled for the manager,
          regardless of onboarding status or who last set it. */
-      disableForm(byId('rmRateForm'), false);
-      var grant = byId('rmGrantTrainer');
-      if (grant) grant.disabled = handled;
-      var assign = byId('rmAssignBatch');
-      if (assign) assign.disabled = handled;
-      if (handled) {
-        clearHandover();
-        say(byId('rmTrainerStatus'),
-          "Founder has completed this trainer's onboarding. You can still update the shared demo and regular session rate. " +
-          'You may still issue a temporary trainer password if needed.',
-          'success');
-        return;
-      }
-      say(byId('rmTrainerStatus'),
-        person.name + ' record loaded. Grant, batch, shared rate and full pay detail are available.', 'success');
-    }).catch(function (error) {
-      say(byId('rmTrainerStatus'), error.message || 'Trainer detail could not be loaded.', 'error');
-    });
+        disableForm(byId('rmRateForm'), false);
+        var grant = byId('rmGrantTrainer');
+        if (grant) grant.disabled = handled;
+        var assign = byId('rmAssignBatch');
+        if (assign) assign.disabled = handled;
+        if (handled) {
+          clearHandover();
+          say(
+            byId('rmTrainerStatus'),
+            "Founder has completed this trainer's onboarding. You can still update the shared demo and regular session rate. " +
+              'You may still issue a temporary trainer password if needed.',
+            'success'
+          );
+          return;
+        }
+        say(
+          byId('rmTrainerStatus'),
+          person.name +
+            ' record loaded. Grant, batch, shared rate and full pay detail are available.',
+          'success'
+        );
+      })
+      .catch(function (error) {
+        say(
+          byId('rmTrainerStatus'),
+          error.message || 'Trainer detail could not be loaded.',
+          'error'
+        );
+      });
   }
 
   function loadStudentDetail(id) {
-    return request('/admin/people/student/' + encodeURIComponent(id)).then(function (data) {
-      state.student = data;
-      var person = data.person || {};
-      renderFacts(byId('rmStudentDetail'), [
-        ['Name', person.name], ['Email', person.email], ['Status', person.status],
-        ['Grade', person.grade], ['Mastery', person.mastery],
-        ['Sessions remaining', person.sessionsRemaining],
-        ['Enrolled batch', data.batch ? (data.batch.title || data.batch.id) : 'None'],
-        ['Sessions', (data.sessions || []).length]
-      ]);
-      var summary = byId('rmStudentSummary');
-      if (summary) summary.textContent = person.name + ' · ' + person.status;
-      say(byId('rmStudentStatus'), person.name + ' record loaded.', 'success');
-    }).catch(function (error) {
-      say(byId('rmStudentStatus'), error.message || 'Student detail could not be loaded.', 'error');
-    });
+    return request('/admin/people/student/' + encodeURIComponent(id))
+      .then(function (data) {
+        state.student = data;
+        var person = data.person || {};
+        renderFacts(byId('rmStudentDetail'), [
+          ['Name', person.name],
+          ['Email', person.email],
+          ['Status', person.status],
+          ['Grade', person.grade],
+          ['Mastery', person.mastery],
+          ['Sessions remaining', person.sessionsRemaining],
+          ['Enrolled batch', data.batch ? data.batch.title || data.batch.id : 'None'],
+          ['Sessions', (data.sessions || []).length],
+        ]);
+        var summary = byId('rmStudentSummary');
+        if (summary) summary.textContent = person.name + ' · ' + person.status;
+        say(byId('rmStudentStatus'), person.name + ' record loaded.', 'success');
+      })
+      .catch(function (error) {
+        say(
+          byId('rmStudentStatus'),
+          error.message || 'Student detail could not be loaded.',
+          'error'
+        );
+      });
   }
 
   function copyText(value, button) {
@@ -466,138 +770,206 @@
     if (logoutButton) logoutButton.addEventListener('click', logout);
 
     var trainerSelect = byId('rmTrainerSelect');
-    if (trainerSelect) trainerSelect.addEventListener('change', function () {
-      if (trainerSelect.value) loadTrainerDetail(trainerSelect.value);
-    });
+    if (trainerSelect)
+      trainerSelect.addEventListener('change', function () {
+        if (trainerSelect.value) loadTrainerDetail(trainerSelect.value);
+      });
     var studentSelect = byId('rmStudentSelect');
-    if (studentSelect) studentSelect.addEventListener('change', function () {
-      if (studentSelect.value) loadStudentDetail(studentSelect.value);
-    });
+    if (studentSelect)
+      studentSelect.addEventListener('change', function () {
+        if (studentSelect.value) loadStudentDetail(studentSelect.value);
+      });
 
     var grantTrainer = byId('rmGrantTrainer');
-    if (grantTrainer) grantTrainer.addEventListener('click', function () {
-      var id = trainerSelect && trainerSelect.value;
-      if (!id) return;
-      grantTrainer.disabled = true;
-      request('/admin/people/' + encodeURIComponent(id) + '/grant', {}, 'POST').then(function (data) {
-        showHandover(data.email || (data.person && data.person.email), data.password);
-        say(byId('rmTrainerStatus'), 'Access granted. Copy the email and first password before handing them over.', 'success');
-        return loadPeople().then(function () { return loadTrainerDetail(id); });
-      }).catch(function (error) {
-        say(byId('rmTrainerStatus'), error.message || 'Access could not be granted.', 'error');
-      }).then(function () { grantTrainer.disabled = false; });
-    });
+    if (grantTrainer)
+      grantTrainer.addEventListener('click', function () {
+        var id = trainerSelect && trainerSelect.value;
+        if (!id) return;
+        grantTrainer.disabled = true;
+        request('/admin/people/' + encodeURIComponent(id) + '/grant', {}, 'POST')
+          .then(function (data) {
+            showHandover(data.email || (data.person && data.person.email), data.password);
+            say(
+              byId('rmTrainerStatus'),
+              'Access granted. Copy the email and first password before handing them over.',
+              'success'
+            );
+            return loadPeople().then(function () {
+              return loadTrainerDetail(id);
+            });
+          })
+          .catch(function (error) {
+            say(byId('rmTrainerStatus'), error.message || 'Access could not be granted.', 'error');
+          })
+          .then(function () {
+            grantTrainer.disabled = false;
+          });
+      });
 
     var issueTrainerPassword = byId('rmIssueTrainerPassword');
-    if (issueTrainerPassword) issueTrainerPassword.addEventListener('click', function () {
-      var id = trainerSelect && trainerSelect.value;
-      if (!id) return;
-      issueTrainerPassword.disabled = true;
-      /* No password field: the server generates firstname@mathify123 and
+    if (issueTrainerPassword)
+      issueTrainerPassword.addEventListener('click', function () {
+        var id = trainerSelect && trainerSelect.value;
+        if (!id) return;
+        issueTrainerPassword.disabled = true;
+        /* No password field: the server generates firstname@mathify123 and
          refuses a manager-chosen value. */
-      request('/admin/people/' + encodeURIComponent(id) + '/password', { generated: true }, 'PATCH')
-        .then(function (data) {
-          showHandover(data.email || (data.person && data.person.email), data.temporaryPassword);
-          say(byId('rmTrainerStatus'),
-            'Temporary trainer password issued and logged. Copy the email and one-time password now.', 'success');
-        })
-        .catch(function (error) {
-          say(byId('rmTrainerStatus'), error.message || 'A temporary password could not be issued.', 'error');
-        })
-        .then(function () { issueTrainerPassword.disabled = false; });
-    });
+        request(
+          '/admin/people/' + encodeURIComponent(id) + '/password',
+          { generated: true },
+          'PATCH'
+        )
+          .then(function (data) {
+            showHandover(data.email || (data.person && data.person.email), data.temporaryPassword);
+            say(
+              byId('rmTrainerStatus'),
+              'Temporary trainer password issued and logged. Copy the email and one-time password now.',
+              'success'
+            );
+          })
+          .catch(function (error) {
+            say(
+              byId('rmTrainerStatus'),
+              error.message || 'A temporary password could not be issued.',
+              'error'
+            );
+          })
+          .then(function () {
+            issueTrainerPassword.disabled = false;
+          });
+      });
 
     var assign = byId('rmAssignBatch');
-    if (assign) assign.addEventListener('click', function () {
-      var trainerId = trainerSelect && trainerSelect.value;
-      var batchId = byId('rmBatchSelect') && byId('rmBatchSelect').value;
-      var startsAt = byId('rmBatchStart') && byId('rmBatchStart').value;
-      if (!trainerId || !batchId) return;
-      assign.disabled = true;
-      var body = { trainerId: trainerId, slots: [] };
-      if (startsAt) body.slots = [{ startsAt: new Date(startsAt).toISOString() }];
-      request('/admin/batches/' + encodeURIComponent(batchId) + '/allot', body, 'POST')
-        .then(function () {
-          say(byId('rmTrainerStatus'), 'Batch assigned to the trainer.', 'success');
-          return loadClassOverview();
-        })
-        .catch(function (error) {
-          say(byId('rmTrainerStatus'), error.message || 'Batch could not be assigned.', 'error');
-        })
-        .then(function () { assign.disabled = false; });
-    });
+    if (assign)
+      assign.addEventListener('click', function () {
+        var trainerId = trainerSelect && trainerSelect.value;
+        var batchId = byId('rmBatchSelect') && byId('rmBatchSelect').value;
+        var startsAt = byId('rmBatchStart') && byId('rmBatchStart').value;
+        if (!trainerId || !batchId) return;
+        assign.disabled = true;
+        var body = { trainerId: trainerId, slots: [] };
+        if (startsAt) body.slots = [{ startsAt: new Date(startsAt).toISOString() }];
+        request('/admin/batches/' + encodeURIComponent(batchId) + '/allot', body, 'POST')
+          .then(function () {
+            say(byId('rmTrainerStatus'), 'Batch assigned to the trainer.', 'success');
+            return loadClassOverview();
+          })
+          .catch(function (error) {
+            say(byId('rmTrainerStatus'), error.message || 'Batch could not be assigned.', 'error');
+          })
+          .then(function () {
+            assign.disabled = false;
+          });
+      });
 
     var rateForm = byId('rmRateForm');
-    if (rateForm) rateForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var id = trainerSelect && trainerSelect.value;
-      if (!id) return;
-      request('/admin/people/' + encodeURIComponent(id) + '/base-rate',
-        { rate: byId('rmBaseRate').value }, 'PATCH')
-        .then(function (data) {
-          say(byId('rmTrainerStatus'), data.person.bandWarning ||
-            'Shared demo and regular session rate updated and logged.', 'success');
-          return loadTrainerDetail(id);
-        })
-        .catch(function (error) {
-          say(byId('rmTrainerStatus'), error.message || 'Rate could not be set.', 'error');
-        });
-    });
+    if (rateForm)
+      rateForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var id = trainerSelect && trainerSelect.value;
+        if (!id) return;
+        request(
+          '/admin/people/' + encodeURIComponent(id) + '/base-rate',
+          { rate: byId('rmBaseRate').value },
+          'PATCH'
+        )
+          .then(function (data) {
+            say(
+              byId('rmTrainerStatus'),
+              data.person.bandWarning || 'Shared demo and regular session rate updated and logged.',
+              'success'
+            );
+            return loadTrainerDetail(id);
+          })
+          .catch(function (error) {
+            say(byId('rmTrainerStatus'), error.message || 'Rate could not be set.', 'error');
+          });
+      });
 
     var grantStudent = byId('rmGrantStudent');
-    if (grantStudent) grantStudent.addEventListener('click', function () {
-      var id = studentSelect && studentSelect.value;
-      if (!id) return;
-      grantStudent.disabled = true;
-      request('/admin/people/' + encodeURIComponent(id) + '/access', { status: 'active' }, 'PATCH')
-        .then(function () {
-          say(byId('rmStudentStatus'), 'Student access granted.', 'success');
-          return loadPeople();
-        })
-        .catch(function (error) {
-          say(byId('rmStudentStatus'), error.message || 'Student access could not be granted.', 'error');
-        })
-        .then(function () { grantStudent.disabled = false; });
-    });
+    if (grantStudent)
+      grantStudent.addEventListener('click', function () {
+        var id = studentSelect && studentSelect.value;
+        if (!id) return;
+        grantStudent.disabled = true;
+        request(
+          '/admin/people/' + encodeURIComponent(id) + '/access',
+          { status: 'active' },
+          'PATCH'
+        )
+          .then(function () {
+            say(byId('rmStudentStatus'), 'Student access granted.', 'success');
+            return loadPeople();
+          })
+          .catch(function (error) {
+            say(
+              byId('rmStudentStatus'),
+              error.message || 'Student access could not be granted.',
+              'error'
+            );
+          })
+          .then(function () {
+            grantStudent.disabled = false;
+          });
+      });
 
     var copyEmail = byId('rmCopyEmail');
-    if (copyEmail) copyEmail.addEventListener('click', function () {
-      copyText(byId('rmHandoverEmail') && byId('rmHandoverEmail').textContent, copyEmail);
-    });
+    if (copyEmail)
+      copyEmail.addEventListener('click', function () {
+        copyText(byId('rmHandoverEmail') && byId('rmHandoverEmail').textContent, copyEmail);
+      });
     var copyPassword = byId('rmCopyPassword');
-    if (copyPassword) copyPassword.addEventListener('click', function () {
-      copyText(byId('rmHandoverPassword') && byId('rmHandoverPassword').textContent, copyPassword);
-    });
+    if (copyPassword)
+      copyPassword.addEventListener('click', function () {
+        copyText(
+          byId('rmHandoverPassword') && byId('rmHandoverPassword').textContent,
+          copyPassword
+        );
+      });
   }
 
   function loadDemoRequests() {
-    return request('/admin/demos').then(function (data) {
-      var body = byId('rmDemoRows');
-      if (!body) return;
-      body.textContent = '';
-      var rows = (data && data.demos) || [];
-      if (!rows.length) {
-        var empty = node('tr', null, null);
-        empty.appendChild(node('td', null, 'No demo requests yet.')).colSpan = 5;
-        body.appendChild(empty);
-        return;
-      }
-      rows.forEach(function (demo) {
-        var row = node('tr', null, null);
-        [demo.demoId, demo.childName, (demo.curriculum || '—') + ' · ' + (demo.grade || '—'),
-          demo.trainerName || 'Pending assignment'
-        ].forEach(function (value) { row.appendChild(node('td', null, value)); });
-        row.appendChild(node('td', null, demo.credentialsIssued
-          ? 'Sent at booking · family-owned' : 'Pending booking'));
-        body.appendChild(row);
+    return request('/admin/demos')
+      .then(function (data) {
+        var body = byId('rmDemoRows');
+        if (!body) return;
+        body.textContent = '';
+        var rows = (data && data.demos) || [];
+        if (!rows.length) {
+          var empty = node('tr', null, null);
+          empty.appendChild(node('td', null, 'No demo requests yet.')).colSpan = 5;
+          body.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (demo) {
+          var row = node('tr', null, null);
+          [
+            demo.demoId,
+            demo.childName,
+            (demo.curriculum || '—') + ' · ' + (demo.grade || '—'),
+            demo.trainerName || 'Pending assignment',
+          ].forEach(function (value) {
+            row.appendChild(node('td', null, value));
+          });
+          row.appendChild(
+            node(
+              'td',
+              null,
+              demo.credentialsIssued ? 'Sent at booking · family-owned' : 'Pending booking'
+            )
+          );
+          body.appendChild(row);
+        });
+      })
+      .catch(function (error) {
+        say(byId('rmDemoStatus'), error.message || 'Demo requests could not be loaded.', 'error');
       });
-    }).catch(function (error) {
-      say(byId('rmDemoStatus'), error.message || 'Demo requests could not be loaded.', 'error');
-    });
   }
 
   if (!token()) requireLogin();
   bind();
-  loadDashboard().then(loadPeople);
+  loadDashboard().then(function () {
+    return Promise.all([loadPeople(), loadOwnPayment()]);
+  });
   loadDemoRequests();
-}());
+})();

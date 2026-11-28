@@ -9,6 +9,7 @@
  * are not nagged. */
 const db = require('../db');
 const notifications = require('./notificationService');
+const parentNotices = require('./parentNotificationService');
 
 const MAX_REMINDERS = 4;
 const DEFAULT_SPACING_MS = 24 * 60 * 60 * 1000;
@@ -24,11 +25,13 @@ function keyFor(parentId, step) {
 }
 
 async function claimStep(parentId, step) {
-  const claim = await Promise.resolve(db.claimReminder(keyFor(parentId, step), {
-    kind: 'renewal_reminder',
-    parentId: parentId,
-    step: step
-  }));
+  const claim = await Promise.resolve(
+    db.claimReminder(keyFor(parentId, step), {
+      kind: 'renewal_reminder',
+      parentId: parentId,
+      step: step,
+    })
+  );
   return claim;
 }
 
@@ -46,9 +49,8 @@ async function alreadyRenewed(studentId, baseline) {
   const packs = await Promise.resolve(
     typeof db.listPacksForStudent === 'function' ? db.listPacksForStudent(studentId) : []
   );
-  const enrolledAt = request && request.status === 'enrolled'
-    ? timeOf({ enrolledAt: request.enrolledAt })
-    : 0;
+  const enrolledAt =
+    request && request.status === 'enrolled' ? timeOf({ enrolledAt: request.enrolledAt }) : 0;
   const recentPack = (Array.isArray(packs) ? packs : []).some(function (pack) {
     return timeOf(pack) > baseline;
   });
@@ -66,7 +68,10 @@ async function checkParent(parent, now) {
   let step = 0;
   for (let candidate = 1; candidate <= MAX_REMINDERS; candidate += 1) {
     const claim = await claimStep(parent.id, candidate);
-    if (claim.claimed) { step = candidate; break; }
+    if (claim.claimed) {
+      step = candidate;
+      break;
+    }
   }
   /* Four reminders have already gone out for this parent. */
   if (!step) return false;
@@ -77,12 +82,11 @@ async function checkParent(parent, now) {
   };
 
   try {
-    const previousClaim = step > 1
-      ? await claimStep(parent.id, step - 1) /* already claimed: returns its payload */
-      : null;
-    const previousAt = previousClaim && previousClaim.data
-      ? timeOf(previousClaim.data)
-      : 0;
+    const previousClaim =
+      step > 1
+        ? await claimStep(parent.id, step - 1) /* already claimed: returns its payload */
+        : null;
+    const previousAt = previousClaim && previousClaim.data ? timeOf(previousClaim.data) : 0;
     const baseline = previousAt || now - RECENT_ENROLLMENT_MS;
 
     /* The first mail is tied to exactly 2 classes; later mails only while the
@@ -99,9 +103,26 @@ async function checkParent(parent, now) {
       student: child,
       balance: balance,
       step: step,
-      batchCode: batch && batch.code
+      batchCode: batch && batch.code,
     });
     if (!delivery.sent) return skip();
+
+    /* The same low-balance trigger also leaves a child-scoped notice in the
+       parent's in-app inbox. It carries only the balance, a renewal prompt and
+       a desk-safe balance link — no payment, credential or provider data. */
+    try {
+      await parentNotices.issue({
+        childId: child.id,
+        kind: 'renewal_request',
+        title: 'Renewal needed',
+        message:
+          'Only ' + balance + (balance === 1 ? ' session' : ' sessions') + ' left · renewal needed',
+        link: parentNotices.balanceLink(),
+      });
+    } catch (noticeError) {
+      /* A failed in-app write must not revoke an already-delivered email. */
+      console.error('[renewal] parent notice failed for parent:', parent.id, noticeError.message);
+    }
     return true;
   } catch (error) {
     await skip();
@@ -120,7 +141,11 @@ async function check(now) {
     try {
       if (await checkParent(parents[index], current)) sent += 1;
     } catch (error) {
-      console.error('[renewal] reminder check failed for parent:', parents[index].id, error.message);
+      console.error(
+        '[renewal] reminder check failed for parent:',
+        parents[index].id,
+        error.message
+      );
     }
   }
   return sent;
@@ -129,5 +154,5 @@ async function check(now) {
 module.exports = {
   check: check,
   checkParent: checkParent,
-  MAX_REMINDERS: MAX_REMINDERS
+  MAX_REMINDERS: MAX_REMINDERS,
 };

@@ -1,1009 +1,1612 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mathify — Trainer console</title>
-<meta name="description" content="Trainer console: next session, today's schedule, attendance register, teaching score and student roster.">
-<link rel="stylesheet" href="../assets/poppins.css">
-<link rel="stylesheet" href="../shared/tokens.css">
-<link rel="stylesheet" href="../shared/rewardDeck.css">
-<link rel="stylesheet" href="subjectPanels.css">
-<link rel="stylesheet" href="shell.css">
-<link rel="stylesheet" href="sections.css">
-<link rel="stylesheet" href="details.css">
-<link rel="stylesheet" href="../shared/leave-calendar.css">
-<link rel="stylesheet" href="schedule.css">
-<link rel="stylesheet" href="responsive.css">
-<link rel="stylesheet" href="parent-chat.css">
-<link rel="stylesheet" href="onboarding.css">
-<link rel="stylesheet" href="../shared/announcements.css">
-<link rel="stylesheet" href="../shared/notificationInbox.css">
-<link rel="stylesheet" href="../shared/profilePassword.css">
-<style>
-  .ic,.icon-btn svg,.search svg,.search-field svg,.tabs svg,.fab svg,.ai svg,.next-foot svg,
-  .score-link svg,.day-link svg,.block-head svg,.save-note svg,.swipe-hint svg,
-  .ai-form button svg{
-    fill:none;
-    stroke:currentColor;
-    stroke-width:1.6;
-    stroke-linecap:round;
-    stroke-linejoin:round;
-  }
-  .api-banner{
-    position:fixed;left:18px;bottom:76px;z-index:120;max-width:min(440px,calc(100vw - 36px));
-    padding:12px 14px;border:1px solid var(--ink);border-radius:6px;background:var(--paper);
-    font:500 11px/1.5 var(--mono);color:var(--ink)
-  }
-  .ai-modes{
-    display:flex;gap:6px;padding:9px 15px;
-    border-bottom:1px solid var(--line-soft);background:var(--card);
-  }
-  .ai-modes button{
-    padding:4px 10px;border:1px solid var(--line);border-radius:var(--r-full);
-    font:500 8px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
-    transition:border-color .18s ease,color .18s ease,background .18s ease;
-  }
-  .ai-modes button:hover{border-color:var(--ink);color:var(--ink)}
-  .ai-modes button.active{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-  [hidden]{display:none !important}
-  /* Staff-only five-minute end cue; deliberately warm, not a normal chip. */
-  .session-warning{
-    display:flex;align-items:center;gap:8px;margin:10px 0 2px;
-    padding:9px 12px;border-radius:12px;
-    background:linear-gradient(135deg,#fff1ef,#ffd9d3);
-    border:1px solid #f3a79c;color:#8b2d21;
-    box-shadow:0 6px 18px rgba(180,55,40,.12);
-    font-size:12px;font-weight:600;
-  }
-  .session-warning .warn-dot{
-    width:8px;height:8px;border-radius:50%;background:#c94230;
-    box-shadow:0 0 0 3px rgba(201,66,48,.16);
-    animation:warnPulse 1.4s ease-in-out infinite;
-  }
-  .session-warning .warn-count{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:800}
-  @keyframes warnPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
-  /* Trainer desk only. Quiet Paper & Ink surface for the live pay/fine gate;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mathify — Trainer console</title>
+    <meta
+      name="description"
+      content="Trainer console: next session, today's schedule, attendance register, teaching score and student roster."
+    />
+    <link rel="stylesheet" href="../assets/poppins.css" />
+    <link rel="stylesheet" href="../shared/tokens.css" />
+    <link rel="stylesheet" href="../shared/rewardDeck.css" />
+    <link rel="stylesheet" href="subjectPanels.css" />
+    <link rel="stylesheet" href="shell.css" />
+    <link rel="stylesheet" href="sections.css" />
+    <link rel="stylesheet" href="details.css" />
+    <link rel="stylesheet" href="../shared/leave-calendar.css" />
+    <link rel="stylesheet" href="schedule.css" />
+    <link rel="stylesheet" href="responsive.css" />
+    <link rel="stylesheet" href="parent-chat.css" />
+    <link rel="stylesheet" href="onboarding.css" />
+    <link rel="stylesheet" href="../shared/announcements.css" />
+    <link rel="stylesheet" href="../shared/notificationInbox.css" />
+    <link rel="stylesheet" href="../shared/profilePassword.css" />
+    <style>
+      .ic,
+      .icon-btn svg,
+      .search svg,
+      .search-field svg,
+      .tabs svg,
+      .fab svg,
+      .ai svg,
+      .next-foot svg,
+      .score-link svg,
+      .day-link svg,
+      .block-head svg,
+      .save-note svg,
+      .swipe-hint svg,
+      .ai-form button svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .api-banner {
+        position: fixed;
+        left: 18px;
+        bottom: 76px;
+        z-index: 120;
+        max-width: min(440px, calc(100vw - 36px));
+        padding: 12px 14px;
+        border: 1px solid var(--ink);
+        border-radius: 6px;
+        background: var(--paper);
+        font: 500 11px/1.5 var(--mono);
+        color: var(--ink);
+      }
+      .ai-modes {
+        display: flex;
+        gap: 6px;
+        padding: 9px 15px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--card);
+      }
+      .ai-modes button {
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-full);
+        font: 500 8px/1.2 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--faint);
+        transition:
+          border-color 0.18s ease,
+          color 0.18s ease,
+          background 0.18s ease;
+      }
+      .ai-modes button:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+      }
+      .ai-modes button.active {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--paper);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      /* Staff-only five-minute end cue; deliberately warm, not a normal chip. */
+      .session-warning {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 10px 0 2px;
+        padding: 9px 12px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #fff1ef, #ffd9d3);
+        border: 1px solid #f3a79c;
+        color: #8b2d21;
+        box-shadow: 0 6px 18px rgba(180, 55, 40, 0.12);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .session-warning .warn-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #c94230;
+        box-shadow: 0 0 0 3px rgba(201, 66, 48, 0.16);
+        animation: warnPulse 1.4s ease-in-out infinite;
+      }
+      .session-warning .warn-count {
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+      }
+      @keyframes warnPulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.55;
+          transform: scale(0.8);
+        }
+      }
+      /* Trainer desk only. Quiet Paper & Ink surface for the live pay/fine gate;
      no decorative accents, just mono labels and hairline progress. */
-  .pay-gate-deck{
-    margin:10px 0 2px;padding:10px 12px;border-radius:12px;
-    border:1px solid var(--line);background:var(--cream);
-    box-shadow:0 4px 14px rgba(30,20,10,.05);
-  }
-  .pay-gate-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-  #payGateTitle{
-    font:600 9px/1.3 var(--mono);letter-spacing:.12em;
-    text-transform:uppercase;color:var(--faint);
-  }
-  #payGateState{font-size:12px;font-weight:600;color:var(--ink)}
-  .pay-gate-grid{
-    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:8px;margin-top:8px;
-  }
-  .pay-gate-meter{
-    min-width:0;padding:6px 8px;border:1px solid var(--line-soft);
-    border-radius:8px;background:var(--paper);
-  }
-  .pay-gate-label{
-    display:block;font:500 8px/1.3 var(--mono);letter-spacing:.1em;
-    text-transform:uppercase;color:var(--faint);
-  }
-  .pay-gate-value{
-    display:block;margin-top:2px;font-size:12px;font-weight:600;
-    color:var(--ink);font-variant-numeric:tabular-nums;
-  }
-  .pay-gate-track{
-    display:block;height:3px;margin-top:6px;border-radius:var(--r-full);
-    background:var(--line-soft);overflow:hidden;
-  }
-  .pay-gate-track i{
-    display:block;width:0;height:100%;border-radius:inherit;
-    background:var(--ink-2);transition:width .3s ease;
-  }
-  .pay-gate-deck.is-met .pay-gate-track i{background:var(--teal-ink)}
-  #payGateNote{margin:8px 0 0;font:500 10px/1.45 var(--mono);color:var(--muted)}
-  /* Quiet second clause in the existing payout policy note. */
-  .founder-gift-note{display:block;margin-top:6px;color:var(--muted)}
-</style>
-</head>
-<body>
+      .pay-gate-deck {
+        margin: 10px 0 2px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: var(--cream);
+        box-shadow: 0 4px 14px rgba(30, 20, 10, 0.05);
+      }
+      .pay-gate-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      #payGateTitle {
+        font: 600 9px/1.3 var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      #payGateState {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .pay-gate-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .pay-gate-meter {
+        min-width: 0;
+        padding: 6px 8px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--paper);
+      }
+      .pay-gate-label {
+        display: block;
+        font: 500 8px/1.3 var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .pay-gate-value {
+        display: block;
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .pay-gate-track {
+        display: block;
+        height: 3px;
+        margin-top: 6px;
+        border-radius: var(--r-full);
+        background: var(--line-soft);
+        overflow: hidden;
+      }
+      .pay-gate-track i {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--ink-2);
+        transition: width 0.3s ease;
+      }
+      .pay-gate-deck.is-met .pay-gate-track i {
+        background: var(--teal-ink);
+      }
+      #payGateNote {
+        margin: 8px 0 0;
+        font: 500 10px/1.45 var(--mono);
+        color: var(--muted);
+      }
+      /* Quiet second clause in the existing payout policy note. */
+      .founder-gift-note {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+      }
+      .founder-penalty-note {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: var(--r-sm);
+        background: var(--paper);
+      }
+      .founder-penalty-note[hidden] {
+        display: none;
+      }
+      .founder-penalty-note .mono {
+        margin: 0 0 6px;
+        color: var(--muted);
+      }
+      .founder-penalty-note ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .founder-penalty-note li {
+        margin: 4px 0;
+        font: 500 11px/1.5 var(--mono);
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
 
-<a class="skip" href="#main">Skip to content</a>
+    <!-- ===================== icon sprite ===================== -->
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      style="position: absolute; width: 0; height: 0; overflow: hidden"
+    >
+      <symbol id="i-today" viewBox="0 0 24 24">
+        <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+        <path d="M3.5 9.8h17M8 3v4M16 3v4M8.4 14h1.6M14 14h1.6M8.4 17.4h1.6" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+        <path d="M10.2 9.3v5.4l4.4-2.7z" />
+      </symbol>
+      <symbol id="i-users" viewBox="0 0 24 24">
+        <circle cx="9" cy="8.4" r="3.1" />
+        <path d="M3.8 19.2c.5-2.9 2.4-4.5 5.2-4.5s4.7 1.6 5.2 4.5" />
+        <path d="M15.4 5.7a2.8 2.8 0 0 1 0 5.4M17.2 14.9c2 .4 3.3 1.8 3.7 4.3" />
+      </symbol>
+      <symbol id="i-batches" viewBox="0 0 24 24">
+        <path d="m12 3.5 8.5 4.3L12 12.1 3.5 7.8z" />
+        <path d="m4.6 11.7-1.1.6 8.5 4.3 8.5-4.3-1.1-.6" />
+        <path d="m4.6 15.6-1.1.6 8.5 4.3 8.5-4.3-1.1-.6" />
+      </symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24">
+        <path d="M4 20V4" />
+        <path d="M4 20h16" />
+        <rect x="7.5" y="12.5" width="3" height="4.5" rx=".6" />
+        <rect x="12.8" y="8.8" width="3" height="8.2" rx=".6" />
+        <rect x="18.1" y="5.5" width="3" height="11.5" rx=".6" />
+      </symbol>
+      <symbol id="i-register" viewBox="0 0 24 24">
+        <rect x="4" y="3.5" width="16" height="17" rx="2" />
+        <path d="M8 8.2h5M8 12h8M8 15.8h4" />
+        <path d="m15.7 15.2 1.6 1.6 3-3.2" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="6.4" />
+        <path d="m15.8 15.8 4.2 4.2" />
+      </symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24">
+        <path d="M18.2 16.2H5.8c1.2-1.3 1.5-2.3 1.5-4.6a4.7 4.7 0 0 1 9.4 0c0 2.3.3 3.3 1.5 4.6Z" />
+        <path d="M10.1 19.2a2 2 0 0 0 3.8 0" />
+      </symbol>
+      <symbol id="i-chev-down" viewBox="0 0 24 24">
+        <path d="m6 9.2 6 6 6-6" />
+      </symbol>
+      <symbol id="i-chev" viewBox="0 0 24 24">
+        <path d="m9.2 5.5 6.5 6.5-6.5 6.5" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M7 17 17 7M9.4 7H17v7.6" />
+      </symbol>
+      <symbol id="i-cam" viewBox="0 0 24 24">
+        <rect x="3" y="6" width="13" height="12" rx="2" />
+        <path d="M16 10.5 21 8v8l-5-2.5" />
+      </symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24">
+        <path d="M12 3.4 13.7 9l5.6 1.7-5.6 1.7L12 18l-1.7-5.6L4.7 10.7 10.3 9Z" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8" />
+      </symbol>
+      <symbol id="i-send" viewBox="0 0 24 24">
+        <path d="M4.2 11.8 20 4.2l-7.4 15.8-2.1-6.1z" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m5.5 12.4 4 4 9-9" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 7.2V12l3.3 2" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 4.5 20 19H4z" />
+        <path d="M12 9.3v4.2M12 16.6v.1" />
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24">
+        <path d="M4.5 5.2c2.8-.9 5.2-.2 7.5 1.5v13c-2.3-1.7-4.7-2.4-7.5-1.5z" />
+        <path d="M19.5 5.2c-2.8-.9-5.2-.2-7.5 1.5v13c2.3-1.7 4.7-2.4 7.5-1.5z" />
+      </symbol>
+      <symbol id="i-swipe" viewBox="0 0 24 24">
+        <path d="M4 12h16M7.5 8.5 4 12l3.5 3.5M16.5 8.5 20 12l-3.5 3.5" />
+      </symbol>
+    </svg>
 
-<!-- ===================== icon sprite ===================== -->
-<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
-  <symbol id="i-today" viewBox="0 0 24 24">
-    <rect x="3.5" y="5" width="17" height="15.5" rx="2"/>
-    <path d="M3.5 9.8h17M8 3v4M16 3v4M8.4 14h1.6M14 14h1.6M8.4 17.4h1.6"/>
-  </symbol>
-  <symbol id="i-play" viewBox="0 0 24 24">
-    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
-    <path d="M10.2 9.3v5.4l4.4-2.7z"/>
-  </symbol>
-  <symbol id="i-users" viewBox="0 0 24 24">
-    <circle cx="9" cy="8.4" r="3.1"/>
-    <path d="M3.8 19.2c.5-2.9 2.4-4.5 5.2-4.5s4.7 1.6 5.2 4.5"/>
-    <path d="M15.4 5.7a2.8 2.8 0 0 1 0 5.4M17.2 14.9c2 .4 3.3 1.8 3.7 4.3"/>
-  </symbol>
-  <symbol id="i-batches" viewBox="0 0 24 24">
-    <path d="m12 3.5 8.5 4.3L12 12.1 3.5 7.8z"/>
-    <path d="m4.6 11.7-1.1.6 8.5 4.3 8.5-4.3-1.1-.6"/>
-    <path d="m4.6 15.6-1.1.6 8.5 4.3 8.5-4.3-1.1-.6"/>
-  </symbol>
-  <symbol id="i-chart" viewBox="0 0 24 24">
-    <path d="M4 20V4"/>
-    <path d="M4 20h16"/>
-    <rect x="7.5" y="12.5" width="3" height="4.5" rx=".6"/>
-    <rect x="12.8" y="8.8" width="3" height="8.2" rx=".6"/>
-    <rect x="18.1" y="5.5" width="3" height="11.5" rx=".6"/>
-  </symbol>
-  <symbol id="i-register" viewBox="0 0 24 24">
-    <rect x="4" y="3.5" width="16" height="17" rx="2"/>
-    <path d="M8 8.2h5M8 12h8M8 15.8h4"/>
-    <path d="m15.7 15.2 1.6 1.6 3-3.2"/>
-  </symbol>
-  <symbol id="i-search" viewBox="0 0 24 24">
-    <circle cx="11" cy="11" r="6.4"/>
-    <path d="m15.8 15.8 4.2 4.2"/>
-  </symbol>
-  <symbol id="i-bell" viewBox="0 0 24 24">
-    <path d="M18.2 16.2H5.8c1.2-1.3 1.5-2.3 1.5-4.6a4.7 4.7 0 0 1 9.4 0c0 2.3.3 3.3 1.5 4.6Z"/>
-    <path d="M10.1 19.2a2 2 0 0 0 3.8 0"/>
-  </symbol>
-  <symbol id="i-chev-down" viewBox="0 0 24 24">
-    <path d="m6 9.2 6 6 6-6"/>
-  </symbol>
-  <symbol id="i-chev" viewBox="0 0 24 24">
-    <path d="m9.2 5.5 6.5 6.5-6.5 6.5"/>
-  </symbol>
-  <symbol id="i-arrow" viewBox="0 0 24 24">
-    <path d="M7 17 17 7M9.4 7H17v7.6"/>
-  </symbol>
-  <symbol id="i-cam" viewBox="0 0 24 24">
-    <rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5 21 8v8l-5-2.5"/>
-  </symbol>
-  <symbol id="i-spark" viewBox="0 0 24 24">
-    <path d="M12 3.4 13.7 9l5.6 1.7-5.6 1.7L12 18l-1.7-5.6L4.7 10.7 10.3 9Z"/>
-  </symbol>
-  <symbol id="i-x" viewBox="0 0 24 24">
-    <path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>
-  </symbol>
-  <symbol id="i-send" viewBox="0 0 24 24">
-    <path d="M4.2 11.8 20 4.2l-7.4 15.8-2.1-6.1z"/>
-  </symbol>
-  <symbol id="i-check" viewBox="0 0 24 24">
-    <path d="m5.5 12.4 4 4 9-9"/>
-  </symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="8"/>
-    <path d="M12 7.2V12l3.3 2"/>
-  </symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24">
-    <path d="M12 5v14M5 12h14"/>
-  </symbol>
-  <symbol id="i-alert" viewBox="0 0 24 24">
-    <path d="M12 4.5 20 19H4z"/>
-    <path d="M12 9.3v4.2M12 16.6v.1"/>
-  </symbol>
-  <symbol id="i-book" viewBox="0 0 24 24">
-    <path d="M4.5 5.2c2.8-.9 5.2-.2 7.5 1.5v13c-2.3-1.7-4.7-2.4-7.5-1.5z"/>
-    <path d="M19.5 5.2c-2.8-.9-5.2-.2-7.5 1.5v13c2.3-1.7 4.7-2.4 7.5-1.5z"/>
-  </symbol>
-  <symbol id="i-swipe" viewBox="0 0 24 24">
-    <path d="M4 12h16M7.5 8.5 4 12l3.5 3.5M16.5 8.5 20 12l-3.5 3.5"/>
-  </symbol>
-</svg>
+    <div class="shell">
+      <!-- ===================== rail ===================== -->
+      <aside class="rail">
+        <div>
+          <a class="brand" href="../index.html" aria-label="Mathify home"
+            ><span>Mathify</span><i>.</i></a
+          >
+          <p class="brand-sub">Trainer console</p>
+        </div>
 
-<div class="shell">
+        <nav class="nav" aria-label="Console">
+          <a href="/trainer/today" class="active" data-nav aria-current="page">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today" /></svg
+            ><span>Today</span>
+          </a>
+          <a href="/trainer/sessions" data-nav>
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play" /></svg
+            ><span>Sessions</span>
+          </a>
+          <a href="/trainer/leave" data-nav>
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clock" /></svg
+            ><span>Leave</span>
+          </a>
+          <a href="/trainer/students" data-nav>
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users" /></svg
+            ><span>Students</span>
+          </a>
+          <a href="/trainer/insights" data-nav>
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart" /></svg
+            ><span>Insights</span>
+          </a>
+        </nav>
 
-  <!-- ===================== rail ===================== -->
-  <aside class="rail">
-    <div>
-      <a class="brand" href="../index.html" aria-label="Mathify home"><span>Mathify</span><i>.</i></a>
-      <p class="brand-sub">Trainer console</p>
-    </div>
-
-    <nav class="nav" aria-label="Console">
-      <a href="/trainer/today" class="active" data-nav aria-current="page">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg><span>Today</span>
-      </a>
-      <a href="/trainer/sessions" data-nav>
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg><span>Sessions</span>
-      </a>
-      <a href="/trainer/leave" data-nav>
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clock"/></svg><span>Leave</span>
-      </a>
-      <a href="/trainer/students" data-nav>
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg><span>Students</span>
-      </a>
-      <a href="/trainer/insights" data-nav>
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg><span>Insights</span>
-      </a>
-    </nav>
-
-    <div class="rail-foot">
-      <div class="score-card">
-        <span class="mono">Teaching score</span>
-        <div class="score-big"><b class="num">8.4</b><span>/ 10</span></div>
-        <p>Top 18% of Mathify trainers this month.</p>
-        <button class="score-link" data-toast="Insights opens the full teaching report.">Open insights <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-      </div>
-      <div class="user">
-        <span class="avatar" aria-hidden="true">AR</span>
-        <span class="user-txt">
-          <b>Ananya Rao</b>
-          <span>Mathematics · Trainer</span>
-        </span>
-      </div>
-      <div class="rail-note"><span>v1.0</span><span>2026</span></div>
-    </div>
-  </aside>
-
-  <!-- ===================== workspace ===================== -->
-  <div class="workspace">
-
-    <header class="topbar">
-      <a class="brand-m" href="../index.html" aria-label="Mathify home"><span>Mathify</span><i>.</i></a>
-
-      <div class="batch-wrap">
-        <button class="batch" id="batchBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="batchMenu">
-          <span class="swatch" aria-hidden="true">M</span>
-          <span class="txt">
-            <span class="k">Course</span>
-            <span class="v" id="batchLabel">Mathematics · Ratios</span>
-          </span>
-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg>
-        </button>
-        <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch course" hidden>
-          <li role="none"><button role="option" aria-selected="true" data-value="Mathematics · Ratios">Mathematics · Ratios</button></li>
-          <li role="none"><button role="option" aria-selected="false" data-value="Mathematics · Fractions">Mathematics · Fractions</button></li>
-          <li role="none"><button role="option" aria-selected="false" data-value="Mathematics · Geometry">Mathematics · Geometry</button></li>
-        </ul>
-      </div>
-
-      <div class="right">
-        <button class="search" id="searchOpen" aria-haspopup="dialog" aria-label="Search students and sessions">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
-          <span class="search-ph">Search students</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-        <button class="icon-btn mobile-search" id="mobileSearch" aria-label="Search students and sessions">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
-        </button>
-        <button class="icon-btn" id="notificationBtn" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="notificationPanel">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell"/></svg>
-          <span class="badge" id="notificationBadge" aria-hidden="true" hidden></span>
-        </button>
-        <div class="top-popover inbox-popover" id="notificationPanel" role="dialog" aria-label="Notifications" hidden>
-          <div class="inbox-head">
-            <span class="mono" id="inboxTitle">Notifications</span>
-            <button type="button" class="inbox-close" id="notificationClose" aria-label="Close notifications">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+        <div class="rail-foot">
+          <div class="score-card">
+            <span class="mono">Teaching score</span>
+            <div class="score-big"><b class="num">8.4</b><span>/ 10</span></div>
+            <p>Top 18% of Mathify trainers this month.</p>
+            <button class="score-link" data-toast="Insights opens the full teaching report.">
+              Open insights
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow" /></svg>
             </button>
           </div>
-          <div class="inbox-body" id="notificationBody" aria-live="polite"></div>
+          <div class="user">
+            <span class="avatar" aria-hidden="true">AR</span>
+            <span class="user-txt">
+              <b>Ananya Rao</b>
+              <span>Mathematics · Trainer</span>
+            </span>
+          </div>
+          <div class="rail-note"><span>v1.0</span><span>2026</span></div>
         </div>
-        <button class="avatar avatar-btn" id="profileBtn" aria-label="AR — open profile" aria-expanded="false">AR</button>
-        <div class="top-popover" id="profilePanel" hidden>
-          <span class="mono" id="profileName">Ananya Rao</span>
-          <p>Trainer desk · 1-on-1 maths</p>
-          <a href="../privacy.html">Privacy &amp; data</a>
-          <button type="button" class="profile-password-toggle" id="changePasswordBtn" aria-expanded="false" aria-controls="changePasswordForm">Change password</button>
-          <form class="profile-password-form" id="changePasswordForm" novalidate hidden>
-            <label for="currentPassword">Current password</label>
-            <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required placeholder="Current password">
-            <label for="newPassword">New password</label>
-            <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
-            <label for="confirmPassword">Confirm new password</label>
-            <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required minlength="8" placeholder="Repeat new password">
-            <p class="profile-password-status" id="passwordStatus" role="status" aria-live="polite" hidden></p>
-            <button type="submit">Update password</button>
-            <a href="/password-reset.html">Forgot password?</a>
-          </form>
-          <button type="button" id="logoutBtn">Log out</button>
-        </div>
-      </div>
-    </header>
+      </aside>
 
-    <main class="page" id="main">
+      <!-- ===================== workspace ===================== -->
+      <div class="workspace">
+        <header class="topbar">
+          <a class="brand-m" href="../index.html" aria-label="Mathify home"
+            ><span>Mathify</span><i>.</i></a
+          >
 
-      <div class="view is-active" data-view="today">
-      <div class="page-head">
-        <div>
-          <p class="eyebrow">Wednesday · 25 November 2026</p>
-          <h1>Good afternoon, <span id="greetingName">Ananya</span><em>.</em></h1>
-          <p class="sub"><span id="subSessions">3 sessions today</span> <span class="dot-sep" aria-hidden="true"></span> <span id="subStudents">1 student next</span> <span class="dot-sep dot-alert" aria-hidden="true"></span> <span id="subAttention">3 items need attention</span></p>
-        </div>
-        <div class="head-actions">
-          <button class="btn btn-ghost btn-sm" data-ask="Draft a short announcement for Ishaan's next 1-on-1 maths session.">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg>
-            New announcement
-          </button>
-        </div>
-      </div>
-
-      <div class="subject-summary" id="subjectSummary" hidden aria-label="Subjects today"></div>
-
-      <!-- ---------- hero ---------- -->
-      <section class="hero" id="next-session" aria-label="Next session and today's schedule">
-
-        <article class="next">
-          <div class="next-top">
-            <span class="eyebrow live-eyebrow"><i class="dot"></i>Next session</span>
-            <span class="chip-count"><span id="countdownLabel">starts in</span> <b id="countdown" class="num">42:00</b></span>
+          <div class="batch-wrap">
+            <button
+              class="batch"
+              id="batchBtn"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="batchMenu"
+            >
+              <span class="swatch" aria-hidden="true">M</span>
+              <span class="txt">
+                <span class="k">Course</span>
+                <span class="v" id="batchLabel">Mathematics · Ratios</span>
+              </span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true">
+                <use href="#i-chev-down" />
+              </svg>
+            </button>
+            <ul class="menu" id="batchMenu" role="listbox" aria-label="Switch course" hidden>
+              <li role="none">
+                <button role="option" aria-selected="true" data-value="Mathematics · Ratios">
+                  Mathematics · Ratios
+                </button>
+              </li>
+              <li role="none">
+                <button role="option" aria-selected="false" data-value="Mathematics · Fractions">
+                  Mathematics · Fractions
+                </button>
+              </li>
+              <li role="none">
+                <button role="option" aria-selected="false" data-value="Mathematics · Geometry">
+                  Mathematics · Geometry
+                </button>
+              </li>
+            </ul>
           </div>
 
-          <div class="session-warning" id="sessionWarning" role="status" aria-live="polite" hidden>
-            <span class="warn-dot" aria-hidden="true"></span>
-            <span id="sessionWarningText">Minimum time complete · 5 min left</span>
-            <span class="warn-count" id="sessionWarningCount">05:00</span>
-          </div>
-
-          <div class="pay-gate-deck trainer-only" id="payGateDeck" hidden aria-label="Pay and fine tracker">
-            <div class="pay-gate-head">
-              <span id="payGateTitle">Pay &amp; fine tracker</span>
-              <span id="payGateState" role="status" aria-live="polite">Checking pay gate…</span>
-            </div>
-            <div class="pay-gate-grid">
-              <div class="pay-gate-meter" data-meter="child">
-                <span class="pay-gate-label" id="payGateChildLabel">Child</span>
-                <span class="pay-gate-value num" id="payGateChildValue">Waiting for state</span>
-                <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+          <div class="right">
+            <button
+              class="search"
+              id="searchOpen"
+              aria-haspopup="dialog"
+              aria-label="Search students and sessions"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search" /></svg>
+              <span class="search-ph">Search students</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <button
+              class="icon-btn mobile-search"
+              id="mobileSearch"
+              aria-label="Search students and sessions"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search" /></svg>
+            </button>
+            <button
+              class="icon-btn"
+              id="notificationBtn"
+              aria-label="Notifications"
+              aria-haspopup="dialog"
+              aria-expanded="false"
+              aria-controls="notificationPanel"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-bell" /></svg>
+              <span class="badge" id="notificationBadge" aria-hidden="true" hidden></span>
+            </button>
+            <div
+              class="top-popover inbox-popover"
+              id="notificationPanel"
+              role="dialog"
+              aria-label="Notifications"
+              hidden
+            >
+              <div class="inbox-head">
+                <span class="mono" id="inboxTitle">Notifications</span>
+                <button
+                  type="button"
+                  class="inbox-close"
+                  id="notificationClose"
+                  aria-label="Close notifications"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x" /></svg>
+                </button>
               </div>
-              <div class="pay-gate-meter" data-meter="trainer">
-                <span class="pay-gate-label" id="payGateTrainerLabel">Trainer</span>
-                <span class="pay-gate-value num" id="payGateTrainerValue">Waiting for state</span>
-                <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+              <div class="inbox-body" id="notificationBody" aria-live="polite"></div>
+            </div>
+            <button
+              class="avatar avatar-btn"
+              id="profileBtn"
+              aria-label="AR — open profile"
+              aria-expanded="false"
+            >
+              AR
+            </button>
+            <div class="top-popover" id="profilePanel" hidden>
+              <span class="mono" id="profileName">Ananya Rao</span>
+              <p>Trainer desk · 1-on-1 maths</p>
+              <a href="../privacy.html">Privacy &amp; data</a>
+              <button
+                type="button"
+                class="profile-password-toggle"
+                id="changePasswordBtn"
+                aria-expanded="false"
+                aria-controls="changePasswordForm"
+              >
+                Change password
+              </button>
+              <form class="profile-password-form" id="changePasswordForm" novalidate hidden>
+                <label for="currentPassword">Current password</label>
+                <input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  placeholder="Current password"
+                />
+                <label for="newPassword">New password</label>
+                <input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                  minlength="8"
+                  placeholder="At least 8 characters"
+                />
+                <label for="confirmPassword">Confirm new password</label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autocomplete="new-password"
+                  required
+                  minlength="8"
+                  placeholder="Repeat new password"
+                />
+                <p
+                  class="profile-password-status"
+                  id="passwordStatus"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                ></p>
+                <button type="submit">Update password</button>
+                <a href="/password-reset.html">Forgot password?</a>
+              </form>
+              <button type="button" id="logoutBtn">Log out</button>
+            </div>
+          </div>
+        </header>
+
+        <main class="page" id="main">
+          <div class="view is-active" data-view="today">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow">Wednesday · 25 November 2026</p>
+                <h1>Good afternoon, <span id="greetingName">Ananya</span><em>.</em></h1>
+                <p class="sub">
+                  <span id="subSessions">3 sessions today</span>
+                  <span class="dot-sep" aria-hidden="true"></span>
+                  <span id="subStudents">1 student next</span>
+                  <span class="dot-sep dot-alert" aria-hidden="true"></span>
+                  <span id="subAttention">3 items need attention</span>
+                </p>
+              </div>
+              <div class="head-actions">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  data-ask="Draft a short announcement for Ishaan's next 1-on-1 maths session."
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus" /></svg>
+                  New announcement
+                </button>
               </div>
             </div>
-            <p id="payGateNote">Checking the live pay and fine rules…</p>
+
+            <div
+              class="subject-summary"
+              id="subjectSummary"
+              hidden
+              aria-label="Subjects today"
+            ></div>
+
+            <!-- ---------- hero ---------- -->
+            <section class="hero" id="next-session" aria-label="Next session and today's schedule">
+              <article class="next">
+                <div class="next-top">
+                  <span class="eyebrow live-eyebrow"><i class="dot"></i>Next session</span>
+                  <span class="chip-count"
+                    ><span id="countdownLabel">starts in</span>
+                    <b id="countdown" class="num">42:00</b></span
+                  >
+                </div>
+
+                <div
+                  class="session-warning"
+                  id="sessionWarning"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                >
+                  <span class="warn-dot" aria-hidden="true"></span>
+                  <span id="sessionWarningText">Minimum time complete · 5 min left</span>
+                  <span class="warn-count" id="sessionWarningCount">05:00</span>
+                </div>
+
+                <div
+                  class="pay-gate-deck trainer-only"
+                  id="payGateDeck"
+                  hidden
+                  aria-label="Pay and fine tracker"
+                >
+                  <div class="pay-gate-head">
+                    <span id="payGateTitle">Pay &amp; fine tracker</span>
+                    <span id="payGateState" role="status" aria-live="polite"
+                      >Checking pay gate…</span
+                    >
+                  </div>
+                  <div class="pay-gate-grid">
+                    <div class="pay-gate-meter" data-meter="child">
+                      <span class="pay-gate-label" id="payGateChildLabel">Child</span>
+                      <span class="pay-gate-value num" id="payGateChildValue"
+                        >Waiting for state</span
+                      >
+                      <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+                    </div>
+                    <div class="pay-gate-meter" data-meter="trainer">
+                      <span class="pay-gate-label" id="payGateTrainerLabel">Trainer</span>
+                      <span class="pay-gate-value num" id="payGateTrainerValue"
+                        >Waiting for state</span
+                      >
+                      <span class="pay-gate-track" aria-hidden="true"><i></i></span>
+                    </div>
+                  </div>
+                  <p id="payGateNote">Checking the live pay and fine rules…</p>
+                </div>
+
+                <div class="next-mid">
+                  <p class="next-time num" id="nextTime">4:30 PM <span>– 5:30 PM · 60 min</span></p>
+                  <h2 class="next-topic" id="nextTopic">Fractions, decimals &amp; percentages</h2>
+                  <p class="next-meta" id="nextMeta">
+                    1:1 · Ishaan Verma
+                    <span class="dot-sep" aria-hidden="true"></span>
+                    <span class="subject-tag subject-math" id="nextSubjectTag" data-subject="math"
+                      >Mathematics</span
+                    >
+                    <span class="next-course-note"> · Ratios</span>
+                  </p>
+                  <div class="plan-chips" id="planChips" aria-label="Session plan">
+                    <span>Warm-up 8 min</span>
+                    <span>Bar models 20 min</span>
+                    <span>Exit ticket 8 min</span>
+                    <span class="plan-ready">Plan ready</span>
+                  </div>
+                </div>
+
+                <div class="next-foot">
+                  <button class="btn btn-coral" id="startClass">
+                    Start class
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow" /></svg>
+                  </button>
+                  <button
+                    class="btn btn-light"
+                    data-ask="Review my plan for Fractions, decimals &amp; percentages."
+                  >
+                    Open planner
+                  </button>
+                  <a
+                    class="btn btn-light subject-workspace-link"
+                    id="codingWorkspaceLink"
+                    href="../classroom/preflight.html?role=trainer"
+                    hidden
+                    >Coding workspace
+                    <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a
+                  >
+                  <span
+                    class="english-indicators"
+                    id="englishIndicators"
+                    hidden
+                    aria-label="Reading, writing and speaking"
+                    ><span>Reading</span><span>Writing</span><span>Speaking</span></span
+                  >
+                  <span class="next-note">Room opens 10 min before</span>
+                </div>
+              </article>
+
+              <aside class="day" aria-label="Today">
+                <div class="day-head">
+                  <span class="mono">Today</span>
+                  <span class="day-count" id="dayCount">3 sessions</span>
+                </div>
+                <ul class="timeline" id="timeline">
+                  <li class="slot done">
+                    <span class="slot-time num">09:00</span>
+                    <span class="slot-body"
+                      ><b>Algebra · Lesson 14</b><span>1:1 · Ishaan Verma</span
+                      ><span class="slot-subject subject-math" data-subject="math"
+                        >Maths</span
+                      ></span
+                    >
+                    <span class="slot-state s-done">Done</span>
+                  </li>
+                  <li class="slot is-next">
+                    <span class="slot-time num">16:30</span>
+                    <span class="slot-body"
+                      ><b>Ratios · Lesson 15</b><span>1:1 · Ishaan Verma</span
+                      ><span class="slot-subject subject-math" data-subject="math"
+                        >Maths</span
+                      ></span
+                    >
+                    <span class="slot-state s-next">Next</span>
+                  </li>
+                  <li class="slot later">
+                    <span class="slot-time num">19:00</span>
+                    <span class="slot-body"
+                      ><b>Geometry · Lesson 16</b><span>1:1 · Ishaan Verma</span
+                      ><span class="slot-subject subject-math" data-subject="math"
+                        >Maths</span
+                      ></span
+                    >
+                    <span class="slot-state s-later">Later</span>
+                  </li>
+                </ul>
+                <a class="day-link" href="#schedule-title"
+                  >Full schedule
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev" /></svg
+                ></a>
+              </aside>
+            </section>
+
+            <!-- ---------- metrics ---------- -->
+            <section class="metrics" aria-label="This month">
+              <article class="metric">
+                <div class="metric-top">
+                  <span class="mono">Attendance</span><span class="delta">+4%</span>
+                </div>
+                <p class="metric-value num">
+                  <span id="metricAttendance">92</span><small>%</small>
+                </p>
+                <p class="metric-cap" id="capAttendance">Last 30 days · all 1-on-1 sessions</p>
+                <div class="bar" role="img" aria-label="Attendance">
+                  <i id="attendanceBar" style="width: 92%"></i>
+                </div>
+              </article>
+              <article class="metric">
+                <div class="metric-top">
+                  <span class="mono">Teaching score</span><span class="delta">+0.3</span>
+                </div>
+                <p class="metric-value num"><span id="metricScore">8.4</span><small>/10</small></p>
+                <p class="metric-cap" id="capScore">Top 18% this month</p>
+              </article>
+              <article class="metric">
+                <div class="metric-top">
+                  <span class="mono">To review</span><span class="delta warn">2 late</span>
+                </div>
+                <p class="metric-value num" id="metricReview">6</p>
+                <p class="metric-cap" id="capReview">Quizzes &amp; worksheets</p>
+              </article>
+              <article class="metric">
+                <div class="metric-top">
+                  <span class="mono">November payout</span><span class="delta">On track</span>
+                </div>
+                <p class="metric-value money num" id="metricPayout">₹48,200</p>
+                <p class="metric-cap" id="capPayout">22 sessions · statement 1 Dec</p>
+              </article>
+            </section>
           </div>
+          <!-- /today -->
 
-          <div class="next-mid">
-            <p class="next-time num" id="nextTime">4:30 PM <span>– 5:30 PM · 60 min</span></p>
-            <h2 class="next-topic" id="nextTopic">Fractions, decimals &amp; percentages</h2>
-            <p class="next-meta" id="nextMeta">
-              1:1 · Ishaan Verma
-              <span class="dot-sep" aria-hidden="true"></span>
-              <span class="subject-tag subject-math" id="nextSubjectTag" data-subject="math">Mathematics</span>
-              <span class="next-course-note"> · Ratios</span>
-            </p>
-            <div class="plan-chips" id="planChips" aria-label="Session plan">
-              <span>Warm-up 8 min</span>
-              <span>Bar models 20 min</span>
-              <span>Exit ticket 8 min</span>
-              <span class="plan-ready">Plan ready</span>
-            </div>
+          <div class="view" data-view="insights">
+            <!-- ---------- payout trend ---------- -->
+            <section class="block payout-trend" aria-labelledby="payout-trend-title">
+              <div class="block-head">
+                <span class="mono" id="payout-trend-title">Payout trend</span>
+                <span class="chip-count" id="payoutTrendPeriod">November 2026</span>
+                <a class="link" href="#payoutPolicyNote"
+                  >Policy <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev" /></svg
+                ></a>
+              </div>
+              <div class="trend-body">
+                <div class="trend-headline">
+                  <div>
+                    <p class="mono">Accumulated this period</p>
+                    <p class="trend-total num" id="payoutTrendTotal">₹—</p>
+                  </div>
+                  <div class="trend-legend" aria-hidden="true">
+                    <span><i class="legend-daily"></i>Today&rsquo;s earning</span>
+                    <span><i class="legend-cumulative"></i>Accumulated</span>
+                  </div>
+                </div>
+                <div
+                  class="trend-chart"
+                  id="payoutChart"
+                  role="img"
+                  aria-label="Daily and accumulated payout trend"
+                ></div>
+                <div class="trend-foot">
+                  <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
+                  <span id="payoutTrendNote"
+                    >Completed sessions · fines, bonus and MVT excluded from daily points.</span
+                  >
+                </div>
+                <p class="payout-policy" id="payoutPolicyNote">
+                  ₹300–₹400 per completed 1-on-1 session · exact pay per contract/offer letter or as
+                  stated during onboarding · 48-hour notice by either side · later trainer
+                  cancellation costs one session pay · bonuses for clean attendance · severe
+                  complaints to founder@mathify.app.
+                  <span class="founder-gift-note"
+                    >Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet
+                    on the first day of each month as a standing, non-revocable acknowledgement of
+                    faithful service, steady reliability, and the hard work they bring to every
+                    child’s learning. This credit is protected from deductions, cancellations and
+                    reversals, and may be adjusted only by the founder.</span
+                  >
+                </p>
+                <div class="founder-penalty-note" id="payoutPenaltyNote" hidden>
+                  <p class="mono">Founder-recorded decisions · date, amount and reason</p>
+                  <ul id="payoutPenaltyList"></ul>
+                </div>
+              </div>
+            </section>
           </div>
+          <!-- /insights -->
 
-          <div class="next-foot">
-            <button class="btn btn-coral" id="startClass">Start class <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-arrow"/></svg></button>
-            <button class="btn btn-light" data-ask="Review my plan for Fractions, decimals &amp; percentages.">Open planner</button>
-            <a class="btn btn-light subject-workspace-link" id="codingWorkspaceLink" href="../classroom/preflight.html?role=trainer" hidden>Coding workspace <span class="ide-indicator" aria-hidden="true">&lt;/&gt;</span></a>
-            <span class="english-indicators" id="englishIndicators" hidden aria-label="Reading, writing and speaking"><span>Reading</span><span>Writing</span><span>Speaking</span></span>
-            <span class="next-note">Room opens 10 min before</span>
+          <div class="view" data-view="leave">
+            <!-- ---------- leave calendar ---------- -->
+            <section class="block leave-block" aria-labelledby="leave-title">
+              <div class="block-head">
+                <span class="mono" id="leave-title">Leave &amp; cover</span>
+                <span class="chip-count">8 credits / month</span>
+              </div>
+              <div id="leaveCalendar" data-role="trainer"></div>
+            </section>
           </div>
-        </article>
+          <!-- /leave -->
 
-        <aside class="day" aria-label="Today">
-          <div class="day-head">
-            <span class="mono">Today</span>
-            <span class="day-count" id="dayCount">3 sessions</span>
+          <div class="view" data-view="sessions">
+            <!-- ---------- committed schedule calendar ---------- -->
+            <section class="block schedule-block" aria-labelledby="schedule-title">
+              <div class="block-head">
+                <span class="mono" id="schedule-title">Class calendar</span>
+                <span class="chip-count">100% classes · 30% open slot</span>
+              </div>
+              <div id="trainerSchedule"></div>
+            </section>
           </div>
-          <ul class="timeline" id="timeline">
-            <li class="slot done">
-              <span class="slot-time num">09:00</span>
-              <span class="slot-body"><b>Algebra · Lesson 14</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
-              <span class="slot-state s-done">Done</span>
-            </li>
-            <li class="slot is-next">
-              <span class="slot-time num">16:30</span>
-              <span class="slot-body"><b>Ratios · Lesson 15</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
-              <span class="slot-state s-next">Next</span>
-            </li>
-            <li class="slot later">
-              <span class="slot-time num">19:00</span>
-              <span class="slot-body"><b>Geometry · Lesson 16</b><span>1:1 · Ishaan Verma</span><span class="slot-subject subject-math" data-subject="math">Maths</span></span>
-              <span class="slot-state s-later">Later</span>
-            </li>
-          </ul>
-          <a class="day-link" href="#schedule-title">Full schedule <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
-        </aside>
+          <!-- /sessions -->
 
-      </section>
+          <div class="view" data-view="today">
+            <!-- ---------- needs attention ---------- -->
+            <section class="block" aria-labelledby="attention-title">
+              <div class="block-head">
+                <span class="mono" id="attention-title">Needs attention</span>
+                <span class="count" id="attentionCount">03</span>
+                <span class="link">All items shown</span>
+              </div>
 
-      <!-- ---------- metrics ---------- -->
-      <section class="metrics" aria-label="This month">
-        <article class="metric">
-          <div class="metric-top"><span class="mono">Attendance</span><span class="delta">+4%</span></div>
-          <p class="metric-value num"><span id="metricAttendance">92</span><small>%</small></p>
-          <p class="metric-cap" id="capAttendance">Last 30 days · all 1-on-1 sessions</p>
-          <div class="bar" role="img" aria-label="Attendance"><i id="attendanceBar" style="width:92%"></i></div>
-        </article>
-        <article class="metric">
-          <div class="metric-top"><span class="mono">Teaching score</span><span class="delta">+0.3</span></div>
-          <p class="metric-value num"><span id="metricScore">8.4</span><small>/10</small></p>
-          <p class="metric-cap" id="capScore">Top 18% this month</p>
-        </article>
-        <article class="metric">
-          <div class="metric-top"><span class="mono">To review</span><span class="delta warn">2 late</span></div>
-          <p class="metric-value num" id="metricReview">6</p>
-          <p class="metric-cap" id="capReview">Quizzes &amp; worksheets</p>
-        </article>
-        <article class="metric">
-          <div class="metric-top"><span class="mono">November payout</span><span class="delta">On track</span></div>
-          <p class="metric-value money num" id="metricPayout">₹48,200</p>
-          <p class="metric-cap" id="capPayout">22 sessions · statement 1 Dec</p>
-        </article>
-      </section>
+              <div class="queue" id="attentionQueue">
+                <article class="queue-row">
+                  <span class="tag">Reviews</span>
+                  <span class="body">
+                    <span class="title">6 quiz submissions · Module 3</span>
+                    <span class="meta">Oldest 2 days · about 12 minutes to mark</span>
+                  </span>
+                  <span class="status s-today">Due today</span>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    data-ask="Help me review the six quiz submissions for Module 3."
+                  >
+                    Review
+                  </button>
+                </article>
 
-      </div><!-- /today -->
+                <article class="queue-row">
+                  <span class="tag">Attendance</span>
+                  <span class="body">
+                    <span class="title">Aarav Menon · 62% attendance</span>
+                    <span class="meta"
+                      >4 absences in the last 6 sessions · parent not yet contacted</span
+                    >
+                  </span>
+                  <span class="status s-danger">At risk</span>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    data-ask="Draft a kind parent note for Aarav Menon about attendance."
+                  >
+                    Message parent
+                  </button>
+                </article>
 
-      <div class="view" data-view="insights">
-      <!-- ---------- payout trend ---------- -->
-      <section class="block payout-trend" aria-labelledby="payout-trend-title">
-        <div class="block-head">
-          <span class="mono" id="payout-trend-title">Payout trend</span>
-          <span class="chip-count" id="payoutTrendPeriod">November 2026</span>
-          <a class="link" href="#payoutPolicyNote">Policy <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
-        </div>
-        <div class="trend-body">
-          <div class="trend-headline">
-            <div>
-              <p class="mono">Accumulated this period</p>
-              <p class="trend-total num" id="payoutTrendTotal">₹—</p>
-            </div>
-            <div class="trend-legend" aria-hidden="true">
-              <span><i class="legend-daily"></i>Today&rsquo;s earning</span>
-              <span><i class="legend-cumulative"></i>Accumulated</span>
-            </div>
+                <article class="queue-row">
+                  <span class="tag">Planning</span>
+                  <span class="body">
+                    <span class="title">Friday&rsquo;s lesson plan isn&rsquo;t published</span>
+                    <span class="meta">Ishaan Verma · Lesson 15 · agenda not shared yet</span>
+                  </span>
+                  <span class="status s-today">Due Thu</span>
+                  <button
+                    class="btn btn-ghost btn-sm"
+                    data-ask="Outline Friday's lesson plan on ratios for Class 6–7."
+                  >
+                    Open planner
+                  </button>
+                </article>
+              </div>
+            </section>
+
+            <details class="block announce-block" id="announcementPanel">
+              <summary class="block-head">
+                <span class="mono">Announcements</span>
+                <span class="announce-badge" data-announcement-badge hidden></span>
+              </summary>
+              <div class="announce-list" data-announcement-list></div>
+            </details>
           </div>
-          <div class="trend-chart" id="payoutChart" role="img" aria-label="Daily and accumulated payout trend"></div>
-          <div class="trend-foot">
-            <span class="pill-preview" id="payoutTrendBadge">Recorded</span>
-            <span id="payoutTrendNote">Completed sessions · fines, bonus and MVT excluded from daily points.</span>
+          <!-- /today -->
+
+          <div class="view" data-view="students">
+            <!-- ---------- parent messages (private 1-on-1) ---------- -->
+            <section class="block pc-block" id="parent-messages" aria-labelledby="pc-title">
+              <div class="block-head">
+                <span class="mono" id="pc-title">Parent messages</span>
+                <span class="count pc-unread" id="pcUnreadBadge" hidden>0</span>
+                <span class="link pc-link">Private · 1-on-1</span>
+              </div>
+              <div class="pc-card">
+                <div class="pc-head">
+                  <span class="avatar" aria-hidden="true">IV</span>
+                  <span class="pc-peer">
+                    <b id="pcStudentName">Ishaan Verma</b>
+                    <span id="pcMeta">Private thread with parent · 1-on-1</span>
+                  </span>
+                  <span class="mono pc-state" id="pcStatus">Private</span>
+                </div>
+                <ol
+                  class="pc-messages"
+                  id="pcMessageList"
+                  aria-live="polite"
+                  aria-label="Messages with the parent of your 1-on-1 student"
+                ></ol>
+                <p class="pc-empty" id="pcEmpty" hidden>No parent messages yet.</p>
+                <form class="pc-compose" id="pcComposer">
+                  <label class="pc-sr-only" for="pcInput"
+                    >Reply to the parent about your 1-on-1 student</label
+                  >
+                  <input
+                    type="text"
+                    id="pcInput"
+                    maxlength="2000"
+                    placeholder="Reply to the parent…"
+                    autocomplete="off"
+                    required
+                  />
+                  <button type="submit" class="btn btn-sm pc-send" id="pcSend">Send</button>
+                </form>
+                <div class="pc-notice-row" id="pcNoticeRow" hidden>
+                  <p class="pc-notice" id="pcNotice" role="status" aria-live="polite"></p>
+                  <button type="button" class="pc-retry" id="pcRetry" hidden>Try again</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- ---------- attendance register ---------- -->
+            <section class="block" id="register" aria-labelledby="register-title">
+              <div class="section-head">
+                <div class="sh-left">
+                  <span class="mono" id="register-title">Attendance register</span>
+                  <span class="sh-meta" id="registerMeta" data-batch-label>1:1 · Ishaan Verma</span>
+                </div>
+                <div class="sh-right">
+                  <span class="save-note" id="saveNote" aria-live="polite" hidden>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check" /></svg>
+                    <span id="saveText">Saved</span>
+                  </span>
+                  <button
+                    class="select-btn"
+                    id="registerRange"
+                    data-toast="The register shows the available sessions."
+                  >
+                    Last 2 sessions
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down" /></svg>
+                  </button>
+                  <button class="btn btn-ink btn-sm" id="saveRegister">Save register</button>
+                </div>
+              </div>
+
+              <p class="swipe-hint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-swipe" /></svg> Swipe to
+                see all sessions
+              </p>
+
+              <div class="register">
+                <div class="table-scroll">
+                  <table class="matrix">
+                    <caption id="registerCaption">
+                      1:1 attendance for Ishaan Verma over the last 2 sessions. Today&rsquo;s column
+                      is editable.
+                    </caption>
+                    <thead>
+                      <tr id="registerHead">
+                        <th class="student-col" scope="col">Student</th>
+                        <th class="date-col" scope="col">
+                          <span>Sun</span><span class="d">22 Nov</span>
+                        </th>
+                        <th class="date-col today-col" scope="col">
+                          <span>Today</span><span class="d">25 Nov</span>
+                        </th>
+                        <th class="rate-col" scope="col">30 days</th>
+                      </tr>
+                    </thead>
+                    <tbody id="registerBody">
+                      <tr>
+                        <th class="student-col" scope="row">
+                          <span class="stu"
+                            ><span class="avatar" aria-hidden="true">IV</span
+                            ><b>Ishaan Verma</b></span
+                          >
+                        </th>
+                        <td title="Present · 22 Nov"><span class="cell p"></span></td>
+                        <td class="today-col">
+                          <button
+                            type="button"
+                            class="cell editable"
+                            data-session-id="ses_live"
+                            data-student-id="usr_student_001"
+                            data-status=""
+                            data-name="Ishaan"
+                            aria-label="Ishaan, today: not marked. Activate to mark present."
+                          ></button>
+                        </td>
+                        <td class="rate num">&mdash;</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="reg-foot">
+                  <div class="legend">
+                    <span><i class="p"></i>Present</span>
+                    <span><i class="a"></i>Absent</span>
+                    <span><i class="l"></i>Late</span>
+                  </div>
+                  <p class="reg-hint">Select today&rsquo;s column to change a mark.</p>
+                  <span class="reg-count" id="regCount">0 present · 0 late · 0 absent</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- ---------- teaching score + roster ---------- -->
+            <section class="split" aria-label="Teaching quality and students">
+              <article class="tps">
+                <div class="tps-head">
+                  <span class="mono">Teaching score</span>
+                  <span class="tps-period">November</span>
+                </div>
+                <div class="tps-top">
+                  <p class="tps-value num">8.4<small>/ 10</small></p>
+                  <span class="tps-delta">+0.3 vs Oct</span>
+                  <svg
+                    class="spark"
+                    viewBox="0 0 198 50"
+                    role="img"
+                    aria-label="Teaching score rising from 7.6 in June to 8.4 in November"
+                  >
+                    <path
+                      d="M2 42 40 35 78 39 116 32 154 30 196 22 V50 H2 Z"
+                      fill="rgba(18,150,140,.10)"
+                    />
+                    <path
+                      d="M2 42 40 35 78 39 116 32 154 30 196 22"
+                      fill="none"
+                      stroke="#0E1420"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="196" cy="22" r="3" fill="#FF5B2E" />
+                  </svg>
+                </div>
+
+                <div class="components">
+                  <div class="comp">
+                    <div class="comp-label"><span>Basics</span><span class="weight">20%</span></div>
+                    <div class="comp-row">
+                      <span class="bar"><i style="width: 86%"></i></span><b>86</b>
+                    </div>
+                  </div>
+                  <div class="comp">
+                    <div class="comp-label">
+                      <span>Engagement</span><span class="weight">40%</span>
+                    </div>
+                    <div class="comp-row">
+                      <span class="bar"><i style="width: 79%"></i></span><b>79</b>
+                    </div>
+                  </div>
+                  <div class="comp">
+                    <div class="comp-label">
+                      <span>Teaching style</span><span class="weight">40%</span>
+                    </div>
+                    <div class="comp-row">
+                      <span class="bar"><i style="width: 84%"></i></span><b>84</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tps-note">
+                  <span class="mono">Session 8.2 × 80%</span>
+                  <span class="mono">Quiz adherence 9.2 × 20%</span>
+                </div>
+              </article>
+
+              <article class="roster-card">
+                <div class="roster-head">
+                  <div><span class="mono">Students</span><span class="count">5</span></div>
+                  <a class="roster-link" href="#register"
+                    >View all
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev" /></svg
+                  ></a>
+                </div>
+                <div class="roster-cols"><span>Student</span><span>Att.</span><span>TPS</span></div>
+                <ul class="roster">
+                  <li class="top">
+                    <span class="avatar" aria-hidden="true">DS</span>
+                    <span class="name"><b>Diya Sharma</b><span>Top 5% · 12-day streak</span></span>
+                    <span class="num">100%</span>
+                    <span class="num">9.2</span>
+                  </li>
+                  <li>
+                    <span class="avatar" aria-hidden="true">IV</span>
+                    <span class="name"><b>Ishaan Verma</b><span>On track</span></span>
+                    <span class="num">87%</span>
+                    <span class="num">7.9</span>
+                  </li>
+                  <li>
+                    <span class="avatar" aria-hidden="true">MI</span>
+                    <span class="name"><b>Meera Iyer</b><span>On track</span></span>
+                    <span class="num">94%</span>
+                    <span class="num">8.6</span>
+                  </li>
+                  <li>
+                    <span class="avatar" aria-hidden="true">KS</span>
+                    <span class="name"
+                      ><b>Kabir Singh</b><span>1 late arrival this week</span></span
+                    >
+                    <span class="num">88%</span>
+                    <span class="num">7.8</span>
+                  </li>
+                  <li class="risk">
+                    <span class="avatar" aria-hidden="true">AM</span>
+                    <span class="name"
+                      ><b>Aarav Menon</b><span>At risk · 62% attendance</span></span
+                    >
+                    <span class="num dim">62%</span>
+                    <span class="num">6.1</span>
+                  </li>
+                </ul>
+                <div class="roster-foot">
+                  <span class="mono">5 active 1-on-1 students</span>
+                  <a href="#register">Open roster <span aria-hidden="true">›</span></a>
+                </div>
+              </article>
+            </section>
+
+            <!-- ---------- alloted batches ---------- -->
+            <section class="block batches-block" aria-labelledby="batches-title">
+              <div class="block-head">
+                <span class="mono" id="batches-title">Alloted Batches</span>
+                <span class="chip-count" id="batchCount">0 batches</span>
+              </div>
+              <ul class="batch-list" id="allotedBatchList">
+                <li class="batch-empty">No batches allotted yet.</li>
+              </ul>
+              <section
+                class="trainer-demo-card"
+                id="trainerDemoCard"
+                hidden
+                aria-live="polite"
+                aria-label="Assigned demo"
+              >
+                <div class="trainer-demo-head">
+                  <span class="mono">Assigned demo</span
+                  ><span class="chip-count" id="trainerDemoBatch">—</span>
+                </div>
+                <div class="demo-card-grid">
+                  <div><span class="mono">Demo ID</span><b id="trainerDemoId">—</b></div>
+                  <div><span class="mono">Child</span><b id="trainerDemoChild">—</b></div>
+                  <div><span class="mono">Context</span><b id="trainerDemoContext">—</b></div>
+                </div>
+              </section>
+              <p class="batch-note">
+                Name and batch ID only. Contact details and social links are never shared with
+                students or other trainers.
+              </p>
+            </section>
           </div>
-          <p class="payout-policy" id="payoutPolicyNote">₹300–₹400 per completed 1-on-1 session · exact pay per contract/offer letter or as stated during onboarding · 48-hour notice by either side · later trainer cancellation costs one session pay · bonuses for clean attendance · severe complaints to founder@mathify.app. <span class="founder-gift-note">Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.</span></p>
-        </div>
-      </section>
+          <!-- /students -->
 
-      </div><!-- /insights -->
+          <div class="view" data-view="insights">
+            <!-- ---------- locked trainer onboarding ---------- -->
+            <details class="block onboarding-block" id="onboarding-panel">
+              <summary class="block-head">
+                <span class="mono" id="onboarding-title">KYC &amp; onboarding</span>
+                <span class="chip-count" id="onboardingState">Not submitted</span>
+              </summary>
+              <form class="onboarding-form" id="onboardingForm" novalidate>
+                <fieldset class="kyc-lock" id="kycLockFields">
+                  <legend>
+                    KYC identity &amp; documents <span>locked after first submission</span>
+                  </legend>
+                  <div class="onboarding-grid">
+                    <label
+                      >Full name as on document
+                      <input id="kycFullName" name="fullName" autocomplete="name" required />
+                    </label>
+                    <label
+                      >Date of birth
+                      <input id="kycDob" name="dateOfBirth" type="date" required />
+                    </label>
+                    <label
+                      >Aadhaar card number
+                      <input
+                        id="kycAadhaarNumber"
+                        name="aadhaarNumber"
+                        inputmode="numeric"
+                        placeholder="12-digit Aadhaar number"
+                        required
+                      />
+                    </label>
+                    <label
+                      >Aadhaar card front image
+                      <input
+                        id="kycAadhaarFrontImage"
+                        name="aadhaarFrontImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                      />
+                    </label>
+                    <label
+                      >Aadhaar card rear image
+                      <input
+                        id="kycAadhaarRearImage"
+                        name="aadhaarRearImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                      />
+                    </label>
+                    <label
+                      >PAN card number
+                      <input
+                        id="kycPanNumber"
+                        name="panNumber"
+                        placeholder="10-character PAN"
+                        required
+                      />
+                    </label>
+                    <label
+                      >PAN card front image
+                      <input
+                        id="kycPanFrontImage"
+                        name="panFrontImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                      />
+                    </label>
+                    <label
+                      >PAN card rear image
+                      <input
+                        id="kycPanRearImage"
+                        name="panRearImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                      />
+                    </label>
+                    <label
+                      >Signature image
+                      <input
+                        id="kycSignatureImage"
+                        name="signatureImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        required
+                      />
+                    </label>
+                    <label
+                      >Other document label <span class="optional">optional</span>
+                      <input
+                        id="kycOtherLabel"
+                        name="otherLabel"
+                        placeholder="e.g. Address proof"
+                      />
+                    </label>
+                    <label
+                      >Other document number <span class="optional">optional</span>
+                      <input id="kycOtherNumber" name="otherNumber" />
+                    </label>
+                    <label
+                      >Other document image <span class="optional">optional</span>
+                      <input
+                        id="kycOtherImage"
+                        name="otherImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                      />
+                    </label>
+                  </div>
+                </fieldset>
 
-      <div class="view" data-view="leave">
-      <!-- ---------- leave calendar ---------- -->
-      <section class="block leave-block" aria-labelledby="leave-title">
-        <div class="block-head">
-          <span class="mono" id="leave-title">Leave &amp; cover</span>
-          <span class="chip-count">8 credits / month</span>
-        </div>
-        <div id="leaveCalendar" data-role="trainer"></div>
-      </section>
+                <fieldset>
+                  <legend>Personal details <span>you can edit these</span></legend>
+                  <div class="onboarding-grid">
+                    <label
+                      >Contact number
+                      <input
+                        id="kycContact"
+                        name="contactNumber"
+                        inputmode="tel"
+                        autocomplete="tel"
+                      />
+                    </label>
+                    <label
+                      >Alternate contact number
+                      <input
+                        id="kycAlternateContact"
+                        name="alternateContactNumber"
+                        inputmode="tel"
+                      />
+                    </label>
+                    <label
+                      >Email ID
+                      <input id="kycEmail" name="emailId" type="email" autocomplete="email" />
+                    </label>
+                    <label
+                      >Father's name
+                      <input id="kycFather" name="fatherName" />
+                    </label>
+                    <label
+                      >Mother's name
+                      <input id="kycMother" name="motherName" />
+                    </label>
+                    <label
+                      >Spouse name
+                      <input id="kycSpouse" name="spouseName" />
+                    </label>
+                    <label class="wide"
+                      >Address
+                      <textarea id="kycAddress" name="address" rows="2"></textarea>
+                    </label>
+                  </div>
+                </fieldset>
 
-      </div><!-- /leave -->
+                <fieldset>
+                  <legend>
+                    Profile shown to families <span>only these details are shared</span>
+                  </legend>
+                  <div class="onboarding-grid">
+                    <label
+                      >Name shown to families
+                      <input
+                        id="kycPublicName"
+                        name="publicName"
+                        maxlength="120"
+                        placeholder="Your teaching name"
+                      />
+                    </label>
+                    <label
+                      >Years of experience
+                      <input
+                        id="kycYearsExperience"
+                        name="yearsExperience"
+                        type="number"
+                        min="0"
+                        max="60"
+                        inputmode="numeric"
+                      />
+                    </label>
+                    <label class="wide"
+                      >Degrees &amp; qualifications
+                      <textarea
+                        id="kycDegrees"
+                        name="degrees"
+                        rows="2"
+                        placeholder="B.Sc. Mathematics, M.Ed."
+                      ></textarea>
+                    </label>
+                    <label class="wide"
+                      >Achievements
+                      <textarea
+                        id="kycAchievements"
+                        name="achievements"
+                        rows="3"
+                        placeholder="Award, publication or competition result"
+                      ></textarea>
+                    </label>
+                    <label class="wide"
+                      >Profile picture <span class="optional">optional</span>
+                      <input
+                        id="kycProfilePicture"
+                        name="profilePicture"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                      />
+                    </label>
+                    <input type="hidden" id="kycProfilePictureData" name="profilePictureData" />
+                  </div>
+                </fieldset>
 
-      <div class="view" data-view="sessions">
-      <!-- ---------- committed schedule calendar ---------- -->
-      <section class="block schedule-block" aria-labelledby="schedule-title">
-        <div class="block-head">
-          <span class="mono" id="schedule-title">Class calendar</span>
-          <span class="chip-count">100% classes · 30% open slot</span>
-        </div>
-        <div id="trainerSchedule"></div>
-      </section>
+                <fieldset>
+                  <legend>Bank details <span>you can edit these</span></legend>
+                  <div class="onboarding-grid">
+                    <label
+                      >Account holder name
+                      <input id="kycAccountHolder" name="accountHolderName" />
+                    </label>
+                    <label
+                      >Account number
+                      <input id="kycAccountNumber" name="accountNumber" inputmode="numeric" />
+                    </label>
+                    <label
+                      >IFSC code
+                      <input id="kycIfsc" name="ifscCode" />
+                    </label>
+                    <label
+                      >Bank name
+                      <input id="kycBankName" name="bankName" />
+                    </label>
+                    <label
+                      >Branch
+                      <input id="kycBranch" name="branch" />
+                    </label>
+                    <label
+                      >Bank proof image <span class="optional">optional</span>
+                      <input
+                        id="kycBankProofImage"
+                        name="bankProofImage"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                      />
+                    </label>
+                  </div>
+                </fieldset>
 
-      </div><!-- /sessions -->
-
-      <div class="view" data-view="today">
-      <!-- ---------- needs attention ---------- -->
-      <section class="block" aria-labelledby="attention-title">
-        <div class="block-head">
-          <span class="mono" id="attention-title">Needs attention</span>
-          <span class="count" id="attentionCount">03</span>
-          <span class="link">All items shown</span>
-        </div>
-
-        <div class="queue" id="attentionQueue">
-          <article class="queue-row">
-            <span class="tag">Reviews</span>
-            <span class="body">
-              <span class="title">6 quiz submissions · Module 3</span>
-              <span class="meta">Oldest 2 days · about 12 minutes to mark</span>
-            </span>
-            <span class="status s-today">Due today</span>
-            <button class="btn btn-ghost btn-sm" data-ask="Help me review the six quiz submissions for Module 3.">Review</button>
-          </article>
-
-          <article class="queue-row">
-            <span class="tag">Attendance</span>
-            <span class="body">
-              <span class="title">Aarav Menon · 62% attendance</span>
-              <span class="meta">4 absences in the last 6 sessions · parent not yet contacted</span>
-            </span>
-            <span class="status s-danger">At risk</span>
-            <button class="btn btn-ghost btn-sm" data-ask="Draft a kind parent note for Aarav Menon about attendance.">Message parent</button>
-          </article>
-
-          <article class="queue-row">
-            <span class="tag">Planning</span>
-            <span class="body">
-              <span class="title">Friday&rsquo;s lesson plan isn&rsquo;t published</span>
-              <span class="meta">Ishaan Verma · Lesson 15 · agenda not shared yet</span>
-            </span>
-            <span class="status s-today">Due Thu</span>
-            <button class="btn btn-ghost btn-sm" data-ask="Outline Friday's lesson plan on ratios for Class 6–7.">Open planner</button>
-          </article>
-        </div>
-      </section>
-
-      <details class="block announce-block" id="announcementPanel">
-        <summary class="block-head">
-          <span class="mono">Announcements</span>
-          <span class="announce-badge" data-announcement-badge hidden></span>
-        </summary>
-        <div class="announce-list" data-announcement-list></div>
-      </details>
-
-      </div><!-- /today -->
-
-      <div class="view" data-view="students">
-      <!-- ---------- parent messages (private 1-on-1) ---------- -->
-      <section class="block pc-block" id="parent-messages" aria-labelledby="pc-title">
-        <div class="block-head">
-          <span class="mono" id="pc-title">Parent messages</span>
-          <span class="count pc-unread" id="pcUnreadBadge" hidden>0</span>
-          <span class="link pc-link">Private · 1-on-1</span>
-        </div>
-        <div class="pc-card">
-          <div class="pc-head">
-            <span class="avatar" aria-hidden="true">IV</span>
-            <span class="pc-peer">
-              <b id="pcStudentName">Ishaan Verma</b>
-              <span id="pcMeta">Private thread with parent · 1-on-1</span>
-            </span>
-            <span class="mono pc-state" id="pcStatus">Private</span>
+                <div class="onboarding-actions">
+                  <button class="btn btn-coral" id="onboardingSubmit" type="submit">
+                    Submit KYC
+                  </button>
+                  <p
+                    class="onboarding-status"
+                    id="onboardingStatus"
+                    role="status"
+                    aria-live="polite"
+                  ></p>
+                </div>
+              </form>
+            </details>
           </div>
-          <ol class="pc-messages" id="pcMessageList" aria-live="polite" aria-label="Messages with the parent of your 1-on-1 student"></ol>
-          <p class="pc-empty" id="pcEmpty" hidden>No parent messages yet.</p>
-          <form class="pc-compose" id="pcComposer">
-            <label class="pc-sr-only" for="pcInput">Reply to the parent about your 1-on-1 student</label>
-            <input type="text" id="pcInput" maxlength="2000" placeholder="Reply to the parent…" autocomplete="off" required>
-            <button type="submit" class="btn btn-sm pc-send" id="pcSend">Send</button>
-          </form>
-          <div class="pc-notice-row" id="pcNoticeRow" hidden>
-            <p class="pc-notice" id="pcNotice" role="status" aria-live="polite"></p>
-            <button type="button" class="pc-retry" id="pcRetry" hidden>Try again</button>
-          </div>
-        </div>
-      </section>
+          <!-- /insights -->
 
-      <!-- ---------- attendance register ---------- -->
-      <section class="block" id="register" aria-labelledby="register-title">
-        <div class="section-head">
-          <div class="sh-left">
-            <span class="mono" id="register-title">Attendance register</span>
-            <span class="sh-meta" id="registerMeta" data-batch-label>1:1 · Ishaan Verma</span>
-          </div>
-          <div class="sh-right">
-            <span class="save-note" id="saveNote" aria-live="polite" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-check"/></svg>
-              <span id="saveText">Saved</span>
-            </span>
-            <button class="select-btn" id="registerRange" data-toast="The register shows the available sessions.">Last 2 sessions <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev-down"/></svg></button>
-            <button class="btn btn-ink btn-sm" id="saveRegister">Save register</button>
-          </div>
-        </div>
-
-        <p class="swipe-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-swipe"/></svg> Swipe to see all sessions</p>
-
-        <div class="register">
-          <div class="table-scroll">
-            <table class="matrix">
-              <caption id="registerCaption">1:1 attendance for Ishaan Verma over the last 2 sessions. Today&rsquo;s column is editable.</caption>
-              <thead>
-                <tr id="registerHead">
-                  <th class="student-col" scope="col">Student</th>
-                  <th class="date-col" scope="col"><span>Sun</span><span class="d">22 Nov</span></th>
-                  <th class="date-col today-col" scope="col"><span>Today</span><span class="d">25 Nov</span></th>
-                  <th class="rate-col" scope="col">30 days</th>
-                </tr>
-              </thead>
-              <tbody id="registerBody">
-                <tr>
-                  <th class="student-col" scope="row"><span class="stu"><span class="avatar" aria-hidden="true">IV</span><b>Ishaan Verma</b></span></th>
-                  <td title="Present · 22 Nov"><span class="cell p"></span></td>
-                  <td class="today-col"><button type="button" class="cell editable" data-session-id="ses_live" data-student-id="usr_student_001" data-status="" data-name="Ishaan" aria-label="Ishaan, today: not marked. Activate to mark present."> </button></td>
-                  <td class="rate num">&mdash;</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="reg-foot">
-            <div class="legend">
-              <span><i class="p"></i>Present</span>
-              <span><i class="a"></i>Absent</span>
-              <span><i class="l"></i>Late</span>
-            </div>
-            <p class="reg-hint">Select today&rsquo;s column to change a mark.</p>
-            <span class="reg-count" id="regCount">0 present · 0 late · 0 absent</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ---------- teaching score + roster ---------- -->
-      <section class="split" aria-label="Teaching quality and students">
-
-        <article class="tps">
-          <div class="tps-head">
-            <span class="mono">Teaching score</span>
-            <span class="tps-period">November</span>
-          </div>
-          <div class="tps-top">
-            <p class="tps-value num">8.4<small>/ 10</small></p>
-            <span class="tps-delta">+0.3 vs Oct</span>
-            <svg class="spark" viewBox="0 0 198 50" role="img" aria-label="Teaching score rising from 7.6 in June to 8.4 in November">
-              <path d="M2 42 40 35 78 39 116 32 154 30 196 22 V50 H2 Z" fill="rgba(18,150,140,.10)"/>
-              <path d="M2 42 40 35 78 39 116 32 154 30 196 22" fill="none" stroke="#0E1420" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="196" cy="22" r="3" fill="#FF5B2E"/>
-            </svg>
-          </div>
-
-          <div class="components">
-            <div class="comp">
-              <div class="comp-label"><span>Basics</span><span class="weight">20%</span></div>
-              <div class="comp-row"><span class="bar"><i style="width:86%"></i></span><b>86</b></div>
-            </div>
-            <div class="comp">
-              <div class="comp-label"><span>Engagement</span><span class="weight">40%</span></div>
-              <div class="comp-row"><span class="bar"><i style="width:79%"></i></span><b>79</b></div>
-            </div>
-            <div class="comp">
-              <div class="comp-label"><span>Teaching style</span><span class="weight">40%</span></div>
-              <div class="comp-row"><span class="bar"><i style="width:84%"></i></span><b>84</b></div>
-            </div>
-          </div>
-
-          <div class="tps-note">
-            <span class="mono">Session 8.2 × 80%</span>
-            <span class="mono">Quiz adherence 9.2 × 20%</span>
-          </div>
-        </article>
-
-        <article class="roster-card">
-          <div class="roster-head">
-            <div><span class="mono">Students</span><span class="count">5</span></div>
-            <a class="roster-link" href="#register">View all <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chev"/></svg></a>
-          </div>
-          <div class="roster-cols"><span>Student</span><span>Att.</span><span>TPS</span></div>
-          <ul class="roster">
-            <li class="top">
-              <span class="avatar" aria-hidden="true">DS</span>
-              <span class="name"><b>Diya Sharma</b><span>Top 5% · 12-day streak</span></span>
-              <span class="num">100%</span>
-              <span class="num">9.2</span>
-            </li>
-            <li>
-              <span class="avatar" aria-hidden="true">IV</span>
-              <span class="name"><b>Ishaan Verma</b><span>On track</span></span>
-              <span class="num">87%</span>
-              <span class="num">7.9</span>
-            </li>
-            <li>
-              <span class="avatar" aria-hidden="true">MI</span>
-              <span class="name"><b>Meera Iyer</b><span>On track</span></span>
-              <span class="num">94%</span>
-              <span class="num">8.6</span>
-            </li>
-            <li>
-              <span class="avatar" aria-hidden="true">KS</span>
-              <span class="name"><b>Kabir Singh</b><span>1 late arrival this week</span></span>
-              <span class="num">88%</span>
-              <span class="num">7.8</span>
-            </li>
-            <li class="risk">
-              <span class="avatar" aria-hidden="true">AM</span>
-              <span class="name"><b>Aarav Menon</b><span>At risk · 62% attendance</span></span>
-              <span class="num dim">62%</span>
-              <span class="num">6.1</span>
-            </li>
-          </ul>
-          <div class="roster-foot">
-            <span class="mono">5 active 1-on-1 students</span>
-            <a href="#register">Open roster <span aria-hidden="true">›</span></a>
-          </div>
-        </article>
-
-      </section>
-
-      <!-- ---------- alloted batches ---------- -->
-      <section class="block batches-block" aria-labelledby="batches-title">
-        <div class="block-head">
-          <span class="mono" id="batches-title">Alloted Batches</span>
-          <span class="chip-count" id="batchCount">0 batches</span>
-        </div>
-        <ul class="batch-list" id="allotedBatchList">
-          <li class="batch-empty">No batches allotted yet.</li>
-        </ul>
-        <section class="trainer-demo-card" id="trainerDemoCard" hidden aria-live="polite" aria-label="Assigned demo">
-          <div class="trainer-demo-head"><span class="mono">Assigned demo</span><span class="chip-count" id="trainerDemoBatch">—</span></div>
-          <div class="demo-card-grid">
-            <div><span class="mono">Demo ID</span><b id="trainerDemoId">—</b></div>
-            <div><span class="mono">Child</span><b id="trainerDemoChild">—</b></div>
-            <div><span class="mono">Context</span><b id="trainerDemoContext">—</b></div>
-          </div>
-        </section>
-        <p class="batch-note">Name and batch ID only. Contact details and social links are never shared with students or other trainers.</p>
-      </section>
-
-      </div><!-- /students -->
-
-      <div class="view" data-view="insights">
-      <!-- ---------- locked trainer onboarding ---------- -->
-      <details class="block onboarding-block" id="onboarding-panel">
-        <summary class="block-head">
-          <span class="mono" id="onboarding-title">KYC &amp; onboarding</span>
-          <span class="chip-count" id="onboardingState">Not submitted</span>
-        </summary>
-        <form class="onboarding-form" id="onboardingForm" novalidate>
-          <fieldset class="kyc-lock" id="kycLockFields">
-            <legend>KYC identity &amp; documents <span>locked after first submission</span></legend>
-            <div class="onboarding-grid">
-              <label>Full name as on document
-                <input id="kycFullName" name="fullName" autocomplete="name" required>
-              </label>
-              <label>Date of birth
-                <input id="kycDob" name="dateOfBirth" type="date" required>
-              </label>
-              <label>Aadhaar card number
-                <input id="kycAadhaarNumber" name="aadhaarNumber" inputmode="numeric" placeholder="12-digit Aadhaar number" required>
-              </label>
-              <label>Aadhaar card front image
-                <input id="kycAadhaarFrontImage" name="aadhaarFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>Aadhaar card rear image
-                <input id="kycAadhaarRearImage" name="aadhaarRearImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>PAN card number
-                <input id="kycPanNumber" name="panNumber" placeholder="10-character PAN" required>
-              </label>
-              <label>PAN card front image
-                <input id="kycPanFrontImage" name="panFrontImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>PAN card rear image
-                <input id="kycPanRearImage" name="panRearImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>Signature image
-                <input id="kycSignatureImage" name="signatureImage" type="file" accept="image/jpeg,image/png,image/webp" required>
-              </label>
-              <label>Other document label <span class="optional">optional</span>
-                <input id="kycOtherLabel" name="otherLabel" placeholder="e.g. Address proof">
-              </label>
-              <label>Other document number <span class="optional">optional</span>
-                <input id="kycOtherNumber" name="otherNumber">
-              </label>
-              <label>Other document image <span class="optional">optional</span>
-                <input id="kycOtherImage" name="otherImage" type="file" accept="image/jpeg,image/png,image/webp">
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Personal details <span>you can edit these</span></legend>
-            <div class="onboarding-grid">
-              <label>Contact number
-                <input id="kycContact" name="contactNumber" inputmode="tel" autocomplete="tel">
-              </label>
-              <label>Alternate contact number
-                <input id="kycAlternateContact" name="alternateContactNumber" inputmode="tel">
-              </label>
-              <label>Email ID
-                <input id="kycEmail" name="emailId" type="email" autocomplete="email">
-              </label>
-              <label>Father's name
-                <input id="kycFather" name="fatherName">
-              </label>
-              <label>Mother's name
-                <input id="kycMother" name="motherName">
-              </label>
-              <label>Spouse name
-                <input id="kycSpouse" name="spouseName">
-              </label>
-              <label class="wide">Address
-                <textarea id="kycAddress" name="address" rows="2"></textarea>
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Profile shown to families <span>only these details are shared</span></legend>
-            <div class="onboarding-grid">
-              <label>Name shown to families
-                <input id="kycPublicName" name="publicName" maxlength="120" placeholder="Your teaching name">
-              </label>
-              <label>Years of experience
-                <input id="kycYearsExperience" name="yearsExperience" type="number" min="0" max="60" inputmode="numeric">
-              </label>
-              <label class="wide">Degrees &amp; qualifications
-                <textarea id="kycDegrees" name="degrees" rows="2" placeholder="B.Sc. Mathematics, M.Ed."></textarea>
-              </label>
-              <label class="wide">Achievements
-                <textarea id="kycAchievements" name="achievements" rows="3" placeholder="Award, publication or competition result"></textarea>
-              </label>
-              <label class="wide">Profile picture <span class="optional">optional</span>
-                <input id="kycProfilePicture" name="profilePicture" type="file" accept="image/jpeg,image/png,image/webp">
-              </label>
-              <input type="hidden" id="kycProfilePictureData" name="profilePictureData">
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Bank details <span>you can edit these</span></legend>
-            <div class="onboarding-grid">
-              <label>Account holder name
-                <input id="kycAccountHolder" name="accountHolderName">
-              </label>
-              <label>Account number
-                <input id="kycAccountNumber" name="accountNumber" inputmode="numeric">
-              </label>
-              <label>IFSC code
-                <input id="kycIfsc" name="ifscCode">
-              </label>
-              <label>Bank name
-                <input id="kycBankName" name="bankName">
-              </label>
-              <label>Branch
-                <input id="kycBranch" name="branch">
-              </label>
-              <label>Bank proof image <span class="optional">optional</span>
-                <input id="kycBankProofImage" name="bankProofImage" type="file" accept="image/jpeg,image/png,image/webp">
-              </label>
-            </div>
-          </fieldset>
-
-          <div class="onboarding-actions">
-            <button class="btn btn-coral" id="onboardingSubmit" type="submit">Submit KYC</button>
-            <p class="onboarding-status" id="onboardingStatus" role="status" aria-live="polite"></p>
-          </div>
-        </form>
-      </details>
-
-      </div><!-- /insights -->
-
-      <footer class="foot">
-        <a href="../pricing.html">Pricing</a>
-        <a href="../terms.html">Terms</a>
-        <a href="../privacy.html">Privacy</a>
-        <a href="../refund.html">Refund</a>
-        <a href="../contact.html">Contact</a>
-        <span class="c">© 2026 Mathify</span>
-      </footer>
-
-    </main>
-  </div>
-</div>
-
-<!-- ===================== mobile tabs ===================== -->
-<nav class="tabs" aria-label="Primary">
-  <button class="active" data-tab data-tab-target="main" aria-current="page">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today"/></svg>
-    <span>Today</span>
-  </button>
-  <button data-tab data-tab-target="next-session">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
-    <span>Sessions</span>
-  </button>
-  <button data-tab data-tab-target="register">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users"/></svg>
-    <span>Students</span>
-  </button>
-  <button data-tab data-tab-target="register">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-register"/></svg>
-    <span>Register</span>
-  </button>
-  <button data-tab data-tab-target="payout-trend-title">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg>
-    <span>Insights</span>
-  </button>
-</nav>
-
-<!-- ===================== trainer assistant ===================== -->
-<button class="fab" id="aiFab" aria-expanded="false" aria-controls="aiPanel" aria-label="Open Mathify assistant">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
-</button>
-
-<aside class="ai" id="aiPanel" hidden aria-label="Mathify trainer assistant">
-  <div class="ai-head">
-    <span class="mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
-    </span>
-    <span>
-      <b id="aiTitle">Mathify copilot</b>
-      <span class="st" id="aiStatus">Plans · grading · parent notes</span>
-    </span>
-    <button class="x" id="aiClose" aria-label="Close assistant">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
-    </button>
-  </div>
-  <div class="ai-modes" role="group" aria-label="Assistant mode">
-    <button type="button" class="active" data-chat-mode="copilot" aria-pressed="true">Copilot</button>
-    <button type="button" data-chat-mode="support" aria-pressed="false">Trainer Desk</button>
-  </div>
-  <div class="ai-body" id="aiBody">
-    <p class="msg bot">Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the session?</p>
-    <div class="ai-chips">
-      <button type="button">Differentiate today&rsquo;s set</button>
-      <button type="button">Draft a parent note</button>
-      <button type="button">Summarise last session</button>
+          <footer class="foot">
+            <a href="../pricing.html">Pricing</a>
+            <a href="../terms.html">Terms</a>
+            <a href="../privacy.html">Privacy</a>
+            <a href="../refund.html">Refund</a>
+            <a href="../contact.html">Contact</a>
+            <span class="c">© 2026 Mathify</span>
+          </footer>
+        </main>
+      </div>
     </div>
-  </div>
-  <form class="ai-form" id="aiForm">
-    <input type="text" id="aiInput" placeholder="Ask about a plan, student or score…" aria-label="Ask Mathify copilot">
-    <button type="submit" aria-label="Send">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send"/></svg>
-    </button>
-  </form>
-</aside>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-<!-- ===================== search overlay ===================== -->
-<div class="search-overlay" id="searchOverlay" hidden>
-  <div class="search-card" role="dialog" aria-modal="true" aria-label="Search Mathify">
-    <label class="search-field">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
-      <input id="searchMobile" type="search" placeholder="Search students, sessions" autocomplete="off" aria-label="Search students and 1-on-1 sessions">
-      <button type="button" class="esc" id="searchClose" aria-label="Close search">
-        <span class="esc-txt">Esc</span>
-        <svg class="esc-x" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg>
+    <!-- ===================== mobile tabs ===================== -->
+    <nav class="tabs" aria-label="Primary">
+      <button class="active" data-tab data-tab-target="main" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-today" /></svg>
+        <span>Today</span>
       </button>
-    </label>
-    <div class="search-quick">
-      <span class="mono">Quick find</span>
-      <div class="search-tags">
-        <button type="button">Aarav Menon</button>
-        <button type="button">Class 8 · Algebra</button>
-        <button type="button">Quiz · Module 3</button>
-        <button type="button">Friday&rsquo;s plan</button>
+      <button data-tab data-tab-target="next-session">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play" /></svg>
+        <span>Sessions</span>
+      </button>
+      <button data-tab data-tab-target="register">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-users" /></svg>
+        <span>Students</span>
+      </button>
+      <button data-tab data-tab-target="register">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-register" /></svg>
+        <span>Register</span>
+      </button>
+      <button data-tab data-tab-target="payout-trend-title">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart" /></svg>
+        <span>Insights</span>
+      </button>
+    </nav>
+
+    <!-- ===================== trainer assistant ===================== -->
+    <button
+      class="fab"
+      id="aiFab"
+      aria-expanded="false"
+      aria-controls="aiPanel"
+      aria-label="Open Mathify assistant"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark" /></svg>
+    </button>
+
+    <aside class="ai" id="aiPanel" hidden aria-label="Mathify trainer assistant">
+      <div class="ai-head">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark" /></svg>
+        </span>
+        <span>
+          <b id="aiTitle">Mathify copilot</b>
+          <span class="st" id="aiStatus">Plans · grading · parent notes</span>
+        </span>
+        <button class="x" id="aiClose" aria-label="Close assistant">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x" /></svg>
+        </button>
+      </div>
+      <div class="ai-modes" role="group" aria-label="Assistant mode">
+        <button type="button" class="active" data-chat-mode="copilot" aria-pressed="true">
+          Copilot
+        </button>
+        <button type="button" data-chat-mode="support" aria-pressed="false">Trainer Desk</button>
+      </div>
+      <div class="ai-body" id="aiBody">
+        <p class="msg bot">
+          Your 4:30 is planned. Want a reteach note for Ishaan, or a parent update after the
+          session?
+        </p>
+        <div class="ai-chips">
+          <button type="button">Differentiate today&rsquo;s set</button>
+          <button type="button">Draft a parent note</button>
+          <button type="button">Summarise last session</button>
+        </div>
+      </div>
+      <form class="ai-form" id="aiForm">
+        <input
+          type="text"
+          id="aiInput"
+          placeholder="Ask about a plan, student or score…"
+          aria-label="Ask Mathify copilot"
+        />
+        <button type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-send" /></svg>
+        </button>
+      </form>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <!-- ===================== search overlay ===================== -->
+    <div class="search-overlay" id="searchOverlay" hidden>
+      <div class="search-card" role="dialog" aria-modal="true" aria-label="Search Mathify">
+        <label class="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search" /></svg>
+          <input
+            id="searchMobile"
+            type="search"
+            placeholder="Search students, sessions"
+            autocomplete="off"
+            aria-label="Search students and 1-on-1 sessions"
+          />
+          <button type="button" class="esc" id="searchClose" aria-label="Close search">
+            <span class="esc-txt">Esc</span>
+            <svg class="esc-x" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x" /></svg>
+          </button>
+        </label>
+        <div class="search-quick">
+          <span class="mono">Quick find</span>
+          <div class="search-tags">
+            <button type="button">Aarav Menon</button>
+            <button type="button">Class 8 · Algebra</button>
+            <button type="button">Quiz · Module 3</button>
+            <button type="button">Friday&rsquo;s plan</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<script src="../shared/viewerTimezone.js" defer></script>
-<script src="../shared/sessionKeepalive.js" defer></script>
-<script src="../shared/sessionAlerts.js" defer></script>
-<script src="../shared/demoStatus.js" defer></script>
-<link rel="stylesheet" href="../shared/demo-status.css">
-<script src="api.js?v=20261126" defer></script>
-<script src="subjectPanels.js" defer></script>
-<script src="../shared/leave-calendar.js" defer></script>
-<script src="schedule.js" defer></script>
-<script src="app.js" defer></script>
-<script src="../shared/rewardDeck.js" defer></script>
-<script src="parentChat.js" defer></script>
-<script src="onboarding.js" defer></script>
-<script>
-  window.MATHIFY_ANNOUNCEMENTS = {
-    mount: '[data-announcement-list]',
-    badge: '[data-announcement-badge]',
-    tokenKey: 'mathify.trainer.token'
-  };
-</script>
-<script src="../shared/announcements.js" defer></script>
-<script>
-  window.MATHIFY_NOTIFICATION_INBOX = {
-    button: '#notificationBtn',
-    panel: '#notificationPanel',
-    badge: '#notificationBadge',
-    title: '#inboxTitle',
-    body: '#notificationBody',
-    close: '#notificationClose',
-    tokenKey: 'mathify.trainer.token'
-  };
-</script>
-<script src="../shared/notificationInbox.js" defer></script>
-<script src="../shared/profilePassword.js" defer></script>
-<script src="../shared/sectionRouter.js" defer></script>
-
-</body>
+    <script src="../shared/viewerTimezone.js" defer></script>
+    <script src="../shared/sessionKeepalive.js" defer></script>
+    <script src="../shared/sessionAlerts.js" defer></script>
+    <script src="../shared/demoStatus.js" defer></script>
+    <link rel="stylesheet" href="../shared/demo-status.css" />
+    <script src="api.js?v=20261126" defer></script>
+    <script src="subjectPanels.js" defer></script>
+    <script src="../shared/leave-calendar.js" defer></script>
+    <script src="schedule.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="../shared/rewardDeck.js" defer></script>
+    <script src="parentChat.js" defer></script>
+    <script src="onboarding.js" defer></script>
+    <script>
+      window.MATHIFY_ANNOUNCEMENTS = {
+        mount: '[data-announcement-list]',
+        badge: '[data-announcement-badge]',
+        tokenKey: 'mathify.trainer.token',
+      };
+    </script>
+    <script src="../shared/announcements.js" defer></script>
+    <script>
+      window.MATHIFY_NOTIFICATION_INBOX = {
+        button: '#notificationBtn',
+        panel: '#notificationPanel',
+        badge: '#notificationBadge',
+        title: '#inboxTitle',
+        body: '#notificationBody',
+        close: '#notificationClose',
+        tokenKey: 'mathify.trainer.token',
+      };
+    </script>
+    <script src="../shared/notificationInbox.js" defer></script>
+    <script src="../shared/profilePassword.js" defer></script>
+    <script src="../shared/sectionRouter.js" defer></script>
+  </body>
 </html>

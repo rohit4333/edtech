@@ -65,9 +65,11 @@ app.use('/api/webhooks/recording', webhookThrottle);
 app.use('/api/webhooks/livekit', webhookThrottle);
 app.use('/api/contact', contactThrottle);
 
-app.use(cors({
-  origin: config.corsOrigins()
-}));
+app.use(
+  cors({
+    origin: config.corsOrigins(),
+  })
+);
 /* Razorpay and LiveKit sign the raw body, so these routes must be read first. */
 app.use('/api/razorpay/webhook', express.raw({ type: 'application/json' }));
 /* LiveKit signs the exact request bytes, so this route must also be read as a
@@ -85,7 +87,7 @@ app.get('/api/health', function (req, res) {
     phase: 1,
     database: config.databaseMode,
     supabaseConfigured: config.supabaseConfigured,
-    realtime: realtime.mode
+    realtime: realtime.mode,
   });
 });
 
@@ -95,14 +97,14 @@ app.get('/api/public/config', function (req, res) {
     supabase: {
       url: config.supabase.url,
       publishableKey: config.supabase.publishableKey,
-      realtimeEnabled: Boolean(config.supabase.url && config.supabase.publishableKey)
+      realtimeEnabled: Boolean(config.supabase.url && config.supabase.publishableKey),
     },
     realtimeMode: realtime.mode,
     network: networkQuality.settings(),
     sessionAccess: sessionAccess.settings(),
     sessionTiming: sessionTiming.settings(),
     badges: badgeService.catalog(),
-    celebrations: celebrationService.publicConfig()
+    celebrations: celebrationService.publicConfig(),
   });
 });
 
@@ -139,11 +141,15 @@ app.use('/api/rm', rmRoutes);
    session event bridge: the same forbidden-key scrub and an allowlist of the
    caller's sessions. No raw outbox event is returned verbatim. */
 const REALTIME_CHANNEL_PREFIX = 'mathify:session:';
-const EVENT_FORBIDDEN_KEY = /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
+const EVENT_FORBIDDEN_KEY =
+  /answer|correct|hint|why|explain|trainer|instruction|misconception|key/i;
 
 function scrubEventPayload(value, depth) {
   if (value === null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map(function (item) { return scrubEventPayload(item, (depth || 0) + 1); });
+  if (Array.isArray(value))
+    return value.map(function (item) {
+      return scrubEventPayload(item, (depth || 0) + 1);
+    });
   if ((depth || 0) > 4) return undefined;
   const clean = {};
   Object.keys(value).forEach(function (key) {
@@ -154,42 +160,51 @@ function scrubEventPayload(value, depth) {
   return clean;
 }
 
-app.get('/api/realtime/log', auth.requireAuth, auth.requireRole('trainer', 'founder'), async function (req, res) {
-  try {
-    const size = Math.max(1, Math.min(200, Number(req.query.limit) || 20));
-    const [events, sessions] = await Promise.all([
-      realtime.recent(req.query.limit),
-      db.listSessionsForUser(req.user)
-    ]);
-    const allowed = {};
-    (Array.isArray(sessions) ? sessions : []).forEach(function (session) {
-      allowed[String(session.id)] = true;
-    });
+app.get(
+  '/api/realtime/log',
+  auth.requireAuth,
+  auth.requireRole('trainer', 'founder'),
+  async function (req, res) {
+    try {
+      const size = Math.max(1, Math.min(200, Number(req.query.limit) || 20));
+      const [events, sessions] = await Promise.all([
+        realtime.recent(req.query.limit),
+        db.listSessionsForUser(req.user),
+      ]);
+      const allowed = {};
+      (Array.isArray(sessions) ? sessions : []).forEach(function (session) {
+        allowed[String(session.id)] = true;
+      });
 
-    const visible = (Array.isArray(events) ? events : []).filter(function (event) {
-      const channel = String((event && event.channel) || '');
-      if (channel.indexOf(REALTIME_CHANNEL_PREFIX) !== 0) return false;
-      return Boolean(allowed[channel.slice(REALTIME_CHANNEL_PREFIX.length)]);
-    }).slice(-size).map(function (event) {
-      return {
-        seq: event.seq,
-        at: event.at,
-        channel: event.channel,
-        event: event.event,
-        payload: scrubEventPayload(event.payload, 0) || {}
-      };
-    });
+      const visible = (Array.isArray(events) ? events : [])
+        .filter(function (event) {
+          const channel = String((event && event.channel) || '');
+          if (channel.indexOf(REALTIME_CHANNEL_PREFIX) !== 0) return false;
+          return Boolean(allowed[channel.slice(REALTIME_CHANNEL_PREFIX.length)]);
+        })
+        .slice(-size)
+        .map(function (event) {
+          return {
+            seq: event.seq,
+            at: event.at,
+            channel: event.channel,
+            event: event.event,
+            payload: scrubEventPayload(event.payload, 0) || {},
+          };
+        });
 
-    return res.json({ mode: realtime.mode, events: visible });
-  } catch (error) {
-    return res.status(502).json({ error: 'REALTIME_LOG_FAILED', message: error.message });
+      return res.json({ mode: realtime.mode, events: visible });
+    } catch (error) {
+      return res.status(502).json({ error: 'REALTIME_LOG_FAILED', message: error.message });
+    }
   }
-});
+);
 
 /* A tiny inline favicon keeps browser consoles clean without exposing a new
    static file or an extra asset request on every dashboard. */
 app.get('/favicon.ico', function (req, res) {
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
     '<rect width="32" height="32" rx="6" fill="#0E1420"/>' +
     '<text x="16" y="22" font-family="monospace" font-size="18" text-anchor="middle" fill="#FF5B2E">M</text>' +
     '</svg>';
@@ -202,13 +217,41 @@ app.get('/favicon.ico', function (req, res) {
    never reachable through this static mount. */
 const webRoot = path.resolve(__dirname, '..');
 const publicFiles = new Set([
-  'index.html', 'apps.html', 'pricing.html', 'terms.html',
-  'privacy.html', 'refund.html', 'contact.html', 'password-reset.html', 'register.html', 'public.css',
-  'landing.css', 'landing.js', 'login.html', 'view-choice.html', 'sw.js'
+  'index.html',
+  'apps.html',
+  'pricing.html',
+  'terms.html',
+  'privacy.html',
+  'refund.html',
+  'contact.html',
+  'password-reset.html',
+  'register.html',
+  'public.css',
+  'landing.css',
+  'landing.js',
+  'login.html',
+  'view-choice.html',
+  'sw.js',
 ]);
 /* The installable web app assets are public static files. No server source,
    migration, environment file or credential is inside this directory. */
-const publicDirs = new Set(['assets', 'classroom', 'founder', 'home', 'lms', 'login', 'parent', 'planner-agent', 'register', 'rm', 'shared', 'student', 'trainer', 'unified', 'webapp']);
+const publicDirs = new Set([
+  'assets',
+  'classroom',
+  'founder',
+  'home',
+  'lms',
+  'login',
+  'parent',
+  'planner-agent',
+  'register',
+  'rm',
+  'shared',
+  'student',
+  'trainer',
+  'unified',
+  'webapp',
+]);
 
 /* Each dashboard nav item is a real page URL. These routes serve the matching
    desk document; the shared section router then shows only that page's UI. */
@@ -233,6 +276,7 @@ const sectionPages = {
   '/founder/student-admin': 'founder/index.html',
   '/founder/audit': 'founder/index.html',
   '/rm/dashboard': 'rm/index.html',
+  '/rm/payment': 'rm/index.html',
   '/rm/trainers': 'rm/index.html',
   '/rm/students': 'rm/index.html',
   '/rm/penalties': 'rm/index.html',
@@ -240,6 +284,7 @@ const sectionPages = {
   '/parent/inbox': 'parent/index.html',
   '/parent/child': 'parent/index.html',
   '/parent/sessions': 'parent/index.html',
+  '/parent/balance': 'parent/index.html',
   '/parent/guidance': 'parent/index.html',
   '/parent/policies': 'parent/index.html',
   '/app/home': 'unified/index.html',
@@ -250,6 +295,7 @@ const sectionPages = {
   '/app/parent/inbox': 'unified/index.html',
   '/app/parent/child': 'unified/index.html',
   '/app/parent/sessions': 'unified/index.html',
+  '/app/parent/balance': 'unified/index.html',
   '/app/parent/guidance': 'unified/index.html',
   '/app/parent/policies': 'unified/index.html',
   '/app/rm/dashboard': 'unified/index.html',
@@ -265,12 +311,12 @@ const sectionPages = {
   '/founder-admin/announcements': 'founder-admin/index.html',
   '/founder-admin/trainer-admin': 'founder-admin/index.html',
   '/founder-admin/student-admin': 'founder-admin/index.html',
-  '/founder-admin/audit': 'founder-admin/index.html'
+  '/founder-admin/audit': 'founder-admin/index.html',
 };
 const staticFiles = express.static(webRoot, {
   dotfiles: 'deny',
   fallthrough: true,
-  index: 'index.html'
+  index: 'index.html',
 });
 
 /* The installable web app is a thin overlay on the reviewed pages. Injecting
@@ -343,14 +389,12 @@ function sendWebAppHtml(filePath, req, res, next) {
     if (error) return next(error);
     var injection = '';
     if (html.indexOf('/webapp/register.js') === -1) injection += WEBAPP_BOOTSTRAP;
-    if (process.env.NODE_ENV !== 'production' &&
-        html.indexOf('mathify-dev-page-label') === -1) injection += DEV_PAGE_LABEL_BOOTSTRAP;
+    if (process.env.NODE_ENV !== 'production' && html.indexOf('mathify-dev-page-label') === -1)
+      injection += DEV_PAGE_LABEL_BOOTSTRAP;
     if (injection) {
       const marker = '</body>';
       const index = html.toLowerCase().lastIndexOf(marker);
-      html = index === -1
-        ? html + injection
-        : html.slice(0, index) + injection + html.slice(index);
+      html = index === -1 ? html + injection : html.slice(0, index) + injection + html.slice(index);
     }
     res.set('Cache-Control', 'no-cache');
     return res.type('html').send(html);
@@ -367,7 +411,8 @@ app.get('/sw.js', function (req, res, next) {
 
 app.get('/webapp/manifest.webmanifest', function (req, res, next) {
   res.set('Cache-Control', 'public, max-age=3600');
-  return res.type('application/manifest+json')
+  return res
+    .type('application/manifest+json')
     .sendFile(path.join(webRoot, 'webapp', 'manifest.webmanifest'), function (error) {
       if (error) return next(error);
     });
@@ -379,12 +424,14 @@ app.get('/webapp/manifest.webmanifest', function (req, res, next) {
    authorizes every founder operation independently. */
 function readCookies(req) {
   const result = {};
-  String(req.headers.cookie || '').split(';').forEach(function (part) {
-    const index = part.indexOf('=');
-    if (index === -1) return;
-    const key = part.slice(0, index).trim();
-    if (key) result[key] = part.slice(index + 1).trim();
-  });
+  String(req.headers.cookie || '')
+    .split(';')
+    .forEach(function (part) {
+      const index = part.indexOf('=');
+      if (index === -1) return;
+      const key = part.slice(0, index).trim();
+      if (key) result[key] = part.slice(index + 1).trim();
+    });
   return result;
 }
 
@@ -393,16 +440,20 @@ async function requireFounderDesktop(req, res, next) {
   if (!payload || payload.role !== 'founder') {
     return res.status(403).json({
       error: 'FOUNDER_DESK_REQUIRED',
-      message: 'Sign in as the founder to open the admin application.'
+      message: 'Sign in as the founder to open the admin application.',
     });
   }
   try {
     const user = await db.findUserById(payload.sub);
-    if (!user || user.role !== 'founder' || user.status !== 'active' ||
-      Number(payload.ver || 0) !== Number(user.tokenVersion || 0)) {
+    if (
+      !user ||
+      user.role !== 'founder' ||
+      user.status !== 'active' ||
+      Number(payload.ver || 0) !== Number(user.tokenVersion || 0)
+    ) {
       return res.status(403).json({
         error: 'FOUNDER_DESK_REQUIRED',
-        message: 'Sign in as the founder to open the admin application.'
+        message: 'Sign in as the founder to open the admin application.',
       });
     }
     return next();
@@ -412,7 +463,11 @@ async function requireFounderDesktop(req, res, next) {
 }
 
 const founderAdminFiles = new Set([
-  'app.js', 'announcements.js', 'adminDesk.js', 'founder.css', 'announcements.css'
+  'app.js',
+  'announcements.js',
+  'adminDesk.js',
+  'founder.css',
+  'announcements.css',
 ]);
 
 app.get(/^\/founder-admin(?:\/(.*))?$/, requireFounderDesktop, function (req, res, next) {
@@ -444,11 +499,18 @@ app.use(function (req, res, next) {
   if (!segments.length) {
     return sendWebAppHtml(path.join(webRoot, 'index.html'), req, res, next);
   }
-  if (segments.some(function (segment) { return segment.charAt(0) === '.'; })) {
+  if (
+    segments.some(function (segment) {
+      return segment.charAt(0) === '.';
+    })
+  ) {
     return next();
   }
   const htmlFile = pathname.toLowerCase().endsWith('.html');
-  if (htmlFile && (segments.length === 1 ? publicFiles.has(segments[0]) : publicDirs.has(segments[0]))) {
+  if (
+    htmlFile &&
+    (segments.length === 1 ? publicFiles.has(segments[0]) : publicDirs.has(segments[0]))
+  ) {
     const filePath = path.resolve(webRoot, '.' + pathname);
     if (filePath.startsWith(webRoot + path.sep) && fs.existsSync(filePath)) {
       return sendWebAppHtml(filePath, req, res, next);
@@ -472,13 +534,17 @@ app.use(function (error, req, res, next) {
     event: 'unhandled_error',
     method: req.method,
     path: req.path,
-    message: error && error.message ? error.message : 'unknown'
+    message: error && error.message ? error.message : 'unknown',
   });
-  logger.alert('Unhandled Mathify API error', {
-    method: req.method,
-    path: req.path,
-    message: error && error.message ? error.message : 'unknown'
-  }).catch(function () { /* alert delivery is best effort */ });
+  logger
+    .alert('Unhandled Mathify API error', {
+      method: req.method,
+      path: req.path,
+      message: error && error.message ? error.message : 'unknown',
+    })
+    .catch(function () {
+      /* alert delivery is best effort */
+    });
   return res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Something went wrong.' });
 });
 

@@ -21,6 +21,12 @@ const loginClient = read('login/login.js');
 const sectionRouter = read('shared/sectionRouter.js');
 const founderAdminHtml = read('founder-admin/index.html');
 const appsHub = read('apps.html');
+const parentHtml = read('parent/index.html');
+const parentApp = read('parent/app.js');
+const notificationInbox = read('shared/notificationInbox.js');
+const packPolicy = require('../config/policy.json');
+const packService = read('server/services/packCheckoutService.js');
+const parentRoutes = read('server/routes/parentReminders.js');
 
 let checks = 0;
 function ok(value, label) {
@@ -32,6 +38,14 @@ function absent(text, needle, label) {
 }
 function present(text, needle, label) {
   ok(text.indexOf(needle) !== -1, label);
+}
+/* New surface assertions ignore indentation, quote style and line breaks so a
+   formatter can reflow the bundle without breaking the contract. */
+function has(text, pattern, label) {
+  ok(new RegExp(pattern).test(text), label);
+}
+function lacks(text, pattern, label) {
+  ok(!new RegExp(pattern).test(text), label);
 }
 
 function staticChecks() {
@@ -204,6 +218,116 @@ function staticChecks() {
   );
 }
 
+function balanceSurfaceChecks() {
+  /* Server-owned SAR pricing lives in policy, mirrored flat for public reads. */
+  const rules = packPolicy.parentPack || packPolicy;
+  ok(rules.currency === 'SAR', 'pack policy is SAR-only');
+  ok(rules.pricePerSessionSAR === 90, 'pack policy pins SAR 90 per session');
+  ok(rules.minSessions === 4 && rules.maxSessions === 100, 'pack policy pins 4–100 sessions');
+  ok(rules.standardMax === 39 && rules.bulkMin === 40, 'pack policy pins the deck boundary');
+  ok(
+    rules.discountMinSessions === 41 && rules.discountPercent === 5,
+    'pack policy starts the 5% discount at 41 sessions'
+  );
+  ok(JSON.stringify(rules.presets) === '[4,8,16,20]', 'pack policy pins the four presets');
+  has(packService, /function\s+quote\s*\(/, 'the service owns quote computation');
+  has(packService, /async\s+function\s+checkout\s*\(/, 'the service owns mock checkout');
+  has(packService, /addSessions\s*\(/, 'checkout credits through addSessions');
+  lacks(
+    packService,
+    /require\s*\(\s*['"][^'"]*(razorpay|twilio|whatsapp)|createMonthlyPackOrder\s*\(/i,
+    'checkout calls no external provider'
+  );
+  has(packService, /CLIENT_AMOUNT_REJECTED/, 'client-supplied money is rejected');
+
+  has(parentRoutes, /router\s*\.\s*get\s*\(\s*['"]\/wallet['"]/, 'the wallet endpoint is mounted');
+  has(
+    parentRoutes,
+    /router\s*\.\s*post\s*\(\s*['"]\/pack\/checkout['"]/,
+    'the mock checkout endpoint is mounted'
+  );
+  has(parentRoutes, /requireRole\s*\(\s*['"]parent['"]\s*\)/, 'pack endpoints are parent-only');
+
+  /* Parent desk: nav item, section, copy, presets and notification bell. */
+  has(parentHtml, /href\s*=\s*['"]\/parent\/balance['"]/, 'parent nav reaches Balance & pack');
+  has(
+    parentHtml,
+    /id\s*=\s*['"]balance['"][^>]*hidden/,
+    'the balance section starts hidden for the router'
+  );
+  has(
+    parentHtml,
+    /Standard deck\s*&middot;|Standard deck\s*·\s*4\s*–\s*39\s+sessions/,
+    'the standard deck copy is visible'
+  );
+  has(parentHtml, /Bulk deck\s*·\s*40\s*–\s*100\s+sessions/, 'the bulk deck copy is visible');
+  has(parentHtml, /SAR\s+90\s+per\s+session/, 'the per-session price is visible');
+  has(
+    parentHtml,
+    /5%\s+off\s+every\s+session\s+when\s+you\s+book\s+41\s*–\s*100/,
+    'the discount threshold is visible'
+  );
+  has(
+    parentHtml,
+    /data-count\s*=\s*['"]4['"][\s\S]*data-count\s*=\s*['"]8['"][\s\S]*data-count\s*=\s*['"]16['"][\s\S]*data-count\s*=\s*['"]20['"]/,
+    'all four presets are rendered'
+  );
+  has(
+    parentHtml,
+    /type\s*=\s*['"]number['"][\s\S]*min\s*=\s*['"]4['"][\s\S]*max\s*=\s*['"]100['"]/,
+    'the manual input is clamped to 4–100'
+  );
+  has(parentHtml, /Confirm\s*(?:&amp;|&)\s*add\s+sessions/, 'the confirm button is present');
+  has(parentHtml, /Current\s+balance/i, 'the current balance is labelled');
+  has(shell, /Current\s+balance/i, 'the unified balance is labelled');
+  has(parentHtml, /id\s*=\s*['"]notificationBtn['"]/, 'the parent topbar has a notification bell');
+  has(parentHtml, /mode\s*:\s*['"]parent['"]/, 'the inbox runs in parent mode');
+  has(
+    parentHtml,
+    /tokenKey\s*:\s*['"]mathify\.parent\.token['"]/,
+    'the inbox uses the parent token'
+  );
+  has(
+    parentHtml,
+    /source\s*:\s*['"]\/demo\/notifications['"]/,
+    'the inbox reads the demo notification source'
+  );
+  has(parentHtml, /\/api\/demo\/notifications/, 'the source resolves to /api/demo/notifications');
+  has(parentHtml, /sectionRouter\.js/, 'the parent desk loads the section router');
+
+  has(sectionRouter, /['"]\/parent\/balance['"]\s*:/, 'the section router knows /parent/balance');
+  has(parentApp, /['"]\/parent\/wallet['"]/, 'the desk loads its child-scoped wallet');
+  has(parentApp, /['"]\/parent\/pack\/checkout['"]/, 'the desk posts to mock checkout');
+  has(parentApp, /body\s*:\s*\{\s*count\s*:\s*count\s*\}/, 'the desk sends only the session count');
+  has(parentApp, /left\s*·\s*renewal\s+needed/, 'the alarming balance copy is rendered');
+  has(parentApp, /sessions\s+credited\s*·\s*SAR\s*/, 'a receipt is shown after checkout');
+
+  /* Shared inbox: real unread count, child-scoped notices, safe balance link. */
+  has(notificationInbox, /mode\s*===\s*['"]parent['"]/, 'the shared inbox supports parent mode');
+  has(notificationInbox, /['"]\/demo\/notifications['"]/, 'the shared inbox has a parent source');
+  has(notificationInbox, /unreadCount/, 'the badge uses the server unread count');
+  has(notificationInbox, /['"]\/parent\/balance['"]/, 'the inbox allows the safe balance link');
+  has(
+    notificationInbox,
+    /['"]\/app\/parent\/balance['"]/,
+    'the inbox allows the unified balance link'
+  );
+  lacks(notificationInbox, /outerHTML|innerHTML/, 'the inbox never injects HTML');
+
+  /* Unified shell: the bare /app/parent/balance route needs no desk hint. */
+  has(shell, /['"]\/app\/parent\/balance\?desk/, 'unified nav links Balance & pack');
+  has(shell, /['"]#balance['"]/, 'the served parent document can select the balance view');
+  has(
+    shell,
+    /path\s*\.\s*indexOf\s*\(\s*['"]\/app\/parent\/['"]\s*\)\s*===\s*0/,
+    'a bare parent section infers the parent desk'
+  );
+  has(shell, /section\s*===\s*['"]balance['"]/, 'the shell renders the balance section');
+  has(shell, /renderParentBalance\s*\(/, 'the shell owns a balance renderer');
+  has(shell, /['"]\/parent\/pack\/checkout['"]/, 'the shell checkout calls the parent API');
+  has(shell, /body\s*:\s*\{\s*count\s*:\s*count\s*\}/, 'the shell sends only the session count');
+}
+
 async function httpChecks() {
   const server = await new Promise(function (resolve) {
     const instance = app.listen(0, '127.0.0.1', function () {
@@ -232,6 +356,18 @@ async function httpChecks() {
     ok(
       unified.status === 200 && unified.text.indexOf('One phone-first Mathify app') !== -1,
       'the unified app shell is served on a real same-origin route'
+    );
+
+    const bareParent = await call('/app/parent/inbox');
+    ok(
+      bareParent.status === 200 && bareParent.text.indexOf('One phone-first Mathify app') !== -1,
+      'a parent section is served without any ?desk= hint'
+    );
+
+    const bareBalance = await call('/app/parent/balance');
+    ok(
+      bareBalance.status === 200 && bareBalance.text.indexOf('One phone-first Mathify app') !== -1,
+      'the canonical parent balance route is served without any ?desk= hint'
     );
 
     const founderLogin = await call('/api/auth/login', {
@@ -293,6 +429,7 @@ async function httpChecks() {
 
 async function main() {
   staticChecks();
+  balanceSurfaceChecks();
   await httpChecks();
   console.log('unifiedApp: ' + checks + ' assertions passed');
 }

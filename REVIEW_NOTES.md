@@ -5,7 +5,8 @@
 - Environment: local mock server `http://127.0.0.1:4004` (real production origin / Supabase credentials are not available here)
 - Workflow: one page at a time. I render a page, drive the relevant live API/action, pause for your `go`, then append your updates below. No new development changes will be made until the full review is compiled.
 - User clarification: skip Razorpay and Twilio/WhatsApp entirely; focus only on session functionality using live HTTP API calls, not unit/mock tests. Student should show 8 session credits for the walkthrough.
-- Open item: no production/Supabase/LiveKit/Razorpay credentials or deployed URL are configured in this environment, so the live target still needs to be confirmed.
+- Open item: no production/Supabase/LiveKit credentials or deployed URL are configured in this environment, so the live target still needs to be confirmed. Razorpay and WhatsApp/Twilio are out of scope/skipped for this walkthrough.
+- Current-state pricing note (2026-11-28): session packs are SAR 90 per session. The parent chooses 4–100 sessions (presets 4 / 8 / 16 / 20 or manual entry) with a standard deck (4–39 sessions) and a bulk deck (40–100 sessions). 5% off every session when you book 41–100; 40 is bulk but not discounted. Mock checkout in the parent desk credits the balance immediately; Razorpay and WhatsApp/Twilio are out of scope/skipped for this walkthrough. The 8 seeded student credits remain the walkthrough fixture; trainer payout INR policy is unchanged.
 
 ## Planned page sequence
 
@@ -253,7 +254,7 @@
 - Copilot → Trainer Desk handoff behaviour (paste-and-wait vs auto-send after switching modes) is still unresolved and needs a founder choice before implementation.
 - Founder-generated planners and batch-to-planner assignment rules are still pending; no fake extraction or trainer authoring.
 - Production origin/Supabase/LiveKit credentials are unavailable; walkthrough remains on local mock HTTP `127.0.0.1:4004`.
-- Razorpay, Twilio/WhatsApp, RM fine revocation and global brand rename remain excluded/pending per `PENDING_RULES.md`.
+- Razorpay and Twilio/WhatsApp are out of scope/skipped for this walkthrough (mock checkout credits session packs immediately at SAR 90 per session); RM fine revocation and global brand rename remain excluded/pending per `PENDING_RULES.md`.
 - Development badge stays on every rendered page during implementation, hidden by `?devLabel=0`, and is removed only after final development review.
 
 ## Implementation pass 1 — landing / contact booking frame
@@ -335,7 +336,7 @@
 - The compiled review list is implementation-complete except the items explicitly still blocked in `PENDING_RULES.md`. Trainer planner mutation is removed; trainers read only assigned planners. The browser `planner_agent` role remains disabled.
 - Role-scoped MCP tooling is implemented: founder read/dry-run server, RM read-only desk with one draft-only pay-rate proposal, and planner designer with `review` and `author` profiles. The author profile files a pending suggestion for founder decision; there is no autonomous publish tool.
 - Final verification: 65/65 deterministic suites (`EXITCODE=0`), mock master HTTP 26 pass / 0 fail / 5 skip, live read-only master HTTP 21 pass / 0 fail / 10 skip, and live companion HTTP 36 pass / 0 fail / 1 skip. Exact logs and commands are in `E2E_LOG.md`.
-- Live read-only mode used real Supabase reads and a real AI chain ping; Razorpay, Twilio/WhatsApp, real Egress recording, live Realtime mode change, runner-based migration apply and signed iOS build remain honestly gated.
+- Live read-only mode used real Supabase reads and a real AI chain ping; real Egress recording, live Realtime mode change, runner-based migration apply and signed iOS build remain honestly gated. Razorpay and Twilio/WhatsApp are out of scope/skipped for this walkthrough; session packs use mock checkout at SAR 90 per session with immediate balance credit.
 - This review log is now closed; no further development changes are pending from the compiled list.
 
 ## Engineering-quality close-out (2026-11-28)

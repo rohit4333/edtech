@@ -129,9 +129,21 @@
     },
     "lateJoinBands": [
       { "fromMinutes": 0, "toMinutes": 5, "payFactor": 1, "code": "on_time", "label": "Full pay" },
-      { "fromMinutes": 5, "toMinutes": 10, "payFactor": 0.5, "code": "half_pay", "label": "Half pay" },
+      {
+        "fromMinutes": 5,
+        "toMinutes": 10,
+        "payFactor": 0.5,
+        "code": "half_pay",
+        "label": "Half pay"
+      },
       { "fromMinutes": 10, "toMinutes": 15, "payFactor": 0, "code": "no_pay", "label": "No pay" },
-      { "fromMinutes": 15, "toMinutes": null, "payFactor": 0, "code": "no_pay_fine_forfeited", "label": "No pay; no extra fine" }
+      {
+        "fromMinutes": 15,
+        "toMinutes": null,
+        "payFactor": 0,
+        "code": "no_pay_fine_forfeited",
+        "label": "No pay; no extra fine"
+      }
     ],
     "shortTrainerPresence": {
       "withoutStudentMinutes": 15,
@@ -195,5 +207,26 @@
     "refundable": false,
     "rescheduleNoticeHours": { "min": 24, "max": 48 },
     "noShowMarksSessionUsed": true
-  }
+  },
+  "parentPack": {
+    "currency": "SAR",
+    "pricePerSessionSAR": 90,
+    "minSessions": 4,
+    "maxSessions": 100,
+    "standardMax": 39,
+    "bulkMin": 40,
+    "discountMinSessions": 41,
+    "discountPercent": 5,
+    "presets": [4, 8, 16, 20],
+    "note": "SAR-only parent session packs. The 5% discount starts at 41 sessions; a 40-session bulk pack is not discounted. Trainer pay stays INR and is untouched by this policy."
+  },
+  "currency": "SAR",
+  "pricePerSessionSAR": 90,
+  "minSessions": 4,
+  "maxSessions": 100,
+  "standardMax": 39,
+  "bulkMin": 40,
+  "discountMinSessions": 41,
+  "discountPercent": 5,
+  "presets": [4, 8, 16, 20]
 }

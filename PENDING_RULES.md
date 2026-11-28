@@ -2,6 +2,13 @@
 
 Rules listed here are **not implemented**. Do not treat them as active policy until the founder supplies the final text and an implementation is completed and tested.
 
+## CURRENT STATE — SAR session packs (walkthrough)
+
+- **Status:** current/active for this walkthrough; this section is not a pending rule.
+- **Policy:** SAR 90 per session. The parent chooses 4–100 sessions (presets 4 / 8 / 16 / 20 or manual entry) with a standard deck (4–39 sessions) and a bulk deck (40–100 sessions). 5% off every session when you book 41–100; 40 is bulk but not discounted (40 = SAR 3600, 41 = SAR 3505.50 after 5% off, 100 = SAR 8550 after 5% off).
+- **Checkout:** mock checkout in the parent desk credits the balance immediately. Razorpay and WhatsApp/Twilio are out of scope/skipped for this walkthrough; no live provider is claimed.
+- **Boundary:** trainer payout stays INR under the trainer policy and is unchanged. The Razorpay and WhatsApp/Twilio items below remain pending beyond this walkthrough.
+
 ## NOT DONE · PENDING — RM fine revocation policy
 
 - **Status:** NOT DONE / PENDING
@@ -23,7 +30,7 @@ Rules listed here are **not implemented**. Do not treat them as active policy un
 - **Owner:** Founder
 - **Requested on:** 2026-11-27
 - **Founder note:** Two pending items remain beyond the app build: Razorpay and WhatsApp/Twilio.
-- **Current active rule:** Razorpay remains credential-gated. No payment link, capture, refund or other billable/irreversible provider action is executed in tests or review runs.
+- **Current active rule:** Razorpay remains credential-gated and out of scope/skipped for this walkthrough. Session packs currently use mock checkout in the parent desk at SAR 90 per session with a parent-chosen 4–100 count (standard deck 4–39, bulk deck 40–100) and 5% off from 41–100, crediting the balance immediately. No payment link, capture, refund or other billable/irreversible provider action is executed in tests or review runs.
 - **Rules/details still needed from the founder:** live key mode and environment, account/settlement configuration, product/pack mapping, currency and tax behaviour, refund/cancellation policy, and approval wording.
 - **Implementation gate:** Do not run live payment tests or create real payment links/captures until the founder supplies credentials and explicitly authorises a live check.
 
@@ -33,7 +40,7 @@ Rules listed here are **not implemented**. Do not treat them as active policy un
 - **Owner:** Founder
 - **Requested on:** 2026-11-27
 - **Founder note:** WhatsApp/Twilio delivery is the second remaining pending provider item.
-- **Current active rule:** Twilio remains credential-gated. No real WhatsApp message is sent in tests or review runs.
+- **Current active rule:** Twilio remains credential-gated and out of scope/skipped for this walkthrough. No real WhatsApp message is sent in tests or review runs.
 - **Rules/details still needed from the founder:** Twilio credentials, sender/number, approved templates, recipient opt-in/consent records, retry/quiet-hour rules, failure escalation, and notification copy.
 - **Implementation gate:** Do not send live WhatsApp messages or billable provider requests until the founder supplies credentials, templates, consent evidence, and explicit authorisation.
 

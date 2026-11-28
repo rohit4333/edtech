@@ -27,6 +27,7 @@
       login: 'parent',
       nav: [
         { key: 'inbox', label: 'Inbox', href: '/app/parent/inbox?desk=parent' },
+        { key: 'balance', label: 'Balance & pack', href: '/app/parent/balance?desk=parent' },
         { key: 'child', label: 'My child', href: '/app/parent/child?desk=parent' },
         { key: 'sessions', label: 'Sessions', href: '/app/parent/sessions?desk=parent' },
         { key: 'guidance', label: 'Chat rules', href: '/app/parent/guidance?desk=parent' },
@@ -108,6 +109,10 @@
   }
   function currentSection() {
     var path = window.location.pathname.replace(/\/+$/, '');
+    /* The section route map serves the inbox document; the hash selects the
+       balance view inside it. A bare /app/parent/balance path selects the same
+       section whenever the server maps that path to this document. */
+    if (path.indexOf('/app/parent/') === 0 && window.location.hash === '#balance') return 'balance';
     if (path.indexOf('/app/parent/') === 0) return path.split('/')[3] || 'inbox';
     if (path.indexOf('/app/rm/') === 0) return path.split('/')[3] || 'dashboard';
     if (path.indexOf('/app/attendance') !== -1) return 'attendance';
@@ -578,6 +583,167 @@
     load();
   }
 
+  /* Bare /app/parent/balance is handled by roleFromQuery() and currentSection()
+     without a ?desk= hint. Pricing and money fields are never sent by the UI. */
+  function renderParentBalance(view) {
+    var section = card('Class balance & pack');
+    view.appendChild(section);
+    section.appendChild(make('p', 'muted', 'Loading your class balance...'));
+
+    var balanceNode = null;
+    var alertNode = null;
+    var quoteNode = null;
+    var receiptNode = null;
+    var input = null;
+    var quoteSeq = 0;
+
+    function sar(value) {
+      var amount = Number(value) || 0;
+      return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+    }
+
+    function paintBalance(answer) {
+      var remaining = Math.max(0, Number(answer.sessionsRemaining) || 0);
+      if (balanceNode) balanceNode.textContent = String(remaining);
+      if (alertNode) {
+        alertNode.hidden = remaining > 2;
+        alertNode.textContent =
+          remaining <= 2
+            ? 'Only ' +
+              remaining +
+              (remaining === 1 ? ' session' : ' sessions') +
+              ' left · renewal needed'
+            : '';
+      }
+    }
+
+    function paintQuote(quote) {
+      if (!quoteNode || !quote) return;
+      quoteNode.textContent =
+        quote.count +
+        ' sessions · SAR ' +
+        sar(quote.totalSAR) +
+        (quote.discountApplied ? ' · ' + quote.discountPercent + '% off' : ' · no discount');
+      if (receiptNode) receiptNode.hidden = true;
+    }
+
+    function loadQuote() {
+      var count = Number(input && input.value);
+      var seq = ++quoteSeq;
+      if (!Number.isInteger(count) || count < 4 || count > 100) {
+        if (quoteNode) quoteNode.textContent = 'Choose between 4 and 100 sessions.';
+        return;
+      }
+      request('/parent/pack/quote?count=' + encodeURIComponent(String(count)))
+        .then(function (answer) {
+          if (seq === quoteSeq) paintQuote(answer && answer.quote);
+        })
+        .catch(function () {
+          if (seq === quoteSeq && quoteNode) {
+            quoteNode.textContent = 'A live quote could not be prepared right now.';
+          }
+        });
+    }
+
+    function confirmPack(event) {
+      event.preventDefault();
+      var count = Number(input && input.value);
+      if (!Number.isInteger(count) || count < 4 || count > 100) {
+        if (receiptNode) {
+          receiptNode.textContent = 'Choose a whole number of sessions between 4 and 100.';
+          receiptNode.hidden = false;
+        }
+        return;
+      }
+      var button = section.querySelector('[data-pack-submit]');
+      if (button) button.disabled = true;
+      request('/parent/pack/checkout', { method: 'POST', body: { count: count } })
+        .then(function (answer) {
+          paintBalance(answer);
+          if (receiptNode) {
+            receiptNode.textContent =
+              answer.receipt ||
+              count + ' sessions credited · SAR ' + sar(answer.quote && answer.quote.totalSAR);
+            receiptNode.hidden = false;
+          }
+        })
+        .catch(function (error) {
+          if (receiptNode) {
+            receiptNode.textContent = error.message || 'Sessions could not be added right now.';
+            receiptNode.hidden = false;
+          }
+        })
+        .then(function () {
+          if (button) button.disabled = false;
+        });
+    }
+
+    request('/parent/wallet')
+      .then(function (answer) {
+        clear(section);
+        section.appendChild(make('p', 'muted', 'Current balance · your child'));
+        var balance = make('div', 'stat');
+        balanceNode = make('b', null, '—');
+        balance.appendChild(balanceNode);
+        balance.appendChild(make('span', null, 'sessions remaining'));
+        section.appendChild(balance);
+        alertNode = make('p', 'error', '');
+        alertNode.hidden = true;
+        section.appendChild(alertNode);
+        paintBalance(answer || {});
+
+        [
+          'Standard deck · 4–39 sessions',
+          'Bulk deck · 40–100 sessions',
+          'SAR 90 per session',
+          '5% off every session when you book 41–100',
+        ].forEach(function (line) {
+          section.appendChild(make('p', null, line));
+        });
+
+        var presets = make('div', 'preset-row');
+        [4, 8, 16, 20].forEach(function (value) {
+          var preset = make('button', 'btn soft', String(value));
+          preset.type = 'button';
+          preset.addEventListener('click', function () {
+            if (!input) return;
+            input.value = String(value);
+            loadQuote();
+          });
+          presets.appendChild(preset);
+        });
+        section.appendChild(presets);
+
+        input = make('input');
+        input.type = 'number';
+        input.min = '4';
+        input.max = '100';
+        input.step = '1';
+        input.value = '8';
+        input.setAttribute('aria-label', 'Number of sessions');
+        section.appendChild(input);
+        quoteNode = make('p', 'muted', 'Asking Mathify for your price…');
+        section.appendChild(quoteNode);
+
+        var form = make('form', 'chat-form');
+        var confirm = make('button', 'btn', 'Confirm & add sessions');
+        confirm.type = 'submit';
+        confirm.setAttribute('data-pack-submit', 'true');
+        form.appendChild(confirm);
+        section.appendChild(form);
+        form.addEventListener('submit', confirmPack);
+        receiptNode = make('p', 'ok', '');
+        receiptNode.hidden = true;
+        section.appendChild(receiptNode);
+        input.addEventListener('input', loadQuote);
+        loadQuote();
+      })
+      .catch(function (error) {
+        clear(section);
+        showError(section, error);
+      });
+  }
+
   function renderParentChild(view) {
     var section = card('My child');
     view.appendChild(section);
@@ -748,7 +914,8 @@
       else if (section === 'buddy') renderStudentBuddy(view);
       else renderStudentHome(view);
     } else if (activeRole === 'parent') {
-      if (section === 'child') renderParentChild(view);
+      if (section === 'balance') renderParentBalance(view);
+      else if (section === 'child') renderParentChild(view);
       else if (section === 'sessions') renderParentSessions(view);
       else if (section === 'guidance') {
         renderStatic(view, 'Chat rules', [

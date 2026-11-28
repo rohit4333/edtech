@@ -1,86 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pricing — Mathify</title>
-<meta name="description" content="Simple, all-inclusive 1-on-1 math tutoring pricing. Pay securely via Razorpay.">
-<link rel="stylesheet" href="assets/poppins.css">
-<link rel="stylesheet" href="shared/tokens.css">
-<link rel="stylesheet" href="public.css">
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Pricing — Mathify</title>
+    <meta
+      name="description"
+      content="Simple 1-on-1 math tutoring at SAR 90 per session. Choose your session count and deck, with mock checkout in the parent desk."
+    />
+    <link rel="stylesheet" href="assets/poppins.css" />
+    <link rel="stylesheet" href="shared/tokens.css" />
+    <link rel="stylesheet" href="public.css" />
+  </head>
+  <body>
+    <header class="site-nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
 
-<header class="site-nav">
-  <div class="wrap nav-inner">
-    <a class="brand" href="index.html" aria-label="Mathify home">Mathify<i>.</i></a>
+        <input class="nav-toggle" type="checkbox" id="navToggle" aria-label="Open navigation" />
+        <label class="nav-burger" for="navToggle" aria-hidden="true"
+          ><span></span><span></span
+        ></label>
 
-    <input class="nav-toggle" type="checkbox" id="navToggle" aria-label="Open navigation">
-    <label class="nav-burger" for="navToggle" aria-hidden="true"><span></span><span></span></label>
-
-    <nav class="nav-links" aria-label="Primary">
-      <a href="index.html">Home</a>
-      <a href="pricing.html" aria-current="page">Pricing</a>
-      <a href="terms.html">Terms</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="refund.html">Refund</a>
-      <a href="contact.html">Contact</a>
-      <a class="btn btn-sm" href="contact.html">Book Demo
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
-    </nav>
-  </div>
-</header>
-
-<main id="paper">
-
-  <section class="wrap page-head" aria-labelledby="pricing-title">
-    <p class="mono eyebrow">Pricing &amp; payment</p>
-    <h1 id="pricing-title">Simple, All-Inclusive Pricing.<em> No hidden transaction or convenience fees.</em></h1>
-    <p class="lede">Pay securely via Razorpay.</p>
-
-    <aside class="notice">
-      <strong>💡 Tip: We strongly encourage parents to use Online International Bank Transfer rather than Cards to avoid the extra 3% charge + GST.</strong>
-    </aside>
-  </section>
-
-  <hr class="rule">
-
-  <section class="wrap section-tight" aria-label="Monthly pack">
-    <article class="pack-card">
-      <div class="pack-top">
-        <span class="mono">Monthly Pack</span>
-        <span class="mono">1-on-1 · online</span>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="pricing.html" aria-current="page">Pricing</a>
+          <a href="terms.html">Terms</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="refund.html">Refund</a>
+          <a href="contact.html">Contact</a>
+          <a class="btn btn-sm" href="contact.html"
+            >Book Demo
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          </a>
+        </nav>
       </div>
-      <p class="pack-price num">540<small>SAR</small></p>
+    </header>
 
-      <div class="pack-rows">
-        <div><span>Sessions</span><span>12 Sessions</span></div>
-        <div><span>Payment</span><span>Razorpay</span></div>
-        <div><span>Fees</span><span>All-Inclusive</span></div>
+    <main id="paper">
+      <section class="wrap page-head" aria-labelledby="pricing-title">
+        <p class="mono eyebrow">Pricing &amp; session packs</p>
+        <h1 id="pricing-title">
+          Simple, All-Inclusive Pricing.<em> You choose the number of sessions.</em>
+        </h1>
+        <p class="lede">
+          SAR 90 per session. Choose your count, pick your deck, and top up from the parent desk.
+        </p>
+
+        <aside class="notice">
+          <strong>Mock checkout adds sessions to your child's balance straight away.</strong>
+        </aside>
+      </section>
+
+      <hr class="rule" />
+
+      <section class="wrap section-tight" aria-label="Session packs">
+        <div class="deck-grid">
+          <article class="deck-card">
+            <div class="pack-top">
+              <span class="mono">Standard deck · 4–39 sessions</span>
+              <span class="mono">1-on-1 · online</span>
+            </div>
+            <p class="pack-price num">SAR 90 <small>per session</small></p>
+            <p class="deck-note">
+              Choose 4 / 8 / 16 / 20 sessions or enter your own count (4–100).
+            </p>
+
+            <div class="presets" aria-label="Session count presets">
+              <button type="button" class="preset">4</button>
+              <button type="button" class="preset">8</button>
+              <button type="button" class="preset">16</button>
+              <button type="button" class="preset">20</button>
+              <label class="manual"
+                >Other count
+                <input
+                  type="number"
+                  min="4"
+                  max="100"
+                  step="1"
+                  aria-label="Enter your own session count (4–100)"
+                />
+              </label>
+            </div>
+          </article>
+
+          <article class="deck-card">
+            <div class="pack-top">
+              <span class="mono">Bulk deck · 40–100 sessions</span>
+              <span class="mono">1-on-1 · online</span>
+            </div>
+            <p class="deck-offer"><strong>5% off every session when you book 41–100</strong></p>
+            <p class="deck-note">40 sessions is bulk, but the discount starts at 41.</p>
+
+            <ul class="deck-examples">
+              <li>40 sessions = SAR 3600 (no discount)</li>
+              <li>41 sessions = SAR 3505.50 after 5% off</li>
+              <li>100 sessions = SAR 8550 after 5% off</li>
+            </ul>
+          </article>
+        </div>
+
+        <a class="btn deck-cta" href="/app/parent/balance"
+          >Go to parent desk balance
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="wrap foot-inner">
+        <a href="apps.html">Learning OS dashboards</a>
+        <a href="index.html">Home</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="refund.html">Refund</a>
+        <a href="contact.html">Contact</a>
+        <span class="c">© 2026 Mathify</span>
       </div>
+    </footer>
 
-      <a class="btn" href="contact.html">Book Demo
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
-    </article>
-  </section>
-
-</main>
-
-<footer class="site-foot">
-  <div class="wrap foot-inner">
-    <a href="apps.html">Learning OS dashboards</a>
-    <a href="index.html">Home</a>
-    <a href="pricing.html">Pricing</a>
-    <a href="terms.html">Terms</a>
-    <a href="privacy.html">Privacy</a>
-    <a href="refund.html">Refund</a>
-    <a href="contact.html">Contact</a>
-    <span class="c">© 2026 Mathify</span>
-  </div>
-</footer>
-
-<script src="shared/public-nav.js" defer></script>
-</body>
+    <script src="shared/public-nav.js" defer></script>
+  </body>
 </html>

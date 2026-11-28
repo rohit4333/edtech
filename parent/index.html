@@ -10,6 +10,7 @@
     />
     <link rel="stylesheet" href="../assets/poppins.css" />
     <link rel="stylesheet" href="../shared/tokens.css" />
+    <link rel="stylesheet" href="../shared/notificationInbox.css" />
     <link rel="stylesheet" href="parent.css" />
   </head>
   <body>
@@ -32,6 +33,13 @@
               <path d="m4.5 6.5 7.5 6 7.5-6" />
             </svg>
             <span>Inbox</span>
+          </a>
+          <a href="/parent/balance" data-nav>
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+              <path d="M4 10h16M15.5 14.5h2" />
+            </svg>
+            <span>Balance &amp; pack</span>
           </a>
           <a href="/parent/child" data-nav>
             <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
@@ -90,6 +98,44 @@
             <span class="top-thread" id="topThread"
               >Ishaan Verma <span aria-hidden="true">↔</span> Ananya Rao</span
             >
+            <span class="notification-wrap">
+              <button
+                class="icon-btn notification-btn"
+                id="notificationBtn"
+                type="button"
+                aria-label="Notifications"
+                aria-expanded="false"
+                aria-controls="notificationPanel"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 9a6 6 0 0 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+                  <path d="M10 19h4" />
+                </svg>
+                <span class="notification-badge" id="notificationBadge" hidden>0</span>
+              </button>
+              <div
+                class="top-popover inbox-popover"
+                id="notificationPanel"
+                role="dialog"
+                aria-label="Notifications"
+                hidden
+              >
+                <div class="inbox-head">
+                  <span class="mono" id="notificationTitle">Notifications</span>
+                  <button
+                    type="button"
+                    class="inbox-close"
+                    id="notificationClose"
+                    aria-label="Close notifications"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m6 6 12 12M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="inbox-body" id="notificationBody" aria-live="polite"></div>
+              </div>
+            </span>
             <button
               class="avatar avatar-btn"
               id="profileBtn"
@@ -163,6 +209,74 @@
                 ><span>This thread is only for your child&rsquo;s 1-on-1 learning.</span>
               </p>
             </article>
+          </section>
+
+          <!-- ---------- balance & pack ---------- -->
+          <section class="pack-view" id="balance" aria-labelledby="balance-title" hidden>
+            <div class="page-head">
+              <p class="eyebrow">Parent space · Sessions</p>
+              <h1 id="balance-title">Class balance &amp; pack<em>.</em></h1>
+              <p class="sub">
+                Choose a pack, confirm it, and the sessions land on your child's account.
+              </p>
+            </div>
+
+            <div class="balance-card" id="balanceCard">
+              <span class="mono">Current balance · your child</span>
+              <p class="balance-figure">
+                <b id="balanceCount" class="num">—</b>
+                <span>sessions remaining</span>
+              </p>
+              <p class="balance-alert" id="balanceAlert" role="status" hidden></p>
+            </div>
+
+            <div class="deck-grid">
+              <article class="deck-card" id="standardDeck">
+                <span class="mono">Everyday</span>
+                <h2>Standard deck · 4–39 sessions</h2>
+                <p class="deck-rate">SAR 90 per session</p>
+                <p class="deck-note">Pay only for the classes you choose.</p>
+              </article>
+              <article class="deck-card" id="bulkDeck">
+                <span class="mono">Save more</span>
+                <h2>Bulk deck · 40–100 sessions</h2>
+                <p class="deck-rate">SAR 90 per session</p>
+                <p class="deck-note">5% off every session when you book 41–100</p>
+              </article>
+            </div>
+
+            <form class="pack-form" id="packForm">
+              <span class="mono">Choose sessions</span>
+              <div class="preset-row" id="packPresets" role="group" aria-label="Session presets">
+                <button type="button" class="btn preset-btn" data-count="4">4</button>
+                <button type="button" class="btn preset-btn" data-count="8">8</button>
+                <button type="button" class="btn preset-btn" data-count="16">16</button>
+                <button type="button" class="btn preset-btn" data-count="20">20</button>
+              </div>
+              <label class="sr-only" for="packCount">Number of sessions (4 to 100)</label>
+              <div class="pack-count-row">
+                <input
+                  id="packCount"
+                  name="count"
+                  type="number"
+                  min="4"
+                  max="100"
+                  step="1"
+                  inputmode="numeric"
+                  value="8"
+                  required
+                />
+                <span class="mono">sessions</span>
+              </div>
+              <p class="quote-line" id="packQuote" aria-live="polite">
+                Asking Mathify for your price…
+              </p>
+              <button type="submit" class="btn btn-coral" id="packSubmit">
+                Confirm & add sessions
+              </button>
+              <p class="pack-receipt" id="packReceipt" role="status" aria-live="polite" hidden></p>
+              <p class="pack-note" id="packError" role="alert" hidden></p>
+            </form>
           </section>
 
           <!-- ---------- live class reminder ---------- -->
@@ -252,7 +366,23 @@
     <script src="../shared/sessionKeepalive.js" defer></script>
     <script src="../shared/demoStatus.js" defer></script>
     <link rel="stylesheet" href="../shared/demo-status.css" />
+    <script>
+      window.MATHIFY_NOTIFICATION_INBOX = {
+        mode: 'parent',
+        tokenKey: 'mathify.parent.token',
+        api: 'mathifyParentApi',
+        /* Resolved with MATHIFY_API_BASE to /api/demo/notifications. */
+        source: '/demo/notifications',
+        button: '#notificationBtn',
+        panel: '#notificationPanel',
+        badge: '#notificationBadge',
+        title: '#notificationTitle',
+        body: '#notificationBody',
+        close: '#notificationClose',
+      };
+    </script>
     <script src="app.js" defer></script>
+    <script src="../shared/notificationInbox.js" defer></script>
     <script src="../shared/sectionRouter.js" defer></script>
   </body>
 </html>

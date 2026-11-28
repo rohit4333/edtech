@@ -4,7 +4,9 @@ Role-based API behind the trainer dashboard, student dashboard and live 1:1 sess
 
 This codebase state (`feat/student-rtc-control-perfection`) delivers auth + RBAC, session/quiz APIs, curriculum authoring, a contact booking API, live-readiness guards, a completed service-role Supabase adapter, a DB-backed session event outbox, trainer-owned student media permissions, a two-sided connection gate, reward trophies, server-held mastery self-practice, a private parent ↔ trainer human chat with DLP founder flags, founder/RM people administration with an append-only manager audit, public registration, password change/reset and the full-screen teaching board. Live 1:1 video uses **LiveKit** with server-owned private Egress recording and signed webhooks, every AI call uses **freelm → Gemini → Groq → Cloudflare Workers AI**, and transactional email uses **Resend**; Agora transport has been removed. The default runtime is the in-memory mock store; `DATABASE_MODE=supabase` selects live mode and never silently falls back to demo identities. The ordered SQL plan is reviewed by a dry-run/checksum runner. All 65 suites pass in deterministic mock mode; current live evidence is in `LIVE_QA_REPORT.md`. Historical evidence is in `TEST_REPORT.md` and `E2E_MASTER_INTEGRATION_REPORT.md`.
 
-**Current providers:** LiveKit (RTC, tokens, Egress, webhooks) · private S3-compatible/R2 storage with short-lived SigV4 links (recordings) · Resend (all mail) · freelm → Gemini → Groq → Cloudflare Workers AI (every model call) · Supabase service role (live persistence) · Razorpay (packs) · Twilio (WhatsApp). Agora, Nodemailer/SMTP, OpenAI and DeepSeek are not current providers.
+**Current providers:** LiveKit (RTC, tokens, Egress, webhooks) · private S3-compatible/R2 storage with short-lived SigV4 links (recordings) · Resend (all mail) · freelm → Gemini → Groq → Cloudflare Workers AI (every model call) · Supabase service role (live persistence) · mock checkout in the parent desk (session packs). Razorpay (packs) and Twilio (WhatsApp) are out of scope/skipped for this walkthrough. Agora, Nodemailer/SMTP, OpenAI and DeepSeek are not current providers.
+
+**Session packs (current state):** SAR 90 per session. The parent chooses 4–100 sessions — presets 4 / 8 / 16 / 20 or manual entry — across a standard deck (4–39 sessions) and a bulk deck (40–100 sessions). 5% off every session when you book 41–100; 40 is bulk but not discounted (40 = SAR 3600, 41 = SAR 3505.50 after 5% off, 100 = SAR 8550 after 5% off). Mock checkout in the parent desk credits the balance immediately. Razorpay and WhatsApp/Twilio are out of scope/skipped for this walkthrough.
 
 **App surfaces:** `/app/*` serves one phone/tablet shell for kids, parents and RMs. It renders nothing until `GET /api/auth/me` verifies the stored role token; all privileged actions go through the existing role-scoped APIs. The founder uses a separate admin application at `/founder-admin/*`; every document and script there passes a server gate that verifies an HttpOnly cookie set only on a verified founder login/refresh. API RBAC remains the authority for both surfaces.
 
@@ -217,7 +219,7 @@ classroom board and fires only after the applicable minimum quota completes.
 | `GET`    | `/api/realtime/log`              | Trainer/founder view of local event log                                                 |
 | `GET`    | `/api/public/config`             | Browser-safe Supabase URL/publishable key, connection thresholds and badge catalog only |
 
-### LiveKit, freelm, Resend, Razorpay
+### LiveKit, freelm, Resend, session packs
 
 | Method | Path                                                          | Purpose                                                                                                                                |
 | ------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -229,8 +231,10 @@ classroom board and fires only after the applicable minimum quota completes.
 | `GET`  | `/api/parent/reminders`                                       | Parent-only in-app class reminders scoped to the linked child                                                                          |
 | `POST` | `/api/generate-feedback`                                      | Structured feedback through the shared `freelm → Gemini → Groq → Cloudflare` chain; mock mode returns deterministically                |
 | `POST` | `/api/ai/test-ping`                                           | Live-only, founder-only probe; requires two real provider answers, never returns a mock result                                         |
-| `POST` | `/api/razorpay/orders/monthly`                                | Create a 12-session / 540 SAR Razorpay order                                                                                           |
-| `POST` | `/api/razorpay/webhook`                                       | `payment.captured` → credit `sessions_remaining` once                                                                                  |
+| `POST` | `/api/razorpay/orders/monthly`                                | Legacy 12-session / 540 SAR Razorpay order route; out of scope/skipped for this walkthrough                                            |
+| `POST` | `/api/razorpay/webhook`                                       | Legacy `payment.captured` → credit `sessions_remaining`; out of scope/skipped for this walkthrough                                     |
+
+The walkthrough uses mock checkout in the parent desk instead: SAR 90 per session, parent-chosen 4–100 sessions (standard deck 4–39, bulk deck 40–100), 5% off every session when you book 41–100, credited to the balance immediately. No live Razorpay order, capture or webhook is claimed here.
 
 `services/livekitTokenService.js` lazily loads `livekit-server-sdk`, derives the room as `mathify-<sessionId>` and the identity from the JWT role/id, converts `https://` to `wss://`, and awaits `toJwt()`. A browser-supplied `roomName` may only confirm the derived room; any other value returns `403 ROOM_MISMATCH`. `ALLOW_DIRECT_ROOM_TOKENS=true` enables a dev-only literal-room path and is disabled in production/Supabase mode. Optional `LIVEKIT_AGENT_NAME` dispatch is trainer-initiated, deduplicated with `listDispatch`, and never runs in mock mode or for observers.
 
@@ -307,8 +311,8 @@ Required in production: `AUTH_SECRET`, `CORS_ORIGIN`, `DATABASE_MODE=supabase`,
 `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`,
 the full AI chain (`GEMINI_API_KEY`, `GROQ_API_KEY`, `CLOUDFLARE_API_TOKEN`,
 `CLOUDFLARE_ACCOUNT_ID`) plus `FREELM_MODEL`, `FREELM_TIMEOUT_SECONDS`,
-`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
-`FREELM_KEYLESS` and non-chain provider keys are rejected. Twilio is dormant:
+`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. Razorpay credentials are out of scope/skipped for this walkthrough; session packs use mock checkout with immediate credit.
+`FREELM_KEYLESS` and non-chain provider keys are rejected. Twilio is dormant and out of scope/skipped for this walkthrough:
 `TWILIO_AUTH_TOKEN` and `TWILIO_WEBHOOK_URL` are optional and only enable webhook
 signature verification; the webhook still fails closed in production.
 
@@ -410,5 +414,5 @@ The husky hook at `../.husky/pre-commit` invokes lint-staged with `npm --prefix 
 
 1. Finish the partial LMS surface (publish and pack import) and mirror the remaining mock stores onto normalized relations.
 2. Decide whether founder settings drafts should become a reviewed persistence source; planner exports remain local authoring output until then.
-3. Rotate exposed credentials, including LiveKit, and verify production env validation; historical Workers AI text evidence is documentary. Live LiveKit signing, AI-chain calls, signed webhooks, role-scoped link signing and Supabase SQL have been verified in `LIVE_QA_REPORT.md`; Resend delivery, Razorpay/Twilio sends, a real joined-room recording and runner-based migration apply remain gated.
+3. Rotate exposed credentials, including LiveKit, and verify production env validation; historical Workers AI text evidence is documentary. Live LiveKit signing, AI-chain calls, signed webhooks, role-scoped link signing and Supabase SQL have been verified in `LIVE_QA_REPORT.md`; Resend delivery and a real joined-room recording remain gated, while runner-based migration apply remains pending. Razorpay/Twilio sends are out of scope/skipped for this walkthrough; session packs use mock checkout at SAR 90 per session with immediate credit.
 4. OCR PDF pages 5–17 before quoting them verbatim.

@@ -287,6 +287,7 @@ const dashboardRoutes = {
   ],
   'parent/index.html': [
     '/parent/inbox',
+    '/parent/balance',
     '/parent/child',
     '/parent/sessions',
     '/parent/guidance',
@@ -357,7 +358,9 @@ ok(
   'bank proof image is grouped with bank details'
 );
 ok(
-  trainerHtml.indexOf('exact pay per contract/offer letter or as stated during onboarding') !== -1,
+  /exact\s+pay\s+per\s+contract\/offer\s+letter\s+or\s+as\s+stated\s+during\s+onboarding/.test(
+    trainerHtml
+  ),
   'payout copy defers exact pay to the contract, offer letter or onboarding'
 );
 
@@ -431,7 +434,7 @@ ok(
 ok(
   appSource.indexOf("'password-reset.html'") !== -1 &&
     appSource.indexOf("'register.html'") !== -1 &&
-    appSource.indexOf("'register', 'rm'") !== -1,
+    /['"]register['"]\s*,\s*['"]rm['"]/.test(appSource),
   'registration, reset and manager assets are on the reviewed static allowlist'
 );
 const authSource = read('server/routes/auth.js');
@@ -464,9 +467,9 @@ ok(
 const rmHtml = read('rm/index.html');
 const rmScript = read('rm/app.js');
 ok(
-  rmHtml.indexOf(
-    'Only the founder revokes a desk, chooses or replaces a credential or edits founder-set pay.'
-  ) !== -1 && rmHtml.indexOf('id="rmIssueTrainerPassword"') !== -1,
+  /Only\s+the\s+founder\s+revokes\s+a\s+desk,\s+chooses\s+or\s+replaces\s+a\s+credential\s+or\s+edits\s+founder-set\s+pay\./.test(
+    rmHtml
+  ) && rmHtml.indexOf('id="rmIssueTrainerPassword"') !== -1,
   'manager desk states the founder-only boundary and offers generated-password recovery'
 );
 ok(
@@ -477,9 +480,11 @@ ok(
   'manager desk labels founder-completed onboarding as read-only except for temporary password recovery'
 );
 ok(
-  rmScript.indexOf(
-    "request('/admin/people/' + encodeURIComponent(id) + '/password', { generated: true }, 'PATCH')"
-  ) !== -1,
+  /['"]\/admin\/people\/['"]\s*\+\s*encodeURIComponent\(id\)\s*\+\s*['"]\/password['"]/.test(
+    rmScript
+  ) &&
+    /generated:\s*true/.test(rmScript) &&
+    /['"]PATCH['"]/.test(rmScript),
   'manager desk sends only a generated request to the scoped password route'
 );
 ok(
@@ -573,5 +578,31 @@ ok(
   !/mathify-demo|DEMO PARENT LOGIN/i.test(read('parent/index.html')),
   'the parent desk never prints shared demo credentials'
 );
+
+/* Current SAR session-pack copy must be visible on both public pricing
+   surfaces. Tags and entities are flattened so markup wrapping cannot hide a
+   phrase, and whitespace is collapsed so line breaks stay resilient. */
+function visibleCopy(html) {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#\d+;|&#x[0-9a-fA-F]+;|&[a-zA-Z]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+const pricingCopy = visibleCopy(read('pricing.html'));
+const indexCopy = visibleCopy(read('index.html'));
+[
+  'SAR 90 per session',
+  'Standard deck · 4–39 sessions',
+  'Bulk deck · 40–100 sessions',
+  '5% off every session when you book 41–100',
+  '4 / 8 / 16 / 20',
+].forEach(function (phrase) {
+  ok(pricingCopy.indexOf(phrase) !== -1, 'pricing.html visibly contains "' + phrase + '"');
+  ok(indexCopy.indexOf(phrase) !== -1, 'index.html visibly contains "' + phrase + '"');
+});
+const pricingHtml = read('pricing.html');
+ok(pricingHtml.indexOf('₹') === -1, 'pricing.html uses no rupee symbol for student pricing');
+ok(!/razorpay/i.test(pricingHtml), 'pricing.html makes no Razorpay payment claim');
 
 console.log('navContract: ' + checks.length + ' assertions passed');

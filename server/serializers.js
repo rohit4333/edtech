@@ -22,7 +22,7 @@ const TRAINER_ONLY_KEYS = [
   'trainerInstructions',
   'trainerNotes',
   'misconception_watch',
-  'prompt_for_trainer'
+  'prompt_for_trainer',
 ];
 
 /* Keys that must never reach a student payload. */
@@ -40,7 +40,7 @@ const STUDENT_FORBIDDEN_KEYS = [
   'correct',
   'explanation',
   'distractor_rationale',
-  'why'
+  'why',
 ];
 
 /* A warning is emitted only for the business-critical trainer/answer keys. */
@@ -49,7 +49,7 @@ const STUDENT_SECURITY_KEYS = [
   'misconception_watch',
   'answerKey',
   'correctOptionId',
-  'explanation'
+  'explanation',
 ];
 
 function cloneValue(value) {
@@ -59,7 +59,9 @@ function cloneValue(value) {
 
 function stripByKeys(value, keys, onStrip) {
   if (Array.isArray(value)) {
-    return value.map(function (item) { return stripByKeys(item, keys, onStrip); });
+    return value.map(function (item) {
+      return stripByKeys(item, keys, onStrip);
+    });
   }
   if (!value || typeof value !== 'object') return value;
 
@@ -125,13 +127,13 @@ const ENGLISH_QUIZ_BANK = [
       'The calm river moved slowly.',
       'The river calm moved slowly.',
       'The slowly river moved calm.',
-      'Calm the river moved slowly.'
+      'Calm the river moved slowly.',
     ],
     answerIndex: 0,
     explanation: 'Calm describes the river and sits before the noun.',
     source: 'template',
     templateId: 'english_core',
-    status: 'active'
+    status: 'active',
   },
   {
     id: 'eng_q_2',
@@ -140,13 +142,13 @@ const ENGLISH_QUIZ_BANK = [
       'I hear that you are worried about the test. Tell me more.',
       'That is not a big deal.',
       'You should not feel that way.',
-      'Let us talk about my day instead.'
+      'Let us talk about my day instead.',
     ],
     answerIndex: 0,
     explanation: 'Naming the feeling and inviting more detail shows active listening.',
     source: 'template',
     templateId: 'english_core',
-    status: 'active'
+    status: 'active',
   },
   {
     id: 'eng_q_3',
@@ -156,30 +158,49 @@ const ENGLISH_QUIZ_BANK = [
     explanation: 'The past-tense verb helped matches a finished action.',
     source: 'template',
     templateId: 'english_core',
-    status: 'active'
-  }
+    status: 'active',
+  },
 ];
 
 function hasStoredQuizQuestions(session) {
-  return Boolean(session && session.quiz && Array.isArray(session.quiz.questions)
-    && session.quiz.questions.length);
+  return Boolean(
+    session &&
+    session.quiz &&
+    Array.isArray(session.quiz.questions) &&
+    session.quiz.questions.length
+  );
 }
 
 /* A picture question carries its own image, never its image-generation prompt
    or trainer guidance. Only image-like fields cross the role boundary. */
 function safeQuestionImage(question) {
   if (!question) return null;
-  var image = question.image || question.imageUrl || question.image_url ||
-    question.imageData || question.image_data || question.photo || question.attachment;
+  var image =
+    question.image ||
+    question.imageUrl ||
+    question.image_url ||
+    question.imageData ||
+    question.image_data ||
+    question.photo ||
+    question.attachment;
   if (!image) return null;
-  var source = typeof image === 'string' ? image :
-    (image.data || image.dataUrl || image.src || image.url || '');
+  var source =
+    typeof image === 'string' ? image : image.data || image.dataUrl || image.src || image.url || '';
   source = String(source || '').trim();
   if (!source) return null;
-  if (source.indexOf('data:image/') === 0 ||
-      /^https?:\/\//.test(source) || source.charAt(0) === '/') return source;
-  if (image && typeof image === 'object' && image.mime &&
-      /^image\//.test(image.mime) && /^[A-Za-z0-9+/=\s]+$/.test(source)) {
+  if (
+    source.indexOf('data:image/') === 0 ||
+    /^https?:\/\//.test(source) ||
+    source.charAt(0) === '/'
+  )
+    return source;
+  if (
+    image &&
+    typeof image === 'object' &&
+    image.mime &&
+    /^image\//.test(image.mime) &&
+    /^[A-Za-z0-9+/=\s]+$/.test(source)
+  ) {
     return 'data:' + image.mime + ';base64,' + source.replace(/\s+/g, '');
   }
   return null;
@@ -193,7 +214,8 @@ function quizQuestionsFor(session) {
     return ENGLISH_QUIZ_BANK;
   }
   return session && session.quiz && Array.isArray(session.quiz.questions)
-    ? session.quiz.questions : [];
+    ? session.quiz.questions
+    : [];
 }
 
 /* Trainer-only attendance rows need an opaque row key, never contact data. */
@@ -206,7 +228,9 @@ function attendanceStudent(userId) {
 function readiness(session) {
   const attempts = (session.quiz && session.quiz.attempts) || [];
   if (!attempts.length) return 0;
-  const correct = attempts.filter(function (attempt) { return attempt.correct; }).length;
+  const correct = attempts.filter(function (attempt) {
+    return attempt.correct;
+  }).length;
   return Math.round((correct / attempts.length) * 100);
 }
 
@@ -230,7 +254,7 @@ function trainerQuiz(session) {
         concept: question.concept || null,
         difficultyLevel: question.difficultyLevel || null,
         requiresCorrectAnswer: question.requiresCorrectAnswer === true,
-        status: question.status || 'active'
+        status: question.status || 'active',
       };
       var image = safeQuestionImage(question);
       if (image) view.image = image;
@@ -238,7 +262,7 @@ function trainerQuiz(session) {
     }),
     attempts: session.quiz.attempts.slice(),
     reveals: (session.quiz.reveals || []).slice(),
-    drafts: (session.quiz.drafts || []).slice()
+    drafts: (session.quiz.drafts || []).slice(),
   };
 }
 
@@ -255,7 +279,9 @@ function grantedHint(options, questionId, legacyHint) {
 
 function studentQuiz(session, options) {
   const revealed = {};
-  (session.quiz.reveals || []).forEach(function (reveal) { revealed[reveal.questionId] = true; });
+  (session.quiz.reveals || []).forEach(function (reveal) {
+    revealed[reveal.questionId] = true;
+  });
 
   const payload = {
     status: session.quiz.status,
@@ -267,7 +293,7 @@ function studentQuiz(session, options) {
       const answer = {
         id: question.id,
         prompt: question.prompt,
-        options: question.options.slice()
+        options: question.options.slice(),
       };
       const image = safeQuestionImage(question);
       if (image) answer.image = image;
@@ -287,11 +313,11 @@ function studentQuiz(session, options) {
         id: attempt.id,
         questionId: attempt.questionId,
         optionIndex: attempt.optionIndex,
-        at: attempt.at
+        at: attempt.at,
       };
       if (revealed[attempt.questionId]) result.correct = attempt.correct;
       return result;
-    })
+    }),
   };
 
   return payload;
@@ -307,12 +333,14 @@ function toStudentQuizTiers(payload, options) {
       const safe = {
         id: item.id,
         stem: item.stem || item.prompt,
-        options: Array.isArray(item.options) ? item.options.map(function (option) {
-          return { id: option.id, text: option.text };
-        }) : [],
+        options: Array.isArray(item.options)
+          ? item.options.map(function (option) {
+              return { id: option.id, text: option.text };
+            })
+          : [],
         time_limit_sec: item.time_limit_sec,
         requires_sketch: Boolean(item.requires_sketch),
-        bloom: item.bloom || null
+        bloom: item.bloom || null,
       };
 
       const granted = grantedHint(options, item.id, (item.hints || [])[0] || item.hint);
@@ -324,9 +352,12 @@ function toStudentQuizTiers(payload, options) {
   return stripStudentRestrictedFields({
     quiz: tiers,
     advance_criteria: payload.advance_criteria
-      ? { gate_pct: payload.advance_criteria.gate_pct, repeat_if_below: payload.advance_criteria.repeat_if_below }
+      ? {
+          gate_pct: payload.advance_criteria.gate_pct,
+          repeat_if_below: payload.advance_criteria.repeat_if_below,
+        }
       : null,
-    parent_summary: payload.parent_summary || ''
+    parent_summary: payload.parent_summary || '',
   });
 }
 
@@ -343,25 +374,28 @@ function toStudentCurriculum(payload, options) {
       version: planner.version || 1,
       estimated_minutes: planner.estimated_minutes || null,
       blocks: (planner.blocks || []).map(function (block) {
-        const sketch = block.sketch ? {
-          minHeight: block.sketch.minHeight,
-          expandable: block.sketch.expandable === true
-        } : undefined;
+        const sketch = block.sketch
+          ? {
+              minHeight: block.sketch.minHeight,
+              expandable: block.sketch.expandable === true,
+            }
+          : undefined;
         const safe = {
           id: block.id,
           type: block.type,
           content: {
             text: block.content && block.content.text ? block.content.text : '',
-            image_prompt: block.content && block.content.image_prompt ? block.content.image_prompt : '',
+            image_prompt:
+              block.content && block.content.image_prompt ? block.content.image_prompt : '',
             alt: block.content && block.content.alt ? block.content.alt : '',
-            caption: block.content && block.content.caption ? block.content.caption : ''
-          }
+            caption: block.content && block.content.caption ? block.content.caption : '',
+          },
         };
         if (sketch) safe.sketch = sketch;
         return stripTrainerOnlyFields(safe);
-      })
+      }),
     },
-    quiz: payload.quiz ? toStudentQuizTiers(payload, options) : undefined
+    quiz: payload.quiz ? toStudentQuizTiers(payload, options) : undefined,
   });
 }
 
@@ -376,7 +410,7 @@ function toTrainerSummary(session) {
     student: participant(session.studentId),
     pack: session.pack,
     mastery: session.mastery,
-    recordingUrl: session.recording ? session.recording.url : null
+    recordingUrl: session.recording ? session.recording.url : null,
   };
 }
 
@@ -404,7 +438,9 @@ function toTrainerSession(session) {
     mastery: session.mastery,
     recording: session.recording,
     rtc: session.rtc,
-    planner: session.planner.map(function (item) { return Object.assign({}, item); }),
+    planner: session.planner.map(function (item) {
+      return Object.assign({}, item);
+    }),
     plannerGuide: plannerGuideFor(session, 'trainer'),
     pages: session.pages.map(function (page) {
       return {
@@ -414,43 +450,52 @@ function toTrainerSession(session) {
         eyebrow: page.eyebrow,
         prompt: page.prompt,
         sketchLabel: page.sketchLabel,
-        trainer_instructions: page.trainerNotes.map(function (note) { return Object.assign({}, note); })
+        trainer_instructions: page.trainerNotes.map(function (note) {
+          return Object.assign({}, note);
+        }),
       };
     }),
     quiz: trainerQuiz(session),
-    board: { version: session.board.version, strokeCount: session.board.strokes.length }
+    board: { version: session.board.version, strokeCount: session.board.strokes.length },
   };
 }
 
 function toStudentSession(session, options) {
-  return stripTrainerOnlyFields({
-    id: session.id,
-    code: session.code,
-    title: session.title,
-    status: session.status,
-    startedAt: session.startedAt,
-    elapsedSeconds: session.elapsedSeconds,
-    currentPage: session.currentPage,
-    trainer: participant(session.trainerId),
-    student: participant(session.studentId),
-    pack: session.pack,
-    plannerGuide: plannerGuideFor(session, 'student'),
-    mastery: session.mastery,
-    recording: session.recording,
-    rtc: { provider: session.rtc.provider, channel: session.rtc.channel, status: session.rtc.status },
-    pages: session.pages.map(function (page) {
-      return {
-        id: page.id,
-        page: page.page,
-        title: page.title,
-        eyebrow: page.eyebrow,
-        prompt: page.prompt,
-        sketchLabel: page.sketchLabel
-      };
-    }),
-    quiz: studentQuiz(session, options),
-    board: { version: session.board.version, strokeCount: session.board.strokes.length }
-  }, 'student');
+  return stripTrainerOnlyFields(
+    {
+      id: session.id,
+      code: session.code,
+      title: session.title,
+      status: session.status,
+      startedAt: session.startedAt,
+      elapsedSeconds: session.elapsedSeconds,
+      currentPage: session.currentPage,
+      trainer: participant(session.trainerId),
+      student: participant(session.studentId),
+      pack: session.pack,
+      plannerGuide: plannerGuideFor(session, 'student'),
+      mastery: session.mastery,
+      recording: session.recording,
+      rtc: {
+        provider: session.rtc.provider,
+        channel: session.rtc.channel,
+        status: session.rtc.status,
+      },
+      pages: session.pages.map(function (page) {
+        return {
+          id: page.id,
+          page: page.page,
+          title: page.title,
+          eyebrow: page.eyebrow,
+          prompt: page.prompt,
+          sketchLabel: page.sketchLabel,
+        };
+      }),
+      quiz: studentQuiz(session, options),
+      board: { version: session.board.version, strokeCount: session.board.strokes.length },
+    },
+    'student'
+  );
 }
 
 async function toSessionState(session, user) {
@@ -462,18 +507,21 @@ async function toSessionState(session, user) {
   const applause = reactionPermission.normalize(session.reactionPermissions);
   const sketch = sketchPermission.normalize(session.sketchPermissions);
   const currentQuestionId = session.quiz.currentQuestionId || null;
-  const liveSelection = currentQuestionId && session.quiz.liveSelections
-    ? session.quiz.liveSelections[currentQuestionId] : null;
+  const liveSelection =
+    currentQuestionId && session.quiz.liveSelections
+      ? session.quiz.liveSelections[currentQuestionId]
+      : null;
   const presenceSnapshot = await presenceService.compute(session);
   const minimumQuota = sessionTiming.minimumQuota(presenceSnapshot);
   /* A live legacy session has no join webhook, so its own startedAt is the
      presence anchor. A scheduled room waits for verified trainer presence. */
-  const trainerPresenceAt = session.status === 'live'
-    ? (session.startedAt || presenceSnapshot.trainerJoinedAt)
-    : presenceSnapshot.trainerJoinedAt;
+  const trainerPresenceAt =
+    session.status === 'live'
+      ? session.startedAt || presenceSnapshot.trainerJoinedAt
+      : presenceSnapshot.trainerJoinedAt;
   const timing = sessionTiming.clock(session, undefined, trainerPresenceAt, {
     trainerActiveSeconds: minimumQuota.trainerCountedSeconds,
-    timerRunning: presenceSnapshot.trainerTimerRunning === true
+    timerRunning: presenceSnapshot.trainerTimerRunning === true,
   });
   /* The same counted quota drives the room cue and the trainer pay gate. */
   timing.minimumQuota = minimumQuota;
@@ -488,12 +536,14 @@ async function toSessionState(session, user) {
     boardVersion: session.board.version,
     quizStatus: session.quiz.status,
     quizPhase: session.quiz.phase,
-    liveQuizSelection: liveSelection && Number.isInteger(Number(liveSelection.optionIndex))
-      ? {
-        questionId: currentQuestionId,
-        optionIndex: Number(liveSelection.optionIndex),
-        at: typeof liveSelection.at === 'string' ? liveSelection.at : null
-      } : null,
+    liveQuizSelection:
+      liveSelection && Number.isInteger(Number(liveSelection.optionIndex))
+        ? {
+            questionId: currentQuestionId,
+            optionIndex: Number(liveSelection.optionIndex),
+            at: typeof liveSelection.at === 'string' ? liveSelection.at : null,
+          }
+        : null,
     reteachRequired: Boolean(session.reteachRequired),
     unlockedNext: Boolean(session.unlockedNext),
     currentTopicId: session.currentTopicId || null,
@@ -501,7 +551,7 @@ async function toSessionState(session, user) {
     recordingUrl: session.recording ? session.recording.url : null,
     participants: {
       trainer: participant(session.trainerId),
-      student: participant(session.studentId)
+      student: participant(session.studentId),
     },
     viewerRole: user ? user.role : 'anonymous',
     permissions: {
@@ -513,7 +563,7 @@ async function toSessionState(session, user) {
       canToggleMedia: trainerView || media.studentCanToggleMedia,
       canStudentToggleMedia: media.studentCanToggleMedia,
       canStudentApplaud: applause.studentCanApplaud,
-      canStudentReact: applause.studentCanReact
+      canStudentReact: applause.studentCanReact,
     },
     mediaPermissions: {
       studentCanToggleMedia: media.studentCanToggleMedia,
@@ -521,16 +571,16 @@ async function toSessionState(session, user) {
       forceCameraOn: media.forceCameraOn,
       studentMuted: media.studentMuted,
       studentCameraOff: media.studentCameraOff,
-      version: media.version
+      version: media.version,
     },
     reactionPermissions: {
       studentCanReact: applause.studentCanReact,
       studentCanApplaud: applause.studentCanApplaud,
-      version: applause.version
+      version: applause.version,
     },
     sketchPermissions: {
       studentCanSketch: sketch.studentCanSketch,
-      version: sketch.version
+      version: sketch.version,
     },
     network: networkQuality.stateFor(session, user),
     roomAccess: sessionAccess.evaluate(session, user),
@@ -545,11 +595,12 @@ async function toSessionState(session, user) {
       present: presenceSnapshot.studentPresent === true,
       activeSeconds: presenceSnapshot.participants.student.countedSeconds,
       activeMinutes: presenceSnapshot.participants.student.countedMinutes,
-      requiredMinutes: (appPolicy.presence && Number(appPolicy.presence.studentMinPresentMinutes)) || 15
+      requiredMinutes:
+        (appPolicy.presence && Number(appPolicy.presence.studentMinPresentMinutes)) || 15,
     },
     /* Observer identity is intentionally visible in the shared room. No user
        id, contact detail or private metadata is included. */
-    founderObserver: sessionAccess.publicState(session)
+    founderObserver: sessionAccess.publicState(session),
   };
   /* Live pay/fine tracker for the trainer only. Without a child the 15-minute
      trainer presence rule applies; with a child both the 35-minute child gate
@@ -558,20 +609,21 @@ async function toSessionState(session, user) {
   if (trainerView) {
     /* The child requirement is always reported as 35 minutes, even when no
        child joined; the quota object itself zeroes unavailable child fields. */
-    const childRequiredSeconds = (appPolicy.presence &&
-      Number(appPolicy.presence.studentMinPayGateMinutes) || 35) * 60;
+    const childRequiredSeconds =
+      ((appPolicy.presence && Number(appPolicy.presence.studentMinPayGateMinutes)) || 35) * 60;
     state.payGate = {
       childJoined: minimumQuota.childJoined,
       childStillPresent: minimumQuota.childStillPresent,
       childRequiredSeconds: childRequiredSeconds,
       childCountedSeconds: minimumQuota.childCountedSeconds,
-      childGateMet: !minimumQuota.childJoined ||
-        minimumQuota.childCountedSeconds >= childRequiredSeconds,
+      childGateMet:
+        !minimumQuota.childJoined || minimumQuota.childCountedSeconds >= childRequiredSeconds,
       trainerRequiredSeconds: minimumQuota.trainerRequiredSeconds,
       trainerCountedSeconds: minimumQuota.trainerCountedSeconds,
       trainerGateMet: minimumQuota.trainerCountedSeconds >= minimumQuota.trainerRequiredSeconds,
-      trainerOnlyMinutes: (appPolicy.presence && Number(appPolicy.presence.trainerMinPresentMinutes)) || 15,
-      source: 'presence_events'
+      trainerOnlyMinutes:
+        (appPolicy.presence && Number(appPolicy.presence.trainerMinPresentMinutes)) || 15,
+      source: 'presence_events',
     };
   }
   return state;
@@ -582,16 +634,21 @@ const ATTENDANCE_STATES = [
   { value: 'absent', code: 'a', label: 'Absent' },
   { value: 'late', code: 'l', label: 'Late' },
   { value: 'leave', code: 'lv', label: 'Mutual leave' },
-  { value: 'unattended', code: 'u', label: 'Unattended' }
+  { value: 'unattended', code: 'u', label: 'Unattended' },
 ];
 
 function toAttendanceRegister(sessions, attendance) {
-  const ordered = sessions.slice().sort(function (a, b) {
-    return new Date(a.startedAt || 0) - new Date(b.startedAt || 0);
-  }).slice(-6);
+  const ordered = sessions
+    .slice()
+    .sort(function (a, b) {
+      return new Date(a.startedAt || 0) - new Date(b.startedAt || 0);
+    })
+    .slice(-6);
 
   const sessionsById = {};
-  ordered.forEach(function (session) { sessionsById[session.id] = session; });
+  ordered.forEach(function (session) {
+    sessionsById[session.id] = session;
+  });
 
   const columns = ordered.map(function (session) {
     const starts = session.startedAt ? new Date(session.startedAt) : null;
@@ -602,7 +659,7 @@ function toAttendanceRegister(sessions, attendance) {
       startsAt: session.startsAt || session.startedAt,
       date: starts ? starts.toISOString().slice(0, 10) : null,
       status: session.status,
-      editable: session.status === 'live' || session.status === 'scheduled'
+      editable: session.status === 'live' || session.status === 'scheduled',
     };
   });
 
@@ -627,15 +684,39 @@ function toAttendanceRegister(sessions, attendance) {
   });
 
   return {
-    statuses: ATTENDANCE_STATES.map(function (item) { return Object.assign({}, item); }),
+    statuses: ATTENDANCE_STATES.map(function (item) {
+      return Object.assign({}, item);
+    }),
     columns: columns,
     rows: rows,
-    provenance: 'mock'
+    provenance: 'mock',
   };
 }
 
 function toTrainerPayout(user, sessions, period, policy, context) {
-  return payoutService.buildPayout(user, sessions, period, policy, context);
+  const payout = payoutService.buildPayout(user, sessions, period, policy, context);
+  /* Trainer-facing serializer: keep founder decisions legible to the trainer.
+     Only the safe decision fields cross this boundary; no actor id, audit path
+     or manager-owned ledger data is exposed here. */
+  const entries = (payout.founderPenalties && payout.founderPenalties.entries) || [];
+  return Object.assign({}, payout, {
+    penaltyNotice: {
+      value: payout.amount.breakdown.founderPenalties,
+      currency: payout.amount.currency,
+      source: 'founder_decision',
+      readOnly: true,
+      entries: entries.map(function (row) {
+        return {
+          id: row.id,
+          date: row.date,
+          amount: row.amount,
+          currency: row.currency,
+          reason: row.reason,
+          decidedByRole: row.decidedByRole,
+        };
+      }),
+    },
+  });
 }
 
 function toTrainerScore(user, policy) {
@@ -645,7 +726,7 @@ function toTrainerScore(user, policy) {
       key: item.key,
       label: item.label,
       value: null,
-      source: 'unconfigured'
+      source: 'unconfigured',
     };
   });
 
@@ -653,7 +734,7 @@ function toTrainerScore(user, policy) {
     trainer: {
       id: user.id,
       name: user.name,
-      role: user.role
+      role: user.role,
     },
     score: {
       value: null,
@@ -661,10 +742,10 @@ function toTrainerScore(user, policy) {
       bands: config.bands || null,
       target: config.target || null,
       source: 'unconfigured',
-      note: 'Teaching score bands are not configured yet.'
+      note: 'Teaching score bands are not configured yet.',
     },
     subScores: subScores,
-    provenance: 'mock'
+    provenance: 'mock',
   };
 }
 
@@ -672,13 +753,23 @@ function trainerAttention(sessions, attendance) {
   const ordered = sessions.slice().sort(function (a, b) {
     return new Date(a.startedAt || 0) - new Date(b.startedAt || 0);
   });
-  const next = ordered.find(function (session) { return session.status === 'live'; })
-    || ordered.find(function (session) { return session.status === 'scheduled'; })
-    || null;
+  const next =
+    ordered.find(function (session) {
+      return session.status === 'live';
+    }) ||
+    ordered.find(function (session) {
+      return session.status === 'scheduled';
+    }) ||
+    null;
   const items = [];
 
   function add(item) {
-    if (!items.some(function (existing) { return existing.id === item.id; })) items.push(item);
+    if (
+      !items.some(function (existing) {
+        return existing.id === item.id;
+      })
+    )
+      items.push(item);
   }
 
   function attendanceRecord(session) {
@@ -688,7 +779,9 @@ function trainerAttention(sessions, attendance) {
   }
 
   if (next && next.planner) {
-    const open = next.planner.filter(function (item) { return !item.done; }).length;
+    const open = next.planner.filter(function (item) {
+      return !item.done;
+    }).length;
     if (open) {
       add({
         id: 'planning_' + next.id,
@@ -699,7 +792,7 @@ function trainerAttention(sessions, attendance) {
         student: participant(next.studentId),
         status: 'today',
         action: 'open_planner',
-        source: 'planner_items'
+        source: 'planner_items',
       });
     }
   }
@@ -718,7 +811,7 @@ function trainerAttention(sessions, attendance) {
         student: participant(session.studentId),
         status: 'today',
         action: 'open_register',
-        source: 'attendance_records'
+        source: 'attendance_records',
       });
     }
 
@@ -733,7 +826,7 @@ function trainerAttention(sessions, attendance) {
         student: participant(session.studentId),
         status: 'info',
         action: 'review_drafts',
-        source: 'quiz_drafts'
+        source: 'quiz_drafts',
       });
     }
 
@@ -741,13 +834,17 @@ function trainerAttention(sessions, attendance) {
       add({
         id: 'reveal_' + session.id,
         kind: 'quiz',
-        title: quiz.attempts.length + ' answer' + (quiz.attempts.length === 1 ? '' : 's') + ' waiting for reveal',
+        title:
+          quiz.attempts.length +
+          ' answer' +
+          (quiz.attempts.length === 1 ? '' : 's') +
+          ' waiting for reveal',
         meta: session.title,
         sessionId: session.id,
         student: participant(session.studentId),
         status: 'today',
         action: 'reveal_answers',
-        source: 'quiz_attempts'
+        source: 'quiz_attempts',
       });
     }
 
@@ -761,7 +858,7 @@ function trainerAttention(sessions, attendance) {
         student: participant(session.studentId),
         status: 'info',
         action: 'launch_quiz',
-        source: 'quizzes'
+        source: 'quizzes',
       });
     }
 
@@ -775,13 +872,15 @@ function trainerAttention(sessions, attendance) {
         student: participant(session.studentId),
         status: 'later',
         action: 'open_recap',
-        source: 'recordings'
+        source: 'recordings',
       });
     }
   });
 
   const rank = { today: 0, info: 1, later: 2 };
-  return items.sort(function (a, b) { return rank[a.status] - rank[b.status]; });
+  return items.sort(function (a, b) {
+    return rank[a.status] - rank[b.status];
+  });
 }
 
 function toTrainerAttention(sessions, attendance) {
@@ -789,7 +888,7 @@ function toTrainerAttention(sessions, attendance) {
   return {
     items: items,
     count: items.length,
-    provenance: 'mock'
+    provenance: 'mock',
   };
 }
 
@@ -818,27 +917,36 @@ function toTrainerDashboard(user, sessions, attendance) {
   }
   const eligible = todaySessions.filter(function (session) {
     const required = sessionTiming.lifetimeFor(session).requiredTeachingMinutes;
-    return session.status === 'completed'
-      || session.status === 'ended'
-      || activityBySession[session.id] >= required
-      || elapsedMinutes(session) >= required;
+    return (
+      session.status === 'completed' ||
+      session.status === 'ended' ||
+      activityBySession[session.id] >= required ||
+      elapsedMinutes(session) >= required
+    );
   }).length;
   const taken = Math.max(completed, eligible);
   const remaining = Math.max(0, todaySessions.length - taken);
-  const next = todaySessions.find(function (session) {
-    /* Keep the desk attached to a live class through the warning and the
+  const next =
+    todaySessions.find(function (session) {
+      /* Keep the desk attached to a live class through the warning and the
        server-owned close window. Dropping it at the teaching-threshold would
        hide the 40/50-minute cue and the auto-close event. */
-    const closeAt = sessionTiming.lifetimeFor(session).closeAtMinutes;
-    return session.status === 'live' && elapsedMinutes(session) < closeAt;
-  }) || todaySessions.find(function (session) {
-    const duration = sessionTiming.lifetimeFor(session).durationMinutes;
-    return session.status === 'scheduled'
-      && new Date(session.startedAt || 0) >= new Date(Date.now() - duration * 60000);
-  }) || null;
+      const closeAt = sessionTiming.lifetimeFor(session).closeAtMinutes;
+      return session.status === 'live' && elapsedMinutes(session) < closeAt;
+    }) ||
+    todaySessions.find(function (session) {
+      const duration = sessionTiming.lifetimeFor(session).durationMinutes;
+      return (
+        session.status === 'scheduled' &&
+        new Date(session.startedAt || 0) >= new Date(Date.now() - duration * 60000)
+      );
+    }) ||
+    null;
 
   const today = todaySessions.map(function (session) {
-    const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
+    const record = (attendance || []).find(function (row) {
+      return row.sessionId === session.id;
+    });
     return {
       id: session.id,
       code: session.code,
@@ -849,17 +957,32 @@ function toTrainerDashboard(user, sessions, attendance) {
       classType: sessionTiming.isDemoSession(session) ? 'demo' : 'regular',
       durationMinutes: sessionTiming.lifetimeFor(session).durationMinutes,
       student: participant(session.studentId),
-      attendance: attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy)
+      attendance: attendancePolicy.effectiveStudentStatus(
+        session,
+        record ? record.status : null,
+        appPolicy
+      ),
     };
   });
 
   const present = todaySessions.filter(function (session) {
-    const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
-    return attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy) === 'present';
+    const record = (attendance || []).find(function (row) {
+      return row.sessionId === session.id;
+    });
+    return (
+      attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy) ===
+      'present'
+    );
   }).length;
   const countedSessions = todaySessions.filter(function (session) {
-    const record = (attendance || []).find(function (row) { return row.sessionId === session.id; });
-    const status = attendancePolicy.effectiveStudentStatus(session, record ? record.status : null, appPolicy);
+    const record = (attendance || []).find(function (row) {
+      return row.sessionId === session.id;
+    });
+    const status = attendancePolicy.effectiveStudentStatus(
+      session,
+      record ? record.status : null,
+      appPolicy
+    );
     return status !== 'leave';
   });
   const attendancePercent = countedSessions.length
@@ -867,7 +990,7 @@ function toTrainerDashboard(user, sessions, attendance) {
     : null;
 
   const attempts = ordered.reduce(function (total, session) {
-    return total + ((session.quiz && session.quiz.attempts) ? session.quiz.attempts.length : 0);
+    return total + (session.quiz && session.quiz.attempts ? session.quiz.attempts.length : 0);
   }, 0);
 
   const attention = trainerAttention(ordered, attendance);
@@ -887,65 +1010,76 @@ function toTrainerDashboard(user, sessions, attendance) {
       role: user.role,
       title: user.title || null,
       subject: ownSubject,
-      ratePerSession: user.payPerSession || null
+      ratePerSession: user.payPerSession || null,
     },
     summary: {
       sessionsToday: today.length,
       sessionsTaken: taken,
       sessionsRemaining: remaining,
       studentsNext: 1,
-      needsAttention: attention.length
+      needsAttention: attention.length,
     },
-    nextSession: next ? {
-      id: next.id,
-      code: next.code,
-      title: next.title,
-      status: next.status,
-      subject: subjectView(next.subject || ownSubject.subject),
-      startsAt: next.startedAt,
-      classType: sessionTiming.isDemoSession(next) ? 'demo' : 'regular',
-      durationMinutes: sessionTiming.lifetimeFor(next).durationMinutes,
-      activeThroughMinutes: sessionTiming.lifetimeFor(next).closeAtMinutes,
-      currentPage: next.currentPage,
-      student: participant(next.studentId),
-      planner: next.planner.map(function (item) { return Object.assign({}, item); }),
-      recordingUrl: next.recording ? next.recording.url : null
-    } : null,
+    nextSession: next
+      ? {
+          id: next.id,
+          code: next.code,
+          title: next.title,
+          status: next.status,
+          subject: subjectView(next.subject || ownSubject.subject),
+          startsAt: next.startedAt,
+          classType: sessionTiming.isDemoSession(next) ? 'demo' : 'regular',
+          durationMinutes: sessionTiming.lifetimeFor(next).durationMinutes,
+          activeThroughMinutes: sessionTiming.lifetimeFor(next).closeAtMinutes,
+          currentPage: next.currentPage,
+          student: participant(next.studentId),
+          planner: next.planner.map(function (item) {
+            return Object.assign({}, item);
+          }),
+          recordingUrl: next.recording ? next.recording.url : null,
+        }
+      : null,
     today: today,
     subjectSummary: subjectSummary,
     attention: attention,
     metrics: {
       attendance: {
         value: attendancePercent,
-        source: attendancePercent === null ? 'unconfigured' : 'attendance_records'
+        source: attendancePercent === null ? 'unconfigured' : 'attendance_records',
       },
       teachingScore: {
         value: null,
         source: 'unconfigured',
-        note: 'Scoring bands are not configured yet.'
+        note: 'Scoring bands are not configured yet.',
       },
       toReview: {
         value: attempts,
-        source: 'quiz_attempts'
+        source: 'quiz_attempts',
       },
       payout: {
         value: null,
         sessionCount: today.length,
         ratePerSession: user.payPerSession || null,
         source: 'unconfigured',
-        note: 'Payout and bonus rules are not configured yet.'
-      }
+        note: 'Payout and bonus rules are not configured yet.',
+      },
     },
-    provenance: 'mock'
+    provenance: 'mock',
   };
 }
 
 function toStudentDashboard(user, sessions, practiceBatches) {
   const ownSubject = subjectView(user.subject);
-  const mine = sessions.filter(function (session) { return session.studentId === user.id; });
-  const live = mine.find(function (session) { return session.status === 'live'; }) || null;
+  const mine = sessions.filter(function (session) {
+    return session.studentId === user.id;
+  });
+  const live =
+    mine.find(function (session) {
+      return session.status === 'live';
+    }) || null;
   const recordings = mine
-    .filter(function (session) { return session.recording; })
+    .filter(function (session) {
+      return session.recording;
+    })
     .map(function (session) {
       return {
         id: session.id,
@@ -958,12 +1092,12 @@ function toStudentDashboard(user, sessions, practiceBatches) {
         readyAt: session.recording.readyAt,
         chapters: Array.isArray(session.recording.chapters)
           ? session.recording.chapters.map(function (chapter) {
-            return {
-              label: String(chapter.label || 'Chapter').slice(0, 120),
-              seconds: Math.max(0, Number(chapter.seconds) || 0)
-            };
-          })
-          : []
+              return {
+                label: String(chapter.label || 'Chapter').slice(0, 120),
+                seconds: Math.max(0, Number(chapter.seconds) || 0),
+              };
+            })
+          : [],
       };
     });
 
@@ -974,7 +1108,7 @@ function toStudentDashboard(user, sessions, practiceBatches) {
       grade: user.grade,
       batch: user.batch,
       subject: ownSubject,
-      sessionsRemaining: user.sessionsRemaining === undefined ? null : user.sessionsRemaining
+      sessionsRemaining: user.sessionsRemaining === undefined ? null : user.sessionsRemaining,
     },
     streak: user.streak,
     mastery: user.mastery,
@@ -986,7 +1120,7 @@ function toStudentDashboard(user, sessions, practiceBatches) {
           startedAt: live.startedAt,
           status: live.status,
           subject: subjectView(live.subject || ownSubject.subject),
-          trainer: participant(live.trainerId)
+          trainer: participant(live.trainerId),
         }
       : null,
     recordings: recordings,
@@ -994,8 +1128,8 @@ function toStudentDashboard(user, sessions, practiceBatches) {
     trophyPoints: badgeService.pointsFor(user),
     masteryPractice: [
       { id: 'mastery_ratios', title: 'Ratios', progress: user.mastery, status: 'in-progress' },
-      { id: 'mastery_fractions', title: 'Fractions', progress: 68, status: 'in-progress' }
-    ]
+      { id: 'mastery_fractions', title: 'Fractions', progress: 68, status: 'in-progress' },
+    ],
   };
 }
 
@@ -1015,5 +1149,5 @@ module.exports = {
   toTrainerPayout,
   toTrainerScore,
   toTrainerDashboard,
-  toStudentDashboard
+  toStudentDashboard,
 };

@@ -22,6 +22,7 @@ const BILLABLE_STATUSES = ['ended', 'completed'];
 const NO_SHOW_STATUSES = ['no_show', 'noshow', 'no-show'];
 const attendancePolicy = require('./attendancePolicy');
 const sessionTiming = require('./sessionTimingService');
+const db = require('../db');
 const policyFile = require('../config/policy.json');
 
 function pad(value) {
@@ -39,8 +40,12 @@ function periodParts(period) {
 
 function validPeriod(period) {
   const parts = periodParts(period);
-  return Number.isInteger(parts.year) && Number.isInteger(parts.month) &&
-    parts.month >= 1 && parts.month <= 12;
+  return (
+    Number.isInteger(parts.year) &&
+    Number.isInteger(parts.month) &&
+    parts.month >= 1 &&
+    parts.month <= 12
+  );
 }
 
 function validCalendarMonth(period) {
@@ -66,8 +71,10 @@ function periodDays(period, asOf) {
 
 function shortLabel(date) {
   const parts = String(date).split('-').map(Number);
-  const month = new Date(Date.UTC(parts[0], parts[1] - 1, 1))
-    .toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' });
+  const month = new Date(Date.UTC(parts[0], parts[1] - 1, 1)).toLocaleDateString('en-IN', {
+    month: 'short',
+    timeZone: 'UTC',
+  });
   return parts[2] + ' ' + month;
 }
 
@@ -94,7 +101,7 @@ function isBillable(session) {
   /* Automated presence gate: a trainer present under 15 minutes earns no pay,
      even if the session record was closed as "ended". */
   if (session && session.presence && session.presence.payoutEligible === false) return false;
-  return BILLABLE_STATUSES.indexOf(String(session && session.status || '').toLowerCase()) !== -1;
+  return BILLABLE_STATUSES.indexOf(String((session && session.status) || '').toLowerCase()) !== -1;
 }
 
 function studentJoinedIn(session) {
@@ -108,7 +115,7 @@ function childCountedSecondsIn(session) {
   const sources = [
     student && student.countedSeconds,
     presence.studentCountedSeconds,
-    presence.studentActiveSecondsInWindow
+    presence.studentActiveSecondsInWindow,
   ];
   for (let index = 0; index < sources.length; index += 1) {
     const seconds = Number(sources[index]);
@@ -122,7 +129,8 @@ function childGateMinutes(policy) {
   return Number.isFinite(configured) && configured > 0 ? configured : 35;
 }
 
-const FOUNDER_GRATITUDE_NOTE = 'Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.';
+const FOUNDER_GRATITUDE_NOTE =
+  'Founder’s Gratitude Gift: ₹2,000 is credited to every trainer’s balance sheet on the first day of each month as a standing, non-revocable acknowledgement of faithful service, steady reliability, and the hard work they bring to every child’s learning. This credit is protected from deductions, cancellations and reversals, and may be adjusted only by the founder.';
 
 /* Statement-level monthly acknowledgement. It is never prorated, never tied to
    a session and never revoked by a fine; an unconfigured or invalid period fails
@@ -133,6 +141,53 @@ function founderGratitudeAmount(period, config) {
   const amount = configured && Number(configured.amount);
   if (!Number.isFinite(amount) || amount <= 0) return 0;
   return Math.round(amount * 100) / 100;
+}
+
+/* Founder-recorded trainer penalties are one-off decisions, not automated
+   attendance or presence rules. Each decision keeps its date, amount and
+   REQUIRED reason so the trainer can read why it was applied in their own
+   payout note. Revoked decisions stay in the audit trail but are not payable.
+   The manager's own one-off penalties are never charged to a trainer. */
+function founderPenaltyViews(rows, period) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter(function (row) {
+      if (!row || row.status === 'revoked') return false;
+      if ((row.targetRole || 'trainer') !== 'trainer') return false;
+      const at = row.createdAt ? new Date(row.createdAt) : null;
+      return Boolean(at && !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 7) === period);
+    })
+    .map(function (row) {
+      const at = new Date(row.createdAt);
+      return {
+        id: row.id || null,
+        date: at.toISOString().slice(0, 10),
+        amount: Math.round((Number(row.amount) || 0) * 100) / 100,
+        currency: INR,
+        reason: String(row.reason || ''),
+        status: 'applied',
+        decidedByRole: 'founder',
+        source: 'founder_decision',
+      };
+    });
+}
+
+function founderPenaltiesFor(user, period, options) {
+  if (Array.isArray(options && options.founderPenalties)) {
+    return founderPenaltyViews(options.founderPenalties, period);
+  }
+  const id = user && user.id;
+  if (!id) return [];
+  let rows = [];
+  try {
+    rows = db.listFounderPenalties(String(id));
+  } catch (error) {
+    rows = [];
+  }
+  /* Mock mode returns the recorded decisions synchronously. A live adapter
+     returns a promise and cannot be joined inside this synchronous statement
+     builder; callers that need live data pass `options.founderPenalties`. */
+  if (!Array.isArray(rows)) return [];
+  return founderPenaltyViews(rows, period);
 }
 
 /* Late-join and completion bands scale, but never increase, the session rate.
@@ -155,14 +210,15 @@ function sessionPayout(session, rate) {
     fine: fine,
     amount: Math.round((baseAmount + stretch.amount) * 100) / 100,
     timing: timing,
-    lifetime: sessionTiming.lifetimeFor(session)
+    lifetime: sessionTiming.lifetimeFor(session),
   };
 }
 
 function rateFor(user, config) {
-  const range = Array.isArray(config.rateRange) && config.rateRange.length === 2
-    ? config.rateRange.map(Number)
-    : [300, 400];
+  const range =
+    Array.isArray(config.rateRange) && config.rateRange.length === 2
+      ? config.rateRange.map(Number)
+      : [300, 400];
   const minimum = Number.isFinite(range[0]) ? range[0] : 300;
   const maximum = Number.isFinite(range[1]) ? range[1] : 400;
   const configured = Number(user && user.payPerSession);
@@ -210,7 +266,7 @@ function enforceDailyCaps(sessions, config) {
   const settings = {
     maxHoursPerDay: positiveNumber(config && config.maxHoursPerDay, 6),
     minHoursPerDay: positiveNumber(config && config.minHoursPerDay, 3),
-    maxSessionsPerDay: positiveNumber(config && config.maxSessionsPerDay, 6)
+    maxSessionsPerDay: positiveNumber(config && config.maxSessionsPerDay, 6),
   };
   const groups = {};
 
@@ -227,64 +283,68 @@ function enforceDailyCaps(sessions, config) {
   const violations = [];
   const totalsByDay = [];
 
-  Object.keys(groups).sort().forEach(function (day) {
-    const entries = groups[day].slice().sort(function (a, b) {
-      return new Date(sessionDate(a.session)) - new Date(sessionDate(b.session));
-    });
-    const totalHours = entries.reduce(function (sum, entry) { return sum + entry.hours; }, 0);
-    let payableHours = 0;
-    let payableSessions = 0;
+  Object.keys(groups)
+    .sort()
+    .forEach(function (day) {
+      const entries = groups[day].slice().sort(function (a, b) {
+        return new Date(sessionDate(a.session)) - new Date(sessionDate(b.session));
+      });
+      const totalHours = entries.reduce(function (sum, entry) {
+        return sum + entry.hours;
+      }, 0);
+      let payableHours = 0;
+      let payableSessions = 0;
 
-    entries.forEach(function (entry) {
-      const remaining = Math.max(0, settings.maxHoursPerDay - payableHours);
-      const withinSessionCap = payableSessions < settings.maxSessionsPerDay;
-      const payable = withinSessionCap && remaining > 0;
+      entries.forEach(function (entry) {
+        const remaining = Math.max(0, settings.maxHoursPerDay - payableHours);
+        const withinSessionCap = payableSessions < settings.maxSessionsPerDay;
+        const payable = withinSessionCap && remaining > 0;
 
-      if (payable) {
-        eligibleSessions.push(entry.session);
-        payableHours += Math.min(entry.hours, remaining);
-        payableSessions += 1;
-        return;
+        if (payable) {
+          eligibleSessions.push(entry.session);
+          payableHours += Math.min(entry.hours, remaining);
+          payableSessions += 1;
+          return;
+        }
+
+        cappedSessions.push({
+          sessionId: entry.session.id,
+          trainerId: entry.session.trainerId,
+          date: day,
+          hours: roundHours(entry.hours),
+          reason: withinSessionCap ? 'max_hours_per_day' : 'max_sessions_per_day',
+        });
+      });
+
+      const shortfallHours = Math.max(0, settings.minHoursPerDay - totalHours);
+      const overHours = Math.max(0, totalHours - settings.maxHoursPerDay);
+
+      if (shortfallHours > 0 || overHours > 0) {
+        violations.push({
+          date: day,
+          trainerId: entries[0].session.trainerId,
+          kind: shortfallHours > 0 ? 'below_min_hours' : 'above_max_hours',
+          totalHours: roundHours(totalHours),
+          payableHours: roundHours(payableHours),
+          shortfallHours: roundHours(shortfallHours),
+          overHours: roundHours(overHours),
+          sessionCount: entries.length,
+          payableSessionCount: payableSessions,
+        });
       }
 
-      cappedSessions.push({
-        sessionId: entry.session.id,
-        trainerId: entry.session.trainerId,
-        date: day,
-        hours: roundHours(entry.hours),
-        reason: withinSessionCap ? 'max_hours_per_day' : 'max_sessions_per_day'
-      });
-    });
-
-    const shortfallHours = Math.max(0, settings.minHoursPerDay - totalHours);
-    const overHours = Math.max(0, totalHours - settings.maxHoursPerDay);
-
-    if (shortfallHours > 0 || overHours > 0) {
-      violations.push({
+      totalsByDay.push({
         date: day,
         trainerId: entries[0].session.trainerId,
-        kind: shortfallHours > 0 ? 'below_min_hours' : 'above_max_hours',
+        sessionCount: entries.length,
         totalHours: roundHours(totalHours),
+        payableSessionCount: payableSessions,
         payableHours: roundHours(payableHours),
+        cappedSessionCount: entries.length - payableSessions,
         shortfallHours: roundHours(shortfallHours),
         overHours: roundHours(overHours),
-        sessionCount: entries.length,
-        payableSessionCount: payableSessions
       });
-    }
-
-    totalsByDay.push({
-      date: day,
-      trainerId: entries[0].session.trainerId,
-      sessionCount: entries.length,
-      totalHours: roundHours(totalHours),
-      payableSessionCount: payableSessions,
-      payableHours: roundHours(payableHours),
-      cappedSessionCount: entries.length - payableSessions,
-      shortfallHours: roundHours(shortfallHours),
-      overHours: roundHours(overHours)
     });
-  });
 
   return {
     settings: settings,
@@ -293,7 +353,7 @@ function enforceDailyCaps(sessions, config) {
     violations: violations,
     totalsByDay: totalsByDay,
     source: 'session_records',
-    note: 'Payable sessions are clamped to max hours/sessions per day; short days are flagged for payroll review.'
+    note: 'Payable sessions are clamped to max hours/sessions per day; short days are flagged for payroll review.',
   };
 }
 
@@ -308,28 +368,37 @@ function noticeHoursFor(session) {
 function cancellationFines(sessions, rate, fineRules) {
   const threshold = Number(fineRules && fineRules.noticeHours);
   const noticeLimit = Number.isFinite(threshold) ? threshold : 48;
-  return sessions.filter(isTrainerCancellation).map(function (session) {
-    const noticeHours = noticeHoursFor(session);
-    const late = noticeHours !== null && noticeHours < noticeLimit;
-    return {
-      sessionId: session.id,
-      noticeHours: noticeHours === null ? null : Math.max(0, Math.round(noticeHours * 10) / 10),
-      late: late,
-      amount: late ? rate : 0,
-      basis: 'trainer_pay_per_session',
-      noticeDays: fineRules && fineRules.noticeDays ? Number(fineRules.noticeDays) : 2,
-      currency: (fineRules && fineRules.currency) || INR
-    };
-  }).filter(function (entry) { return entry.late; });
+  return sessions
+    .filter(isTrainerCancellation)
+    .map(function (session) {
+      const noticeHours = noticeHoursFor(session);
+      const late = noticeHours !== null && noticeHours < noticeLimit;
+      return {
+        sessionId: session.id,
+        noticeHours: noticeHours === null ? null : Math.max(0, Math.round(noticeHours * 10) / 10),
+        late: late,
+        amount: late ? rate : 0,
+        basis: 'trainer_pay_per_session',
+        noticeDays: fineRules && fineRules.noticeDays ? Number(fineRules.noticeDays) : 2,
+        currency: (fineRules && fineRules.currency) || INR,
+      };
+    })
+    .filter(function (entry) {
+      return entry.late;
+    });
 }
 
 function attendanceBonusFor(user, sessions, attendance, bonusRules, policy) {
   const expected = sessions.filter(function (session) {
-    return session.trainerId === user.id &&
+    return (
+      session.trainerId === user.id &&
       !isTrainerCancellation(session) &&
-      !attendancePolicy.isMutualLeave(session, policy);
+      !attendancePolicy.isMutualLeave(session, policy)
+    );
   });
-  const ids = expected.map(function (session) { return session.id; });
+  const ids = expected.map(function (session) {
+    return session.id;
+  });
   const rows = (attendance || []).filter(function (row) {
     return row.trainerId === user.id && ids.indexOf(row.sessionId) !== -1;
   });
@@ -338,9 +407,10 @@ function attendanceBonusFor(user, sessions, attendance, bonusRules, policy) {
     return String(row.status).toLowerCase() === 'present';
   }).length;
   const eligible = expected.length > 0 && presentCount === expected.length;
-  const priorStreak = Math.max(0, Number(
-    user.attendanceBonusStreak || user.perfectAttendanceStreak || 0
-  ) || 0);
+  const priorStreak = Math.max(
+    0,
+    Number(user.attendanceBonusStreak || user.perfectAttendanceStreak || 0) || 0
+  );
   const initial = Number(bonusRules && bonusRules.perfectAttendanceBonus);
   const increment = Number(bonusRules && bonusRules.incrementPerConsecutiveMonth);
   const initialBonus = Number.isFinite(initial) ? initial : 2000;
@@ -348,11 +418,11 @@ function attendanceBonusFor(user, sessions, attendance, bonusRules, policy) {
 
   return {
     eligible: eligible,
-    bonus: eligible ? initialBonus + (incrementBonus * priorStreak) : 0,
+    bonus: eligible ? initialBonus + incrementBonus * priorStreak : 0,
     consecutiveMonth: priorStreak + 1,
     presentCount: presentCount,
     expectedCount: expected.length,
-    source: 'attendance_records'
+    source: 'attendance_records',
   };
 }
 
@@ -360,25 +430,33 @@ function mvtRanking(trainers, sessions, period, awards) {
   const roster = (trainers && trainers.length ? trainers : []).slice();
   const amounts = Array.isArray(awards) && awards.length ? awards : [3000, 2000, 1000];
 
-  return roster.filter(function (trainer) { return trainer.role === 'trainer'; })
+  return roster
+    .filter(function (trainer) {
+      return trainer.role === 'trainer';
+    })
     .map(function (trainer) {
       return {
         trainerId: trainer.id,
         name: trainer.name,
         completedSessions: sessions.filter(function (session) {
-          return session.trainerId === trainer.id && inPeriod(session, period) && isBillable(session);
-        }).length
+          return (
+            session.trainerId === trainer.id && inPeriod(session, period) && isBillable(session)
+          );
+        }).length,
       };
     })
-    .filter(function (row) { return row.completedSessions > 0; })
+    .filter(function (row) {
+      return row.completedSessions > 0;
+    })
     .sort(function (a, b) {
-      if (b.completedSessions !== a.completedSessions) return b.completedSessions - a.completedSessions;
+      if (b.completedSessions !== a.completedSessions)
+        return b.completedSessions - a.completedSessions;
       return String(a.name).localeCompare(String(b.name));
     })
     .map(function (row, index) {
       return Object.assign({}, row, {
         rank: index + 1,
-        award: Number(amounts[index]) || 0
+        award: Number(amounts[index]) || 0,
       });
     });
 }
@@ -396,23 +474,28 @@ function buildDailySeries(user, sessions, period, config, asOf) {
   const rulesConfigured = Boolean(config.bonusRules && config.fineRules);
   const byDate = {};
 
-  sessions.filter(function (session) { return isBillable(session); }).forEach(function (session) {
-    const date = sessionDate(session);
-    if (!date) return;
-    const key = toYmd(date);
-    if (!byDate[key]) byDate[key] = { count: 0, amount: 0 };
-    const pay = sessionPayout(session, rate);
-    byDate[key].count += 1;
-    /* Demonstration classes use the same rate and 50-55 stretch as regular
+  sessions
+    .filter(function (session) {
+      return isBillable(session);
+    })
+    .forEach(function (session) {
+      const date = sessionDate(session);
+      if (!date) return;
+      const key = toYmd(date);
+      if (!byDate[key]) byDate[key] = { count: 0, amount: 0 };
+      const pay = sessionPayout(session, rate);
+      byDate[key].count += 1;
+      /* Demonstration classes use the same rate and 50-55 stretch as regular
        classes; the stretch only pays while the child is still present and the
        35-minute child gate is met. Fines stay out of this base trend. */
-    byDate[key].amount += pay.baseAmount + pay.stretchPay;
-  });
+      byDate[key].amount += pay.baseAmount + pay.stretchPay;
+    });
 
   let cumulative = 0;
   const points = periodDays(period, asOf).map(function (day, index) {
     const summary = byDate[day.date] || { count: 0, amount: 0 };
-    const daily = rulesConfigured ? Math.round(summary.amount * 100) / 100
+    const daily = rulesConfigured
+      ? Math.round(summary.amount * 100) / 100
       : illustrativeDaily(index, rate);
     cumulative += daily;
     return {
@@ -421,7 +504,7 @@ function buildDailySeries(user, sessions, period, config, asOf) {
       label: shortLabel(day.date),
       daily: daily,
       cumulative: cumulative,
-      sessions: rulesConfigured ? summary.count : null
+      sessions: rulesConfigured ? summary.count : null,
     };
   });
 
@@ -433,7 +516,7 @@ function buildDailySeries(user, sessions, period, config, asOf) {
     points: points,
     note: rulesConfigured
       ? 'Base pay from completed sessions. Bonuses, fines and MVT awards are excluded from daily points.'
-      : 'Illustrative trend preview. Final amounts unlock when payout rules are confirmed.'
+      : 'Illustrative trend preview. Final amounts unlock when payout rules are confirmed.',
   };
 }
 
@@ -441,7 +524,9 @@ function buildPayout(user, sessions, period, policy, context) {
   const config = (policy && policy.payout) || {};
   const options = context || {};
   const rate = rateFor(user, config);
-  const periodSessions = (sessions || []).filter(function (session) { return inPeriod(session, period); });
+  const periodSessions = (sessions || []).filter(function (session) {
+    return inPeriod(session, period);
+  });
   const completedSessions = periodSessions.filter(isBillable);
   const noShowSessions = periodSessions.filter(isNoShow);
   const mutualLeaveSessions = periodSessions.filter(function (session) {
@@ -451,32 +536,45 @@ function buildPayout(user, sessions, period, policy, context) {
     return attendancePolicy.isLateTrainerCancellation(session, policy);
   });
   const noShowConfig = config.noShow || {};
-  const noShowPayout = Number.isFinite(Number(noShowConfig.payout)) ? Number(noShowConfig.payout) : 0;
+  const noShowPayout = Number.isFinite(Number(noShowConfig.payout))
+    ? Number(noShowConfig.payout)
+    : 0;
   const capReport = enforceDailyCaps(completedSessions, config);
   const payableSessions = capReport.eligibleSessions;
   const sessionPayouts = payableSessions.map(function (session) {
     return sessionPayout(session, rate);
   });
-  const basePay = Math.round(sessionPayouts.reduce(function (sum, row) {
-    return sum + row.baseAmount;
-  }, 0) * 100) / 100;
-  const stretchPay = Math.round(sessionPayouts.reduce(function (sum, row) {
-    return sum + row.stretchPay;
-  }, 0) * 100) / 100;
-  const effectiveSessionCount = Math.round(sessionPayouts.reduce(function (sum, row) {
-    return sum + row.factor;
-  }, 0) * 100) / 100;
+  const basePay =
+    Math.round(
+      sessionPayouts.reduce(function (sum, row) {
+        return sum + row.baseAmount;
+      }, 0) * 100
+    ) / 100;
+  const stretchPay =
+    Math.round(
+      sessionPayouts.reduce(function (sum, row) {
+        return sum + row.stretchPay;
+      }, 0) * 100
+    ) / 100;
+  const effectiveSessionCount =
+    Math.round(
+      sessionPayouts.reduce(function (sum, row) {
+        return sum + row.factor;
+      }, 0) * 100
+    ) / 100;
 
-  const lateJoinFines = sessionPayouts.filter(function (row) {
-    return row.fine > 0 && row.timing.fineBasis === 'late_join_one_session_pay';
-  }).map(function (row) {
+  const lateJoinFines = sessionPayouts
+    .filter(function (row) {
+      return row.fine > 0 && row.timing.fineBasis === 'late_join_one_session_pay';
+    })
+    .map(function (row) {
       return {
         sessionId: row.sessionId,
         lateMinutes: row.timing.late.lateMinutes,
         late: true,
         amount: row.fine,
         basis: 'late_join_one_session_pay',
-        currency: INR
+        currency: INR,
       };
     });
   /* A trainer-only session is still payable after 15 counted minutes. Below
@@ -485,25 +583,34 @@ function buildPayout(user, sessions, period, policy, context) {
      not retroactively fined. */
   const shortConfig = config.shortTrainerPresence || {};
   const shortMinutes = Number.isFinite(Number(shortConfig.withoutStudentMinutes))
-    ? Number(shortConfig.withoutStudentMinutes) : 15;
+    ? Number(shortConfig.withoutStudentMinutes)
+    : 15;
   const shortFineSessions = Number.isFinite(Number(shortConfig.fineSessions))
-    ? Math.max(0, Number(shortConfig.fineSessions)) : 1;
-  const shortPresenceFines = periodSessions.filter(function (session) {
-    const presence = session && session.presence;
-    if (!presence || presence.payoutEligible !== false || studentJoinedIn(session)) return false;
-    if (attendancePolicy.isMutualLeave(session, policy) ||
-      attendancePolicy.isLateTrainerCancellation(session, policy)) return false;
-    const activeSeconds = Number(presence.trainerActiveSecondsInWindow);
-    return Number.isFinite(activeSeconds) && activeSeconds >= 0 && activeSeconds < shortMinutes * 60;
-  }).map(function (session) {
-    return {
-      sessionId: session.id,
-      late: false,
-      amount: Math.round(rate * shortFineSessions * 100) / 100,
-      basis: 'trainer_short_presence_one_session_pay',
-      currency: INR
-    };
-  });
+    ? Math.max(0, Number(shortConfig.fineSessions))
+    : 1;
+  const shortPresenceFines = periodSessions
+    .filter(function (session) {
+      const presence = session && session.presence;
+      if (!presence || presence.payoutEligible !== false || studentJoinedIn(session)) return false;
+      if (
+        attendancePolicy.isMutualLeave(session, policy) ||
+        attendancePolicy.isLateTrainerCancellation(session, policy)
+      )
+        return false;
+      const activeSeconds = Number(presence.trainerActiveSecondsInWindow);
+      return (
+        Number.isFinite(activeSeconds) && activeSeconds >= 0 && activeSeconds < shortMinutes * 60
+      );
+    })
+    .map(function (session) {
+      return {
+        sessionId: session.id,
+        late: false,
+        amount: Math.round(rate * shortFineSessions * 100) / 100,
+        basis: 'trainer_short_presence_one_session_pay',
+        currency: INR,
+      };
+    });
   /* With a child, under 35 counted minutes blocks pay and charges exactly one
      session-pay. This is derived from periodSessions because a blocked session
      is filtered out of payableSessions. evaluatePayoutTiming suppresses its
@@ -511,29 +618,43 @@ function buildPayout(user, sessions, period, policy, context) {
   const gateConfig = config.studentPayGateFine || {};
   const gateMinutes = childGateMinutes(policy);
   const gateFineSessions = Number.isFinite(Number(gateConfig.fineSessions))
-    ? Math.max(0, Number(gateConfig.fineSessions)) : 1;
-  const lateFineSessionIds = lateJoinFines.map(function (row) { return row.sessionId; });
-  const studentPayGateFines = periodSessions.filter(function (session) {
-    const presence = session && session.presence;
-    if (!presence || !studentJoinedIn(session)) return false;
-    if (isNoShow(session) || attendancePolicy.isMutualLeave(session, policy) ||
-      attendancePolicy.isLateTrainerCancellation(session, policy)) return false;
-    if (lateFineSessionIds.indexOf(session.id) !== -1) return false;
-    if (presence.studentPayGateMet === false) return true;
-    if (presence.studentPayGateMet !== undefined) return false;
-    return childCountedSecondsIn(session) < gateMinutes * 60;
-  }).map(function (session) {
-    return {
-      sessionId: session.id,
-      late: false,
-      amount: Math.round(rate * gateFineSessions * 100) / 100,
-      basis: 'student_pay_gate_one_session_pay',
-      currency: INR
-    };
+    ? Math.max(0, Number(gateConfig.fineSessions))
+    : 1;
+  const lateFineSessionIds = lateJoinFines.map(function (row) {
+    return row.sessionId;
   });
-  const fines = cancellationFines(periodSessions, rate, config.fineRules)
-    .concat(lateJoinFines, shortPresenceFines, studentPayGateFines);
-  const fineTotal = fines.reduce(function (sum, entry) { return sum + entry.amount; }, 0);
+  const studentPayGateFines = periodSessions
+    .filter(function (session) {
+      const presence = session && session.presence;
+      if (!presence || !studentJoinedIn(session)) return false;
+      if (
+        isNoShow(session) ||
+        attendancePolicy.isMutualLeave(session, policy) ||
+        attendancePolicy.isLateTrainerCancellation(session, policy)
+      )
+        return false;
+      if (lateFineSessionIds.indexOf(session.id) !== -1) return false;
+      if (presence.studentPayGateMet === false) return true;
+      if (presence.studentPayGateMet !== undefined) return false;
+      return childCountedSecondsIn(session) < gateMinutes * 60;
+    })
+    .map(function (session) {
+      return {
+        sessionId: session.id,
+        late: false,
+        amount: Math.round(rate * gateFineSessions * 100) / 100,
+        basis: 'student_pay_gate_one_session_pay',
+        currency: INR,
+      };
+    });
+  const fines = cancellationFines(periodSessions, rate, config.fineRules).concat(
+    lateJoinFines,
+    shortPresenceFines,
+    studentPayGateFines
+  );
+  const fineTotal = fines.reduce(function (sum, entry) {
+    return sum + entry.amount;
+  }, 0);
 
   const attendance = attendanceBonusFor(
     user,
@@ -549,21 +670,50 @@ function buildPayout(user, sessions, period, policy, context) {
     period,
     config.mvtAwards
   );
-  const mvt = ranking.find(function (row) { return row.trainerId === user.id; }) || {
+  const mvt = ranking.find(function (row) {
+    return row.trainerId === user.id;
+  }) || {
     trainerId: user.id,
     rank: null,
     completedSessions: completedSessions.length,
-    award: 0
+    award: 0,
   };
 
-  const slotPay = Number.isFinite(Number(options.slotPay)) ? Math.max(0, Number(options.slotPay)) : 0;
+  const slotPay = Number.isFinite(Number(options.slotPay))
+    ? Math.max(0, Number(options.slotPay))
+    : 0;
   const founderGratitude = founderGratitudeAmount(period, config);
-  const founderGratitudeNote = (config.founderGratitude && config.founderGratitude.note) ||
-    FOUNDER_GRATITUDE_NOTE;
-  /* The gift is protected: even if every other earning is consumed by fines,
-     the statement cannot fall below the configured monthly credit. */
-  const total = Math.max(founderGratitude,
-    basePay + stretchPay + attendance.bonus + mvt.award + slotPay + founderGratitude - fineTotal);
+  const founderGratitudeNote =
+    (config.founderGratitude && config.founderGratitude.note) || FOUNDER_GRATITUDE_NOTE;
+  const founderPenalties = founderPenaltiesFor(user, period, options);
+  const founderPenaltyTotal =
+    Math.round(
+      founderPenalties.reduce(function (sum, row) {
+        return sum + row.amount;
+      }, 0) * 100
+    ) / 100;
+  const founderPenaltyNote = founderPenalties.length
+    ? ' Founder-recorded penalties (each with date, amount and required reason): ' +
+      founderPenalties
+        .map(function (row) {
+          return row.date + ' · ₹' + row.amount + ' — ' + row.reason;
+        })
+        .join('; ') +
+      '.'
+    : '';
+  /* The gift is protected: even if every other earning is consumed by fines
+     or founder decisions, the statement cannot fall below the monthly credit. */
+  const total = Math.max(
+    founderGratitude,
+    basePay +
+      stretchPay +
+      attendance.bonus +
+      mvt.award +
+      slotPay +
+      founderGratitude -
+      fineTotal -
+      founderPenaltyTotal
+  );
   const parts = periodParts(period);
   const statementDate = validPeriod(period)
     ? new Date(Date.UTC(parts.year, parts.month, 1)).toISOString().slice(0, 10)
@@ -573,7 +723,7 @@ function buildPayout(user, sessions, period, policy, context) {
     trainer: {
       id: user.id,
       name: user.name,
-      role: user.role
+      role: user.role,
     },
     period: period,
     statementDate: statementDate,
@@ -593,23 +743,36 @@ function buildPayout(user, sessions, period, policy, context) {
         mvtAward: mvt.award,
         slotPay: slotPay,
         founderGratitude: founderGratitude,
-        fines: fineTotal
+        fines: fineTotal,
+        founderPenalties: founderPenaltyTotal,
       },
-      note: 'Calculated from completed sessions, shared late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Demos and regular classes share the same rate, duration, stretch and fine policy. With a child, pay unlocks only after 35 counted child minutes and 50 counted trainer minutes; under 35 child minutes there is no pay and exactly one session-pay is charged, with the late fine suppressed to prevent a double fine. Without a child, the trainer needs 15 counted minutes; below that there is no pay and one session-pay is charged. Mutual leave, no-shows and late trainer cancellations are not double-fined. ' + founderGratitudeNote
+      note:
+        'Calculated from completed sessions, shared late-join pay bands, 50 minutes within 55, 5 INR per full extra minute up to 55, attendance, MVT rank, 30% pay for unutilised committed slot hours and one session-pay per late trainer cancellation. Demos and regular classes share the same rate, duration, stretch and fine policy. With a child, pay unlocks only after 35 counted child minutes and 50 counted trainer minutes; under 35 child minutes there is no pay and exactly one session-pay is charged, with the late fine suppressed to prevent a double fine. Without a child, the trainer needs 15 counted minutes; below that there is no pay and one session-pay is charged. Mutual leave, no-shows and late trainer cancellations are not double-fined. ' +
+        founderGratitudeNote +
+        founderPenaltyNote,
     },
     bonuses: {
       value: attendance.bonus,
       currency: INR,
       rules: config.bonusRules,
       source: 'calculated',
-      detail: attendance
+      detail: attendance,
     },
     fines: {
       value: fineTotal,
       currency: INR,
       rules: config.fineRules,
       source: 'calculated',
-      entries: fines
+      entries: fines,
+    },
+    /* One-off founder decisions are not automated fine rules. The trainer sees
+       each dated amount with its REQUIRED reason, both here and in the amount
+       note above. A manager penalty never appears in a trainer statement. */
+    founderPenalties: {
+      value: founderPenaltyTotal,
+      currency: INR,
+      source: 'founder_decision',
+      entries: founderPenalties,
     },
     mvtAward: {
       value: mvt.award,
@@ -617,14 +780,14 @@ function buildPayout(user, sessions, period, policy, context) {
       rank: mvt.rank,
       basis: 'completed_sessions_in_period',
       source: 'calculated',
-      ranking: ranking
+      ranking: ranking,
     },
     slotPay: {
       value: slotPay,
       currency: INR,
       source: 'committed_slots',
       percentOfSessionRate: 30,
-      rule: 'Unutilised hours inside a declared trainer slot are paid at 30% of the session rate; classes inside the slot are paid at 100% through session pay.'
+      rule: 'Unutilised hours inside a declared trainer slot are paid at 30% of the session rate; classes inside the slot are paid at 100% through session pay.',
     },
     sessionTiming: {
       source: 'presence_events',
@@ -648,9 +811,9 @@ function buildPayout(user, sessions, period, policy, context) {
           studentPayGateMet: row.timing.studentPayGateMet,
           studentRequiredMinutes: row.timing.studentRequiredMinutes,
           studentCountedSeconds: row.timing.studentCountedSeconds,
-          completionCode: row.timing.completion.code
+          completionCode: row.timing.completion.code,
         };
-      })
+      }),
     },
     leaves: {
       count: mutualLeaveSessions.length,
@@ -658,23 +821,25 @@ function buildPayout(user, sessions, period, policy, context) {
       fine: 0,
       packPenalty: false,
       source: 'calculated',
-      rule: 'Notice of 2+ days by either side is mutual leave: no payout, no fine and no pack or attendance penalty.'
+      rule: 'Notice of 2+ days by either side is mutual leave: no payout, no fine and no pack or attendance penalty.',
     },
     lateTrainerCancellations: {
       count: lateCancellations.length,
       finePerSession: rate,
       currency: INR,
-      studentStatus: (config.studentAttendance && config.studentAttendance.lateTrainerCancellationStatus) || 'unattended',
+      studentStatus:
+        (config.studentAttendance && config.studentAttendance.lateTrainerCancellationStatus) ||
+        'unattended',
       source: 'calculated',
-      rule: 'Under 2 days notice costs the trainer exactly one session pay; the student session is marked unattended.'
+      rule: 'Under 2 days notice costs the trainer exactly one session pay; the student session is marked unattended.',
     },
     noShows: {
       count: noShowSessions.length,
       payoutPerSession: noShowPayout,
-      currency: (noShowConfig.currency) || INR,
+      currency: noShowConfig.currency || INR,
       marksSessionUsed: noShowConfig.marksSessionUsed !== false,
       source: 'calculated',
-      rule: 'A no-show earns no payout; the student session is marked as used.'
+      rule: 'A no-show earns no payout; the student session is marked as used.',
     },
     caps: {
       maxHoursPerDay: capReport.settings.maxHoursPerDay,
@@ -686,16 +851,18 @@ function buildPayout(user, sessions, period, policy, context) {
       violations: capReport.violations,
       totalsByDay: capReport.totalsByDay,
       source: capReport.source,
-      note: capReport.note
+      note: capReport.note,
     },
     policy: {
       rateRange: config.rateRange || null,
       maxHoursPerDay: config.maxHoursPerDay || null,
       maxSessionsPerDay: config.maxSessionsPerDay || null,
       minHoursPerDay: capReport.settings.minHoursPerDay,
-      leaveNoticeHours: config.leaveNoticeHours ||
-        (policy && policy.attendance && policy.attendance.leaveNoticeHours) || 48,
-      leaveRules: config.leaveRules || null
+      leaveNoticeHours:
+        config.leaveNoticeHours ||
+        (policy && policy.attendance && policy.attendance.leaveNoticeHours) ||
+        48,
+      leaveRules: config.leaveRules || null,
     },
     knownRules: {
       applied: true,
@@ -703,17 +870,19 @@ function buildPayout(user, sessions, period, policy, context) {
       attendanceBonus: {
         initial: 2000,
         incrementPerConsecutiveMonth: 500,
-        currency: INR
+        currency: INR,
       },
       mvtAwards: [3000, 2000, 1000],
       fine: 'A trainer cancellation with less than 2 days notice costs that trainer exactly one session pay.',
-      mutualLeave: 'Notice of 2+ days by either side is mutual leave with no payout, fine, pack or attendance penalty.',
-      studentStatus: 'A late trainer cancellation marks the student session unattended; no-shows mark it used.',
+      mutualLeave:
+        'Notice of 2+ days by either side is mutual leave with no payout, fine, pack or attendance penalty.',
+      studentStatus:
+        'A late trainer cancellation marks the student session unattended; no-shows mark it used.',
       noShow: 'No payout for a no-show; the session is marked as used for the student.',
-      caps: 'Max 6 hours/day and min 3 hours/day, with a 6-session/day ceiling in policy.'
+      caps: 'Max 6 hours/day and min 3 hours/day, with a 6-session/day ceiling in policy.',
     },
     dailySeries: buildDailySeries(user, payableSessions, period, config, options.asOf),
-    provenance: options.provenance || 'mock'
+    provenance: options.provenance || 'mock',
   };
 }
 
@@ -727,5 +896,5 @@ module.exports = {
   enforceDailyCaps: enforceDailyCaps,
   cancellationFines: cancellationFines,
   attendanceBonusFor: attendanceBonusFor,
-  mvtRanking: mvtRanking
+  mvtRanking: mvtRanking,
 };

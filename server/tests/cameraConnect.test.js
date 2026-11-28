@@ -25,6 +25,13 @@ function read(relative) {
   return fs.readFileSync(path.join(workspaceRoot, relative), 'utf8');
 }
 
+function bodyOf(source, name) {
+  const match = source.match(
+    new RegExp('function\\s+' + name + '\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?\\n {2}\\}')
+  );
+  return match ? match[0] : '';
+}
+
 async function main() {
   const connectHtml = read('classroom/connect.html');
   const connectJs = read('classroom/connect.js');
@@ -276,6 +283,85 @@ async function main() {
     /setAudioAvailability\('idle'\)/.test(connectJs) &&
       /getRemoteSource: remoteAudioSource/.test(connectJs),
     'preview shutdown stops analysis and a remote level is used only from a real source'
+  );
+
+  /* Mock rooms never publish local tracks. The camera deck must fall back to
+     the real device stream instead of showing empty tiles and locked controls. */
+  const localFallback = bodyOf(connectJs, 'startLocalFallback');
+  const cameraTrack = bodyOf(connectJs, 'localCameraTrack');
+  const micTrack = bodyOf(connectJs, 'localMicrophoneTrack');
+  const remoteSource = bodyOf(connectJs, 'remoteAudioSource');
+  const liveMessage = bodyOf(connectJs, 'setPreviewLiveMessage');
+  const stopPreviewBody = bodyOf(connectJs, 'stopPreview');
+  const stopFallback = bodyOf(connectJs, 'stopFallbackPreview');
+  const gesture = bodyOf(connectJs, 'bindAudioGesture');
+  const controls = bodyOf(connectJs, 'bindControls');
+  const remoteMedia = bodyOf(connectJs, 'applyRemoteMedia');
+  check(
+    /startLocalFallback\s*\(/.test(connectJs) &&
+      /getUserMedia\(\s*\{\s*video:\s*true\s*,\s*audio:\s*true\s*\}\s*\)/.test(localFallback) &&
+      /isMockPreviewRtc/.test(connectJs) &&
+      /livekit\\?\.mock\\?\.local/.test(connectJs) &&
+      /!url\s*\|\|\s*!rtc\.token/.test(connectJs),
+    'mock, missing and failed LiveKit previews fall back to a direct getUserMedia stream'
+  );
+  check(
+    /fallbackTrack\(\s*['"]video['"]\s*\)/.test(cameraTrack) &&
+      /fallbackTrack\(\s*['"]audio['"]\s*\)/.test(micTrack) &&
+      /publishedCameraTrack\(\)/.test(cameraTrack) &&
+      /publishedMicrophoneTrack\(\)/.test(micTrack) &&
+      /readyState\s*!==\s*['"]ended['"]/.test(bodyOf(connectJs, 'fallbackTrack')),
+    'camera look and mic analyser prefer live publication tracks, then real fallback tracks'
+  );
+  check(
+    /selfTrackAttached\s*=\s*true/.test(localFallback) &&
+      /srcObject\s*=\s*stream/.test(localFallback) &&
+      /placeholder\.hidden\s*=\s*true/.test(localFallback) &&
+      /renderMediaState\(\)/.test(localFallback),
+    'the direct preview attaches to the local tile and unlocks camera look exactly as a publication does'
+  );
+  check(
+    /addEventListener\(\s*['"]pointerdown['"]/.test(gesture) &&
+      /addEventListener\(\s*['"]click['"]/.test(gesture) &&
+      /mathifyCameraLook\.resumeAudio\(\s*\)/.test(gesture) &&
+      /once:\s*true/.test(gesture) &&
+      /context\.state\s*===\s*['"]suspended['"]/.test(cameraLookJs) &&
+      /localState\s*!==\s*['"]suspended['"]/.test(cameraLookJs),
+    'the first real gesture resumes the analyser and suspended levels stay visibly suspended'
+  );
+  check(
+    /permissionsHydrated/.test(controls) &&
+      /setFallbackMedia\(\s*['"]mic['"]\s*,\s*micOn\s*\)/.test(controls) &&
+      /setFallbackMedia\(\s*['"]camera['"]\s*,\s*cameraOn\s*\)/.test(controls) &&
+      /setFallbackMedia\(kind,\s*desired\)/.test(remoteMedia),
+    'fallback toggles stay optimistic and still respect the student permission gate'
+  );
+  check(
+    /if\s*\(\s*fallbackStream\s*\)[\s\S]{0,240}Local camera preview is live/.test(liveMessage) &&
+      /}\s*else\s*\{[\s\S]{0,240}Shared camera feed is live/.test(liveMessage) &&
+      /Shared video joins when the live connection is available/.test(liveMessage),
+    'fallback copy never claims the shared feed is live while live rooms keep their copy'
+  );
+  check(
+    /stopFallbackPreview\(\)/.test(stopPreviewBody) &&
+      /previewGeneration\s*\+=/.test(stopPreviewBody) &&
+      /getTracks\(\)[\s\S]{0,120}\.stop\(\)/.test(stopFallback) &&
+      /srcObject\s*=\s*null/.test(stopFallback) &&
+      /selfTrackAttached\s*=\s*false/.test(stopFallback),
+    'preview shutdown stops fallback tracks, clears the tile and invalidates late streams'
+  );
+  check(
+    /remoteAudioTrack\s*&&\s*remoteAudioTrack\.mediaStreamTrack/.test(remoteSource) &&
+      /new\s+Stream\(\s*\[\s*mediaTrack\s*\]\s*\)/.test(remoteSource) &&
+      !/new\s+(?:window\.)?MediaStream\(\s*\[\s*\]\s*\)/.test(connectJs) &&
+      !/createMediaStreamDestination/.test(connectJs),
+    'a remote analyser stream wraps only a real attached LiveKit audio track'
+  );
+  check(
+    !/\b(?:fetch|XMLHttpRequest|sendBeacon)\s*\(/.test(cameraLookJs) &&
+      !/\b(?:sessionId|presence|clock|pay|api)\b/.test(cameraLookJs) &&
+      /localStorage|getStorage/.test(cameraLookJs),
+    'camera look keeps only local preferences and exposes no lesson, pay or network surface'
   );
 
   const cameraLook = require(path.join(workspaceRoot, 'classroom', 'camera-background.js'));

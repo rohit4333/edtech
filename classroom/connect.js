@@ -17,6 +17,12 @@
   var selfTrackAttached = false;
   var remoteTrackAttached = false;
   var remoteAudio = null;
+  var remoteAudioTrack = null;
+  /* Direct getUserMedia preview for mock/unavailable LiveKit rooms. It is a
+     real local stream only: no synthetic frames, levels or remote participant. */
+  var fallbackStream = null;
+  var fallbackPending = null;
+  var previewGeneration = 0;
   /* Presets chosen on the readiness gate. They are local intent only; the SDK
      reconciles the real flags once the preview room connects. */
   var micOn = params.get('mic') !== 'off';
@@ -81,6 +87,22 @@
     if (cameraMessage) parts.push(cameraMessage);
     if (networkMessage && networkMessage !== cameraMessage) parts.push(networkMessage);
     setText('#connectStatus', parts.join(' ') || 'Preparing your camera check…');
+  }
+
+  /* A local preview is never described as the shared feed. Live rooms keep the
+     existing copy so the whiteboard handoff language does not change. */
+  function setPreviewLiveMessage() {
+    if (fallbackStream) {
+      cameraMessage = cameraOn
+        ? 'Local camera preview is live. Shared video joins when the live connection is available.'
+        : 'Local microphone preview is live. Shared video joins when the live connection is available.';
+    } else {
+      cameraMessage =
+        role === 'trainer'
+          ? 'Shared camera feed is live. Open the whiteboard when you are ready.'
+          : 'Shared camera feed is live. Waiting for your trainer to open the whiteboard.';
+    }
+    renderStatus();
   }
 
   function applyRole() {
@@ -193,6 +215,7 @@
     if (desired === current) return;
     if (kind === 'mic') micOn = desired;
     else cameraOn = desired;
+    setFallbackMedia(kind, desired);
     renderMediaState();
     setLocalMedia(kind, desired, current);
   }
@@ -461,7 +484,7 @@
   }
 
   function attachLocalVideo(publication) {
-    if (!publication || !publication.videoTrack || selfTrackAttached) return;
+    if (fallbackStream || !publication || !publication.videoTrack || selfTrackAttached) return;
     var video = $('#selfVideo');
     if (!video) return;
     try {
@@ -502,10 +525,145 @@
     document.body.appendChild(remoteAudio);
     try {
       track.attach(remoteAudio);
+      remoteAudioTrack = track;
     } catch (error) {
+      remoteAudioTrack = null;
+      if (remoteAudio.parentNode) remoteAudio.parentNode.removeChild(remoteAudio);
       remoteAudio = null;
     }
     syncAudioVisual();
+  }
+
+  function clearRemoteAudio() {
+    if (remoteAudio) {
+      try {
+        remoteAudio.srcObject = null;
+      } catch (error) {
+        /* already detached */
+      }
+      if (remoteAudio.parentNode) remoteAudio.parentNode.removeChild(remoteAudio);
+    }
+    remoteAudio = null;
+    remoteAudioTrack = null;
+  }
+
+  function releaseRoom() {
+    if (room) {
+      try {
+        room.disconnect();
+      } catch (error) {
+        /* already gone */
+      }
+      room = null;
+    }
+    if (mediaUi && typeof mediaUi.dispose === 'function') mediaUi.dispose();
+    mediaUi = null;
+  }
+
+  function isMockPreviewRtc(rtc) {
+    if (!rtc) return true;
+    var url = String(rtc.url || rtc.livekitUrl || '');
+    var token = String(rtc.token || rtc.rtcToken || '');
+    return (
+      rtc.mock === true ||
+      rtc.mode === 'mock' ||
+      /livekit\.mock\.local/i.test(url) ||
+      /^mock-livekit-token-/i.test(token)
+    );
+  }
+
+  function fallbackTrack(kind) {
+    if (!fallbackStream || typeof fallbackStream.getTracks !== 'function') return null;
+    var tracks = fallbackStream.getTracks();
+    for (var index = 0; index < tracks.length; index += 1) {
+      var track = tracks[index];
+      if (track && track.kind === kind && track.readyState !== 'ended') return track;
+    }
+    return null;
+  }
+
+  function setFallbackMedia(kind, desired) {
+    if (!fallbackStream) return;
+    var track = fallbackTrack(kind === 'mic' ? 'audio' : 'video');
+    if (track) track.enabled = desired !== false;
+  }
+
+  function stopFallbackPreview() {
+    var stream = fallbackStream;
+    fallbackStream = null;
+    if (stream && typeof stream.getTracks === 'function') {
+      stream.getTracks().forEach(function (track) {
+        track.stop();
+      });
+    }
+    var video = $('#selfVideo');
+    if (video) {
+      try {
+        video.srcObject = null;
+      } catch (error) {
+        /* already detached */
+      }
+    }
+    selfTrackAttached = false;
+  }
+
+  /* Mock mode and any failed LiveKit join still get an honest local look at the
+     hardware the readiness gate already approved. The stream is real, never
+     re-drawn, and is the only source for the local analyser in this mode. */
+  function startLocalFallback() {
+    if (fallbackStream) {
+      renderMediaState();
+      setPreviewLiveMessage();
+      return Promise.resolve(fallbackStream);
+    }
+    if (fallbackPending) return fallbackPending;
+    var media = navigator.mediaDevices;
+    if (!media || typeof media.getUserMedia !== 'function') {
+      cameraMessage = 'Local camera preview is unavailable in this browser.';
+      renderStatus();
+      return Promise.resolve(null);
+    }
+    releaseRoom();
+    var generation = previewGeneration;
+    cameraMessage = 'Starting your local camera preview…';
+    renderStatus();
+    fallbackPending = Promise.resolve(media.getUserMedia({ video: true, audio: true }))
+      .then(function (stream) {
+        fallbackPending = null;
+        if (generation !== previewGeneration) {
+          if (stream && typeof stream.getTracks === 'function') {
+            stream.getTracks().forEach(function (track) {
+              track.stop();
+            });
+          }
+          return null;
+        }
+        fallbackStream = stream;
+        setFallbackMedia('mic', micOn);
+        setFallbackMedia('camera', cameraOn);
+        var video = $('#selfVideo');
+        if (video) {
+          try {
+            video.srcObject = stream;
+          } catch (error) {
+            /* preview only */
+          }
+        }
+        var placeholder = $('#selfPlaceholder');
+        if (placeholder) placeholder.hidden = true;
+        selfTrackAttached = true;
+        renderMediaState();
+        setPreviewLiveMessage();
+        return stream;
+      })
+      .catch(function () {
+        fallbackPending = null;
+        cameraMessage =
+          'Local camera preview could not start. Allow camera and microphone access, then refresh.';
+        renderStatus();
+        return null;
+      });
+    return fallbackPending;
   }
 
   function updateControl(button, on, iconOn, iconOff, label) {
@@ -573,7 +731,7 @@
     syncAudioVisual();
   }
 
-  function localCameraTrack() {
+  function publishedCameraTrack() {
     if (!room || !room.localParticipant || !window.LivekitClient) return null;
     try {
       var source = window.LivekitClient.Track && window.LivekitClient.Track.Source;
@@ -589,7 +747,7 @@
     }
   }
 
-  function localMicrophoneTrack() {
+  function publishedMicrophoneTrack() {
     if (!room || !room.localParticipant || !window.LivekitClient) return null;
     try {
       var source = window.LivekitClient.Track && window.LivekitClient.Track.Source;
@@ -605,9 +763,29 @@
     }
   }
 
+  function localCameraTrack() {
+    return publishedCameraTrack() || fallbackTrack('video');
+  }
+
+  function localMicrophoneTrack() {
+    return publishedMicrophoneTrack() || fallbackTrack('audio');
+  }
+
   function remoteAudioSource() {
     if (!remoteAudio) return null;
-    return remoteAudio.srcObject || null;
+    if (remoteAudio.srcObject) return remoteAudio.srcObject;
+    /* Some SDK paths attach a real track without populating srcObject. Wrap
+       that exact MediaStreamTrack; never invent a silent remote signal. */
+    var mediaTrack = remoteAudioTrack && remoteAudioTrack.mediaStreamTrack;
+    if (!mediaTrack || mediaTrack.kind !== 'audio' || mediaTrack.readyState === 'ended')
+      return null;
+    var Stream = window.MediaStream;
+    if (!Stream) return null;
+    try {
+      return new Stream([mediaTrack]);
+    } catch (error) {
+      return null;
+    }
   }
 
   function cameraLookAllowed() {
@@ -675,6 +853,20 @@
     syncAudioVisual();
   }
 
+  /* Browsers keep AudioContext suspended until a real gesture. The first
+     pointer or click resumes the analyser; the visible Resume button stays for
+     any context that is still blocked, and levels remain idle while suspended. */
+  function bindAudioGesture() {
+    var resume = function () {
+      if (!window.mathifyCameraLook || typeof window.mathifyCameraLook.resumeAudio !== 'function')
+        return;
+      window.mathifyCameraLook.resumeAudio();
+    };
+    if (!document || typeof document.addEventListener !== 'function') return;
+    document.addEventListener('pointerdown', resume, { once: true });
+    document.addEventListener('click', resume, { once: true });
+  }
+
   function failLocalMedia(kind, previous, ticket) {
     if (ticket !== (kind === 'mic' ? micRequest : cameraRequest)) return;
     if (kind === 'mic') micOn = previous;
@@ -733,6 +925,7 @@
         var previous = micOn;
         micOn = !micOn;
         mediaGeneration += 1;
+        setFallbackMedia('mic', micOn);
         renderMediaState();
         setLocalMedia('mic', micOn, previous);
       });
@@ -745,6 +938,7 @@
         var previous = cameraOn;
         cameraOn = !cameraOn;
         mediaGeneration += 1;
+        setFallbackMedia('camera', cameraOn);
         renderMediaState();
         setLocalMedia('camera', cameraOn, previous);
       });
@@ -752,15 +946,15 @@
 
   function connectRoom(rtc) {
     var LivekitClient = window.LivekitClient;
-    if (!LivekitClient || typeof LivekitClient.Room !== 'function' || !rtc) {
-      cameraMessage = 'Live video is not available on this browser.';
-      renderStatus();
-      return;
-    }
-    var url = rtc.url || rtc.livekitUrl;
-    if (!url || !rtc.token) {
-      cameraMessage = 'No camera-check room was issued. Please refresh the page.';
-      renderStatus();
+    var url = rtc && (rtc.url || rtc.livekitUrl);
+    if (
+      !LivekitClient ||
+      typeof LivekitClient.Room !== 'function' ||
+      isMockPreviewRtc(rtc) ||
+      !url ||
+      !rtc.token
+    ) {
+      startLocalFallback();
       return;
     }
 
@@ -819,6 +1013,7 @@
           /* detached */
         }
       }
+      if (track.kind === 'audio') clearRemoteAudio();
       remoteTrackAttached = false;
       syncAudioVisual();
     });
@@ -839,6 +1034,7 @@
       renderStatus();
     });
     on(room, events.Disconnected, function () {
+      if (fallbackStream || fallbackPending) return;
       cameraMessage = 'Camera check disconnected. Refresh to try again.';
       renderStatus();
     });
@@ -876,14 +1072,13 @@
               room.localParticipant.getTrackPublication &&
               room.localParticipant.getTrackPublication(LivekitClient.Track.Source.Camera);
             attachLocalVideo(publication);
+            if (!selfTrackAttached && !fallbackStream && !publishedMicrophoneTrack()) {
+              startLocalFallback();
+            }
           });
       })
       .then(function () {
-        cameraMessage =
-          role === 'trainer'
-            ? 'Shared camera feed is live. Open the whiteboard when you are ready.'
-            : 'Shared camera feed is live. Waiting for your trainer to open the whiteboard.';
-        renderStatus();
+        if (!fallbackPending && !fallbackStream) setPreviewLiveMessage();
       })
       .catch(function () {
         if (room && room.localParticipant && connectGeneration === mediaGeneration) {
@@ -895,27 +1090,27 @@
           }
         }
         renderMediaState();
-        cameraMessage = 'Camera access was blocked. Allow the camera and microphone, then refresh.';
-        renderStatus();
+        releaseRoom();
+        startLocalFallback();
       });
   }
 
   function initPreview() {
     if (!api || typeof api.getPreviewToken !== 'function') {
-      cameraMessage = 'Camera check is unavailable for this session.';
-      renderStatus();
+      startLocalFallback();
       return;
     }
     api
       .getPreviewToken(sessionId)
       .then(connectRoom)
       .catch(function () {
-        cameraMessage = 'Camera check could not be opened. Please refresh the page.';
-        renderStatus();
+        startLocalFallback();
       });
   }
 
   function stopPreview() {
+    previewGeneration += 1;
+    fallbackPending = null;
     if (cameraLookBound && window.mathifyCameraLook) {
       if (typeof window.mathifyCameraLook.setFeedAvailable === 'function') {
         window.mathifyCameraLook.setFeedAvailable(false);
@@ -927,18 +1122,9 @@
     if (presenceTimer) window.clearInterval(presenceTimer);
     if (boardTimer) window.clearInterval(boardTimer);
     if (stateTimer) window.clearInterval(stateTimer);
-    if (room) {
-      try {
-        room.disconnect();
-      } catch (error) {
-        /* already gone */
-      }
-      room = null;
-    }
-    if (mediaUi && typeof mediaUi.dispose === 'function') mediaUi.dispose();
-    mediaUi = null;
-    if (remoteAudio && remoteAudio.parentNode) remoteAudio.parentNode.removeChild(remoteAudio);
-    remoteAudio = null;
+    releaseRoom();
+    stopFallbackPreview();
+    clearRemoteAudio();
   }
 
   function classroomUrl() {
@@ -1046,6 +1232,7 @@
     bindControls();
     bindAccessMenu();
     bindCameraLook();
+    bindAudioGesture();
     renderMediaState();
     if (!sessionId) {
       networkMessage = 'Open a session from your dashboard first.';
